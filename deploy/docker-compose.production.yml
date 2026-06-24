@@ -17,7 +17,7 @@ services:
   rails:
     <<: *app
     command: >
-      bash -c "
+      sh -c "
         bundle exec rails db:chatwoot_prepare &&
         bundle exec rails ip_lookup:setup &&
         bundle exec rails server -b 0.0.0.0 -p 3000
