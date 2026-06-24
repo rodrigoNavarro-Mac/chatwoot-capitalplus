@@ -1,6 +1,6 @@
 /* global axios */
 
-import ApiClient from '../apiClient';
+import ApiClient from '../ApiClient';
 
 class ZohoCrmAPI extends ApiClient {
   constructor() {
