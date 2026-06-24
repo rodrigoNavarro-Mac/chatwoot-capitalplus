@@ -46,7 +46,15 @@ class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
   end
 
   def permitted_params
-    params.permit(:name, :description, :outgoing_url, :avatar, :avatar_url, :bot_type, bot_config: {})
+    p = params.permit(:name, :description, :outgoing_url, :avatar, :avatar_url, :bot_type, :bot_config, bot_config: {})
+    if params[:bot_config].is_a?(String)
+      begin
+        p[:bot_config] = JSON.parse(params[:bot_config])
+      rescue JSON::ParserError
+        p.delete(:bot_config)
+      end
+    end
+    p
   end
 
   def process_avatar_from_url

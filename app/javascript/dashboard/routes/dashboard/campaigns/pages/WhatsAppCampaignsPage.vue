@@ -8,6 +8,7 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import CampaignLayout from 'dashboard/components-next/Campaigns/CampaignLayout.vue';
 import CampaignList from 'dashboard/components-next/Campaigns/Pages/CampaignPage/CampaignList.vue';
 import WhatsAppCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/WhatsAppCampaignDialog.vue';
+import EditWhatsAppCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/EditWhatsAppCampaignDialog.vue';
 import ConfirmDeleteCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/ConfirmDeleteCampaignDialog.vue';
 import WhatsAppCampaignEmptyState from 'dashboard/components-next/Campaigns/EmptyState/WhatsAppCampaignEmptyState.vue';
 
@@ -21,6 +22,7 @@ const uiFlags = useMapGetter('campaigns/getUIFlags');
 const isFetchingCampaigns = computed(() => uiFlags.value.isFetching);
 
 const confirmDeleteCampaignDialogRef = ref(null);
+const editCampaignDialogRef = ref(null);
 
 const WhatsAppCampaigns = computed(
   () => getters['campaigns/getWhatsAppCampaigns'].value
@@ -33,6 +35,11 @@ const hasNoWhatsAppCampaigns = computed(
 const handleDelete = campaign => {
   selectedCampaign.value = campaign;
   confirmDeleteCampaignDialogRef.value.dialogRef.open();
+};
+
+const handleEdit = campaign => {
+  selectedCampaign.value = campaign;
+  editCampaignDialogRef.value.dialogRef.open();
 };
 </script>
 
@@ -58,6 +65,7 @@ const handleDelete = campaign => {
     <CampaignList
       v-else-if="!hasNoWhatsAppCampaigns"
       :campaigns="WhatsAppCampaigns"
+      @edit="handleEdit"
       @delete="handleDelete"
     />
     <WhatsAppCampaignEmptyState
@@ -68,6 +76,10 @@ const handleDelete = campaign => {
     />
     <ConfirmDeleteCampaignDialog
       ref="confirmDeleteCampaignDialogRef"
+      :selected-campaign="selectedCampaign"
+    />
+    <EditWhatsAppCampaignDialog
+      ref="editCampaignDialogRef"
       :selected-campaign="selectedCampaign"
     />
   </CampaignLayout>

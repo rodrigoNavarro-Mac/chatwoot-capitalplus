@@ -4,12 +4,17 @@
 #
 #  id                                 :bigint           not null, primary key
 #  audience                           :jsonb
+#  audience_type                      :string           default("labels"), not null
 #  campaign_status                    :integer          default("active"), not null
 #  campaign_type                      :integer          default("ongoing"), not null
+#  delay_max_seconds                  :integer          default(420), not null
+#  delay_min_seconds                  :integer          default(300), not null
 #  description                        :text
 #  enabled                            :boolean          default(TRUE)
 #  message                            :text             not null
 #  scheduled_at                       :datetime
+#  send_window_end                    :string           default("19:00"), not null
+#  send_window_start                  :string           default("09:00"), not null
 #  template_params                    :jsonb
 #  title                              :string           not null
 #  trigger_only_during_business_hours :boolean          default(FALSE)
@@ -50,6 +55,7 @@ class Campaign < ApplicationRecord
   enum campaign_status: { active: 0, completed: 1, processing: 2 }
 
   has_many :conversations, dependent: :nullify, autosave: true
+  has_one_attached :csv_audience
 
   before_validation :ensure_correct_campaign_attributes
   after_commit :set_display_id, unless: :display_id?

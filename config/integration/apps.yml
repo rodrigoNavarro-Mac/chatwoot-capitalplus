@@ -317,3 +317,80 @@ leadsquared:
       'conversation_activity_score',
       'transcript_activity_score',
     ]
+zoho_crm:
+  id: zoho_crm
+  feature_flag: crm_integration
+  logo: zoho_crm.png
+  i18n_key: zoho_crm
+  action: /zoho_crm
+  hook_type: account
+  allow_multiple_hooks: false
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'client_id': { 'type': 'string' },
+          'client_secret': { 'type': 'string' },
+          'refresh_token': { 'type': 'string' },
+          'datacenter': { 'type': 'string', 'enum': ['com', 'eu', 'in', 'com.au', 'jp'] },
+          'webhook_secret': { 'type': 'string' },
+          'enable_conversation_note': { 'type': 'boolean' },
+          'enable_transcript_note': { 'type': 'boolean' },
+        },
+      'required': ['client_id', 'client_secret', 'refresh_token'],
+      'additionalProperties': false,
+    }
+  settings_form_schema:
+    [
+      {
+        'label': 'Client ID',
+        'type': 'text',
+        'name': 'client_id',
+        'validation': 'required',
+      },
+      {
+        'label': 'Client Secret',
+        'type': 'text',
+        'name': 'client_secret',
+        'validation': 'required',
+      },
+      {
+        'label': 'Refresh Token',
+        'type': 'text',
+        'name': 'refresh_token',
+        'validation': 'required',
+      },
+      {
+        'label': 'Data Center',
+        'type': 'select',
+        'name': 'datacenter',
+        'options': ['com', 'eu', 'in', 'com.au', 'jp'],
+        'help': 'Select the Zoho data center where your account is hosted',
+      },
+      {
+        'label': 'Webhook Secret',
+        'type': 'text',
+        'name': 'webhook_secret',
+        'help': 'Secret token to verify incoming webhooks from Zoho CRM',
+      },
+      {
+        'label': 'Push Conversation Note',
+        'type': 'checkbox',
+        'name': 'enable_conversation_note',
+        'help': 'Create a note in Zoho CRM when a conversation starts',
+      },
+      {
+        'label': 'Push Transcript Note',
+        'type': 'checkbox',
+        'name': 'enable_transcript_note',
+        'help': 'Create a note in Zoho CRM with the full transcript when a conversation is resolved',
+      },
+    ]
+  visible_properties:
+    [
+      'client_id',
+      'datacenter',
+      'enable_conversation_note',
+      'enable_transcript_note',
+    ]

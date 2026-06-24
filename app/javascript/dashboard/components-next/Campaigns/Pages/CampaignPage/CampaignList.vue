@@ -16,6 +16,14 @@ const emit = defineEmits(['edit', 'delete']);
 
 const handleEdit = campaign => emit('edit', campaign);
 const handleDelete = campaign => emit('delete', campaign);
+
+const canEditCampaign = campaign => {
+  const isWhatsApp = campaign.inbox?.channel_type === 'Channel::Whatsapp';
+  const isEditable =
+    campaign.campaign_status !== 'completed' &&
+    campaign.campaign_status !== 'processing';
+  return isWhatsApp && isEditable;
+};
 </script>
 
 <template>
@@ -31,6 +39,7 @@ const handleDelete = campaign => emit('delete', campaign);
       :inbox="campaign.inbox"
       :scheduled-at="campaign.scheduled_at"
       :is-live-chat-type="isLiveChatType"
+      :can-edit="canEditCampaign(campaign)"
       @edit="handleEdit(campaign)"
       @delete="handleDelete(campaign)"
     />

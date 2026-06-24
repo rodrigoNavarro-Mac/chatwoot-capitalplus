@@ -386,6 +386,10 @@ en:
       name: 'LeadSquared'
       short_description: 'Sync your contacts and conversations with LeadSquared CRM.'
       description: 'Sync your contacts and conversations with LeadSquared CRM. This integration automatically creates leads in LeadSquared when new contacts are added, and logs conversation activity to provide your sales team with complete context.'
+    zoho_crm:
+      name: 'Zoho CRM'
+      short_description: 'Sync your contacts and conversations with Zoho CRM.'
+      description: 'Connect Zoho CRM to automatically sync contacts, enrich conversation context with CRM data, and log conversations as notes in Zoho. Supports bidirectional sync via Zoho Workflow webhooks.'
   captain:
     copilot_message_required: Message is required
     copilot_error: 'Please connect an assistant to this inbox to use Copilot'

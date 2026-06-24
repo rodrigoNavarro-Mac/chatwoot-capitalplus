@@ -4,6 +4,17 @@ import AgentBotsAPI from '../../api/agentBots';
 import InboxesAPI from '../../api/inboxes';
 import { throwErrorMessage } from '../utils/api';
 
+const buildBotFormData = data => {
+  const fd = new FormData();
+  fd.append('name', data.name || '');
+  fd.append('description', data.description || '');
+  fd.append('bot_type', data.bot_type || 'webhook');
+  if (data.outgoing_url) fd.append('outgoing_url', data.outgoing_url);
+  if (data.bot_config) fd.append('bot_config', data.bot_config);
+  if (data.avatar) fd.append('avatar', data.avatar);
+  return fd;
+};
+
 export const state = {
   records: [],
   uiFlags: {
@@ -53,18 +64,7 @@ export const actions = {
   create: async ({ commit }, botData) => {
     commit(types.SET_AGENT_BOT_UI_FLAG, { isCreating: true });
     try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('name', botData.name);
-      formData.append('description', botData.description);
-      formData.append('bot_type', botData.bot_type || 'webhook');
-      formData.append('outgoing_url', botData.outgoing_url);
-
-      // Add avatar file if available
-      if (botData.avatar) {
-        formData.append('avatar', botData.avatar);
-      }
-
+      const formData = buildBotFormData(botData);
       const response = await AgentBotsAPI.create(formData);
       commit(types.ADD_AGENT_BOT, response.data);
       return response.data;
@@ -79,17 +79,7 @@ export const actions = {
   update: async ({ commit }, { id, data }) => {
     commit(types.SET_AGENT_BOT_UI_FLAG, { isUpdating: true });
     try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('name', data.name);
-      formData.append('description', data.description);
-      formData.append('bot_type', data.bot_type || 'webhook');
-      formData.append('outgoing_url', data.outgoing_url);
-
-      if (data.avatar) {
-        formData.append('avatar', data.avatar);
-      }
-
+      const formData = buildBotFormData(data);
       const response = await AgentBotsAPI.update(id, formData);
       commit(types.EDIT_AGENT_BOT, response.data);
     } catch (error) {
@@ -97,6 +87,29 @@ export const actions = {
     } finally {
       commit(types.SET_AGENT_BOT_UI_FLAG, { isUpdating: false });
     }
+  },
+
+  duplicate: async ({ commit }, bot) => {
+    commit(types.SET_AGENT_BOT_UI_FLAG, { isCreating: true });
+    try {
+      const formData = buildBotFormData({
+        name: `Copia de ${bot.name}`,
+        description: bot.description || '',
+        bot_type: bot.bot_type,
+        outgoing_url: bot.outgoing_url || '',
+        bot_config: bot.bot_config && Object.keys(bot.bot_config).length
+          ? JSON.stringify(bot.bot_config)
+          : '',
+      });
+      const response = await AgentBotsAPI.create(formData);
+      commit(types.ADD_AGENT_BOT, response.data);
+      return response.data;
+    } catch (error) {
+      throwErrorMessage(error);
+    } finally {
+      commit(types.SET_AGENT_BOT_UI_FLAG, { isCreating: false });
+    }
+    return null;
   },
 
   delete: async ({ commit }, id) => {

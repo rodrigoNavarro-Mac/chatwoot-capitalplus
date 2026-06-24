@@ -16,6 +16,12 @@ json.campaign_type resource.campaign_type
 if resource.campaign_type == 'one_off'
   json.scheduled_at resource.scheduled_at.to_i
   json.audience resource.audience
+  json.audience_type resource.audience_type
+  json.delay_min_seconds resource.delay_min_seconds
+  json.delay_max_seconds resource.delay_max_seconds
+  json.send_window_start resource.send_window_start
+  json.send_window_end resource.send_window_end
+  json.has_csv_audience resource.csv_audience.attached?
 end
 json.trigger_rules resource.trigger_rules
 json.trigger_only_during_business_hours resource.trigger_only_during_business_hours

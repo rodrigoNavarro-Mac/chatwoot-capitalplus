@@ -37,7 +37,7 @@
       "LOADING": "Fetching bots...",
       "TABLE_HEADER": {
         "DETAILS": "Bot Details",
-        "URL": "Webhook URL",
+        "URL": "Webhook URL / Config",
         "ACTIONS": "Actions"
       }
     },
@@ -98,10 +98,22 @@
         "PLACEHOLDER": "https://example.com/webhook",
         "REQUIRED": "Webhook URL is required"
       },
+      "BOT_TYPE": {
+        "LABEL": "Bot type",
+        "WEBHOOK": "Webhook",
+        "INTERNAL_FLOW": "Internal flow"
+      },
+      "BOT_CONFIG": {
+        "LABEL": "Bot configuration (JSON)",
+        "PLACEHOLDER": "{\n  \"variables\": {\n    \"development_name\": \"My Project\"\n  },\n  \"initial_step\": \"welcome\",\n  \"steps\": {\n    \"welcome\": {\n      \"message\": \"Hello! How can I help you?\",\n      \"transitions\": []\n    }\n  }\n}",
+        "DESCRIPTION": "Define the conversation flow in JSON. Use variables with {{variable_name}} syntax in messages."
+      },
       "ERRORS": {
         "NAME": "Bot name is required",
         "URL": "Webhook URL is required",
-        "VALID_URL": "Please enter a valid URL starting with http:// or https://"
+        "VALID_URL": "Please enter a valid URL starting with http:// or https://",
+        "BOT_CONFIG": "Bot configuration is required for internal flow bots",
+        "INVALID_JSON": "Please enter a valid JSON configuration"
       },
       "CANCEL": "Cancel",
       "CREATE": "Create Bot",
@@ -110,8 +122,70 @@
     "WEBHOOK": {
       "DESCRIPTION": "Configure a webhook bot to integrate with your custom services. The bot will receive and process events from conversations and can respond to them."
     },
+    "INTERNAL_FLOW": {
+      "DESCRIPTION": "Configure a rule-based bot that runs directly inside Chatwoot. Define conversation steps visually and the bot will guide users through the flow automatically."
+    },
+    "FLOW_BUILDER": {
+      "TITLE": "Configure bot flow",
+      "DESCRIPTION": "Define steps, messages and transitions. JSON is generated automatically.",
+      "VARIABLES": {
+        "TITLE": "Variables",
+        "HINT": "Reusable values you can insert in messages using {{name}}",
+        "ADD": "Add variable",
+        "EMPTY": "No variables — add them if you want to personalize messages.",
+        "KEY_PLACEHOLDER": "variable_name",
+        "VALUE_PLACEHOLDER": "Value"
+      },
+      "STEPS": {
+        "TITLE": "Flow steps",
+        "ADD": "Add step",
+        "EMPTY": "No steps yet. Click Add step to get started.",
+        "INITIAL_LABEL": "Initial step",
+        "STEP_NAME_PLACEHOLDER": "step_name"
+      },
+      "STEP": {
+        "MESSAGE_LABEL": "Bot message",
+        "MESSAGE_PLACEHOLDER": "Write the message the bot will send to the customer…",
+        "MESSAGE_HINT": "Use {{variable_name}} to insert variables.",
+        "ACTION_LABEL": "Action on send",
+        "ACTIONS": {
+          "NONE": "No action (continue flow)",
+          "OPEN": "Transfer to human agent",
+          "RESOLVE": "Resolve and close conversation"
+        },
+        "TRANSITIONS_LABEL": "Transitions",
+        "TRANSITIONS_ADD": "Add",
+        "TRANSITIONS_EMPTY": "No transitions — on reply, returns to initial step.",
+        "TERMINAL_NOTE": "This step ends the conversation — no transitions needed.",
+        "INITIAL_BUTTON": "↑ Set as initial",
+        "SET_INITIAL_TITLE": "Set as initial step"
+      },
+      "TRANSITION": {
+        "CONDITIONS": {
+          "CONTAINS": "Contains",
+          "EQUALS": "Is exactly",
+          "STARTS_WITH": "Starts with",
+          "DEFAULT": "Default (fallback)"
+        },
+        "CONTAINS_PLACEHOLDER": "yes, si, 1",
+        "EQUALS_PLACEHOLDER": "exact text",
+        "DEFAULT_LABEL": "any response",
+        "NEXT_STEP_PLACEHOLDER": "— target step —"
+      },
+      "SUMMARY": {
+        "CONFIGURED": "Flow configured",
+        "STEPS": "{n} steps",
+        "VARIABLES": "{n} variables",
+        "INITIAL": "initial"
+      },
+      "CONFIGURE_BUTTON": "Configure flow",
+      "EDIT_BUTTON": "Edit flow",
+      "SAVE": "Save flow",
+      "CANCEL": "Cancel"
+    },
     "TYPES": {
-      "WEBHOOK": "Webhook bot"
+      "WEBHOOK": "Webhook bot",
+      "INTERNAL_FLOW": "Internal flow bot"
     }
   }
 }

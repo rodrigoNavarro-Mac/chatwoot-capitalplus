@@ -11,6 +11,7 @@ const store = useStore();
 onMounted(() => {
   store.dispatch('campaigns/get');
   store.dispatch('labels/get');
+  store.dispatch('inboxes/get');
 });
 </script>
 

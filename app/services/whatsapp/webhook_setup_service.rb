@@ -57,7 +57,7 @@ class Whatsapp::WebhookSetupService
 
   def setup_webhook(subscribed_fields: nil)
     callback_url = build_callback_url
-    verify_token = @channel.provider_config['webhook_verify_token']
+    verify_token = global_verify_token
 
     args = [@waba_id, callback_url, verify_token]
     if subscribed_fields
@@ -70,11 +70,14 @@ class Whatsapp::WebhookSetupService
     raise "Webhook setup failed: #{e.message}"
   end
 
-  def build_callback_url
-    frontend_url = ENV.fetch('FRONTEND_URL', nil)
-    phone_number = @channel.phone_number
+  def global_verify_token
+    new_token = SecureRandom.hex(16)
+    config = InstallationConfig.where(name: 'WHATSAPP_WEBHOOK_VERIFY_TOKEN').first_or_create(value: new_token, locked: false)
+    config.value
+  end
 
-    "#{frontend_url}/webhooks/whatsapp/#{phone_number}"
+  def build_callback_url
+    "#{ENV.fetch('FRONTEND_URL', nil)}/webhooks/whatsapp"
   end
 
   def phone_number_verified?

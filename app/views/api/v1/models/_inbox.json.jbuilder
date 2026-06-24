@@ -131,6 +131,9 @@ if resource.whatsapp?
   json.message_templates resource.channel.try(:message_templates)
   json.provider_config resource.channel.try(:provider_config) if Current.account_user&.administrator?
   json.reauthorization_required resource.channel.try(:reauthorization_required?)
+  if resource.channel.try(:provider) == 'whatsapp_cloud' && Current.account_user&.administrator?
+    json.global_webhook_verify_token GlobalConfigService.load('WHATSAPP_WEBHOOK_VERIFY_TOKEN', nil)
+  end
 end
 
 ## Voice attributes for TwilioSms

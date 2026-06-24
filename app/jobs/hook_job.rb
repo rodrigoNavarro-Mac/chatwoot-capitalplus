@@ -8,6 +8,7 @@ class HookJob < MutexApplicationJob
     'dialogflow' => :process_dialogflow_integration,
     'google_translate' => :google_translate_integration,
     'leadsquared' => :process_leadsquared_integration_with_lock,
+    'zoho_crm' => :process_zoho_crm_integration_with_lock,
     'linear' => :process_linear_integration
   }.freeze
 
@@ -82,6 +83,30 @@ class HookJob < MutexApplicationJob
     key = format(::Redis::Alfred::CRM_PROCESS_MUTEX, hook_id: hook.id)
     with_lock(key) do
       process_leadsquared_integration(hook, event_name, event_data)
+    end
+  end
+
+  def process_zoho_crm_integration_with_lock(hook, event_name, event_data)
+    valid_event_names = ['contact.updated', 'conversation.created', 'conversation.resolved']
+    return unless valid_event_names.include?(event_name)
+    return unless hook.feature_allowed?
+
+    key = format(::Redis::Alfred::CRM_PROCESS_MUTEX, hook_id: hook.id)
+    with_lock(key) do
+      process_zoho_crm_integration(hook, event_name, event_data)
+    end
+  end
+
+  def process_zoho_crm_integration(hook, event_name, event_data)
+    processor = Crm::Zoho::ProcessorService.new(hook)
+
+    case event_name
+    when 'contact.updated'
+      processor.handle_contact(event_data[:contact])
+    when 'conversation.created'
+      processor.handle_conversation_created(event_data)
+    when 'conversation.resolved'
+      processor.handle_conversation_resolved(event_data)
     end
   end
 

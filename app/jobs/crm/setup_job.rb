@@ -23,11 +23,8 @@ class Crm::SetupJob < ApplicationJob
     case hook.app_id
     when 'leadsquared'
       Crm::Leadsquared::SetupService.new(hook)
-    # Add cases for future CRMs here
-    # when 'hubspot'
-    #   Crm::Hubspot::SetupService.new(hook)
-    # when 'zoho'
-    #   Crm::Zoho::SetupService.new(hook)
+    when 'zoho_crm'
+      nil # Zoho CRM does not require pre-setup steps
     else
       Rails.logger.error "Unsupported CRM app_id: #{hook.app_id}"
       nil

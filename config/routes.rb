@@ -363,6 +363,16 @@ Rails.application.routes.draw do
                 get :orders
               end
             end
+            resource :zoho_crm, controller: 'zoho_crm', only: [] do
+              collection do
+                get :contact_data
+                post :create_lead
+                post :create_deal
+                patch :update_stage
+                post :create_crm_note
+                post :push_to_crm
+              end
+            end
             resource :linear, controller: 'linear', only: [] do
               collection do
                 delete :destroy
@@ -614,12 +624,15 @@ Rails.application.routes.draw do
   post 'webhooks/line/:line_channel_id', to: 'webhooks/line#process_payload'
   post 'webhooks/telegram/:bot_token', to: 'webhooks/telegram#process_payload'
   post 'webhooks/sms/:phone_number', to: 'webhooks/sms#process_payload'
+  get 'webhooks/whatsapp', to: 'webhooks/whatsapp#verify'
+  post 'webhooks/whatsapp', to: 'webhooks/whatsapp#process_payload'
   get 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#verify'
   post 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#process_payload'
   get 'webhooks/instagram', to: 'webhooks/instagram#verify'
   post 'webhooks/instagram', to: 'webhooks/instagram#events'
   post 'webhooks/tiktok', to: 'webhooks/tiktok#events'
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
+  post 'webhooks/zoho_crm/:account_id', to: 'webhooks/zoho_crm#process_payload'
 
   namespace :twitter do
     resource :callback, only: [:show]

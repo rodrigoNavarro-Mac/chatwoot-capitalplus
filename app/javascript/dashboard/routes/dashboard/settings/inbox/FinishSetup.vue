@@ -198,6 +198,9 @@ onMounted(() => {
             {{ $t('INBOX_MGMT.ADD.WHATSAPP.API_CALLBACK.WEBHOOK_URL') }}
           </p>
           <woot-code lang="html" :script="currentInbox.callback_webhook_url" />
+          <p class="mt-2 text-sm text-n-slate-9">
+            {{ $t('INBOX_MGMT.ADD.WHATSAPP.API_CALLBACK.WEBHOOK_URL_NOTE') }}
+          </p>
           <p class="mt-8 font-medium text-n-slate-11">
             {{
               $t(
@@ -207,7 +210,7 @@ onMounted(() => {
           </p>
           <woot-code
             lang="html"
-            :script="currentInbox.provider_config.webhook_verify_token"
+            :script="currentInbox.global_webhook_verify_token"
           />
         </div>
         <div class="w-[50%] max-w-[50%] ml-[25%]">

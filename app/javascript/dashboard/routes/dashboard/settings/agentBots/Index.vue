@@ -68,6 +68,18 @@ const openDeletePopup = bot => {
   agentBotDeleteDialogRef.value.open();
 };
 
+const duplicateBot = async bot => {
+  loading.value[bot.id] = true;
+  try {
+    await store.dispatch('agentBots/duplicate', bot);
+    useAlert(`"${bot.name}" duplicado correctamente.`);
+  } catch {
+    useAlert(t('AGENT_BOTS.ADD.API.ERROR_MESSAGE'));
+  } finally {
+    loading.value[bot.id] = false;
+  }
+};
+
 const deleteAgentBot = async id => {
   try {
     await store.dispatch('agentBots/delete', id);
@@ -151,6 +163,20 @@ onMounted(() => {
                       >
                         {{ $t('AGENT_BOTS.GLOBAL_BOT_BADGE') }}
                       </span>
+                      <span
+                        class="text-xs rounded-md py-0.5 px-1 flex-shrink-0"
+                        :class="
+                          bot.bot_type === 'internal_flow'
+                            ? 'text-n-teal-11 bg-n-teal-3'
+                            : 'text-n-slate-11 bg-n-slate-3'
+                        "
+                      >
+                        {{
+                          bot.bot_type === 'internal_flow'
+                            ? $t('AGENT_BOTS.TYPES.INTERNAL_FLOW')
+                            : $t('AGENT_BOTS.TYPES.WEBHOOK')
+                        }}
+                      </span>
                     </div>
                     <span class="text-body-main text-n-slate-11 block truncate">
                       {{ bot.description }}
@@ -160,12 +186,18 @@ onMounted(() => {
               </BaseTableCell>
 
               <BaseTableCell class="max-w-0">
-                <span class="text-body-main text-n-slate-11 truncate block">
+                <span
+                  v-if="bot.bot_type === 'internal_flow'"
+                  class="text-body-main text-n-teal-11 truncate block italic"
+                >
+                  {{ $t('AGENT_BOTS.INTERNAL_FLOW.DESCRIPTION').slice(0, 60) + '…' }}
+                </span>
+                <span v-else class="text-body-main text-n-slate-11 truncate block">
                   {{ bot.outgoing_url || bot.bot_config?.webhook_url }}
                 </span>
               </BaseTableCell>
 
-              <BaseTableCell align="end" class="w-24">
+              <BaseTableCell align="end" class="w-32">
                 <div class="flex gap-3 justify-end flex-shrink-0">
                   <Button
                     v-if="!bot.system_bot"
@@ -175,6 +207,15 @@ onMounted(() => {
                     sm
                     :is-loading="loading[bot.id]"
                     @click="openEditModal(bot)"
+                  />
+                  <Button
+                    v-if="!bot.system_bot"
+                    v-tooltip.top="'Duplicar bot'"
+                    icon="i-lucide-copy"
+                    slate
+                    sm
+                    :is-loading="loading[bot.id]"
+                    @click="duplicateBot(bot)"
                   />
                   <Button
                     v-if="!bot.system_bot"

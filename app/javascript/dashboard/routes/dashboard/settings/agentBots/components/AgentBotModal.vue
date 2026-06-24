@@ -3,10 +3,15 @@ import { ref, computed, reactive, watch } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
-import { required, helpers, url } from '@vuelidate/validators';
+import { required, helpers, url, requiredIf } from '@vuelidate/validators';
 import { useVuelidate } from '@vuelidate/core';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useToggle } from '@vueuse/core';
+
+const BOT_TYPES = {
+  WEBHOOK: 'webhook',
+  INTERNAL_FLOW: 'internal_flow',
+};
 
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
@@ -14,6 +19,7 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
+import FlowBuilderModal from './FlowBuilderModal.vue';
 
 const props = defineProps({
   type: {
@@ -35,12 +41,15 @@ const MODAL_TYPES = {
 const store = useStore();
 const { t } = useI18n();
 const dialogRef = ref(null);
+const flowBuilderRef = ref(null);
 const uiFlags = useMapGetter('agentBots/getUIFlags');
 
 const formState = reactive({
   botName: '',
   botDescription: '',
+  botType: BOT_TYPES.WEBHOOK,
   botUrl: '',
+  botConfig: '',
   botAvatar: null,
   botAvatarUrl: '',
 });
@@ -49,27 +58,60 @@ const [showAccessToken, toggleAccessToken] = useToggle();
 const accessToken = ref('');
 const botSecret = ref('');
 
-const v$ = useVuelidate(
-  {
-    botName: {
-      required: helpers.withMessage(
-        () => t('AGENT_BOTS.FORM.ERRORS.NAME'),
-        required
-      ),
-    },
-    botUrl: {
-      required: helpers.withMessage(
-        () => t('AGENT_BOTS.FORM.ERRORS.URL'),
-        required
-      ),
-      url: helpers.withMessage(
-        () => t('AGENT_BOTS.FORM.ERRORS.VALID_URL'),
-        url
-      ),
-    },
+const isWebhookBot = computed(() => formState.botType === BOT_TYPES.WEBHOOK);
+const isInternalFlowBot = computed(() => formState.botType === BOT_TYPES.INTERNAL_FLOW);
+
+const flowSummary = computed(() => {
+  if (!formState.botConfig) return null;
+  try {
+    const c = JSON.parse(formState.botConfig);
+    return {
+      steps: Object.keys(c.steps || {}).length,
+      variables: Object.keys(c.variables || {}).length,
+      initialStep: c.initial_step || '',
+    };
+  } catch {
+    return null;
+  }
+});
+
+const validJSONConfig = value => {
+  if (!value) return true;
+  try {
+    JSON.parse(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const validationRules = computed(() => ({
+  botName: {
+    required: helpers.withMessage(
+      () => t('AGENT_BOTS.FORM.ERRORS.NAME'),
+      required
+    ),
   },
-  formState
-);
+  botUrl: {
+    requiredIf: helpers.withMessage(
+      () => t('AGENT_BOTS.FORM.ERRORS.URL'),
+      requiredIf(isWebhookBot)
+    ),
+    url: helpers.withMessage(() => t('AGENT_BOTS.FORM.ERRORS.VALID_URL'), url),
+  },
+  botConfig: {
+    requiredIf: helpers.withMessage(
+      () => t('AGENT_BOTS.FORM.ERRORS.BOT_CONFIG'),
+      requiredIf(isInternalFlowBot)
+    ),
+    validJSON: helpers.withMessage(
+      () => t('AGENT_BOTS.FORM.ERRORS.INVALID_JSON'),
+      validJSONConfig
+    ),
+  },
+}));
+
+const v$ = useVuelidate(validationRules, formState);
 
 const isLoading = computed(() =>
   props.type === MODAL_TYPES.CREATE
@@ -108,6 +150,10 @@ const botUrlError = computed(() =>
   v$.value.botUrl.$error ? v$.value.botUrl.$errors[0]?.$message : ''
 );
 
+const botConfigError = computed(() =>
+  v$.value.botConfig.$error ? v$.value.botConfig.$errors[0]?.$message : ''
+);
+
 const showAccessTokenInput = computed(
   () =>
     showAccessToken.value ||
@@ -119,7 +165,9 @@ const resetForm = () => {
   Object.assign(formState, {
     botName: '',
     botDescription: '',
+    botType: BOT_TYPES.WEBHOOK,
     botUrl: '',
+    botConfig: '',
     botAvatar: null,
     botAvatarUrl: '',
   });
@@ -158,9 +206,11 @@ const handleSubmit = async () => {
   const botData = {
     name: formState.botName,
     description: formState.botDescription,
-    outgoing_url: formState.botUrl,
-    bot_type: 'webhook',
+    bot_type: formState.botType,
     avatar: formState.botAvatar,
+    ...(formState.botType === BOT_TYPES.WEBHOOK
+      ? { outgoing_url: formState.botUrl }
+      : { bot_config: formState.botConfig }),
   };
 
   const isCreate = props.type === MODAL_TYPES.CREATE;
@@ -216,6 +266,7 @@ const initializeForm = () => {
       name,
       description,
       outgoing_url: botUrl,
+      bot_type: botType,
       thumbnail,
       bot_config: botConfig,
       access_token: botAccessToken,
@@ -223,7 +274,12 @@ const initializeForm = () => {
     } = props.selectedBot;
     formState.botName = name || '';
     formState.botDescription = description || '';
-    formState.botUrl = botUrl || botConfig?.webhook_url || '';
+    formState.botType = botType || BOT_TYPES.WEBHOOK;
+    formState.botUrl = botUrl || '';
+    formState.botConfig =
+      botConfig && Object.keys(botConfig).length
+        ? JSON.stringify(botConfig, null, 2)
+        : '';
     formState.botAvatarUrl = thumbnail || '';
 
     if (props.type === MODAL_TYPES.EDIT) {
@@ -335,7 +391,43 @@ defineExpose({ dialogRef });
           :placeholder="$t('AGENT_BOTS.FORM.DESCRIPTION.PLACEHOLDER')"
         />
 
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ $t('AGENT_BOTS.FORM.BOT_TYPE.LABEL') }}
+          </label>
+          <div class="flex gap-2">
+            <NextButton
+              :variant="
+                formState.botType === 'webhook' ? 'solid' : 'outline'
+              "
+              :label="$t('AGENT_BOTS.FORM.BOT_TYPE.WEBHOOK')"
+              size="sm"
+              type="button"
+              :disabled="type === MODAL_TYPES.EDIT"
+              @click="formState.botType = 'webhook'"
+            />
+            <NextButton
+              :variant="
+                formState.botType === 'internal_flow' ? 'solid' : 'outline'
+              "
+              :label="$t('AGENT_BOTS.FORM.BOT_TYPE.INTERNAL_FLOW')"
+              size="sm"
+              type="button"
+              :disabled="type === MODAL_TYPES.EDIT"
+              @click="formState.botType = 'internal_flow'"
+            />
+          </div>
+          <p class="text-xs text-n-slate-11">
+            {{
+              formState.botType === 'internal_flow'
+                ? $t('AGENT_BOTS.INTERNAL_FLOW.DESCRIPTION')
+                : $t('AGENT_BOTS.WEBHOOK.DESCRIPTION')
+            }}
+          </p>
+        </div>
+
         <Input
+          v-if="formState.botType === 'webhook'"
           id="bot-url"
           v-model="formState.botUrl"
           :label="$t('AGENT_BOTS.FORM.WEBHOOK_URL.LABEL')"
@@ -344,6 +436,47 @@ defineExpose({ dialogRef });
           :message-type="botUrlError ? 'error' : 'info'"
           @blur="v$.botUrl.$touch()"
         />
+
+        <div v-if="formState.botType === 'internal_flow'" class="flex flex-col gap-3">
+          <!-- Summary card (when flow is configured) -->
+          <div
+            v-if="flowSummary"
+            class="flex items-start justify-between rounded-xl border border-n-blue-6 bg-n-blue-3 px-4 py-3"
+          >
+            <div class="flex flex-col gap-0.5">
+              <p class="text-sm font-semibold text-n-blue-12">Flujo configurado</p>
+              <p class="text-xs text-n-blue-11">
+                <span class="font-medium">{{ flowSummary.steps }}</span> pasos ·
+                <span class="font-medium">{{ flowSummary.variables }}</span> variables ·
+                inicio: <code class="font-mono">{{ flowSummary.initialStep || '—' }}</code>
+              </p>
+            </div>
+            <span class="i-lucide-check-circle-2 mt-0.5 h-5 w-5 shrink-0 text-n-blue-10" />
+          </div>
+
+          <!-- Empty state -->
+          <div
+            v-else
+            class="flex items-center gap-3 rounded-xl border border-dashed border-n-weak bg-n-alpha-1 px-4 py-3"
+          >
+            <span class="i-lucide-git-branch h-5 w-5 shrink-0 text-n-slate-8" />
+            <p class="text-sm text-n-slate-9">
+              Sin flujo configurado. Haz clic en <strong>Configurar flujo</strong> para comenzar.
+            </p>
+          </div>
+
+          <NextButton
+            variant="outline"
+            icon="i-lucide-git-branch"
+            :label="flowSummary ? 'Editar flujo' : 'Configurar flujo'"
+            type="button"
+            @click="flowBuilderRef.dialogRef.open()"
+          />
+
+          <p v-if="botConfigError" class="text-xs text-n-ruby-10">
+            {{ botConfigError }}
+          </p>
+        </div>
       </div>
 
       <div
@@ -417,4 +550,9 @@ defineExpose({ dialogRef });
       </div>
     </form>
   </Dialog>
+
+  <FlowBuilderModal
+    ref="flowBuilderRef"
+    v-model="formState.botConfig"
+  />
 </template>

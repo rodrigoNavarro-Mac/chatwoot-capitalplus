@@ -22,6 +22,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  canEdit: {
+    type: Boolean,
+    default: false,
+  },
   isEnabled: {
     type: Boolean,
     default: false,
@@ -125,7 +129,7 @@ const inboxIcon = computed(() => {
     </div>
     <div class="flex items-center justify-end w-20 gap-2">
       <Button
-        v-if="isLiveChatType"
+        v-if="isLiveChatType || canEdit"
         variant="faded"
         size="sm"
         color="slate"

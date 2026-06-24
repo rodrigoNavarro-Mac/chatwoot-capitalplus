@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_25_093000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_23_130000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -303,6 +303,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_25_093000) do
     t.datetime "scheduled_at", precision: nil
     t.boolean "trigger_only_during_business_hours", default: false
     t.jsonb "template_params"
+    t.integer "delay_min_seconds", default: 300, null: false
+    t.integer "delay_max_seconds", default: 420, null: false
+    t.string "send_window_start", default: "09:00", null: false
+    t.string "send_window_end", default: "19:00", null: false
+    t.string "audience_type", default: "labels", null: false
     t.index ["account_id"], name: "index_campaigns_on_account_id"
     t.index ["campaign_status"], name: "index_campaigns_on_campaign_status"
     t.index ["campaign_type"], name: "index_campaigns_on_campaign_type"

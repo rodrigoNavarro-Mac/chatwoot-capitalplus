@@ -4,6 +4,7 @@ import { useStore } from 'dashboard/composables/store';
 import { useAlert, useTrack } from 'dashboard/composables';
 import { CAMPAIGN_TYPES } from 'shared/constants/campaign.js';
 import { CAMPAIGNS_EVENTS } from 'dashboard/helper/AnalyticsHelper/events.js';
+import CampaignsAPI from 'dashboard/api/campaigns';
 
 import WhatsAppCampaignForm from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/WhatsAppCampaignForm.vue';
 
@@ -12,9 +13,13 @@ const emit = defineEmits(['close']);
 const store = useStore();
 const { t } = useI18n();
 
-const addCampaign = async campaignDetails => {
+const addCampaign = async (campaignDetails, csvFile) => {
   try {
-    await store.dispatch('campaigns/create', campaignDetails);
+    const campaign = await store.dispatch('campaigns/create', campaignDetails);
+
+    if (csvFile && campaign?.id) {
+      await CampaignsAPI.attachCsv(campaign.id, csvFile);
+    }
 
     useTrack(CAMPAIGNS_EVENTS.CREATE_CAMPAIGN, {
       type: CAMPAIGN_TYPES.ONE_OFF,
@@ -29,8 +34,8 @@ const addCampaign = async campaignDetails => {
   }
 };
 
-const handleSubmit = campaignDetails => {
-  addCampaign(campaignDetails);
+const handleSubmit = (campaignDetails, csvFile) => {
+  addCampaign(campaignDetails, csvFile);
 };
 
 const handleClose = () => emit('close');

@@ -1,0 +1,158 @@
+# Usa la imagen pre-compilada del devcontainer de Chatwoot.
+# NO requiere 'docker compose build' — solo 'docker compose -f docker-compose.dev.yml up -d'
+
+x-app: &app
+  image: ghcr.io/chatwoot/chatwoot_codespace:latest
+  working_dir: /app
+  env_file: .env
+  environment:
+    BUNDLE_PATH: /gems
+    GEM_HOME: /gems
+    RAILS_ENV: development
+  volumes:
+    - .:/app:cached
+    - gems:/gems
+    - pnpm_store:/home/vscode/.local/share/pnpm
+    - node_modules:/app/node_modules
+  restart: on-failure
+
+services:
+  # ─── Infraestructura ─────────────────────────────────────────────────────────
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  mailhog:
+    image: mailhog/mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI → http://localhost:8025
+
+  # ─── Inicialización de permisos ───────────────────────────────────────────────
+  # Corre una sola vez para que el usuario vscode (UID 1000) pueda escribir
+  # en los volúmenes creados por Docker como root.
+
+  init:
+    image: ghcr.io/chatwoot/chatwoot_codespace:latest
+    user: root
+    working_dir: /app
+    volumes:
+      - .:/app:cached
+      - gems:/gems
+      - node_modules:/app/node_modules
+    command: >
+      bash -c "
+        chown -R 1000:1000 /gems /app/node_modules &&
+        chmod -R u+w /gems /app/node_modules &&
+        mkdir -p /app/log /app/tmp/pids /app/tmp/cache &&
+        chown -R 1000:1000 /app/log /app/tmp &&
+        chmod -R u+w /app/log /app/tmp
+      "
+    restart: "no"
+
+  # ─── Aplicación ──────────────────────────────────────────────────────────────
+
+  rails:
+    <<: *app
+    environment:
+      VITE_RUBY_HOST: vite
+      VITE_RUBY_PORT: "3036"
+      DISABLE_MINI_PROFILER: "true"
+    command: >
+      bash -c "
+        git config --global --add safe.directory /app;
+        rm -rf /app/tmp/pids/server.pid /app/tmp/cache/* 2>/dev/null;
+        gem install bundler --conservative --quiet &&
+        bundle install --quiet &&
+        bundle exec rails db:chatwoot_prepare &&
+        bundle exec rails server -b 0.0.0.0 -p 3000
+      "
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+      vite:
+        condition: service_started
+      init:
+        condition: service_completed_successfully
+
+  sidekiq:
+    <<: *app
+    command: >
+      bash -c "
+        gem install bundler --conservative --quiet &&
+        bundle install --quiet &&
+        bundle exec sidekiq -C config/sidekiq.yml
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      init:
+        condition: service_completed_successfully
+
+  vite:
+    <<: *app
+    environment:
+      BUNDLE_PATH: /gems
+      GEM_HOME: /gems
+      RAILS_ENV: development
+      VITE_RUBY_HOST: "0.0.0.0"
+      HUSKY: "0"
+    command: bash -c 'find /app/bin -type f | xargs -r sed -i "s/\r//" 2>/dev/null; bundle install && pnpm install --ignore-scripts && exec bin/vite dev'
+    ports:
+      - "3036:3036"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  # ─── Tunnel para WhatsApp webhooks ───────────────────────────────────────────
+  # Requiere NGROK_AUTHTOKEN en .env (gratis en https://ngrok.com)
+  # UI de ngrok disponible en http://localhost:4040
+  # Una vez arrancado: copiar la URL pública y actualizar FRONTEND_URL en .env
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    command: http rails:3000 --log=stdout
+    ports:
+      - "4040:4040"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      - rails
+    restart: on-failure
+
+volumes:
+  postgres_data:
+  redis_data:
+  gems:
+  pnpm_store:
+  node_modules:

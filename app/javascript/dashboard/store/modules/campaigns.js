@@ -70,6 +70,7 @@ export const actions = {
     try {
       const response = await CampaignsAPI.create(campaignObj);
       commit(types.ADD_CAMPAIGN, response.data);
+      return response.data;
     } catch (error) {
       throw new Error(error);
     } finally {

@@ -36,6 +36,19 @@ class AgentBotListener < BaseListener
   def message_created(event)
     message = extract_message_and_account(event)[0]
     inbox = message.inbox
+
+    if message.private? && message.sender_type == 'User'
+      cmd = message.content.to_s.strip
+      if cmd == '/reset-1' || cmd == '/reset-2'
+        agent_bots_for(inbox, message.conversation).each do |bot|
+          next unless bot.internal_flow?
+
+          apply_bot_reset(message.conversation, cmd)
+        end
+        return
+      end
+    end
+
     return unless message.webhook_sendable?
 
     method_name = __method__.to_s
@@ -77,9 +90,13 @@ class AgentBotListener < BaseListener
   end
 
   def process_message_event(method_name, agent_bot, message, _event)
-    # Only webhook bots are supported
     payload = message.webhook_data.merge(event: method_name)
-    process_webhook_bot_event(agent_bot, payload)
+
+    if agent_bot.internal_flow?
+      AgentBots::InternalFlowJob.perform_later(agent_bot.id, payload)
+    else
+      process_webhook_bot_event(agent_bot, payload)
+    end
   end
 
   def process_webhook_bot_event(agent_bot, payload)
@@ -87,5 +104,12 @@ class AgentBotListener < BaseListener
 
     AgentBots::WebhookJob.perform_later(agent_bot.outgoing_url, payload, :agent_bot_webhook,
                                         secret: agent_bot.secret, delivery_id: SecureRandom.uuid)
+  end
+
+  def apply_bot_reset(conversation, command)
+    zoho_found = command == '/reset-2'
+    clean_attrs = conversation.custom_attributes.reject { |k, _| k.to_s.start_with?('_') }
+    conversation.update!(custom_attributes: clean_attrs.merge('_debug_zoho_found' => zoho_found))
+    Rails.logger.info("[InternalFlow] #{command} en conv ##{conversation.id} → _debug_zoho_found=#{zoho_found}")
   end
 end

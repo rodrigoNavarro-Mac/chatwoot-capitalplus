@@ -6,6 +6,11 @@ FactoryBot.define do
     bot_config { {} }
     bot_type { 'webhook' }
 
+    trait :internal_flow do
+      bot_type { 'internal_flow' }
+      outgoing_url { nil }
+    end
+
     trait :skip_validate do
       to_create { |instance| instance.save(validate: false) }
     end

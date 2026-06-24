@@ -182,15 +182,38 @@
             "VARIABLES_LABEL": "Variables",
             "VARIABLE_PLACEHOLDER": "Enter value for {variable}"
           },
+          "AUDIENCE_TYPE": {
+            "LABEL": "Audience source",
+            "LABELS": "Contact labels",
+            "CSV": "CSV file"
+          },
           "AUDIENCE": {
             "LABEL": "Audience",
             "PLACEHOLDER": "Select the customer labels",
             "ERROR": "Audience is required"
           },
+          "CSV_AUDIENCE": {
+            "LABEL": "CSV file",
+            "PLACEHOLDER": "Click to upload a CSV file",
+            "INFO": "CSV must have a 'phone_number' column. Optional: 'name', 'email', and extra columns usable as {{ contact.custom_attribute.column_name }} in the template.",
+            "ERROR": "CSV file is required"
+          },
           "SCHEDULED_AT": {
             "LABEL": "Scheduled time",
             "PLACEHOLDER": "Please select the time",
             "ERROR": "Scheduled time is required"
+          },
+          "SEND_WINDOW_START": {
+            "LABEL": "Send window start"
+          },
+          "SEND_WINDOW_END": {
+            "LABEL": "Send window end"
+          },
+          "DELAY_MIN": {
+            "LABEL": "Min delay (seconds)"
+          },
+          "DELAY_MAX": {
+            "LABEL": "Max delay (seconds)"
           },
           "BUTTONS": {
             "CREATE": "Create",
@@ -200,6 +223,19 @@
             "SUCCESS_MESSAGE": "WhatsApp campaign created successfully",
             "ERROR_MESSAGE": "There was an error. Please try again."
           }
+        }
+      }
+    },
+    "WHATSAPP_EDIT": {
+      "TITLE": "Edit WhatsApp campaign",
+      "FORM": {
+        "API": {
+          "SUCCESS_MESSAGE": "WhatsApp campaign updated successfully",
+          "ERROR_MESSAGE": "There was an error. Please try again."
+        },
+        "BUTTONS": {
+          "UPDATE": "Update",
+          "CANCEL": "Cancel"
         }
       }
     },

@@ -24,6 +24,7 @@ import ShopifyOrdersList from 'dashboard/components/widgets/conversation/Shopify
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
+import ZohoCrmPanel from 'dashboard/components/widgets/conversation/ZohoCrmPanel.vue';
 
 const props = defineProps({
   conversationId: {
@@ -88,6 +89,11 @@ const conversationAdditionalAttributes = computed(
 );
 
 const channelType = computed(() => currentChat.value.meta?.channel);
+
+const currentUserRole = useMapGetter('getCurrentRole');
+const isAdministrator = computed(() => currentUserRole.value === 'administrator');
+const isHandedOver = computed(() => !!currentChat.value.meta?.assignee);
+const canViewZohoCrm = computed(() => isAdministrator.value || isHandedOver.value);
 
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
@@ -284,6 +290,16 @@ onMounted(() => {
               "
             >
               <ShopifyOrdersList :contact-id="contactId" />
+            </AccordionItem>
+          </div>
+          <div v-else-if="element.name === 'zoho_crm' && canViewZohoCrm">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.ZOHO_CRM')"
+              :is-open="isContactSidebarItemOpen('is_zoho_crm_open')"
+              compact
+              @toggle="value => toggleSidebarUIState('is_zoho_crm_open', value)"
+            >
+              <ZohoCrmPanel :contact-id="contactId" :conversation-id="conversationId" />
             </AccordionItem>
           </div>
           <div v-else-if="element.name === 'contact_notes'">

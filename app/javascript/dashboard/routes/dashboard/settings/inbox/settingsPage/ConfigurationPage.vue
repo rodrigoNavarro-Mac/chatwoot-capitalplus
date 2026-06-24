@@ -11,7 +11,9 @@ import { required } from '@vuelidate/validators';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TextArea from 'next/textarea/TextArea.vue';
 import WhatsappReauthorize from '../channels/whatsapp/Reauthorize.vue';
+import AddWhatsappNumberModal from './AddWhatsappNumberModal.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
+import InboxHealthAPI from 'dashboard/api/inboxHealth';
 
 export default {
   components: {
@@ -23,6 +25,7 @@ export default {
     NextButton,
     TextArea,
     WhatsappReauthorize,
+    AddWhatsappNumberModal,
   },
   mixins: [inboxMixin],
   props: {
@@ -41,9 +44,11 @@ export default {
       whatsAppInboxAPIKey: '',
       isRequestingReauthorization: false,
       isSyncingTemplates: false,
+      isRegisteringWebhook: false,
       allowedDomains: '',
       isUpdatingAllowedDomains: false,
       isSettingDefaults: false,
+      showAddNumberModal: false,
     };
   },
   validations: {
@@ -182,6 +187,18 @@ export default {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
       } finally {
         this.isSyncingTemplates = false;
+      }
+    },
+    async registerWebhook() {
+      this.isRegisteringWebhook = true;
+      try {
+        await InboxHealthAPI.registerWebhook(this.inbox.id);
+        await this.$store.dispatch('inboxes/get');
+        useAlert(this.$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_REGISTER_SUCCESS'));
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.isRegisteringWebhook = false;
       }
     },
   },
@@ -379,12 +396,29 @@ export default {
       <!-- Manual Setup Section -->
       <template v-else>
         <SettingsFieldSection
+          :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_URL_TITLE')"
+          :help-text="
+            $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_URL_SUBHEADER')
+          "
+        >
+          <woot-code :script="inbox.callback_webhook_url" lang="html" />
+          <div class="mt-2">
+            <NextButton
+              outline
+              :is-loading="isRegisteringWebhook"
+              @click="registerWebhook"
+            >
+              {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_REGISTER_BUTTON') }}
+            </NextButton>
+          </div>
+        </SettingsFieldSection>
+        <SettingsFieldSection
           :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_TITLE')"
           :help-text="
             $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_SUBHEADER')
           "
         >
-          <woot-code :script="inbox.provider_config.webhook_verify_token" />
+          <woot-code :script="inbox.global_webhook_verify_token" />
         </SettingsFieldSection>
         <SettingsFieldSection
           :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_TITLE')"
@@ -434,12 +468,29 @@ export default {
           {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_BUTTON') }}
         </NextButton>
       </SettingsFieldSection>
+      <SettingsFieldSection
+        :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_ADD_NUMBER_TITLE')"
+        :help-text="
+          $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_ADD_NUMBER_SUBHEADER')
+        "
+      >
+        <NextButton @click="showAddNumberModal = true">
+          {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_ADD_NUMBER_BUTTON') }}
+        </NextButton>
+      </SettingsFieldSection>
     </div>
     <WhatsappReauthorize
       v-if="isEmbeddedSignupWhatsApp"
       ref="whatsappReauth"
       :inbox="inbox"
       class="hidden"
+    />
+    <AddWhatsappNumberModal
+      v-if="showAddNumberModal"
+      :show="showAddNumberModal"
+      :business-account-id="inbox.provider_config.business_account_id"
+      :api-key="inbox.provider_config.api_key"
+      @close="showAddNumberModal = false"
     />
   </div>
 </template>

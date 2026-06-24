@@ -388,6 +388,7 @@
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Linked Linear Issues",
       "SHOPIFY_ORDERS": "Shopify Orders",
+      "ZOHO_CRM": "Zoho CRM",
       "SHARED_FILES": "Attachments"
     },
     "SHARED_FILES": {
@@ -418,6 +419,33 @@
         "FULFILLED": "Fulfilled",
         "PARTIALLY_FULFILLED": "Partially Fulfilled",
         "UNFULFILLED": "Unfulfilled"
+      }
+    },
+    "ZOHO_CRM_PANEL": {
+      "LOADING": "Loading CRM data...",
+      "ERROR": "Could not load CRM data",
+      "NOT_CONNECTED": "Zoho CRM integration not configured",
+      "NOT_LINKED": "Contact not linked to Zoho CRM",
+      "NOTES": {
+        "TITLE": "Notes",
+        "EMPTY": "No notes in CRM"
+      },
+      "TASKS": {
+        "TITLE": "Tasks",
+        "EMPTY": "No tasks in CRM",
+        "STATUS": {
+          "OPEN": "Open",
+          "COMPLETED": "Completed"
+        },
+        "PRIORITY": {
+          "HIGH": "High",
+          "MEDIUM": "Medium",
+          "LOW": "Low"
+        }
+      },
+      "MEETINGS": {
+        "TITLE": "Meetings",
+        "EMPTY": "No meetings in CRM"
       }
     }
   },
