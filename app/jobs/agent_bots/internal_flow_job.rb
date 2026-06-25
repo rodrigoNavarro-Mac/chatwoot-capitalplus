@@ -9,7 +9,7 @@ class AgentBots::InternalFlowJob < ApplicationJob
     return unless message
     return unless message.incoming?
 
-    AgentBots::InternalFlowHandlerService.new(agent_bot, message.conversation, message.content.to_s).perform
+    AgentBots::InternalFlowHandlerService.new(agent_bot, message.conversation, message).perform
   rescue StandardError => e
     Rails.logger.error("[AgentBots::InternalFlowJob] Error processing bot #{agent_bot_id}: #{e.message}")
     raise

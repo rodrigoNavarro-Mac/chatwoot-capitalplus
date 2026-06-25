@@ -200,5 +200,148 @@ RSpec.describe AgentBots::InternalFlowHandlerService do
         expect(conversation.reload.custom_attributes['_bot_current_step']).to eq('cita')
       end
     end
+
+    context 'modo recolección (maintenance bot)' do
+      let(:maintenance_config) do
+        {
+          'initial_step' => 'bienvenida',
+          'report_recipients' => [],
+          'steps' => {
+            'bienvenida' => {
+              'message' => 'Bienvenido. Envía fotos y comentarios. Escribe salida() para terminar.',
+              'action' => 'start_collection'
+            }
+          }
+        }
+      end
+
+      let(:maintenance_bot) do
+        create(:agent_bot, account: account, bot_type: :internal_flow, outgoing_url: nil,
+                           bot_config: maintenance_config)
+      end
+
+      before do
+        conversation.update!(
+          status: :open,
+          custom_attributes: {
+            '_bot_collecting' => true,
+            '_collection_start' => Time.current.iso8601,
+            '_collection_entries' => [],
+            '_development' => 'Torre A'
+          }
+        )
+      end
+
+      it 'acumula mensajes de texto en _collection_entries' do
+        described_class.new(maintenance_bot, conversation, 'Revisé la bomba del 3er piso').perform
+
+        entries = conversation.reload.custom_attributes['_collection_entries']
+        expect(entries.size).to eq(1)
+        expect(entries.first['content']).to eq('Revisé la bomba del 3er piso')
+        expect(entries.first['attachment_ids']).to eq([])
+      end
+
+      it 'confirma la recepción del mensaje' do
+        described_class.new(maintenance_bot, conversation, 'texto de prueba').perform
+
+        last_msg = conversation.messages.outgoing.last
+        expect(last_msg.content).to eq('✓ Registrado')
+      end
+
+      it 'acumula múltiples entradas' do
+        described_class.new(maintenance_bot, conversation, 'primer comentario').perform
+        described_class.new(maintenance_bot, conversation, 'segundo comentario').perform
+
+        entries = conversation.reload.custom_attributes['_collection_entries']
+        expect(entries.size).to eq(2)
+      end
+
+      it 'finaliza la colección al detectar salida()' do
+        allow_any_instance_of(AgentBots::MaintenanceReportService).to receive(:generate).and_return(nil)
+
+        described_class.new(maintenance_bot, conversation, 'salida()').perform
+
+        attrs = conversation.reload.custom_attributes
+        expect(attrs['_bot_collecting']).to be_nil
+        expect(conversation.reload.status).to eq('resolved')
+      end
+
+      it 'detecta salida() en mayúsculas' do
+        allow_any_instance_of(AgentBots::MaintenanceReportService).to receive(:generate).and_return(nil)
+
+        described_class.new(maintenance_bot, conversation, 'SALIDA()').perform
+
+        expect(conversation.reload.status).to eq('resolved')
+      end
+
+      it 'procesa mensajes aunque la conversación esté abierta (open)' do
+        expect do
+          described_class.new(maintenance_bot, conversation, 'mensaje en conv abierta').perform
+        end.to change { conversation.messages.outgoing.count }.by(1)
+      end
+    end
+
+    context 'validación de proveedor autorizado' do
+      let(:maintenance_config) do
+        {
+          'initial_step' => 'bienvenida',
+          'authorized_providers' => ['+52155XXXXXXXX'],
+          'steps' => {
+            'bienvenida' => { 'message' => 'Bienvenido proveedor.' }
+          }
+        }
+      end
+
+      let(:maintenance_bot) do
+        create(:agent_bot, account: account, bot_type: :internal_flow, outgoing_url: nil,
+                           bot_config: maintenance_config)
+      end
+
+      it 'rechaza números no autorizados y resuelve la conversación' do
+        contact.update!(phone_number: '+52199999999')
+
+        described_class.new(maintenance_bot, conversation, 'hola').perform
+
+        expect(conversation.reload.status).to eq('resolved')
+      end
+
+      it 'permite números autorizados' do
+        contact.update!(phone_number: '+52155XXXXXXXX')
+
+        described_class.new(maintenance_bot, conversation, 'hola').perform
+
+        expect(conversation.reload.status).not_to eq('resolved')
+      end
+    end
+
+    context 'acción start_collection' do
+      let(:collection_config) do
+        {
+          'initial_step' => 'inicio',
+          'steps' => {
+            'inicio' => {
+              'message' => 'Empieza a enviar tu reporte.',
+              'action' => 'start_collection'
+            }
+          }
+        }
+      end
+
+      let(:collection_bot) do
+        create(:agent_bot, account: account, bot_type: :internal_flow, outgoing_url: nil,
+                           bot_config: collection_config)
+      end
+
+      it 'activa el modo colección y abre la conversación' do
+        conversation.update!(status: :pending)
+
+        described_class.new(collection_bot, conversation, 'hola').perform
+
+        attrs = conversation.reload.custom_attributes
+        expect(attrs['_bot_collecting']).to be(true)
+        expect(attrs['_collection_entries']).to eq([])
+        expect(conversation.status).to eq('open')
+      end
+    end
   end
 end
