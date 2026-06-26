@@ -56,7 +56,20 @@ class Crm::Zoho::Api::BaseClient
       raise ApiError.new("Zoho CRM API error: #{response.code} - #{response.body}", response.code, response)
     end
 
-    response.parsed_response || {}
+    parsed = response.parsed_response || {}
+
+    if parsed.is_a?(Hash) && parsed['data'].is_a?(Array)
+      error_entry = parsed['data'].find { |d| d.is_a?(Hash) && d['status'] == 'error' }
+      if error_entry
+        raise ApiError.new(
+          "Zoho CRM error: #{error_entry['message']} (#{error_entry['code']})",
+          response.code,
+          response
+        )
+      end
+    end
+
+    parsed
   rescue JSON::ParserError => e
     raise ApiError.new("Failed to parse Zoho CRM response: #{e.message}", response.code, response)
   end

@@ -16,26 +16,11 @@ class Crm::Zoho::Mappers::ConversationMapper
   end
 
   def conversation_note
-    brand = brand_name
-    url = safe_conversation_url
-
-    "#{brand} - Nueva conversación iniciada\n" \
-      "Canal: #{@conversation.inbox.name}\n" \
-      "Inicio: #{@conversation.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n" \
-      "Conversación ##{@conversation.display_id}\n" \
-      "#{url}"
+    safe_conversation_url
   end
 
   def transcript_note
-    messages = transcript_messages
-    return "#{brand_name} - Conversación sin mensajes (##{@conversation.display_id})" if messages.empty?
-
-    header = "#{brand_name} - Transcript de conversación ##{@conversation.display_id}\n" \
-             "Canal: #{@conversation.inbox.name}\n" \
-             "#{safe_conversation_url}\n\n"
-
-    body = format_messages(messages)
-    "#{header}#{body}"
+    safe_conversation_url
   end
 
   private

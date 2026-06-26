@@ -303,7 +303,10 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
 
     Array(field['pick_list_values']).filter_map do |v|
       next unless v.is_a?(Hash)
-      (v['display_value'] || v['actual_value']).presence
+      label = v['display_value'].presence || v['actual_value'].presence
+      value = v['actual_value'].presence || v['display_value'].presence
+      next unless label && value
+      { label: label, value: value }
     end
   rescue StandardError
     []
