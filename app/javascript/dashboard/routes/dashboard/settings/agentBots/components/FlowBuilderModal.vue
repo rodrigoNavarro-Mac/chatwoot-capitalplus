@@ -195,6 +195,7 @@ defineExpose({ dialogRef: { open, close: () => dialogRef.value.close() } });
     :show-cancel-button="false"
     :show-confirm-button="false"
     width="3xl"
+    position="top"
     overflow-y-auto
   >
     <div class="flex flex-col gap-6">
@@ -244,9 +245,9 @@ defineExpose({ dialogRef: { open, close: () => dialogRef.value.close() } });
           </div>
           <textarea
             v-model="rawJson"
-            rows="22"
+            rows="28"
             spellcheck="false"
-            class="w-full resize-y rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 font-mono text-xs text-n-slate-12 placeholder-n-slate-8 focus:border-n-brand focus:outline-none"
+            class="w-full resize-y rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 font-mono text-xs text-n-slate-12 placeholder-n-slate-8 focus:border-n-brand focus:outline-none min-h-[320px]"
             placeholder='{"variables":{},"initial_step":"bienvenida","steps":{"bienvenida":{"message":"Hola!","transitions":[]}}}'
             @input="jsonError = ''"
           />
