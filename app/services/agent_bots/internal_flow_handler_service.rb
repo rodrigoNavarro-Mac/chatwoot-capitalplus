@@ -247,7 +247,8 @@ class AgentBots::InternalFlowHandlerService
     return false if @config[:initial_step].blank?
     return false if @config[:steps].blank?
     return false if @conversation.open? && !in_collection_mode?
-    return false if @conversation.inbox.out_of_office?
+    inbox = @conversation.inbox
+    return false if inbox.working_hours_enabled? && !inbox.out_of_office?
 
     true
   end
