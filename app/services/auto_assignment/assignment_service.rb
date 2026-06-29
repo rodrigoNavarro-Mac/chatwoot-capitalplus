@@ -21,10 +21,19 @@ class AutoAssignment::AssignmentService
   def perform_for_conversation(conversation)
     return false unless assignable?(conversation)
 
-    agent = find_available_agent(conversation)
+    agent = resolve_zoho_owner(conversation) || find_available_agent(conversation)
     return false unless agent
 
     assign_conversation(conversation, agent)
+  end
+
+  def resolve_zoho_owner(conversation)
+    AutoAssignment::ZohoOwnerResolver.new(conversation).resolve
+  rescue StandardError => e
+    Rails.logger.error(
+      "[AssignmentService] ZohoOwnerResolver error conv=#{conversation.id}: #{e.message}"
+    )
+    nil
   end
 
   def assignable?(conversation)
