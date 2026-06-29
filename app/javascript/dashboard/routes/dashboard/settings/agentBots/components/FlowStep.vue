@@ -1,14 +1,14 @@
 <script setup>
+/* eslint-disable vue/no-bare-strings-in-template, @intlify/vue-i18n/no-raw-text */
 import { computed } from 'vue';
 
 const props = defineProps({
   step: { type: Object, required: true },
   stepNames: { type: Array, default: () => [] },
   isInitial: { type: Boolean, default: false },
-  index: { type: Number, required: true },
 });
 
-const emit = defineEmits(['update:step', 'remove', 'set-initial']);
+const emit = defineEmits(['update:step', 'remove', 'setInitial']);
 
 const ACTIONS = [
   { value: '', label: 'Sin acción (continúa el flujo)' },
@@ -52,9 +52,10 @@ const removeTransition = i => {
   });
 };
 
-const hasTerminalAction = computed(() =>
-  props.step.action === 'open_conversation' ||
-  props.step.action === 'resolve_conversation'
+const hasTerminalAction = computed(
+  () =>
+    props.step.action === 'open_conversation' ||
+    props.step.action === 'resolve_conversation'
 );
 </script>
 
@@ -65,7 +66,9 @@ const hasTerminalAction = computed(() =>
   >
     <!-- Header -->
     <div class="flex items-center gap-2 px-4 py-3">
-      <span class="flow-step-drag-handle i-lucide-grip-vertical h-4 w-4 shrink-0 cursor-grab text-n-slate-8 hover:text-n-slate-11" />
+      <span
+        class="flow-step-drag-handle i-lucide-grip-vertical h-4 w-4 shrink-0 cursor-grab text-n-slate-8 hover:text-n-slate-11"
+      />
 
       <span
         v-if="isInitial"
@@ -87,7 +90,7 @@ const hasTerminalAction = computed(() =>
           v-if="!isInitial && step.name.trim()"
           title="Usar como paso inicial"
           class="rounded px-2 py-1 text-xs text-n-blue-10 hover:bg-n-blue-3 hover:text-n-blue-12"
-          @click="$emit('set-initial', step.name.trim())"
+          @click="$emit('setInitial', step.name.trim())"
         >
           ↑ Inicial
         </button>
@@ -107,22 +110,30 @@ const hasTerminalAction = computed(() =>
     <div class="flex flex-col gap-4 px-4 py-4">
       <!-- Message -->
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-semibold text-n-slate-11">Mensaje del bot</label>
+        <label class="text-xs font-semibold text-n-slate-11"
+          >Mensaje del bot</label
+        >
         <textarea
           :value="step.message"
-          rows="3"
+          rows="6"
           placeholder="Escribe el mensaje que enviará el bot al cliente…"
           class="w-full resize-y rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12 placeholder-n-slate-8 focus:border-n-brand focus:outline-none"
           @input="patch('message', $event.target.value)"
         />
         <p class="text-[11px] text-n-slate-9">
-          Usa <code class="rounded bg-n-alpha-3 px-1 font-mono">&#123;&#123;nombre_variable&#125;&#125;</code> para insertar variables.
+          Usa
+          <code class="rounded bg-n-alpha-3 px-1 font-mono"
+            >&#123;&#123;nombre_variable&#125;&#125;</code
+          >
+          para insertar variables.
         </p>
       </div>
 
       <!-- Capture -->
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-semibold text-n-slate-11">Capturar respuesta del usuario</label>
+        <label class="text-xs font-semibold text-n-slate-11"
+          >Capturar respuesta del usuario</label
+        >
         <div class="flex items-center gap-2">
           <span class="text-xs text-n-slate-9 shrink-0">Guardar como</span>
           <input
@@ -135,14 +146,18 @@ const hasTerminalAction = computed(() =>
         </div>
         <p class="text-[11px] text-n-slate-9">
           La respuesta del cliente a este paso se guardará en
-          <code class="rounded bg-n-alpha-3 px-1 font-mono">&#123;&#123;lead_nombre&#125;&#125;</code>
+          <code class="rounded bg-n-alpha-3 px-1 font-mono"
+            >&#123;&#123;lead_nombre&#125;&#125;</code
+          >
           y podrá usarse en mensajes posteriores.
         </p>
       </div>
 
       <!-- Action -->
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-semibold text-n-slate-11">Acción al enviar</label>
+        <label class="text-xs font-semibold text-n-slate-11"
+          >Acción al enviar</label
+        >
         <select
           :value="step.action"
           class="rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12 focus:border-n-brand focus:outline-none"
@@ -157,7 +172,9 @@ const hasTerminalAction = computed(() =>
       <!-- Transitions -->
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <label class="text-xs font-semibold text-n-slate-11">Transiciones</label>
+          <label class="text-xs font-semibold text-n-slate-11"
+            >Transiciones</label
+          >
           <button
             v-if="!hasTerminalAction"
             class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-n-blue-10 hover:bg-n-blue-3"
@@ -183,7 +200,11 @@ const hasTerminalAction = computed(() =>
               class="rounded-md border border-n-weak bg-n-solid-1 px-2 py-1 text-xs text-n-slate-12 focus:border-n-brand focus:outline-none"
               @change="patchTransition(i, 'type', $event.target.value)"
             >
-              <option v-for="ct in CONDITION_TYPES" :key="ct.value" :value="ct.value">
+              <option
+                v-for="ct in CONDITION_TYPES"
+                :key="ct.value"
+                :value="ct.value"
+              >
                 {{ ct.label }}
               </option>
             </select>
@@ -191,11 +212,15 @@ const hasTerminalAction = computed(() =>
             <input
               v-if="tr.type !== 'default'"
               :value="tr.value"
-              :placeholder="tr.type === 'contains' ? 'sí, si, yes, 1' : 'texto exacto'"
+              :placeholder="
+                tr.type === 'contains' ? 'sí, si, yes, 1' : 'texto exacto'
+              "
               class="min-w-0 flex-1 rounded-md border border-n-weak bg-n-solid-1 px-2 py-1 text-xs text-n-slate-12 placeholder-n-slate-8 focus:border-n-brand focus:outline-none"
               @input="patchTransition(i, 'value', $event.target.value)"
             />
-            <div v-else class="flex-1 text-xs italic text-n-slate-8">cualquier respuesta</div>
+            <div v-else class="flex-1 text-xs italic text-n-slate-8">
+              cualquier respuesta
+            </div>
 
             <span class="shrink-0 text-xs text-n-slate-8">→</span>
 
@@ -219,7 +244,10 @@ const hasTerminalAction = computed(() =>
             </button>
           </div>
 
-          <p v-if="!step.transitions.length" class="text-xs italic text-n-slate-8">
+          <p
+            v-if="!step.transitions.length"
+            class="text-xs italic text-n-slate-8"
+          >
             Sin transiciones — al recibir respuesta regresa al paso inicial.
           </p>
         </template>
