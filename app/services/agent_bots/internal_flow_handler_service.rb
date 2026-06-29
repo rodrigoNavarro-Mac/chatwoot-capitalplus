@@ -344,13 +344,7 @@ class AgentBots::InternalFlowHandlerService
   end
 
   def interpolate(text)
-    result = @variables.reduce(text) { |msg, (key, value)| msg.gsub("{{#{key}}}", value.to_s) }
-    @conversation.custom_attributes.each do |key, value|
-      next if key.to_s.start_with?('_')
-
-      result = result.gsub("{{#{key}}}", value.to_s)
-    end
-    result.gsub(/\{\{[^}]+\}\}/, '')
+    AgentBots::MessageInterpolator.call(text, config: @config, conversation: @conversation)
   end
 
   # ── Zoho CRM verification ──────────────────────────────────────────────────

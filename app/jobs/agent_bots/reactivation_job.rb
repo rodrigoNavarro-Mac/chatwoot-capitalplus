@@ -72,7 +72,7 @@ class AgentBots::ReactivationJob < ApplicationJob
     return if message.blank?
 
     params = {
-      content:      message,
+      content:      AgentBots::MessageInterpolator.call(message, config: config, conversation: conversation),
       private:      false,
       message_type: 'outgoing',
       sender_type:  'AgentBot',
