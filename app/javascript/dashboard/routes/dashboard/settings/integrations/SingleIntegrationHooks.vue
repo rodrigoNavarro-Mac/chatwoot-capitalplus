@@ -80,47 +80,60 @@ const copySecret = async () => {
       </div>
     </div>
 
-    <!-- Webhook secret (solo si el hook lo tiene configurado) -->
-    <div
-      v-if="hasConnectedHooks && webhookSecret"
-      class="mt-4 border-t border-n-weak pt-4"
-    >
+    <!-- Webhook secret -->
+    <div v-if="hasConnectedHooks" class="mt-4 border-t border-n-weak pt-4">
       <p class="text-xs font-semibold text-n-slate-11 mb-1.5">Webhook Secret</p>
-      <div class="flex items-center gap-2">
+
+      <!-- Sin secret configurado -->
+      <p v-if="!webhookSecret" class="text-xs text-n-slate-9">
+        No hay secret configurado. Ejecuta en el servidor:
         <code
-          class="flex-1 rounded-lg border border-n-weak bg-n-alpha-2 px-3 py-1.5 font-mono text-xs text-n-slate-12 break-all select-all"
+          class="mt-1 block rounded bg-n-alpha-3 px-2 py-1 font-mono text-[11px] text-n-slate-12 select-all"
+          >docker exec deploy-rails-1 rails runner "hook =
+          Integrations::Hook.find_by(app_id: 'zoho_crm'); hook.update!(settings:
+          hook.settings.merge('webhook_secret' => 'MI_SECRET')); puts
+          hook.settings['webhook_secret']"</code
         >
-          {{ showSecret ? webhookSecret : '••••••••••••••••' }}
-        </code>
-        <button
-          class="shrink-0 rounded-lg border border-n-weak px-2 py-1.5 text-xs text-n-slate-9 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
-          :title="showSecret ? 'Ocultar' : 'Mostrar'"
-          @click="showSecret = !showSecret"
-        >
-          <span v-if="showSecret" class="i-lucide-eye-off h-3.5 w-3.5" />
-          <span v-else class="i-lucide-eye h-3.5 w-3.5" />
-        </button>
-        <button
-          class="shrink-0 rounded-lg border border-n-weak px-2 py-1.5 text-xs transition-colors"
-          :class="
-            copied
-              ? 'border-n-teal-5 text-n-teal-11 bg-n-teal-2'
-              : 'text-n-slate-9 hover:text-n-slate-12 hover:bg-n-alpha-2'
-          "
-          title="Copiar"
-          @click="copySecret"
-        >
-          <span v-if="copied" class="i-lucide-check h-3.5 w-3.5" />
-          <span v-else class="i-lucide-copy h-3.5 w-3.5" />
-        </button>
-      </div>
-      <p class="mt-1 text-[11px] text-n-slate-9">
-        Usa este valor en el header
-        <code class="rounded bg-n-alpha-3 px-1 font-mono"
-          >X-Zoho-Webhook-Secret</code
-        >
-        al configurar el webhook en Zoho CRM.
       </p>
+
+      <!-- Con secret -->
+      <template v-else>
+        <div class="flex items-center gap-2">
+          <code
+            class="flex-1 rounded-lg border border-n-weak bg-n-alpha-2 px-3 py-1.5 font-mono text-xs text-n-slate-12 break-all select-all"
+          >
+            {{ showSecret ? webhookSecret : '••••••••••••••••' }}
+          </code>
+          <button
+            class="shrink-0 rounded-lg border border-n-weak px-2 py-1.5 text-xs text-n-slate-9 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
+            :title="showSecret ? 'Ocultar' : 'Mostrar'"
+            @click="showSecret = !showSecret"
+          >
+            <span v-if="showSecret" class="i-lucide-eye-off h-3.5 w-3.5" />
+            <span v-else class="i-lucide-eye h-3.5 w-3.5" />
+          </button>
+          <button
+            class="shrink-0 rounded-lg border border-n-weak px-2 py-1.5 text-xs transition-colors"
+            :class="
+              copied
+                ? 'border-n-teal-5 text-n-teal-11 bg-n-teal-2'
+                : 'text-n-slate-9 hover:text-n-slate-12 hover:bg-n-alpha-2'
+            "
+            title="Copiar"
+            @click="copySecret"
+          >
+            <span v-if="copied" class="i-lucide-check h-3.5 w-3.5" />
+            <span v-else class="i-lucide-copy h-3.5 w-3.5" />
+          </button>
+        </div>
+        <p class="mt-1 text-[11px] text-n-slate-9">
+          Usa este valor en el header
+          <code class="rounded bg-n-alpha-3 px-1 font-mono"
+            >X-Zoho-Webhook-Secret</code
+          >
+          al configurar el webhook en Zoho CRM.
+        </p>
+      </template>
     </div>
   </div>
 </template>
