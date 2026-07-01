@@ -7,6 +7,13 @@ class Webhooks::ZohoCrmController < ActionController::API
     head :ok
   end
 
+  def send_template
+    Crm::Zoho::SendInitialTemplateService.new(@account, params).perform
+    render json: { status: 'ok' }
+  rescue RuntimeError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   private
 
   def find_account
