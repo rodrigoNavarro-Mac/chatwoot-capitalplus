@@ -8,6 +8,7 @@ class Crm::Zoho::SendInitialTemplateService
     @template_language  = params[:template_language].to_s.strip
     @body_params        = Array(params[:body_params])
     @header_image_url   = params[:header_image_url].to_s.strip.presence
+    @asesor             = params[:asesor].to_s.strip
   end
 
   def perform
@@ -34,6 +35,7 @@ class Crm::Zoho::SendInitialTemplateService
     raise 'template_send_failed' unless wamid
 
     conversation = find_or_create_conversation(contact_inbox, inbox)
+    assign_agent(conversation)
     conversation.messages.create!(
       message_type: :outgoing,
       account_id:   @account.id,
@@ -47,6 +49,19 @@ class Crm::Zoho::SendInitialTemplateService
   end
 
   private
+
+  def assign_agent(conversation)
+    return if @asesor.blank?
+
+    agent = @account.agents.find_by('lower(name) = ?', @asesor.downcase)
+    unless agent
+      Rails.logger.warn("[ZohoCRM][SendTemplate] Asesor '#{@asesor}' no encontrado en Chatwoot, conversación sin asignar")
+      return
+    end
+
+    conversation.update!(assignee: agent)
+    Rails.logger.info("[ZohoCRM][SendTemplate] Conversación asignada a #{agent.name}")
+  end
 
   def find_or_create_conversation(contact_inbox, inbox)
     existing = Conversation.where(
