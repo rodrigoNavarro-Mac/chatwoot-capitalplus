@@ -1,12 +1,13 @@
 class Crm::Zoho::SendInitialTemplateService
   def initialize(account, params)
-    @account           = account
-    @phone             = params[:phone].to_s.gsub(/\D/, '')
-    @contact_name      = params[:contact_name].to_s.strip
-    @desarrollo        = params[:desarrollo].to_s.strip
-    @template_name     = params[:template_name].to_s.strip
-    @template_language = params[:template_language].to_s.strip
-    @body_params       = Array(params[:body_params])
+    @account            = account
+    @phone              = params[:phone].to_s.gsub(/\D/, '')
+    @contact_name       = params[:contact_name].to_s.strip
+    @desarrollo         = params[:desarrollo].to_s.strip
+    @template_name      = params[:template_name].to_s.strip
+    @template_language  = params[:template_language].to_s.strip
+    @body_params        = Array(params[:body_params])
+    @header_image_url   = params[:header_image_url].to_s.strip.presence
   end
 
   def perform
@@ -61,10 +62,13 @@ class Crm::Zoho::SendInitialTemplateService
                  @body_params.each_with_index.each_with_object({}) { |(val, i), h| h[(i + 1).to_s] = val }
                end
 
+    processed_params = { 'body' => body_map }
+    processed_params['header'] = { 'media_url' => @header_image_url, 'media_type' => 'image' } if @header_image_url
+
     template_params = {
       'name'             => @template_name,
       'language'         => @template_language,
-      'processed_params' => { 'body' => body_map }
+      'processed_params' => processed_params
     }
 
     Whatsapp::TemplateProcessorService.new(
