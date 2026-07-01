@@ -17,7 +17,7 @@ class Crm::Zoho::SendInitialTemplateService
 
     inbox = find_inbox!
 
-    ContactInboxWithContactBuilder.new(
+    contact_inbox = ContactInboxWithContactBuilder.new(
       inbox: inbox,
       contact_attributes: {
         name:         @contact_name.presence || @phone,
@@ -30,13 +30,42 @@ class Crm::Zoho::SendInitialTemplateService
     name, namespace, lang_code, parameters = build_template_info(channel)
     raise 'template_not_found_or_not_approved' if parameters.nil?
 
-    result = channel.send_template("+#{@phone}", { name: name, namespace: namespace, lang_code: lang_code, parameters: parameters }, nil)
-    raise 'template_send_failed' unless result
+    wamid = channel.send_template("+#{@phone}", { name: name, namespace: namespace, lang_code: lang_code, parameters: parameters }, nil)
+    raise 'template_send_failed' unless wamid
+
+    conversation = find_or_create_conversation(contact_inbox, inbox)
+    conversation.messages.create!(
+      message_type: :outgoing,
+      account_id:   @account.id,
+      inbox_id:     inbox.id,
+      content:      @template_name,
+      source_id:    wamid,
+      status:       :sent
+    )
 
     Rails.logger.info("[ZohoCRM][SendTemplate] Sent '#{@template_name}' to +#{@phone} via inbox ##{inbox.id}")
   end
 
   private
+
+  def find_or_create_conversation(contact_inbox, inbox)
+    existing = Conversation.where(
+      inbox_id:   inbox.id,
+      contact_id: contact_inbox.contact_id
+    ).where(status: [Conversation.statuses[:open], Conversation.statuses[:pending]])
+                            .order(created_at: :desc)
+                            .first
+
+    return existing if existing
+
+    Conversation.create!(
+      account_id:       @account.id,
+      inbox_id:         inbox.id,
+      contact_id:       contact_inbox.contact_id,
+      contact_inbox_id: contact_inbox.id,
+      status:           :open
+    )
+  end
 
   def find_inbox!
     inbox = @account.inboxes
