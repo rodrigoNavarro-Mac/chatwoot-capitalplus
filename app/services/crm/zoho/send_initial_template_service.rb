@@ -27,7 +27,11 @@ class Crm::Zoho::SendInitialTemplateService
 
     channel = inbox.channel
     name, namespace, lang_code, parameters = build_template_info(channel)
-    channel.send_template("+#{@phone}", { name: name, namespace: namespace, lang_code: lang_code, parameters: parameters }, nil)
+    raise 'template_not_found_or_not_approved' if parameters.nil?
+
+    result = channel.send_template("+#{@phone}", { name: name, namespace: namespace, lang_code: lang_code, parameters: parameters }, nil)
+    raise 'template_send_failed' unless result
+
     Rails.logger.info("[ZohoCRM][SendTemplate] Sent '#{@template_name}' to +#{@phone} via inbox ##{inbox.id}")
   end
 
@@ -44,7 +48,18 @@ class Crm::Zoho::SendInitialTemplateService
   end
 
   def build_template_info(channel)
-    body_map = @body_params.each_with_index.each_with_object({}) { |(val, i), h| h[(i + 1).to_s] = val }
+    template = channel.message_templates.find do |t|
+      t['name']&.downcase == @template_name.downcase &&
+        t['language']&.downcase == @template_language.downcase &&
+        t['status']&.downcase == 'approved'
+    end
+
+    body_map = if template&.dig('parameter_format') == 'NAMED'
+                 named_keys = extract_named_param_names(template)
+                 named_keys.each_with_index.each_with_object({}) { |(name, i), h| h[name] = @body_params[i].to_s }
+               else
+                 @body_params.each_with_index.each_with_object({}) { |(val, i), h| h[(i + 1).to_s] = val }
+               end
 
     template_params = {
       'name'             => @template_name,
@@ -56,5 +71,15 @@ class Crm::Zoho::SendInitialTemplateService
       channel: channel,
       template_params: template_params
     ).call
+  end
+
+  def extract_named_param_names(template)
+    body_component = template['components']&.find { |c| c['type']&.upcase == 'BODY' }
+    return [] unless body_component
+
+    named_params = body_component.dig('example', 'body_text_named_params')
+    return named_params.map { |p| p['param_name'] } if named_params.present?
+
+    (body_component['text'] || '').scan(/\{\{(\w+)\}\}/).flatten
   end
 end
