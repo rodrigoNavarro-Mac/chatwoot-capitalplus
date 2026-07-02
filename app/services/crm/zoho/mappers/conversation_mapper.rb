@@ -1,6 +1,4 @@
 class Crm::Zoho::Mappers::ConversationMapper
-  include ::Rails.application.routes.url_helpers
-
   NOTE_CONTENT_MAX_SIZE = 3000
 
   def self.conversation_note(conversation)
@@ -53,7 +51,10 @@ class Crm::Zoho::Mappers::ConversationMapper
   end
 
   def safe_conversation_url
-    app_account_conversation_url(account_id: @conversation.account.id, id: @conversation.display_id)
+    frontend_url = ENV['FRONTEND_URL'].presence
+    return '' if frontend_url.blank?
+
+    "#{frontend_url.chomp('/')}/app/accounts/#{@conversation.account_id}/conversations/#{@conversation.display_id}"
   rescue StandardError
     ''
   end
