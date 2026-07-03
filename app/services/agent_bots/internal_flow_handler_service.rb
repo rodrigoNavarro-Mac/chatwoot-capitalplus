@@ -17,6 +17,7 @@ class AgentBots::InternalFlowHandlerService
   def perform
     unless processable?
       Rails.logger.info("[InternalFlow] Conv ##{@conversation.id} — no processable")
+      hand_off_to_agent_if_business_hours
       return
     end
 
@@ -45,6 +46,20 @@ class AgentBots::InternalFlowHandlerService
   end
 
   private
+
+  # ── Business hours hand-off ────────────────────────────────────────────────
+
+  def hand_off_to_agent_if_business_hours
+    inbox = @conversation.inbox
+    return unless inbox.working_hours_enabled? && !inbox.out_of_office?
+    return if @conversation.open?
+
+    business_hours_message = @config.dig(:business_hours, :message).presence ||
+                             'Hola, estamos en horario de atención. Un asesor te atenderá en breve.'
+    send_bot_message(business_hours_message)
+    @conversation.open!
+    Rails.logger.info("[InternalFlow] Conv ##{@conversation.id} — business hours, handed off to agent")
+  end
 
   # ── Provider authorization ─────────────────────────────────────────────────
 
