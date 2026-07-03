@@ -50,8 +50,6 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     enrich_chatwoot_contact(contact, result)
     import_recent_zoho_notes(contact, result)
 
-    return unless @enable_conversation_note
-
     create_zoho_note(
       result,
       title: "Conversación ##{conversation.display_id}",

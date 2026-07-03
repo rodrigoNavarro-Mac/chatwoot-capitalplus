@@ -5,7 +5,7 @@ class Crm::Zoho::Api::NotesClient < Crm::Zoho::Api::BaseClient
              Note_Title: title,
              Note_Content: content,
              '$se_module': zoho_module,
-             Parent_Id: { id: zoho_id, module: zoho_module }
+             Parent_Id: zoho_id
            }]
          })
   end
