@@ -68,7 +68,10 @@ class Crm::Zoho::SendInitialTemplateService
                             .order(created_at: :desc)
                             .first
 
-    return existing if existing
+    if existing
+      existing.update!(status: :open) if existing.pending?
+      return existing
+    end
 
     Conversation.create!(
       account_id:       @account.id,
