@@ -62,8 +62,9 @@ class Crm::Zoho::SendInitialTemplateService
 
   def find_or_create_conversation(contact_inbox, inbox)
     existing = Conversation.where(
-      inbox_id:   inbox.id,
-      contact_id: contact_inbox.contact_id
+      inbox_id:         inbox.id,
+      contact_id:       contact_inbox.contact_id,
+      contact_inbox_id: contact_inbox.id
     ).where(status: [Conversation.statuses[:open], Conversation.statuses[:pending]])
                             .order(created_at: :desc)
                             .first

@@ -126,6 +126,17 @@ class Whatsapp::IncomingMessageBaseService
                     end
     return if @conversation
 
+    # Some contacts reply with a different wa_id (e.g. MX.xxxxxxx) than the phone-based
+    # source_id used when the template was sent. In that case the contact_inbox lookup above
+    # finds nothing, but there is already an open/pending conversation for this contact in
+    # this inbox. Route the reply there to preserve the existing assignee.
+    @conversation = Conversation
+                      .where(inbox_id: @inbox.id, contact_id: @contact.id)
+                      .where.not(status: :resolved)
+                      .order(created_at: :desc)
+                      .first
+    return if @conversation
+
     @conversation = ::Conversation.create!(conversation_params)
   end
 
