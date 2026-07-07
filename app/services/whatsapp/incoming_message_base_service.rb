@@ -131,7 +131,7 @@ class Whatsapp::IncomingMessageBaseService
     # finds nothing, but there is already an open/pending conversation for this contact in
     # this inbox. Route the reply there to preserve the existing assignee.
     @conversation = Conversation
-                      .where(inbox_id: @inbox.id, contact_id: @contact.id)
+                      .where(inbox_id: @inbox.id, contact_id: @contact.id, account_id: @inbox.account_id)
                       .where.not(status: :resolved)
                       .order(created_at: :desc)
                       .first

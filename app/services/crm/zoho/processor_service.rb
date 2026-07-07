@@ -34,6 +34,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     log_api_error('handle_contact', contact.id, e)
   rescue StandardError => e
     log_error('handle_contact', contact.id, e)
+    raise
   end
 
   def handle_conversation_created(event_data)
@@ -59,6 +60,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     log_api_error('handle_conversation_created', conversation.id, e)
   rescue StandardError => e
     log_error('handle_conversation_created', conversation.id, e)
+    raise
   end
 
   def handle_conversation_resolved(event_data)
@@ -84,6 +86,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     log_api_error('handle_conversation_resolved', conversation.id, e)
   rescue StandardError => e
     log_error('handle_conversation_resolved', conversation.id, e)
+    raise
   end
 
   private

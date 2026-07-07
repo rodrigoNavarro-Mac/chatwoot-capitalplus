@@ -13,7 +13,17 @@ class Crm::Zoho::TokenRefreshService
     cached = ::Redis::Alfred.get(cache_key)
     return cached if cached.present?
 
-    fetch_and_cache_token
+    # Only one worker should exchange the refresh token at a time.
+    # Others that lose the race re-read from cache once the winner finishes.
+    if ::Redis::Alfred.set(lock_key, 1, nx: true, ex: 30)
+      begin
+        fetch_and_cache_token
+      ensure
+        ::Redis::Alfred.delete(lock_key)
+      end
+    else
+      ::Redis::Alfred.get(cache_key)
+    end
   end
 
   def invalidate!
@@ -45,5 +55,9 @@ class Crm::Zoho::TokenRefreshService
 
   def cache_key
     format(::Redis::Alfred::ZOHO_CRM_ACCESS_TOKEN, hook_id: @hook.id)
+  end
+
+  def lock_key
+    "zoho_token_refresh_lock:#{@hook.id}"
   end
 end
