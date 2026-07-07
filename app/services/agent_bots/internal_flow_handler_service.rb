@@ -15,6 +15,11 @@ class AgentBots::InternalFlowHandlerService
   end
 
   def perform
+    if incoming_message? && baja_keyword?
+      handle_baja_request
+      return
+    end
+
     unless processable?
       Rails.logger.info("[InternalFlow] Conv ##{@conversation.id} — no processable")
       hand_off_to_agent_if_business_hours
@@ -47,6 +52,40 @@ class AgentBots::InternalFlowHandlerService
 
   private
 
+  # ── Baja / opt-out ────────────────────────────────────────────────────────
+
+  def incoming_message?
+    @message.is_a?(Message) && @message.incoming?
+  end
+
+  def baja_keyword?
+    @message_content.match?(/\bbaja\b/)
+  end
+
+  def handle_baja_request
+    mark_as_descartado_in_zoho
+    farewell = @config.dig(:baja, :message).presence ||
+               'Has solicitado darte de baja. No te enviaremos más mensajes. ¡Hasta pronto!'
+    send_bot_message(farewell)
+    @conversation.resolved!
+    Rails.logger.info("[InternalFlow] Conv ##{@conversation.id} — baja request handled, marked Descartado in Zoho")
+  end
+
+  def mark_as_descartado_in_zoho
+    contact = @conversation.contact
+    ext     = contact.additional_attributes&.dig('external')
+    zoho_id     = ext&.dig('zoho_id')
+    zoho_module = ext&.dig('zoho_module')
+    return unless zoho_id.present? && zoho_hook.present?
+
+    client = zoho_module == 'Contacts' ?
+             Crm::Zoho::Api::ContactsClient.new(zoho_hook) :
+             Crm::Zoho::Api::LeadsClient.new(zoho_hook)
+    client.update(zoho_id, { 'Lead_Status' => 'Descartado' })
+  rescue StandardError => e
+    Rails.logger.error("[InternalFlow] Conv ##{@conversation.id} — failed to mark Descartado in Zoho: #{e.message}")
+  end
+
   # ── Business hours hand-off ────────────────────────────────────────────────
 
   def hand_off_to_agent_if_business_hours
@@ -54,9 +93,6 @@ class AgentBots::InternalFlowHandlerService
     return unless inbox.working_hours_enabled? && !inbox.out_of_office?
     return if @conversation.open?
 
-    business_hours_message = @config.dig(:business_hours, :message).presence ||
-                             'Hola, estamos en horario de atención. Un asesor te atenderá en breve.'
-    send_bot_message(business_hours_message)
     @conversation.open!
     Rails.logger.info("[InternalFlow] Conv ##{@conversation.id} — business hours, handed off to agent")
   end
