@@ -29,7 +29,7 @@ const handleButtonClick = () => {
             {{ headerTitle }}
           </span>
           <div
-            v-on-click-outside="[
+            v-on-click-outside.bubble="[
               () => emit('close'),
               // This will prevent closing the modal when the editor Create link popup is open
               { ignore: ['dialog.ProseMirror-prompt-backdrop'] },
