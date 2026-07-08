@@ -67,9 +67,7 @@ const isBusy = computed(() => isCreating.value || isUpdating.value);
 
 const csvAudienceError = computed(
   () =>
-    hasAttemptedSubmit.value &&
-    state.audienceType === 'csv' &&
-    !csvFile.value
+    hasAttemptedSubmit.value && state.audienceType === 'csv' && !csvFile.value
 );
 
 const currentDateTime = computed(() => {
@@ -341,7 +339,7 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
     </div>
 
     <!-- Label audience -->
-    <div v-if="state.audienceType === 'labels'" class="flex flex-col gap-1">
+    <div v-show="state.audienceType === 'labels'" class="flex flex-col gap-1">
       <label for="audience" class="mb-0.5 text-sm font-medium text-n-slate-12">
         {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.AUDIENCE.LABEL') }}
       </label>
@@ -357,7 +355,7 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
     </div>
 
     <!-- CSV audience -->
-    <div v-else class="flex flex-col gap-1">
+    <div v-show="state.audienceType === 'csv'" class="flex flex-col gap-1">
       <label class="mb-0.5 text-sm font-medium text-n-slate-12">
         {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.LABEL') }}
       </label>
@@ -432,7 +430,10 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
       />
     </div>
 
-    <div v-if="!isEditMode" class="flex gap-3 justify-between items-center w-full">
+    <div
+      v-if="!isEditMode"
+      class="flex gap-3 justify-between items-center w-full"
+    >
       <Button
         variant="faded"
         color="slate"

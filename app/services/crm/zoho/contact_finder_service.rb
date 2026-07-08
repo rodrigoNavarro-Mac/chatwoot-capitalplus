@@ -64,6 +64,7 @@ class Crm::Zoho::ContactFinderService
 
   def create_lead(contact)
     data = Crm::Zoho::Mappers::ContactMapper.map(contact, module_name: 'Leads')
+    data['Lead_Source'] = 'Chatwoot'
     zoho_id = @leads_client.create(data)
     raise 'Zoho CRM: create Lead returned no ID' if zoho_id.blank?
 

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { getLanguageName } from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
 import ContactDetailsItem from './ContactDetailsItem.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
@@ -13,7 +14,13 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  conversationTimings: {
+    type: Object,
+    default: () => ({}),
+  },
 });
+
+const { t } = useI18n();
 
 const referer = computed(() => props.conversationAttributes.referer);
 const initiatedAt = computed(
@@ -41,6 +48,26 @@ const platformName = computed(() => {
 });
 
 const createdAtIp = computed(() => props.contactAttributes.created_at_ip);
+
+const firstResponseTime = computed(() => {
+  const { first_reply_created_at, created_at } = props.conversationTimings;
+  if (!first_reply_created_at || !created_at) return null;
+  const totalSeconds = first_reply_created_at - created_at;
+  if (totalSeconds <= 0) return null;
+  if (totalSeconds < 60)
+    return t('CONTACT_PANEL.FIRST_RESPONSE_TIME_SECONDS', { n: totalSeconds });
+  const minutes = Math.floor(totalSeconds / 60);
+  if (minutes < 60)
+    return t('CONTACT_PANEL.FIRST_RESPONSE_TIME_MINUTES', { n: minutes });
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0)
+    return t('CONTACT_PANEL.FIRST_RESPONSE_TIME_HOURS', { n: hours });
+  return t('CONTACT_PANEL.FIRST_RESPONSE_TIME_HOURS_MINUTES', {
+    hours,
+    minutes: remainingMinutes,
+  });
+});
 
 const staticElements = computed(() =>
   [
@@ -78,6 +105,12 @@ const staticElements = computed(() =>
       content: createdAtIp,
       title: 'CONTACT_PANEL.IP_ADDRESS',
       key: 'static-ip-address',
+      type: 'static_attribute',
+    },
+    {
+      content: firstResponseTime,
+      title: 'CONTACT_PANEL.FIRST_RESPONSE_TIME',
+      key: 'static-first-response-time',
       type: 'static_attribute',
     },
   ].filter(attribute => !!attribute.content.value)

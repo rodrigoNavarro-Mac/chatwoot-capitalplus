@@ -28,7 +28,7 @@ class Crm::Zoho::SendInitialTemplateService
     ).perform
 
     channel = inbox.channel
-    name, namespace, lang_code, parameters = build_template_info(channel)
+    name, namespace, lang_code, parameters, rendered_body = build_template_info(channel)
     raise 'template_not_found_or_not_approved' if parameters.nil?
 
     wamid = channel.send_template("+#{@phone}", { name: name, namespace: namespace, lang_code: lang_code, parameters: parameters }, nil)
@@ -40,7 +40,7 @@ class Crm::Zoho::SendInitialTemplateService
       message_type: :outgoing,
       account_id:   @account.id,
       inbox_id:     inbox.id,
-      content:      @template_name,
+      content:      rendered_body.presence || @template_name,
       source_id:    wamid,
       status:       :sent
     )
@@ -116,10 +116,24 @@ class Crm::Zoho::SendInitialTemplateService
       'processed_params' => processed_params
     }
 
-    Whatsapp::TemplateProcessorService.new(
+    api_params = Whatsapp::TemplateProcessorService.new(
       channel: channel,
       template_params: template_params
     ).call
+
+    rendered_body = render_template_body(template, body_map)
+    api_params + [rendered_body]
+  end
+
+  def render_template_body(template, body_map)
+    return nil unless template
+
+    body_component = template['components']&.find { |c| c['type']&.upcase == 'BODY' }
+    return nil unless body_component
+
+    text = body_component['text'].to_s
+    body_map.each { |key, value| text = text.gsub("{{#{key}}}", value.to_s) }
+    text.gsub(/\{\{[^}]+\}\}/, '').strip
   end
 
   def extract_named_param_names(template)

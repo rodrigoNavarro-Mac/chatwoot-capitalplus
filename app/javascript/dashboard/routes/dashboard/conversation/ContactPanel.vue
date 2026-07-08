@@ -91,9 +91,13 @@ const conversationAdditionalAttributes = computed(
 const channelType = computed(() => currentChat.value.meta?.channel);
 
 const currentUserRole = useMapGetter('getCurrentRole');
-const isAdministrator = computed(() => currentUserRole.value === 'administrator');
+const isAdministrator = computed(
+  () => currentUserRole.value === 'administrator'
+);
 const isHandedOver = computed(() => !!currentChat.value.meta?.assignee);
-const canViewZohoCrm = computed(() => isAdministrator.value || isHandedOver.value);
+const canViewZohoCrm = computed(
+  () => isAdministrator.value || isHandedOver.value
+);
 
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
@@ -101,6 +105,11 @@ const contact = computed(() => contactGetter.value(contactId.value));
 const contactAdditionalAttributes = computed(
   () => contact.value.additional_attributes || {}
 );
+
+const conversationTimings = computed(() => ({
+  first_reply_created_at: currentChat.value.first_reply_created_at,
+  created_at: currentChat.value.created_at,
+}));
 
 const getContactDetails = () => {
   if (contactId.value) {
@@ -203,6 +212,7 @@ onMounted(() => {
               <ConversationInfo
                 :conversation-attributes="conversationAdditionalAttributes"
                 :contact-attributes="contactAdditionalAttributes"
+                :conversation-timings="conversationTimings"
               />
             </AccordionItem>
           </div>
@@ -299,7 +309,10 @@ onMounted(() => {
               compact
               @toggle="value => toggleSidebarUIState('is_zoho_crm_open', value)"
             >
-              <ZohoCrmPanel :contact-id="contactId" :conversation-id="conversationId" />
+              <ZohoCrmPanel
+                :contact-id="contactId"
+                :conversation-id="conversationId"
+              />
             </AccordionItem>
           </div>
           <div v-else-if="element.name === 'contact_notes'">

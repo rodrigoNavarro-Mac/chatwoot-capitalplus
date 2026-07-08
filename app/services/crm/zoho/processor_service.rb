@@ -30,6 +30,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
 
     result = @finder.find_or_create(contact)
     sync_contact_to_zoho(contact, result)
+    ensure_conversation_link_notes(contact, result)
   rescue Crm::Zoho::Api::BaseClient::ApiError => e
     log_api_error('handle_contact', contact.id, e)
   rescue StandardError => e
@@ -98,6 +99,34 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     else
       @contacts_client.update(result[:zoho_id], data)
     end
+  end
+
+  def ensure_conversation_link_notes(contact, result)
+    frontend_url = ENV['FRONTEND_URL'].presence
+    return unless frontend_url
+
+    conversations = contact.conversations
+                           .where(status: [Conversation.statuses[:open], Conversation.statuses[:pending]])
+                           .order(created_at: :desc)
+                           .limit(5)
+    return if conversations.empty?
+
+    existing_notes = @notes_client.list(zoho_id: result[:zoho_id], zoho_module: result[:zoho_module])
+    existing_contents = existing_notes.map { |n| n['Note_Content'].to_s }
+
+    conversations.each do |conversation|
+      chat_url = Crm::Zoho::Mappers::ConversationMapper.conversation_note(conversation)
+      next if chat_url.blank?
+      next if existing_contents.any? { |c| c.include?(chat_url) }
+
+      create_zoho_note(
+        result,
+        title: "Conversación ##{conversation.display_id}",
+        content: chat_url
+      )
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[ZOHO CRM] Failed to ensure conversation links for contact ##{contact.id}: #{e.message}")
   end
 
   def enrich_chatwoot_contact(contact, result)

@@ -25,8 +25,7 @@ class Crm::Zoho::Mappers::ContactMapper
       'First_Name' => first_name,
       'Last_Name' => last_name.presence || '(sin apellido)',
       'Email' => contact.email.presence,
-      'Phone' => contact.phone_number.presence,
-      'Lead_Source' => 'Chatwoot'
+      'Phone' => contact.phone_number.presence
     }.compact
   end
 
