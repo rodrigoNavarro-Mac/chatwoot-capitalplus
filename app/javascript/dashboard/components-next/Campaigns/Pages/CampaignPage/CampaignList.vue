@@ -12,17 +12,20 @@ defineProps({
   },
 });
 
-const emit = defineEmits(['edit', 'delete']);
+const emit = defineEmits(['edit', 'delete', 'metrics']);
 
 const handleEdit = campaign => emit('edit', campaign);
 const handleDelete = campaign => emit('delete', campaign);
+const handleMetrics = campaign => emit('metrics', campaign);
+
+const isWhatsAppCampaign = campaign =>
+  campaign.inbox?.channel_type === 'Channel::Whatsapp';
 
 const canEditCampaign = campaign => {
-  const isWhatsApp = campaign.inbox?.channel_type === 'Channel::Whatsapp';
   const isEditable =
     campaign.campaign_status !== 'completed' &&
     campaign.campaign_status !== 'processing';
-  return isWhatsApp && isEditable;
+  return isWhatsAppCampaign(campaign) && isEditable;
 };
 </script>
 
@@ -40,8 +43,10 @@ const canEditCampaign = campaign => {
       :scheduled-at="campaign.scheduled_at"
       :is-live-chat-type="isLiveChatType"
       :can-edit="canEditCampaign(campaign)"
+      :can-view-metrics="isWhatsAppCampaign(campaign)"
       @edit="handleEdit(campaign)"
       @delete="handleDelete(campaign)"
+      @metrics="handleMetrics(campaign)"
     />
   </div>
 </template>

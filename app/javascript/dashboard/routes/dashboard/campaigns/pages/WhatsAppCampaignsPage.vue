@@ -9,6 +9,7 @@ import CampaignLayout from 'dashboard/components-next/Campaigns/CampaignLayout.v
 import CampaignList from 'dashboard/components-next/Campaigns/Pages/CampaignPage/CampaignList.vue';
 import WhatsAppCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/WhatsAppCampaignDialog.vue';
 import EditWhatsAppCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/EditWhatsAppCampaignDialog.vue';
+import WhatsAppCampaignMetricsDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/WhatsAppCampaignMetricsDialog.vue';
 import ConfirmDeleteCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/ConfirmDeleteCampaignDialog.vue';
 import WhatsAppCampaignEmptyState from 'dashboard/components-next/Campaigns/EmptyState/WhatsAppCampaignEmptyState.vue';
 
@@ -23,6 +24,7 @@ const isFetchingCampaigns = computed(() => uiFlags.value.isFetching);
 
 const confirmDeleteCampaignDialogRef = ref(null);
 const editCampaignDialogRef = ref(null);
+const metricsCampaignDialogRef = ref(null);
 
 const WhatsAppCampaigns = computed(
   () => getters['campaigns/getWhatsAppCampaigns'].value
@@ -40,6 +42,11 @@ const handleDelete = campaign => {
 const handleEdit = campaign => {
   selectedCampaign.value = campaign;
   editCampaignDialogRef.value.dialogRef.open();
+};
+
+const handleMetrics = campaign => {
+  selectedCampaign.value = campaign;
+  metricsCampaignDialogRef.value.dialogRef.open();
 };
 </script>
 
@@ -67,6 +74,7 @@ const handleEdit = campaign => {
       :campaigns="WhatsAppCampaigns"
       @edit="handleEdit"
       @delete="handleDelete"
+      @metrics="handleMetrics"
     />
     <WhatsAppCampaignEmptyState
       v-else
@@ -80,6 +88,10 @@ const handleEdit = campaign => {
     />
     <EditWhatsAppCampaignDialog
       ref="editCampaignDialogRef"
+      :selected-campaign="selectedCampaign"
+    />
+    <WhatsAppCampaignMetricsDialog
+      ref="metricsCampaignDialogRef"
       :selected-campaign="selectedCampaign"
     />
   </CampaignLayout>

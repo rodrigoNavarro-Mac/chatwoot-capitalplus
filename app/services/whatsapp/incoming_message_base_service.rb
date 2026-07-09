@@ -44,6 +44,8 @@ class Whatsapp::IncomingMessageBaseService
       set_conversation
       create_messages
     end
+
+    campaign_delivery_tracker.mark_response!(@contact, @message, @conversation, outgoing_echo: outgoing_echo)
   end
 
   def process_statuses
@@ -52,11 +54,15 @@ class Whatsapp::IncomingMessageBaseService
     if find_message_by_source_id(status[:id])
       update_whatsapp_identifiers_from_status(status)
       update_message_with_status(@message, status)
-    elsif wa_undeliverable?(status)
-      mark_campaign_contact_wa_invalid(status[:id])
     end
+
+    campaign_delivery_tracker.sync_status!(status)
   rescue ArgumentError => e
     Rails.logger.error "Error while processing whatsapp status update #{e.message}"
+  end
+
+  def campaign_delivery_tracker
+    @campaign_delivery_tracker ||= Campaigns::DeliveryWebhookTracker.new(inbox: @inbox)
   end
 
   def update_message_with_status(message, status)
@@ -228,45 +234,6 @@ class Whatsapp::IncomingMessageBaseService
     phone_number = "+#{message_phone_number}"
     formatted_phone_number = TelephoneNumber.parse(phone_number).international_number
     @contact.name == phone_number || @contact.name == formatted_phone_number
-  end
-
-  def wa_undeliverable?(status)
-    status[:status] == 'failed' &&
-      status[:errors]&.any? { |e| e[:code].to_i == 131026 }
-  end
-
-  # Marks wa_invalid when a campaign message (not tracked in DB) fails with 131026.
-  # Checks both contact-based tracking (label campaigns) and phone-based (CSV campaigns).
-  def mark_campaign_contact_wa_invalid(wa_message_id)
-    if mark_label_campaign_contact_invalid(wa_message_id)
-      return
-    end
-
-    mark_csv_campaign_phone_invalid(wa_message_id)
-  rescue StandardError => e
-    Rails.logger.error "Failed to mark wa_invalid for #{wa_message_id}: #{e.message}"
-  end
-
-  def mark_label_campaign_contact_invalid(wa_message_id)
-    key = format(Redis::RedisKeys::CAMPAIGN_WA_MSG_CONTACT, wa_message_id: wa_message_id)
-    contact_id = Redis::Alfred.get(key)
-    return false if contact_id.blank?
-
-    contact = Contact.find_by(id: contact_id.to_i)
-    mark_contact_wa_invalid(contact)
-    Redis::Alfred.delete(key)
-    true
-  end
-
-  def mark_csv_campaign_phone_invalid(wa_message_id)
-    key = format(Redis::RedisKeys::CAMPAIGN_WA_MSG_PHONE, wa_message_id: wa_message_id)
-    account_phone = Redis::Alfred.get(key)
-    return if account_phone.blank?
-
-    account_id, phone = account_phone.split(':', 2)
-    invalid_key = format(Redis::RedisKeys::WA_INVALID_PHONES, account_id: account_id.to_i)
-    Redis::Alfred.with { |conn| conn.sadd(invalid_key, phone) }
-    Redis::Alfred.delete(key)
   end
 
   def mark_contact_wa_invalid(contact)

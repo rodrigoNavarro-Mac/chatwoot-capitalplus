@@ -1,5 +1,5 @@
 class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
-  before_action :campaign, except: [:index, :create]
+  before_action :campaign, except: [:index, :create, :csv_usage_report]
   before_action :check_authorization
 
   def index
@@ -7,6 +7,14 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   end
 
   def show; end
+
+  def metrics
+    @metrics = Campaigns::CampaignMetricsBuilder.new(@campaign).build
+  end
+
+  def csv_usage_report
+    @csv_usage_report = Campaigns::CsvUsageReportBuilder.new(Current.account).build
+  end
 
   def create
     @campaign = Current.account.campaigns.create!(campaign_params)

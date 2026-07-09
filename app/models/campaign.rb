@@ -4,6 +4,7 @@
 #
 #  id                                 :bigint           not null, primary key
 #  audience                           :jsonb
+#  audience_count                     :integer
 #  audience_type                      :string           default("labels"), not null
 #  campaign_status                    :integer          default("active"), not null
 #  campaign_type                      :integer          default("ongoing"), not null
@@ -55,6 +56,7 @@ class Campaign < ApplicationRecord
   enum campaign_status: { active: 0, completed: 1, processing: 2 }
 
   has_many :conversations, dependent: :nullify, autosave: true
+  has_many :campaign_message_deliveries, dependent: :destroy
   has_one_attached :csv_audience
 
   before_validation :ensure_correct_campaign_attributes

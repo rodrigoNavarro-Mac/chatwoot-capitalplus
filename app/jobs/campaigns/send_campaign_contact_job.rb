@@ -21,11 +21,7 @@ class Campaigns::SendCampaignContactJob < ApplicationJob
     return unless contact
     return if contact.additional_attributes&.dig('wa_valid') == false
 
-    wa_message_id = service.send_to_contact(contact)
-    return if wa_message_id.blank?
-
-    key = format(Redis::RedisKeys::CAMPAIGN_WA_MSG_CONTACT, wa_message_id: wa_message_id)
-    Redis::Alfred.setex(key, contact.id.to_s, 7.days.to_i)
+    service.send_to_contact(contact)
   end
 
   def send_to_csv_contact(campaign, service, contact_data)
@@ -35,11 +31,7 @@ class Campaigns::SendCampaignContactJob < ApplicationJob
     return if phone.blank?
     return if phone_wa_invalid?(campaign.account_id, phone)
 
-    wa_message_id = service.send_to_csv_contact(contact_data)
-    return if wa_message_id.blank?
-
-    key = format(Redis::RedisKeys::CAMPAIGN_WA_MSG_PHONE, wa_message_id: wa_message_id)
-    Redis::Alfred.setex(key, "#{campaign.account_id}:#{phone}", 7.days.to_i)
+    service.send_to_csv_contact(contact_data)
   end
 
   def phone_wa_invalid?(account_id, phone)

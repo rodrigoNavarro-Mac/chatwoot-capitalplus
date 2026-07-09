@@ -195,7 +195,7 @@
           "CSV_AUDIENCE": {
             "LABEL": "CSV file",
             "PLACEHOLDER": "Click to upload a CSV file",
-            "INFO": "CSV must have a 'phone_number' column. Optional: 'name', 'email', and extra columns usable as {{ contact.custom_attribute.column_name }} in the template.",
+            "INFO": "CSV must have a 'phone_number' column. Optional: 'name', 'email', and extra columns usable as contact.custom_attribute.column_name in the template.",
             "ERROR": "CSV file is required"
           },
           "SCHEDULED_AT": {
@@ -237,6 +237,41 @@
           "UPDATE": "Update",
           "CANCEL": "Cancel"
         }
+      }
+    },
+    "WHATSAPP_METRICS": {
+      "TITLE": "Campaign metrics",
+      "CLOSE": "Close",
+      "AUDIENCE_COUNT": {
+        "LABEL": "Audience",
+        "TOOLTIP": "Total recipients scheduled for this campaign."
+      },
+      "SENT": {
+        "LABEL": "Sent",
+        "TOOLTIP": "Messages successfully sent to WhatsApp."
+      },
+      "DELIVERED": {
+        "LABEL": "Delivered",
+        "TOOLTIP": "Messages confirmed delivered to the recipient's device."
+      },
+      "READ": {
+        "LABEL": "Read",
+        "TOOLTIP": "Messages the recipient has opened."
+      },
+      "FAILED": {
+        "LABEL": "Failed",
+        "TOOLTIP": "Messages that could not be sent or delivered."
+      },
+      "RESPONDED": {
+        "LABEL": "Responded",
+        "TOOLTIP": "Recipients who replied after receiving this campaign."
+      },
+      "RESPONSE_RATE": {
+        "LABEL": "Response rate",
+        "TOOLTIP": "Responded divided by sent, as a percentage."
+      },
+      "API": {
+        "ERROR_MESSAGE": "There was an error loading the campaign metrics. Please try again."
       }
     },
     "CONFIRM_DELETE": {
