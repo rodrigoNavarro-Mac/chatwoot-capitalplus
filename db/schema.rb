@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_23_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_09_120100) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -285,6 +285,31 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_130000) do
     t.index ["provider", "provider_call_id"], name: "index_calls_on_provider_and_provider_call_id", unique: true
   end
 
+  create_table "campaign_message_deliveries", force: :cascade do |t|
+    t.bigint "campaign_id", null: false
+    t.bigint "account_id", null: false
+    t.string "audience_type", null: false
+    t.bigint "contact_id"
+    t.bigint "message_id"
+    t.string "phone_number", null: false
+    t.string "source_id"
+    t.string "status", default: "queued", null: false
+    t.text "failed_reason"
+    t.datetime "sent_at"
+    t.datetime "delivered_at"
+    t.datetime "read_at"
+    t.datetime "failed_at"
+    t.datetime "responded_at"
+    t.bigint "response_message_id"
+    t.bigint "response_conversation_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "phone_number"], name: "idx_on_account_id_phone_number_b81823726f"
+    t.index ["campaign_id"], name: "index_campaign_message_deliveries_on_campaign_id"
+    t.index ["contact_id"], name: "index_campaign_message_deliveries_on_contact_id"
+    t.index ["source_id"], name: "index_campaign_message_deliveries_on_source_id", unique: true, where: "(source_id IS NOT NULL)"
+  end
+
   create_table "campaigns", force: :cascade do |t|
     t.integer "display_id", null: false
     t.string "title", null: false
@@ -308,6 +333,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_130000) do
     t.string "send_window_start", default: "09:00", null: false
     t.string "send_window_end", default: "19:00", null: false
     t.string "audience_type", default: "labels", null: false
+    t.integer "audience_count"
     t.index ["account_id"], name: "index_campaigns_on_account_id"
     t.index ["campaign_status"], name: "index_campaigns_on_campaign_status"
     t.index ["campaign_type"], name: "index_campaigns_on_campaign_type"

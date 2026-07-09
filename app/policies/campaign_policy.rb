@@ -18,4 +18,12 @@ class CampaignPolicy < ApplicationPolicy
   def destroy?
     @account_user.administrator?
   end
+
+  def metrics?
+    @account_user.administrator?
+  end
+
+  def csv_usage_report?
+    @account_user.administrator?
+  end
 end

@@ -26,6 +26,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  canViewMetrics: {
+    type: Boolean,
+    default: false,
+  },
   isEnabled: {
     type: Boolean,
     default: false,
@@ -48,7 +52,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['edit', 'delete']);
+const emit = defineEmits(['edit', 'delete', 'metrics']);
 
 const { t } = useI18n();
 
@@ -127,7 +131,15 @@ const inboxIcon = computed(() => {
         />
       </div>
     </div>
-    <div class="flex items-center justify-end w-20 gap-2">
+    <div class="flex items-center justify-end w-auto gap-2">
+      <Button
+        v-if="canViewMetrics"
+        variant="faded"
+        size="sm"
+        color="slate"
+        icon="i-lucide-bar-chart-3"
+        @click="emit('metrics')"
+      />
       <Button
         v-if="isLiveChatType || canEdit"
         variant="faded"

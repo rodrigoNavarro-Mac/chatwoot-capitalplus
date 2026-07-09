@@ -11,6 +11,8 @@
 class Whatsapp::Providers::BaseService
   pattr_initialize [:whatsapp_channel!]
 
+  attr_reader :last_send_error
+
   def send_message(_phone_number, _message)
     raise 'Overwrite this method in child class'
   end
@@ -43,13 +45,12 @@ class Whatsapp::Providers::BaseService
 
   def handle_error(response, message)
     Rails.logger.error response.body
-    return if message.blank?
 
     # https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/#sample-response
-    error_message = error_message(response)
-    return if error_message.blank?
+    @last_send_error = error_message(response)
+    return if message.blank? || @last_send_error.blank?
 
-    message.external_error = error_message
+    message.external_error = @last_send_error
     message.status = :failed
     message.save!
   end

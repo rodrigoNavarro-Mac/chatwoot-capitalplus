@@ -84,10 +84,6 @@ module Redis::RedisKeys
   ## Account Email Rate Limiting
   ACCOUNT_OUTBOUND_EMAIL_COUNT_KEY = 'OUTBOUND_EMAIL_COUNT::%<account_id>d::%<date>s'.freeze
 
-  ## Campaign WA message → contact tracking (for wa_invalid marking via delivery webhook)
-  CAMPAIGN_WA_MSG_CONTACT = 'CAMPAIGN_WA_MSG::%<wa_message_id>s'.freeze
-  # CSV-campaign tracking: WA message ID → "account_id:phone" string
-  CAMPAIGN_WA_MSG_PHONE = 'CAMPAIGN_WA_MSG_PHONE::%<wa_message_id>s'.freeze
   # Redis Set of phone numbers that failed with 131026 (no WA account), keyed by account
   WA_INVALID_PHONES = 'WA_INVALID_PHONES::%<account_id>d'.freeze
 end

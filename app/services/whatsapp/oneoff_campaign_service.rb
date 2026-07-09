@@ -23,7 +23,14 @@ class Whatsapp::OneoffCampaignService
     processed_template_params = process_liquid_template_params(contact)
     return if processed_template_params.nil?
 
-    send_whatsapp_template_message(to: contact.phone_number, template_params: processed_template_params)
+    message = labels_message_builder.build(contact)
+    return if message.nil?
+
+    wa_message_id, send_error = send_whatsapp_template_message(
+      to: contact.phone_number, template_params: processed_template_params, message: message
+    )
+    delivery_recorder.record_labels_delivery(contact: contact, message: message, wa_message_id: wa_message_id, send_error: send_error)
+    wa_message_id
   rescue StandardError => e
     Rails.logger.error "Failed to send campaign #{campaign.id} to contact #{contact.try(:name)}: #{e.message}"
     nil
@@ -39,7 +46,9 @@ class Whatsapp::OneoffCampaignService
     processed_template_params = process_liquid_template_params(virtual_contact)
     return if processed_template_params.nil?
 
-    send_whatsapp_template_message(to: phone, template_params: processed_template_params)
+    wa_message_id, send_error = send_whatsapp_template_message(to: phone, template_params: processed_template_params)
+    delivery_recorder.record_csv_delivery(phone: phone, wa_message_id: wa_message_id, send_error: send_error)
+    wa_message_id
   rescue StandardError => e
     Rails.logger.error "Failed to send CSV campaign #{campaign.id} to #{contact_data['phone_number']}: #{e.message}"
     nil
@@ -87,6 +96,7 @@ class Whatsapp::OneoffCampaignService
                        .tagged_with(audience_labels, any: true)
                        .where("(additional_attributes->>'wa_valid') IS DISTINCT FROM 'false'")
 
+    campaign.update_column(:audience_count, contacts.count)
     Rails.logger.info "Scheduling #{contacts.count} contacts for campaign #{campaign.id}"
 
     current_time = advance_to_window(Time.current)
@@ -109,6 +119,7 @@ class Whatsapp::OneoffCampaignService
     rows = parse_csv_rows
     invalid_phones = load_invalid_phones
 
+    campaign.update_column(:audience_count, rows.size)
     Rails.logger.info "Scheduling #{rows.size} CSV rows for campaign #{campaign.id}"
 
     current_time = advance_to_window(Time.current)
@@ -184,24 +195,30 @@ class Whatsapp::OneoffCampaignService
     nil
   end
 
-  def send_whatsapp_template_message(to:, template_params:)
+  # Returns [wa_message_id, send_error] — send_error is only present when wa_message_id is nil
+  def send_whatsapp_template_message(to:, template_params:, message: nil)
     processor = Whatsapp::TemplateProcessorService.new(
       channel: channel,
       template_params: template_params
     )
 
     name, namespace, lang_code, processed_parameters = processor.call
-    return if name.blank?
+    return [nil, nil] if name.blank?
 
-    channel.send_template(to, {
-                            name: name,
-                            namespace: namespace,
-                            lang_code: lang_code,
-                            parameters: processed_parameters
-                          }, nil)
+    provider = channel.provider_service
+    template_info = { name: name, namespace: namespace, lang_code: lang_code, parameters: processed_parameters }
+    [provider.send_template(to, template_info, message), provider.last_send_error]
   rescue StandardError => e
     Rails.logger.error "Failed to send WhatsApp template to #{to}: #{e.message}"
     Rails.logger.error e.backtrace.first(5).join("\n")
-    nil
+    [nil, e.message]
+  end
+
+  def labels_message_builder
+    @labels_message_builder ||= Campaigns::LabelsMessageBuilder.new(campaign: campaign)
+  end
+
+  def delivery_recorder
+    @delivery_recorder ||= Campaigns::MessageDeliveryRecorder.new(campaign: campaign)
   end
 end
