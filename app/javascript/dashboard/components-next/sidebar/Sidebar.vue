@@ -68,6 +68,13 @@ const hasConversationUnreadCounts = computed(() => {
   );
 });
 
+const hasCadences = computed(() => {
+  return isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.WHATSAPP_CADENCES
+  );
+});
+
 const fetchConversationUnreadCounts = ([currentAccountId, isEnabled]) => {
   if (!currentAccountId) return;
 
@@ -563,6 +570,15 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.REPORTS_BOT'),
           to: accountScopedRoute('bot_reports'),
         },
+        ...(hasCadences.value
+          ? [
+              {
+                name: 'Cadence Analytics',
+                label: t('SIDEBAR.CADENCES'),
+                to: accountScopedRoute('cadence_analytics'),
+              },
+            ]
+          : []),
       ],
     },
     {
