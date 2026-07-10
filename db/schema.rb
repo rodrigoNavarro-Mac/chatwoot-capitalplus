@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_09_120100) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_09_140200) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -259,6 +259,65 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_120100) do
     t.datetime "updated_at", null: false
     t.boolean "active", default: true, null: false
     t.index ["account_id"], name: "index_automation_rules_on_account_id"
+  end
+
+  create_table "cadence_call_tasks", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "cadence_enrollment_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "user_id"
+    t.integer "step", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "notified_at"
+    t.datetime "completed_at"
+    t.bigint "completed_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "status"], name: "index_cadence_call_tasks_on_account_id_and_status"
+    t.index ["cadence_enrollment_id", "step"], name: "idx_cadence_call_tasks_on_enrollment_and_step", unique: true
+    t.index ["user_id"], name: "index_cadence_call_tasks_on_user_id"
+  end
+
+  create_table "cadence_enrollments", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "contact_id"
+    t.bigint "inbox_id", null: false
+    t.bigint "assignee_id"
+    t.string "cadence_name", default: "cadencia_comercial_default", null: false
+    t.integer "current_step", default: 0, null: false
+    t.string "status", default: "active", null: false
+    t.datetime "last_template_sent_at"
+    t.datetime "last_lead_response_at"
+    t.datetime "next_action_at"
+    t.datetime "last_call_task_created_at"
+    t.string "stopped_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "status"], name: "index_cadence_enrollments_on_account_id_and_status"
+    t.index ["assignee_id"], name: "index_cadence_enrollments_on_assignee_id"
+    t.index ["contact_id"], name: "index_cadence_enrollments_on_contact_id"
+    t.index ["conversation_id"], name: "index_cadence_enrollments_on_conversation_id", unique: true
+    t.index ["next_action_at"], name: "index_cadence_enrollments_on_next_action_at"
+  end
+
+  create_table "cadence_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "cadence_enrollment_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "contact_id"
+    t.string "event_type", null: false
+    t.integer "step"
+    t.string "template_key"
+    t.string "actor_type"
+    t.bigint "actor_id"
+    t.datetime "occurred_at", null: false
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "event_type", "occurred_at"], name: "idx_on_account_id_event_type_occurred_at_41b1937298"
+    t.index ["cadence_enrollment_id"], name: "index_cadence_events_on_cadence_enrollment_id"
+    t.index ["conversation_id"], name: "index_cadence_events_on_conversation_id"
   end
 
   create_table "calls", force: :cascade do |t|

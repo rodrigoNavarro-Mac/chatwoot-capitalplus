@@ -1,0 +1,102 @@
+{
+  "CADENCE": {
+    "TITLE": "Cadence Analytics",
+    "TABS": {
+      "SUMMARY": "Summary",
+      "ACTIVE_LEADS": "Active Leads"
+    },
+    "FILTERS": {
+      "INBOX": "Inbox",
+      "AGENT": "Agent",
+      "TEAM": "Team",
+      "STATUS": "Status",
+      "STEP": "Step",
+      "ALL": "All",
+      "SINCE": "Since",
+      "UNTIL": "Until"
+    },
+    "KPI": {
+      "LEADS_IN_CADENCE": "Leads in cadence",
+      "RESPONSE_RATE": "Response rate",
+      "NO_RESPONSE_RATE": "No-response rate",
+      "CALL_TASKS_CREATED": "Call tasks created",
+      "CALLS_COMPLETED": "Calls completed",
+      "CALL_COMPLIANCE_RATE": "Call compliance",
+      "AVG_LEAD_RESPONSE_TIME": "Avg. lead response time",
+      "AVG_AGENT_ACTION_TIME": "Avg. agent action time",
+      "RECOVERED": "Recovered leads",
+      "COLD": "Cold leads"
+    },
+    "STEPS_TABLE": {
+      "TITLE": "Performance by step",
+      "STEP": "Step",
+      "TEMPLATE_KEY": "Template key",
+      "SENT": "Sent",
+      "RESPONDED": "Responded",
+      "RESPONSE_RATE": "Response rate",
+      "NO_RESPONSE": "No response",
+      "CALL_TASKS_REQUIRED": "Calls required",
+      "CALL_TASKS_COMPLETED": "Calls completed",
+      "CALL_COMPLIANCE_RATE": "Compliance",
+      "AVG_RESPONSE_TIME": "Avg. response time",
+      "ADVANCED": "Advanced to next step"
+    },
+    "AGENTS_TABLE": {
+      "TITLE": "Performance by agent",
+      "AGENT": "Agent",
+      "LEADS_IN_CADENCE": "Leads in cadence",
+      "RESPONSES": "Responses",
+      "CALL_TASKS_CREATED": "Calls created",
+      "CALLS_COMPLETED": "Calls completed",
+      "CALLS_PENDING": "Calls pending",
+      "COMPLIANCE": "Compliance",
+      "AVG_TIME_TO_CALL": "Avg. time to call",
+      "RECOVERED": "Recovered",
+      "COLD": "Cold"
+    },
+    "TEMPLATES_TABLE": {
+      "TITLE": "Performance by template",
+      "TEMPLATE_KEY": "Template key",
+      "TEMPLATE_NAME": "Template name",
+      "STEP": "Step",
+      "SENT": "Sent",
+      "RESPONDED": "Responded",
+      "RESPONSE_RATE": "Response rate",
+      "AVG_RESPONSE_TIME": "Avg. response time"
+    },
+    "ACTIVE_LEADS_TABLE": {
+      "TITLE": "Leads currently in cadence",
+      "CONTACT": "Contact",
+      "CONVERSATION": "Conversation",
+      "AGENT": "Agent",
+      "STEP": "Step",
+      "STATUS": "Status",
+      "LAST_TEMPLATE": "Last template sent",
+      "NEXT_ACTION": "Next action",
+      "LAST_RESPONSE": "Last response",
+      "PENDING_CALL": "Pending call",
+      "ACTIONS": "Actions",
+      "VIEW_CONVERSATION": "View conversation",
+      "PAUSE": "Pause",
+      "RESUME": "Resume",
+      "CANCEL": "Cancel",
+      "YES": "Yes",
+      "NO": "No",
+      "EMPTY": "No leads currently in a cadence"
+    },
+    "STATUS": {
+      "active": "Active",
+      "waiting_response": "Waiting response",
+      "pending_agent_call": "Call pending",
+      "paused_by_response": "Paused (responded)",
+      "completed": "Completed",
+      "failed": "Failed",
+      "recovered": "Recovered",
+      "cold": "Cold"
+    },
+    "ERRORS": {
+      "FETCH_ANALYTICS": "Could not fetch cadence analytics",
+      "FETCH_LEADS": "Could not fetch active cadence leads"
+    }
+  }
+}

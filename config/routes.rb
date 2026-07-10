@@ -133,6 +133,28 @@ Rails.application.routes.draw do
               get :csv_usage_report
             end
           end
+          resources :cadence_enrollments, only: [:index, :show] do
+            member do
+              post :pause
+              post :resume
+              post :cancel
+            end
+          end
+          resources :cadence_call_tasks, only: [:index] do
+            member do
+              post :complete
+            end
+          end
+          namespace :cadences do
+            resource :analytics, only: [] do
+              collection do
+                get :summary
+                get :steps
+                get :agents
+                get :templates
+              end
+            end
+          end
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]

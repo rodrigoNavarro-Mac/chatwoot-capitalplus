@@ -1,0 +1,17 @@
+class CadenceAnalyticsPolicy < ApplicationPolicy
+  def summary?
+    @account_user.administrator?
+  end
+
+  def steps?
+    @account_user.administrator?
+  end
+
+  def agents?
+    @account_user.administrator?
+  end
+
+  def templates?
+    @account_user.administrator?
+  end
+end
