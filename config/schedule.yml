@@ -81,3 +81,10 @@ agent_bot_reactivation_job:
   cron: '*/30 * * * *'
   class: 'AgentBots::ReactivationJob'
   queue: scheduled_jobs
+
+# executed every 30 minutes
+# safety net that retries cadence steps/response-checks whose scheduled job was lost
+cadences_watchdog_job:
+  cron: '*/30 * * * *'
+  class: 'Cadences::WatchdogJob'
+  queue: scheduled_jobs

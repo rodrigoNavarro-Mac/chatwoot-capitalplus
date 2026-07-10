@@ -1,0 +1,42 @@
+# Mapeo de template_key -> plantilla real de WhatsApp Business (Meta), por inbox.
+#
+# No contiene tokens ni datos sensibles: solo nombre/idioma/namespace de la plantilla,
+# tal como está registrada y aprobada en el WhatsApp Manager de cada número.
+#
+# Cómo agregar un proyecto/inbox nuevo:
+#   1. Da de alta las 6 plantillas en Meta para ese número (mismos nombres que las claves
+#      fijas usadas por el motor de cadencia: ver app/models/cadences/step_definitions.rb).
+#   2. Agrega una entrada bajo "inboxes" con el inbox_id y el nombre real de cada plantilla.
+#   3. Si un inbox no tiene entrada propia, se usa el bloque "default".
+#
+# Esto es configuración de desarrollo/infra (requiere deploy), nunca editable desde la UI.
+
+default:
+  wa_primer_contacto:
+    name: cadencia_primer_contacto
+    language: es_MX
+  wa_segundo_intento:
+    name: cadencia_segundo_intento
+    language: es_MX
+  wa_dia_siguiente_temprano:
+    name: cadencia_dia_siguiente_temprano
+    language: es_MX
+  wa_horario_comida:
+    name: cadencia_horario_comida
+    language: es_MX
+  wa_dia_5_noche:
+    name: cadencia_dia_5_noche
+    language: es_MX
+  wa_recuperacion:
+    name: cadencia_recuperacion
+    language: es_MX
+
+inboxes: {}
+# Ejemplo de override por inbox (descomentar y ajustar cuando exista un proyecto con
+# plantillas propias, p.ej. video de ubicación distinto por desarrollo inmobiliario):
+#
+# inboxes:
+#   "123":
+#     wa_horario_comida:
+#       name: cadencia_horario_comida_torre_sur
+#       language: es_MX
