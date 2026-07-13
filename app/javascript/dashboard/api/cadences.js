@@ -49,6 +49,26 @@ class CadencesAPI extends ApiClient {
       params,
     });
   }
+
+  getTemplateMappings(inboxId) {
+    return axios.get(`${this.baseUrl()}/cadences/template_mappings`, {
+      params: { inbox_id: inboxId },
+    });
+  }
+
+  updateTemplateMappings(inboxId, mappings) {
+    return axios.patch(
+      `${this.baseUrl()}/cadences/template_mappings/bulk_update`,
+      { inbox_id: inboxId, mappings }
+    );
+  }
+
+  resetTemplateMapping(inboxId, templateKey) {
+    return axios.delete(
+      `${this.baseUrl()}/cadences/template_mappings/${templateKey}`,
+      { params: { inbox_id: inboxId } }
+    );
+  }
 }
 
 export default new CadencesAPI();

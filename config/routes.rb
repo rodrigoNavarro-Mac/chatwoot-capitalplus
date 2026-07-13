@@ -154,6 +154,11 @@ Rails.application.routes.draw do
                 get :templates
               end
             end
+            resources :template_mappings, only: [:index, :destroy], param: :template_key do
+              collection do
+                patch :bulk_update
+              end
+            end
           end
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do

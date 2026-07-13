@@ -645,7 +645,8 @@
       "ACCOUNT_HEALTH": "Account Health",
       "CSAT": "CSAT",
       "VOICE": "Voice",
-      "CALLS": "Calls"
+      "CALLS": "Calls",
+      "CADENCE_TEMPLATES": "Cadence"
     },
     "VOICE_CONFIGURATION": {
       "ENABLE_VOICE": {
