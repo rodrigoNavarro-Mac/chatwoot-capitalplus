@@ -25,6 +25,7 @@ import VoiceConfigurationPage from './settingsPage/VoiceConfigurationPage.vue';
 import WhatsappCallingPage from './settingsPage/WhatsappCallingPage.vue';
 import CustomerSatisfactionPage from './settingsPage/CustomerSatisfactionPage.vue';
 import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
+import CadenceTemplatesPage from './settingsPage/CadenceTemplatesPage.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
 import AccountHealth from './components/AccountHealth.vue';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
@@ -51,6 +52,7 @@ export default {
     VoiceConfigurationPage,
     WhatsappCallingPage,
     CustomerSatisfactionPage,
+    CadenceTemplatesPage,
     FacebookReauthorize,
     GreetingsEditor,
     PreChatFormSettings,
@@ -229,6 +231,22 @@ export default {
           {
             key: 'whatsapp-health',
             name: this.$t('INBOX_MGMT.TABS.ACCOUNT_HEALTH'),
+          },
+        ];
+      }
+
+      if (
+        this.isAWhatsAppChannel &&
+        this.isFeatureEnabledonAccount(
+          this.accountId,
+          FEATURE_FLAGS.WHATSAPP_CADENCES
+        )
+      ) {
+        visibleToAllChannelTabs = [
+          ...visibleToAllChannelTabs,
+          {
+            key: 'cadence-templates',
+            name: this.$t('INBOX_MGMT.TABS.CADENCE_TEMPLATES'),
           },
         ];
       }
@@ -1304,6 +1322,9 @@ export default {
             :is-registering-webhook="isRegisteringWebhook"
             @register-webhook="registerWebhook"
           />
+        </div>
+        <div v-if="selectedTabKey === 'cadence-templates'">
+          <CadenceTemplatesPage :inbox="inbox" />
         </div>
       </div>
     </section>

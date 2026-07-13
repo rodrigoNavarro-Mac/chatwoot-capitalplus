@@ -34,6 +34,13 @@ class Cadences::TemplateResolver
   end
 
   def mapping_for_key
-    self.class.mappings.dig('inboxes', inbox.id.to_s, template_key) || self.class.mappings.dig('default', template_key)
+    db_override_mapping || self.class.mappings.dig('inboxes', inbox.id.to_s, template_key) || self.class.mappings.dig('default', template_key)
+  end
+
+  def db_override_mapping
+    override = CadenceTemplateMapping.find_by(inbox_id: inbox.id, template_key: template_key)
+    return if override.blank?
+
+    { 'name' => override.name, 'language' => override.language, 'namespace' => override.namespace }.compact
   end
 end

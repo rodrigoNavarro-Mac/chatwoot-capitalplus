@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_09_140200) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_10_090000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -318,6 +318,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_140200) do
     t.index ["account_id", "event_type", "occurred_at"], name: "idx_on_account_id_event_type_occurred_at_41b1937298"
     t.index ["cadence_enrollment_id"], name: "index_cadence_events_on_cadence_enrollment_id"
     t.index ["conversation_id"], name: "index_cadence_events_on_conversation_id"
+  end
+
+  create_table "cadence_template_mappings", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.string "template_key", null: false
+    t.string "name", null: false
+    t.string "language", default: "es_MX", null: false
+    t.string "namespace"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_cadence_template_mappings_on_account_id"
+    t.index ["inbox_id", "template_key"], name: "idx_cadence_template_mappings_on_inbox_and_key", unique: true
   end
 
   create_table "calls", force: :cascade do |t|

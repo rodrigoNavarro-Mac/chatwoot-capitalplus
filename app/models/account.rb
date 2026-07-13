@@ -69,6 +69,7 @@ class Account < ApplicationRecord
   has_many :cadence_enrollments, dependent: :destroy_async
   has_many :cadence_events, dependent: :destroy_async
   has_many :cadence_call_tasks, dependent: :destroy_async
+  has_many :cadence_template_mappings, dependent: :destroy_async
   has_many :canned_responses, dependent: :destroy_async
   has_many :categories, dependent: :destroy_async, class_name: '::Category'
   has_many :contacts, dependent: :destroy_async

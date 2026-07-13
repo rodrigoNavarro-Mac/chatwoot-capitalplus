@@ -97,6 +97,29 @@
     "ERRORS": {
       "FETCH_ANALYTICS": "Could not fetch cadence analytics",
       "FETCH_LEADS": "Could not fetch active cadence leads"
+    },
+    "STEP_KEYS": {
+      "wa_primer_contacto": "Step 1 · First contact",
+      "wa_segundo_intento": "Step 2 · Second attempt",
+      "wa_dia_siguiente_temprano": "Step 3 · Next day, morning",
+      "wa_horario_comida": "Step 4 · Next day, lunch time",
+      "wa_dia_5_noche": "Step 5 · Day 5, night",
+      "wa_recuperacion": "Step 6 · Recovery"
+    },
+    "TEMPLATES_SETTINGS": {
+      "TITLE": "Cadence templates",
+      "DESCRIPTION": "Choose which approved WhatsApp template is sent on each fixed step of the commercial cadence for this inbox. The steps, timing and rules of the cadence cannot be changed here.",
+      "TEMPLATE_NAME": "Template name",
+      "TEMPLATE_LANGUAGE": "Language",
+      "SAVE": "Save templates",
+      "RESET": "Reset to default",
+      "SUCCESS": "Cadence templates updated",
+      "RESET_SUCCESS": "Template reverted to the default mapping",
+      "ERRORS": {
+        "FETCH": "Could not fetch the cadence templates for this inbox",
+        "SAVE": "Could not save the cadence templates",
+        "RESET": "Could not reset the template to its default mapping"
+      }
     }
   }
 }
