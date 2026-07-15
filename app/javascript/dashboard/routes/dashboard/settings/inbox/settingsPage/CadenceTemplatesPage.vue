@@ -58,7 +58,7 @@ const addStep = async () => {
     const { data } = await CadencesAPI.createStepDefinition(
       props.cadenceDefinition.id,
       {
-        template_name: '',
+        template_name: t('CADENCE.TEMPLATES_SETTINGS.NEW_STEP_TEMPLATE_NAME'),
         template_language: 'es_MX',
         schedule_type: 'immediate',
         wait_window_minutes: 60,

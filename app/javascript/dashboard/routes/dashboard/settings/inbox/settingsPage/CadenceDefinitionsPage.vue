@@ -46,6 +46,10 @@ const cancelAdd = () => {
 };
 
 const createDefinition = async () => {
+  if (!newDefinition.value.name?.trim()) {
+    useAlert(t('CADENCE.DEFINITIONS.ERRORS.NAME_REQUIRED'));
+    return;
+  }
   try {
     const { data } = await CadencesAPI.createCadenceDefinition(
       props.inbox.id,

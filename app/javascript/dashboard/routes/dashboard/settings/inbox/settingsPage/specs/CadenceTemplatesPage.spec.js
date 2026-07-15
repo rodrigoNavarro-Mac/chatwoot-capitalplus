@@ -96,6 +96,10 @@ describe('CadenceTemplatesPage.vue', () => {
       42,
       expect.objectContaining({ schedule_type: 'immediate' })
     );
+    // template_name no puede ir vacío: CadenceStepDefinition lo valida con presence:
+    // true y el create fallaría en el backend real (bug ya visto en producción).
+    const [, payload] = CadencesAPI.createStepDefinition.mock.calls[0];
+    expect(payload.template_name).toBeTruthy();
     expect(wrapper.findAllComponents(CadenceStepCard)).toHaveLength(3);
   });
 

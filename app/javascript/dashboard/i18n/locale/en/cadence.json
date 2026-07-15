@@ -147,7 +147,8 @@
         "FETCH": "Could not fetch the cadences for this inbox",
         "CREATE": "Could not create the cadence",
         "SAVE": "Could not save the cadence",
-        "DELETE": "Could not delete the cadence"
+        "DELETE": "Could not delete the cadence",
+        "NAME_REQUIRED": "Give the cadence a name before creating it"
       }
     },
     "TEMPLATES_SETTINGS": {
@@ -159,6 +160,7 @@
       "LABEL_PLACEHOLDER": "e.g. First contact",
       "ACTIVE": "Active",
       "ADD_STEP": "Add step",
+      "NEW_STEP_TEMPLATE_NAME": "pending_template_name",
       "SAVE": "Save changes",
       "SUCCESS": "Step updated",
       "TEMPLATE_SECTION": "Template",
