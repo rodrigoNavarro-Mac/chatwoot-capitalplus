@@ -152,11 +152,13 @@ Rails.application.routes.draw do
                 get :steps
                 get :agents
                 get :templates
+                get :variants
               end
             end
-            resources :template_mappings, only: [:index, :destroy], param: :template_key do
+            resources :definitions, only: [:index, :create, :update, :destroy]
+            resources :step_definitions, only: [:index, :create, :update, :destroy] do
               collection do
-                patch :bulk_update
+                patch :reorder
               end
             end
           end

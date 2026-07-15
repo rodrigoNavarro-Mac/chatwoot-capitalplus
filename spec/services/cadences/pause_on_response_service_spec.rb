@@ -9,10 +9,13 @@ describe Cadences::PauseOnResponseService do
   let(:conversation) do
     create(:conversation, account: account, inbox: whatsapp_inbox, contact: contact, assignee: agent, status: 'open')
   end
+  let(:cadence_definition) { create_cadence_definition!(whatsapp_inbox) }
   let(:enrollment) do
     CadenceEnrollment.create!(
-      account: account, conversation: conversation, contact: contact, inbox: whatsapp_inbox, assignee_id: agent.id,
-      status: :waiting_response, current_step: 2, last_template_sent_at: 1.hour.ago
+      account: account, conversation: conversation, contact: contact, inbox: whatsapp_inbox,
+      cadence_definition: cadence_definition, assignee_id: agent.id,
+      status: :waiting_response, current_step: 2, last_template_sent_at: 1.hour.ago,
+      steps_snapshot: cadence_steps_snapshot(count: 6)
     )
   end
   let(:incoming_message) { create(:message, account: account, conversation: conversation, message_type: :incoming) }
@@ -36,8 +39,17 @@ describe Cadences::PauseOnResponseService do
       expect(enrollment.cadence_events.pluck(:event_type)).to include('cadence_recovered')
     end
 
+    it 'derives "last step" from the enrollment steps_snapshot, not a hardcoded step number' do
+      enrollment.update!(current_step: 3, steps_snapshot: cadence_steps_snapshot(count: 3))
+
+      described_class.new(enrollment: enrollment, message: incoming_message).perform
+
+      expect(enrollment.reload.status).to eq('recovered')
+    end
+
     it 'skips pending call tasks' do
-      task = CadenceCallTask.create!(account: account, cadence_enrollment: enrollment, conversation: conversation, user: agent, step: 2, status: :pending)
+      task = CadenceCallTask.create!(account: account, cadence_enrollment: enrollment, conversation: conversation, user: agent, step: 2,
+                                     status: :pending)
 
       described_class.new(enrollment: enrollment, message: incoming_message).perform
 
@@ -48,7 +60,7 @@ describe Cadences::PauseOnResponseService do
       enrollment.update!(status: :completed)
 
       expect { described_class.new(enrollment: enrollment, message: incoming_message).perform }
-        .not_to change { enrollment.reload.status }
+        .not_to(change { enrollment.reload.status })
     end
   end
 end

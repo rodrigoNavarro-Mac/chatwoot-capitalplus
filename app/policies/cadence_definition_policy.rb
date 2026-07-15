@@ -1,9 +1,13 @@
-class CadenceTemplateMappingPolicy < ApplicationPolicy
+class CadenceDefinitionPolicy < ApplicationPolicy
   def index?
     @account_user.administrator?
   end
 
-  def bulk_update?
+  def create?
+    @account_user.administrator?
+  end
+
+  def update?
     @account_user.administrator?
   end
 

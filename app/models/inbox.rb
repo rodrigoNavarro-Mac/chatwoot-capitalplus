@@ -61,6 +61,8 @@ class Inbox < ApplicationRecord
 
   has_many :campaigns, dependent: :destroy_async
   has_many :cadence_template_mappings, dependent: :destroy_async
+  has_many :cadence_definitions, dependent: :destroy_async
+  has_many :cadence_step_definitions, through: :cadence_definitions
   has_many :contact_inboxes, dependent: :destroy_async
   has_many :contacts, through: :contact_inboxes
 

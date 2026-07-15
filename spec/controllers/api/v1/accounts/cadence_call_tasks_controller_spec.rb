@@ -11,8 +11,12 @@ RSpec.describe 'Cadence Call Tasks API', type: :request do
   let(:conversation) do
     create(:conversation, account: account, inbox: whatsapp_inbox, contact: contact, assignee: agent, status: 'open')
   end
+  let(:cadence_definition) { create_cadence_definition!(whatsapp_inbox) }
   let(:enrollment) do
-    CadenceEnrollment.create!(account: account, conversation: conversation, contact: contact, inbox: whatsapp_inbox, assignee_id: agent.id)
+    CadenceEnrollment.create!(
+      account: account, conversation: conversation, contact: contact, inbox: whatsapp_inbox,
+      cadence_definition: cadence_definition, assignee_id: agent.id
+    )
   end
   let!(:call_task) do
     CadenceCallTask.create!(account: account, cadence_enrollment: enrollment, conversation: conversation, user: agent, step: 1)
@@ -23,7 +27,7 @@ RSpec.describe 'Cadence Call Tasks API', type: :request do
       get "/api/v1/accounts/#{account.id}/cadence_call_tasks", headers: other_agent.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:success)
-      expect(JSON.parse(response.body)).to be_empty
+      expect(response.parsed_body).to be_empty
     end
   end
 

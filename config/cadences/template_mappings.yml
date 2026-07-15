@@ -10,6 +10,11 @@
 #   3. Si un inbox no tiene entrada propia, se usa el bloque "default".
 #
 # Esto es configuración de desarrollo/infra (requiere deploy), nunca editable desde la UI.
+#
+# DEPRECADO: reemplazado por CadenceStepDefinition (editable desde el UI). Sigue vivo a
+# propósito solo porque Cadences::TemplateResolver (a su vez usado por
+# Cadences::LegacyBackfillService) lo lee para migrar los inboxes existentes en producción.
+# Borrar junto con template_resolver.rb una vez confirmado ese backfill.
 
 default:
   wa_primer_contacto:

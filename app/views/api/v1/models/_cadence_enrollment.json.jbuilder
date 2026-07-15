@@ -26,3 +26,8 @@ json.assignee do
   end
 end
 json.has_pending_call_task resource.cadence_call_tasks.pending.exists?
+json.cadence_definition do
+  json.id resource.cadence_definition.id
+  json.name resource.cadence_definition.name
+  json.segment_value resource.cadence_definition.segment_value
+end

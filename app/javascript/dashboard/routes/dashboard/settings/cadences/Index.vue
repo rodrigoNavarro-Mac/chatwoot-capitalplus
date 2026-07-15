@@ -7,6 +7,7 @@ import ReportHeader from '../reports/components/ReportHeader.vue';
 import ReportMetricCard from '../reports/components/ReportMetricCard.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import CadenceFilters from './components/CadenceFilters.vue';
+import CadenceVariantsTable from './components/CadenceVariantsTable.vue';
 import CadenceStepsTable from './components/CadenceStepsTable.vue';
 import CadenceAgentsTable from './components/CadenceAgentsTable.vue';
 import CadenceTemplatesTable from './components/CadenceTemplatesTable.vue';
@@ -29,6 +30,7 @@ const filters = ref({
 
 const isLoading = ref(false);
 const summary = ref(null);
+const variants = ref([]);
 const steps = ref([]);
 const agentsMetrics = ref([]);
 const templates = ref([]);
@@ -111,13 +113,16 @@ const kpiCards = computed(() => {
 const fetchAnalytics = async () => {
   isLoading.value = true;
   try {
-    const [summaryRes, stepsRes, agentsRes, templatesRes] = await Promise.all([
-      CadencesAPI.analyticsSummary(queryParams.value),
-      CadencesAPI.analyticsSteps(queryParams.value),
-      CadencesAPI.analyticsAgents(queryParams.value),
-      CadencesAPI.analyticsTemplates(queryParams.value),
-    ]);
+    const [summaryRes, variantsRes, stepsRes, agentsRes, templatesRes] =
+      await Promise.all([
+        CadencesAPI.analyticsSummary(queryParams.value),
+        CadencesAPI.analyticsVariants(queryParams.value),
+        CadencesAPI.analyticsSteps(queryParams.value),
+        CadencesAPI.analyticsAgents(queryParams.value),
+        CadencesAPI.analyticsTemplates(queryParams.value),
+      ]);
     summary.value = summaryRes.data;
+    variants.value = variantsRes.data;
     steps.value = stepsRes.data;
     agentsMetrics.value = agentsRes.data;
     templates.value = templatesRes.data;
@@ -208,6 +213,7 @@ watch(activeTab, refresh);
           />
         </div>
 
+        <CadenceVariantsTable :variants="variants" />
         <CadenceStepsTable :steps="steps" />
         <CadenceAgentsTable :agents="agentsMetrics" />
         <CadenceTemplatesTable :templates="templates" />

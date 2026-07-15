@@ -7,6 +7,7 @@
     },
     "FILTERS": {
       "INBOX": "Inbox",
+      "CADENCE_DEFINITION": "Cadence (variant)",
       "AGENT": "Agent",
       "TEAM": "Team",
       "STATUS": "Status",
@@ -26,6 +27,17 @@
       "AVG_AGENT_ACTION_TIME": "Avg. agent action time",
       "RECOVERED": "Recovered leads",
       "COLD": "Cold leads"
+    },
+    "VARIANTS_TABLE": {
+      "TITLE": "Performance by cadence (A/B)",
+      "DESCRIPTION": "Compare the cadences configured for this inbox — new leads are split automatically between the variants that share the same razón de compra segment.",
+      "NAME": "Cadence",
+      "SEGMENT": "Segment",
+      "LEADS_IN_CADENCE": "Leads",
+      "RESPONDED": "Responded",
+      "RESPONSE_RATE": "Response rate",
+      "RECOVERED": "Recovered",
+      "COLD": "Cold"
     },
     "STEPS_TABLE": {
       "TITLE": "Performance by step",
@@ -69,6 +81,7 @@
       "CONTACT": "Contact",
       "CONVERSATION": "Conversation",
       "AGENT": "Agent",
+      "CADENCE": "Cadence",
       "STEP": "Step",
       "STATUS": "Status",
       "LAST_TEMPLATE": "Last template sent",
@@ -98,27 +111,97 @@
       "FETCH_ANALYTICS": "Could not fetch cadence analytics",
       "FETCH_LEADS": "Could not fetch active cadence leads"
     },
-    "STEP_KEYS": {
-      "wa_primer_contacto": "Step 1 · First contact",
-      "wa_segundo_intento": "Step 2 · Second attempt",
-      "wa_dia_siguiente_temprano": "Step 3 · Next day, morning",
-      "wa_horario_comida": "Step 4 · Next day, lunch time",
-      "wa_dia_5_noche": "Step 5 · Day 5, night",
-      "wa_recuperacion": "Step 6 · Recovery"
+    "DEFINITIONS": {
+      "TITLE": "Cadences",
+      "DESCRIPTION": "Create one cadence per razón de compra segment, or several for the same segment to run an A/B test — new leads are split automatically between the variants of a segment based on how many each has received so far.",
+      "EMPTY": "This inbox has no cadences yet. Add one to get started.",
+      "BACK_TO_LIST": "Back to cadences",
+      "ADD": "Add cadence",
+      "NAME": "Name",
+      "NAME_PLACEHOLDER": "e.g. Investment — variant A",
+      "SEGMENT_INPUT_LABEL": "razón de compra value (optional)",
+      "SEGMENT_PLACEHOLDER": "e.g. Inversión",
+      "SEGMENT_LABEL": "Segment: {value}",
+      "NO_SEGMENT": "No segment (only used if marked as default)",
+      "MARK_AS_DEFAULT_ON_CREATE": "Use as the default cadence for this inbox",
+      "MARK_DEFAULT": "Mark as default",
+      "DEFAULT_BADGE": "Default",
+      "INACTIVE_BADGE": "Inactive",
+      "ACTIVE": "Active",
+      "MANAGE_STEPS": "Manage steps",
+      "STEPS_COUNT": "{count} steps",
+      "ENROLLMENTS_COUNT": "{count} leads enrolled",
+      "CANCEL": "Cancel",
+      "SAVE": "Create",
+      "SUCCESS_CREATE": "Cadence created",
+      "SUCCESS_DEFAULT": "Default cadence updated",
+      "SUCCESS_DELETE": "Cadence deleted",
+      "DELETE": {
+        "BUTTON": "Delete",
+        "CONFIRM_TITLE": "Delete this cadence?",
+        "CONFIRM_MESSAGE": "Its steps will be deleted too. Leads already enrolled in it keep running with the configuration they started with.",
+        "CONFIRM_YES": "Yes, delete",
+        "CONFIRM_NO": "No, keep it"
+      },
+      "ERRORS": {
+        "FETCH": "Could not fetch the cadences for this inbox",
+        "CREATE": "Could not create the cadence",
+        "SAVE": "Could not save the cadence",
+        "DELETE": "Could not delete the cadence"
+      }
     },
     "TEMPLATES_SETTINGS": {
-      "TITLE": "Cadence templates",
-      "DESCRIPTION": "Choose which approved WhatsApp template is sent on each fixed step of the commercial cadence for this inbox. The steps, timing and rules of the cadence cannot be changed here.",
+      "TITLE": "Cadence steps",
+      "DESCRIPTION": "Build the commercial cadence for this inbox: add or remove steps, choose when each one fires, which approved WhatsApp template it sends, and its media attachment.",
+      "EMPTY": "This inbox has no cadence steps yet. Add one to get started.",
+      "STEP_NUMBER": "Step {number}",
+      "LABEL": "Step name",
+      "LABEL_PLACEHOLDER": "e.g. First contact",
+      "ACTIVE": "Active",
+      "ADD_STEP": "Add step",
+      "SAVE": "Save changes",
+      "SUCCESS": "Step updated",
+      "TEMPLATE_SECTION": "Template",
       "TEMPLATE_NAME": "Template name",
       "TEMPLATE_LANGUAGE": "Language",
-      "SAVE": "Save templates",
-      "RESET": "Reset to default",
-      "SUCCESS": "Cadence templates updated",
-      "RESET_SUCCESS": "Template reverted to the default mapping",
+      "TEMPLATE_NAMESPACE": "Namespace",
+      "SCHEDULE_SECTION": "Trigger",
+      "SCHEDULE_TYPE": {
+        "LABEL": "When to send",
+        "IMMEDIATE": "Immediately on enrollment",
+        "OFFSET_FROM_LAST_STEP": "X minutes after the previous step",
+        "DAY_OFFSET_AT_TIME": "N days after, at a given time"
+      },
+      "OFFSET_MINUTES": "Minutes after previous step",
+      "DAY_OFFSET": "Days after enrollment",
+      "TIME_OF_DAY": "Time of day",
+      "WAIT_WINDOW": "Wait for a reply (minutes)",
+      "CREATES_CALL_TASK": "Create a call task if there is no reply",
+      "MEDIA": {
+        "SECTION": "Media attachment",
+        "TYPE_LABEL": "Attachment type",
+        "NONE": "None",
+        "IMAGE": "Image",
+        "VIDEO": "Video",
+        "DOCUMENT": "Document",
+        "URL_LABEL": "Media link",
+        "URL_PLACEHOLDER": "https://...",
+        "NAME_LABEL": "File name"
+      },
+      "DELETE": {
+        "BUTTON": "Delete",
+        "CONFIRM_TITLE": "Delete this step?",
+        "CONFIRM_MESSAGE": "This step will be removed from the cadence for new leads. Leads already in progress keep the configuration they were enrolled with.",
+        "CONFIRM_YES": "Yes, delete",
+        "CONFIRM_NO": "No, keep it",
+        "SUCCESS": "Step deleted",
+        "ERROR": "Could not delete the step"
+      },
       "ERRORS": {
-        "FETCH": "Could not fetch the cadence templates for this inbox",
-        "SAVE": "Could not save the cadence templates",
-        "RESET": "Could not reset the template to its default mapping"
+        "FETCH": "Could not fetch the cadence steps for this inbox",
+        "SAVE": "Could not save the step",
+        "CREATE": "Could not create the step",
+        "REORDER": "Could not save the new order"
       }
     }
   }

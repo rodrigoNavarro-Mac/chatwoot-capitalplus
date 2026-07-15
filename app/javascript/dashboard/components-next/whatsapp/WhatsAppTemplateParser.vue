@@ -24,6 +24,7 @@ import {
   MEDIA_FORMATS,
   findComponentByType,
 } from 'dashboard/helper/templateHelper';
+import { getCadenceStepDefinitions } from 'dashboard/helper/cadenceStepDefaultsCache';
 
 const props = defineProps({
   template: {
@@ -34,6 +35,10 @@ const props = defineProps({
       if (!value.components || !Array.isArray(value.components)) return false;
       return true;
     },
+  },
+  inboxId: {
+    type: [Number, String],
+    default: null,
   },
 });
 
@@ -118,11 +123,40 @@ const v$ = useVuelidate(
   { processedParams }
 );
 
+// Si ya se configuró el media_url de esta plantilla como paso de una cadencia (en ese
+// inbox), lo precargamos aquí: el agente no debería tener que volver a pegarlo a mano.
+// El campo sigue siendo editable por si lo quiere cambiar para este envío puntual.
+let prefillToken = 0;
+const prefillMediaFromCadenceStep = async () => {
+  prefillToken += 1;
+  const token = prefillToken;
+  if (!hasMediaHeader.value || !props.inboxId) return;
+
+  const stepDefinitions = await getCadenceStepDefinitions(props.inboxId);
+  if (token !== prefillToken) return; // el template cambió mientras esperábamos la respuesta
+
+  const match = stepDefinitions.find(
+    step =>
+      step.template_name === props.template.name &&
+      (step.template_language || DEFAULT_LANGUAGE) ===
+        (props.template.language || DEFAULT_LANGUAGE) &&
+      step.media_url
+  );
+  if (!match) return;
+
+  processedParams.value.header = {
+    ...processedParams.value.header,
+    media_url: match.media_url,
+    ...(match.media_name ? { media_name: match.media_name } : {}),
+  };
+};
+
 const initializeTemplateParameters = () => {
   processedParams.value = buildTemplateParameters(
     props.template,
     hasMediaHeader.value
   );
+  prefillMediaFromCadenceStep();
 };
 
 const updateMediaUrl = value => {

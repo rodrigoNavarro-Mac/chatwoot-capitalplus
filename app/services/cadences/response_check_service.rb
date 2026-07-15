@@ -18,7 +18,7 @@ class Cadences::ResponseCheckService
   delegate :conversation, to: :enrollment
 
   def definition
-    @definition ||= Cadences::StepDefinitions.for_step(step)
+    @definition ||= enrollment.step_definition_for(step)
   end
 
   def create_call_task_if_needed!
@@ -58,7 +58,7 @@ class Cadences::ResponseCheckService
   end
 
   def advance_or_finish!
-    next_definition = Cadences::StepDefinitions.after(step)
+    next_definition = enrollment.step_definition_for(step + 1)
     next_definition.nil? ? finish_cadence! : schedule_next_step!(next_definition)
   end
 

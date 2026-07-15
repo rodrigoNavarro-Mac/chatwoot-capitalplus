@@ -19,6 +19,10 @@ class Api::V1::Accounts::Cadences::AnalyticsController < Api::V1::Accounts::Base
     @templates = Cadences::Analytics::TemplatesBuilder.new(account: Current.account, filters: filters).build
   end
 
+  def variants
+    @variants = Cadences::Analytics::VariantsBuilder.new(account: Current.account, filters: filters).build
+  end
+
   private
 
   def check_authorization
@@ -29,6 +33,7 @@ class Api::V1::Accounts::Cadences::AnalyticsController < Api::V1::Accounts::Base
     {
       range: range,
       inbox_id: params[:inbox_id],
+      cadence_definition_id: params[:cadence_definition_id],
       assignee_id: params[:assignee_id],
       team_id: params[:team_id],
       status: params[:status],
