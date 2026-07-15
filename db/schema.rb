@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_10_090000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_15_100100) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -278,6 +278,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_10_090000) do
     t.index ["user_id"], name: "index_cadence_call_tasks_on_user_id"
   end
 
+  create_table "cadence_definitions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.string "name", null: false
+    t.string "segment_value"
+    t.boolean "is_default", default: false, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_cadence_definitions_on_account_id"
+    t.index ["inbox_id"], name: "idx_one_default_cadence_definition_per_inbox", unique: true, where: "(is_default = true)"
+    t.index ["inbox_id"], name: "index_cadence_definitions_on_inbox_id"
+  end
+
   create_table "cadence_enrollments", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "conversation_id", null: false
@@ -294,8 +308,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_10_090000) do
     t.string "stopped_reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "steps_snapshot", default: [], null: false
+    t.bigint "cadence_definition_id", null: false
     t.index ["account_id", "status"], name: "index_cadence_enrollments_on_account_id_and_status"
     t.index ["assignee_id"], name: "index_cadence_enrollments_on_assignee_id"
+    t.index ["cadence_definition_id"], name: "index_cadence_enrollments_on_cadence_definition_id"
     t.index ["contact_id"], name: "index_cadence_enrollments_on_contact_id"
     t.index ["conversation_id"], name: "index_cadence_enrollments_on_conversation_id", unique: true
     t.index ["next_action_at"], name: "index_cadence_enrollments_on_next_action_at"
@@ -318,6 +335,30 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_10_090000) do
     t.index ["account_id", "event_type", "occurred_at"], name: "idx_on_account_id_event_type_occurred_at_41b1937298"
     t.index ["cadence_enrollment_id"], name: "index_cadence_events_on_cadence_enrollment_id"
     t.index ["conversation_id"], name: "index_cadence_events_on_conversation_id"
+  end
+
+  create_table "cadence_step_definitions", force: :cascade do |t|
+    t.integer "position", null: false
+    t.string "label"
+    t.string "template_key", null: false
+    t.string "template_name", null: false
+    t.string "template_language", default: "es_MX", null: false
+    t.string "template_namespace"
+    t.string "schedule_type", null: false
+    t.integer "offset_minutes"
+    t.integer "day_offset"
+    t.string "time_of_day"
+    t.integer "wait_window_minutes", null: false
+    t.boolean "creates_call_task", default: false, null: false
+    t.boolean "active", default: true, null: false
+    t.string "media_url"
+    t.string "media_type"
+    t.string "media_name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "cadence_definition_id", null: false
+    t.index ["cadence_definition_id", "position"], name: "idx_cadence_step_definitions_on_definition_and_position", unique: true
+    t.index ["cadence_definition_id", "template_key"], name: "idx_cadence_step_definitions_on_definition_and_key", unique: true
   end
 
   create_table "cadence_template_mappings", force: :cascade do |t|

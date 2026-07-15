@@ -11,6 +11,8 @@ describe CadenceListener do
     create(:conversation, account: account, inbox: whatsapp_inbox, contact: contact, status: 'open')
   end
 
+  let!(:cadence_definition) { create_cadence_definition!(whatsapp_inbox) }
+
   before { account.enable_features!(:whatsapp_cadences) }
 
   describe '#assignee_changed' do
@@ -30,8 +32,10 @@ describe CadenceListener do
   describe '#message_created' do
     let!(:enrollment) do
       CadenceEnrollment.create!(
-        account: account, conversation: conversation, contact: contact, inbox: whatsapp_inbox, assignee_id: agent.id,
-        status: :waiting_response, current_step: 1, last_template_sent_at: 1.hour.ago
+        account: account, conversation: conversation, contact: contact, inbox: whatsapp_inbox,
+        cadence_definition: cadence_definition, assignee_id: agent.id,
+        status: :waiting_response, current_step: 1, last_template_sent_at: 1.hour.ago,
+        steps_snapshot: cadence_steps_snapshot(count: 6)
       )
     end
     let(:message) { create(:message, account: account, conversation: conversation, message_type: :incoming) }

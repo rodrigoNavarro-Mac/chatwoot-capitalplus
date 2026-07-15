@@ -12,6 +12,7 @@ describe Cadences::StepExecutor do
     create(:conversation, account: account, inbox: whatsapp_inbox, contact: contact, assignee: agent, status: 'open')
   end
   let(:enrollment) { Cadences::EnrollmentService.new(conversation: conversation).enroll! }
+  let!(:cadence_definition) { create_cadence_steps!(whatsapp_inbox) }
 
   before do
     account.enable_features!(:whatsapp_cadences)
@@ -36,7 +37,7 @@ describe Cadences::StepExecutor do
       enrollment.reload
 
       expect { described_class.new(enrollment: enrollment).execute_current_step! }
-        .not_to change { enrollment.reload.cadence_events.where(event_type: 'template_sent').count }
+        .not_to(change { enrollment.reload.cadence_events.where(event_type: 'template_sent').count })
     end
 
     it 'does not send when the lead already responded since the last template' do
@@ -44,6 +45,28 @@ describe Cadences::StepExecutor do
 
       expect { described_class.new(enrollment: enrollment).execute_current_step! }
         .not_to have_enqueued_job(Cadences::CheckResponseJob)
+    end
+
+    it 'includes the configured media_url in the template header when present' do
+      cadence_definition.cadence_step_definitions.find_by(position: 1)
+                        .update!(media_url: 'https://cdn.example.com/video.mp4', media_type: 'video')
+      enrollment # force creation with the updated step definition in its snapshot
+
+      # No hace falta un template real registrado en el canal (find_template) para probar
+      # esto: alcanza con verificar que StepExecutor arma el header con el media_url/type
+      # configurado y se lo pasa a Whatsapp::TemplateProcessorService; el resto del pipeline
+      # (resolución del template real de Meta) ya está cubierto por otros specs.
+      expect(Whatsapp::TemplateProcessorService).to receive(:new).with(
+        hash_including(
+          template_params: hash_including(
+            'processed_params' => hash_including(
+              'header' => hash_including('media_url' => 'https://cdn.example.com/video.mp4', 'media_type' => 'video')
+            )
+          )
+        )
+      ).and_call_original
+
+      described_class.new(enrollment: enrollment).execute_current_step!
     end
 
     it 'terminates the cadence when the conversation is no longer eligible' do

@@ -1,5 +1,7 @@
 <script setup>
+import { ref, watch } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
+import CadencesAPI from 'dashboard/api/cadences';
 
 const filters = defineModel({ type: Object, required: true });
 
@@ -18,7 +20,33 @@ const STATUSES = [
   'cold',
 ];
 
-const STEPS = [1, 2, 3, 4, 5, 6];
+// Las CadenceDefinition (variantes A/B) son por inbox, así que el selector depende del
+// inbox elegido — si se cambia de inbox, la variante seleccionada ya no aplica.
+const cadenceDefinitions = ref([]);
+
+const fetchCadenceDefinitions = async inboxId => {
+  if (!inboxId) {
+    cadenceDefinitions.value = [];
+    return;
+  }
+  try {
+    const { data } = await CadencesAPI.getCadenceDefinitions(inboxId);
+    cadenceDefinitions.value = data;
+  } catch (error) {
+    cadenceDefinitions.value = [];
+  }
+};
+
+watch(
+  () => filters.value.inbox_id,
+  (inboxId, previousInboxId) => {
+    fetchCadenceDefinitions(inboxId);
+    if (inboxId !== previousInboxId) {
+      filters.value.cadence_definition_id = '';
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -31,6 +59,28 @@ const STEPS = [1, 2, 3, 4, 5, 6];
         <option value="">{{ $t('CADENCE.FILTERS.ALL') }}</option>
         <option v-for="inbox in inboxes" :key="inbox.id" :value="inbox.id">
           {{ inbox.name }}
+        </option>
+      </select>
+    </div>
+    <div class="flex flex-col gap-1">
+      <label class="text-xs text-n-slate-11">{{
+        $t('CADENCE.FILTERS.CADENCE_DEFINITION')
+      }}</label>
+      <select
+        v-model="filters.cadence_definition_id"
+        class="!mb-0 !h-8 text-sm"
+        :disabled="!filters.inbox_id"
+      >
+        <option value="">{{ $t('CADENCE.FILTERS.ALL') }}</option>
+        <option
+          v-for="definition in cadenceDefinitions"
+          :key="definition.id"
+          :value="definition.id"
+        >
+          {{ definition.name
+          }}{{
+            definition.segment_value ? ` (${definition.segment_value})` : ''
+          }}
         </option>
       </select>
     </div>
@@ -71,12 +121,13 @@ const STEPS = [1, 2, 3, 4, 5, 6];
       <label class="text-xs text-n-slate-11">{{
         $t('CADENCE.FILTERS.STEP')
       }}</label>
-      <select v-model="filters.step" class="!mb-0 !h-8 text-sm">
-        <option value="">{{ $t('CADENCE.FILTERS.ALL') }}</option>
-        <option v-for="step in STEPS" :key="step" :value="step">
-          {{ step }}
-        </option>
-      </select>
+      <input
+        v-model.number="filters.step"
+        type="number"
+        min="1"
+        class="!mb-0 !h-8 text-sm"
+        :placeholder="$t('CADENCE.FILTERS.ALL')"
+      />
     </div>
     <div class="flex flex-col gap-1">
       <label class="text-xs text-n-slate-11">{{

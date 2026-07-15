@@ -7,7 +7,7 @@ class Cadences::PauseOnResponseService
     enrollment.reload
     return unless CadenceEnrollment::ACTIVE_STATUSES.include?(enrollment.status)
 
-    recovered = enrollment.current_step >= 6
+    recovered = enrollment.current_step >= enrollment.total_steps
     enrollment.update!(
       status: recovered ? :recovered : :paused_by_response,
       last_lead_response_at: message.created_at,

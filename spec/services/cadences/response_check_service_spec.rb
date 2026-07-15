@@ -9,10 +9,13 @@ describe Cadences::ResponseCheckService do
   let(:conversation) do
     create(:conversation, account: account, inbox: whatsapp_inbox, contact: contact, assignee: agent, status: 'open')
   end
+  let(:cadence_definition) { create_cadence_definition!(whatsapp_inbox) }
   let(:enrollment) do
     CadenceEnrollment.create!(
-      account: account, conversation: conversation, contact: contact, inbox: whatsapp_inbox, assignee_id: agent.id,
-      status: :waiting_response, current_step: 1, last_template_sent_at: 20.minutes.ago
+      account: account, conversation: conversation, contact: contact, inbox: whatsapp_inbox,
+      cadence_definition: cadence_definition, assignee_id: agent.id,
+      status: :waiting_response, current_step: 1, last_template_sent_at: 20.minutes.ago,
+      steps_snapshot: cadence_steps_snapshot(count: 6)
     )
   end
 
@@ -54,6 +57,14 @@ describe Cadences::ResponseCheckService do
 
       expect(enrollment.reload.status).to eq('cold')
       expect(enrollment.stopped_reason).to eq('no_response_after_cadence')
+    end
+
+    it 'marks the cadence cold at the last step of a shorter, custom-length cadence' do
+      enrollment.update!(current_step: 3, last_template_sent_at: 1.day.ago, steps_snapshot: cadence_steps_snapshot(count: 3))
+
+      described_class.new(enrollment: enrollment, step: 3).perform
+
+      expect(enrollment.reload.status).to eq('cold')
     end
   end
 end

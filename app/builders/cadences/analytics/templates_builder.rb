@@ -16,6 +16,8 @@ class Cadences::Analytics::TemplatesBuilder < Cadences::Analytics::BaseBuilder
   private
 
   def real_template_name(template_key)
-    Cadences::TemplateResolver.mappings.dig('default', template_key, 'name')
+    scope = account.cadence_step_definitions.where(template_key: template_key)
+    scope = scope.where(inbox_id: filters[:inbox_id]) if filters[:inbox_id].present?
+    scope.first&.template_name || template_key
   end
 end

@@ -9,6 +9,7 @@ class Cadences::Analytics::BaseBuilder
     @enrollment_scope ||= account.cadence_enrollments
                                  .filter_by_date_range(filters[:range])
                                  .filter_by_inbox_id(filters[:inbox_id])
+                                 .filter_by_cadence_definition_id(filters[:cadence_definition_id])
                                  .filter_by_assignee_id(filters[:assignee_id])
                                  .filter_by_team_id(filters[:team_id])
                                  .filter_by_status(filters[:status])

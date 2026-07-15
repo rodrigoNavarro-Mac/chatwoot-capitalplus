@@ -25,7 +25,7 @@ import VoiceConfigurationPage from './settingsPage/VoiceConfigurationPage.vue';
 import WhatsappCallingPage from './settingsPage/WhatsappCallingPage.vue';
 import CustomerSatisfactionPage from './settingsPage/CustomerSatisfactionPage.vue';
 import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
-import CadenceTemplatesPage from './settingsPage/CadenceTemplatesPage.vue';
+import CadenceDefinitionsPage from './settingsPage/CadenceDefinitionsPage.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
 import AccountHealth from './components/AccountHealth.vue';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
@@ -52,7 +52,7 @@ export default {
     VoiceConfigurationPage,
     WhatsappCallingPage,
     CustomerSatisfactionPage,
-    CadenceTemplatesPage,
+    CadenceDefinitionsPage,
     FacebookReauthorize,
     GreetingsEditor,
     PreChatFormSettings,
@@ -1324,7 +1324,7 @@ export default {
           />
         </div>
         <div v-if="selectedTabKey === 'cadence-templates'">
-          <CadenceTemplatesPage :inbox="inbox" />
+          <CadenceDefinitionsPage :inbox="inbox" />
         </div>
       </div>
     </section>

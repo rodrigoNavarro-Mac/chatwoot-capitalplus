@@ -303,6 +303,7 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
       v-if="selectedTemplate"
       ref="templateParserRef"
       :template="selectedTemplate"
+      :inbox-id="state.inboxId"
     />
 
     <!-- Audience type toggle -->

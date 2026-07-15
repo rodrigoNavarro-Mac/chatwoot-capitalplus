@@ -14,4 +14,8 @@ class CadenceAnalyticsPolicy < ApplicationPolicy
   def templates?
     @account_user.administrator?
   end
+
+  def variants?
+    @account_user.administrator?
+  end
 end

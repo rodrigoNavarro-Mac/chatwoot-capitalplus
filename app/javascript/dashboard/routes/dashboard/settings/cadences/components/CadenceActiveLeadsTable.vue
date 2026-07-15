@@ -39,6 +39,9 @@ const formatDate = value => (value ? new Date(value).toLocaleString() : '---');
               {{ t('CADENCE.ACTIVE_LEADS_TABLE.AGENT') }}
             </th>
             <th class="px-3 py-2">
+              {{ t('CADENCE.ACTIVE_LEADS_TABLE.CADENCE') }}
+            </th>
+            <th class="px-3 py-2">
               {{ t('CADENCE.ACTIVE_LEADS_TABLE.STEP') }}
             </th>
             <th class="px-3 py-2">
@@ -70,6 +73,15 @@ const formatDate = value => (value ? new Date(value).toLocaleString() : '---');
               </router-link>
             </td>
             <td class="px-3 py-2">{{ lead.assignee?.name || '---' }}</td>
+            <td class="px-3 py-2">
+              {{ lead.cadence_definition?.name || '---' }}
+              <span
+                v-if="lead.cadence_definition?.segment_value"
+                class="block text-xs text-n-slate-11"
+              >
+                {{ lead.cadence_definition.segment_value }}
+              </span>
+            </td>
             <td class="px-3 py-2">{{ lead.current_step }}</td>
             <td class="px-3 py-2">
               <CadenceStatusBadge :status="lead.status" />
