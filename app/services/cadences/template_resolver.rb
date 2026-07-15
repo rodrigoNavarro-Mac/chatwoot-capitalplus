@@ -1,3 +1,11 @@
+# DEPRECADO: Cadences::StepExecutor ya no usa este resolver (resuelve la plantilla
+# directo desde enrollment.steps_snapshot); sin llamadores en el motor de cadencia real.
+#
+# SIGUE VIVO A PROPÓSITO: Cadences::LegacyBackfillService lo usa (vía .mappings) para leer
+# los defaults de config/cadences/template_mappings.yml al migrar los inboxes existentes.
+# Borrar junto con CadenceTemplateMapping y Cadences::StepDefinitions una vez confirmado
+# el backfill en producción.
+#
 # Traduce un template_key fijo (ver Cadences::StepDefinitions) a la plantilla real
 # configurada para el inbox/proyecto, y resuelve sus variables liquid (nombre del
 # contacto, etc.) reutilizando el motor de campañas ya existente.

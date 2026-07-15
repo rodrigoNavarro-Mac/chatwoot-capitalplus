@@ -1,4 +1,12 @@
 module Cadences::StepDefinitions
+  # DEPRECADO: reemplazado por CadenceStepDefinition (tabla en BD, editable por inbox desde
+  # el UI). El motor de cadencia ya no lee esta constante.
+  #
+  # SIGUE VIVA A PROPÓSITO: Cadences::LegacyBackfillService la usa para dar de alta, la
+  # primera vez, los CadenceStepDefinition de cada inbox de WhatsApp en producción a partir
+  # de este horario fijo. Borrar solo después de confirmar que el rake
+  # cadences:backfill_step_definitions ya corrió en producción.
+  #
   # Estructura fija de la cadencia comercial. No editable desde UI ni base de datos:
   # ajustar horarios/plantillas aquí implica un deploy, a propósito.
   TIMEZONE = 'America/Mexico_City'.freeze
