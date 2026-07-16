@@ -28,7 +28,7 @@ class Crm::Zoho::SendInitialTemplateService
     ).perform
 
     channel = inbox.channel
-    name, namespace, lang_code, parameters, rendered_body = build_template_info(channel)
+    name, namespace, lang_code, parameters, rendered_body, stored_template_params = build_template_info(channel)
     raise 'template_not_found_or_not_approved' if parameters.nil?
 
     wamid = channel.send_template("+#{@phone}", { name: name, namespace: namespace, lang_code: lang_code, parameters: parameters }, nil)
@@ -37,12 +37,13 @@ class Crm::Zoho::SendInitialTemplateService
     conversation = find_or_create_conversation(contact_inbox, inbox)
     assign_agent(conversation)
     conversation.messages.create!(
-      message_type: :outgoing,
-      account_id:   @account.id,
-      inbox_id:     inbox.id,
-      content:      rendered_body.presence || @template_name,
-      source_id:    wamid,
-      status:       :sent
+      message_type:          :outgoing,
+      account_id:            @account.id,
+      inbox_id:              inbox.id,
+      content:               rendered_body.presence || @template_name,
+      source_id:             wamid,
+      status:                :sent,
+      additional_attributes: { template_params: stored_template_params }
     )
 
     Rails.logger.info("[ZohoCRM][SendTemplate] Sent '#{@template_name}' to +#{@phone} via inbox ##{inbox.id}")
@@ -121,8 +122,15 @@ class Crm::Zoho::SendInitialTemplateService
       template_params: template_params
     ).call
 
+    # api_params = [name, namespace, lang_code, parameters]; guardamos el namespace real
+    # (resuelto por TemplateProcessorService) en el marcador que persistimos en el mensaje,
+    # para poder detectar despues "que plantilla se le mando a este lead" sin heuristicas de
+    # texto. Se omite si viene vacio (Cloud API no lo usa) porque el schema del mensaje exige
+    # que, si namespace esta presente, sea un string.
+    template_params['namespace'] = api_params[1] if api_params[1].present?
+
     rendered_body = render_template_body(template, body_map)
-    api_params + [rendered_body]
+    api_params + [rendered_body, template_params]
   end
 
   def render_template_body(template, body_map)
