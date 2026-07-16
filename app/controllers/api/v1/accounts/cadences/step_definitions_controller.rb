@@ -84,7 +84,8 @@ class Api::V1::Accounts::Cadences::StepDefinitionsController < Api::V1::Accounts
     params.permit(
       :label, :template_key, :template_name, :template_language, :template_namespace,
       :schedule_type, :offset_minutes, :day_offset, :time_of_day, :wait_window_minutes,
-      :creates_call_task, :active, :media_url, :media_type, :media_name
+      :creates_call_task, :active, :media_url, :media_type, :media_name,
+      body_variables: {}
     )
   end
 end

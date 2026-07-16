@@ -1,4 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils';
+import { useMapGetter } from 'dashboard/composables/store';
 import CadenceTemplatesPage from '../CadenceTemplatesPage.vue';
 import CadenceStepCard from '../CadenceStepCard.vue';
 import CadencesAPI from 'dashboard/api/cadences';
@@ -11,6 +12,10 @@ vi.mock('dashboard/api/cadences', () => ({
     deleteStepDefinition: vi.fn(),
     reorderStepDefinitions: vi.fn(),
   },
+}));
+
+vi.mock('dashboard/composables/store', () => ({
+  useMapGetter: vi.fn(),
 }));
 
 const cadenceDefinition = { id: 42, name: 'Cadencia default' };
@@ -53,11 +58,12 @@ const steps = [
 describe('CadenceTemplatesPage.vue', () => {
   beforeEach(() => {
     CadencesAPI.getStepDefinitions.mockResolvedValue({ data: steps });
+    useMapGetter.mockReturnValue({ value: () => [] });
   });
 
   it('fetches and renders the configured steps for the given cadence definition', async () => {
     const wrapper = mount(CadenceTemplatesPage, {
-      props: { cadenceDefinition },
+      props: { cadenceDefinition, inboxId: 99 },
     });
     await flushPromises();
 
@@ -85,7 +91,7 @@ describe('CadenceTemplatesPage.vue', () => {
       ],
     });
     const wrapper = mount(CadenceTemplatesPage, {
-      props: { cadenceDefinition },
+      props: { cadenceDefinition, inboxId: 99 },
     });
     await flushPromises();
 
@@ -106,7 +112,7 @@ describe('CadenceTemplatesPage.vue', () => {
   it('saves a step edited inside its card', async () => {
     CadencesAPI.updateStepDefinition.mockResolvedValue({ data: steps });
     const wrapper = mount(CadenceTemplatesPage, {
-      props: { cadenceDefinition },
+      props: { cadenceDefinition, inboxId: 99 },
     });
     await flushPromises();
 
@@ -125,7 +131,7 @@ describe('CadenceTemplatesPage.vue', () => {
   it('deletes a step after the confirmation modal is accepted', async () => {
     CadencesAPI.deleteStepDefinition.mockResolvedValue({});
     const wrapper = mount(CadenceTemplatesPage, {
-      props: { cadenceDefinition },
+      props: { cadenceDefinition, inboxId: 99 },
       global: {
         stubs: {
           'woot-delete-modal': {
@@ -148,7 +154,7 @@ describe('CadenceTemplatesPage.vue', () => {
 
   it('emits back when the back button is clicked', async () => {
     const wrapper = mount(CadenceTemplatesPage, {
-      props: { cadenceDefinition },
+      props: { cadenceDefinition, inboxId: 99 },
     });
     await flushPromises();
 

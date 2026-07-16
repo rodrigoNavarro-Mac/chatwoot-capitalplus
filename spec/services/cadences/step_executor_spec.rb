@@ -69,6 +69,24 @@ describe Cadences::StepExecutor do
       described_class.new(enrollment: enrollment).execute_current_step!
     end
 
+    it 'resolves body_variables through Liquid using the contact drop' do
+      cadence_definition.cadence_step_definitions.find_by(position: 1)
+                        .update!(body_variables: { '1' => 'Hola {{ contact.name }}' })
+      enrollment # force creation with the updated step definition in its snapshot
+
+      expect(Whatsapp::TemplateProcessorService).to receive(:new).with(
+        hash_including(
+          template_params: hash_including(
+            'processed_params' => hash_including(
+              'body' => { '1' => "Hola #{contact.name}" }
+            )
+          )
+        )
+      ).and_call_original
+
+      described_class.new(enrollment: enrollment).execute_current_step!
+    end
+
     it 'terminates the cadence when the conversation is no longer eligible' do
       enrollment # force creation while the conversation is still open
       conversation.update!(status: :resolved)

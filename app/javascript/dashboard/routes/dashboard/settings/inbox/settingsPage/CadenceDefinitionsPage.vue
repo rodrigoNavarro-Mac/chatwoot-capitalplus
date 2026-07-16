@@ -127,6 +127,7 @@ watch(() => props.inbox?.id, fetchDefinitions);
   <CadenceTemplatesPage
     v-if="selectedDefinition"
     :cadence-definition="selectedDefinition"
+    :inbox-id="inbox.id"
     @back="backToList"
   />
   <div v-else class="mx-6 max-w-4xl">

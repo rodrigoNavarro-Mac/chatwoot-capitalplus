@@ -164,6 +164,10 @@
       "SAVE": "Save changes",
       "SUCCESS": "Step updated",
       "TEMPLATE_SECTION": "Template",
+      "PICK_TEMPLATE_LABEL": "WhatsApp template",
+      "PICK_TEMPLATE": "Choose an approved template...",
+      "MANUAL_TEMPLATE_OPTION": "Other (type it manually)",
+      "TEMPLATE_SELECTED_HINT": "{name} ({language}) — approved template, its variables and header are detected automatically.",
       "TEMPLATE_NAME": "Template name",
       "TEMPLATE_LANGUAGE": "Language",
       "TEMPLATE_NAMESPACE": "Namespace",
@@ -188,7 +192,14 @@
         "DOCUMENT": "Document",
         "URL_LABEL": "Media link",
         "URL_PLACEHOLDER": "https://...",
-        "NAME_LABEL": "File name"
+        "NAME_LABEL": "File name",
+        "DETECTED_HINT": "This template's header is a {type} — paste its link below.",
+        "NOT_APPLICABLE": "This template has no media header, nothing to configure here."
+      },
+      "BODY_VARIABLES": {
+        "SECTION": "Message variables",
+        "VARIABLE_LABEL": "Variable {key}",
+        "LIQUID_HINT_INTRO": "Type fixed text, or click one of these to insert a variable that gets filled in per lead when the message is sent:"
       },
       "DELETE": {
         "BUTTON": "Delete",

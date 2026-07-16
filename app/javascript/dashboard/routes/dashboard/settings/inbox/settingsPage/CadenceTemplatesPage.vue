@@ -10,6 +10,7 @@ import CadenceStepCard from './CadenceStepCard.vue';
 
 const props = defineProps({
   cadenceDefinition: { type: Object, required: true },
+  inboxId: { type: [Number, String], required: true },
 });
 
 const emit = defineEmits(['back']);
@@ -160,6 +161,7 @@ watch(() => props.cadenceDefinition?.id, fetchSteps);
             :key="element.id"
             :step="element"
             :index="index"
+            :inbox-id="inboxId"
             @save="payload => saveStep(element.id, payload)"
             @delete="requestDeleteStep(element.id)"
           />

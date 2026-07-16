@@ -100,6 +100,16 @@ describe CadenceStepDefinition do
       )
       expect(snapshot).not_to have_key('cadence_definition_id')
     end
+
+    it 'includes the body_variables mapping' do
+      record = described_class.create!(base_attrs(body_variables: { '1' => '{{ contact.name }}' }))
+
+      expect(record.to_snapshot).to include('body_variables' => { '1' => '{{ contact.name }}' })
+    end
+  end
+
+  it 'defaults body_variables to an empty hash' do
+    expect(described_class.new(base_attrs).body_variables).to eq({})
   end
 
   describe '.ordered' do
