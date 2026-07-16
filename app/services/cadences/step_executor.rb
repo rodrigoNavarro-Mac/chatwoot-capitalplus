@@ -54,22 +54,34 @@ class Cadences::StepExecutor
       'name' => definition[:template_name],
       'language' => definition[:template_language],
       'namespace' => definition[:template_namespace],
-      'processed_params' => header_params(definition)
+      'processed_params' => processed_params_for(definition)
     }
 
     Whatsapp::LiquidTemplateProcessorService.new(campaign: pseudo_campaign, contact: contact).process_template_params(template_params)
   end
 
+  # Liquid resuelve cada valor (ej. "{{ contact.name }}") al momento de enviar, tanto en
+  # el header (media_url) como en las variables del cuerpo — mismo mecanismo, solo hay que
+  # darle la forma que Whatsapp::TemplateProcessorService espera para cada componente.
+  def processed_params_for(definition)
+    { 'header' => header_params(definition), 'body' => body_params(definition) }.compact
+  end
+
   def header_params(definition)
-    return {} if definition[:media_url].blank?
+    return nil if definition[:media_url].blank?
 
     {
-      'header' => {
-        'media_url' => definition[:media_url],
-        'media_type' => definition[:media_type],
-        'media_name' => definition[:media_name]
-      }.compact
-    }
+      'media_url' => definition[:media_url],
+      'media_type' => definition[:media_type],
+      'media_name' => definition[:media_name]
+    }.compact
+  end
+
+  def body_params(definition)
+    variables = definition[:body_variables]
+    return nil if variables.blank?
+
+    variables
   end
 
   def pseudo_campaign

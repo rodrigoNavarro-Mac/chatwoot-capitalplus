@@ -16,4 +16,5 @@ json.array! @step_definitions do |step_definition|
   json.media_url step_definition.media_url
   json.media_type step_definition.media_type
   json.media_name step_definition.media_name
+  json.body_variables step_definition.body_variables
 end

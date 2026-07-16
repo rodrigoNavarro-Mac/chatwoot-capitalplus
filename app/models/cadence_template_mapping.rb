@@ -17,10 +17,6 @@
 #  idx_cadence_template_mappings_on_inbox_and_key  (inbox_id,template_key) UNIQUE
 #  index_cadence_template_mappings_on_account_id   (account_id)
 #
-# DEPRECADO: reemplazado por CadenceStepDefinition, que fusiona esta tabla con los pasos
-# fijos de Cadences::StepDefinitions y agrega horario/adjunto editables por paso. El motor
-# de cadencia (EnrollmentService, StepExecutor, etc.) ya no lee este modelo.
-#
 # SIGUE VIVO A PROPÓSITO: Cadences::LegacyBackfillService lo usa para leer los overrides de
 # plantilla por inbox que ya existen en producción (chat.capitalplus.mx) y migrarlos a
 # CadenceStepDefinition la primera vez que corra el rake cadences:backfill_step_definitions

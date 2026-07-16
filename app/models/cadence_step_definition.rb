@@ -4,6 +4,7 @@
 #
 #  id                    :bigint           not null, primary key
 #  active                :boolean          default(TRUE), not null
+#  body_variables        :jsonb            not null
 #  creates_call_task     :boolean          default(FALSE), not null
 #  day_offset            :integer
 #  label                 :string
@@ -58,6 +59,6 @@ class CadenceStepDefinition < ApplicationRecord
   def to_snapshot
     as_json(only: %i[position template_key template_name template_language template_namespace
                      schedule_type offset_minutes day_offset time_of_day wait_window_minutes
-                     creates_call_task media_url media_type media_name])
+                     creates_call_task media_url media_type media_name body_variables])
   end
 end

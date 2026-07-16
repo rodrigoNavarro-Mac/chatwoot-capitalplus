@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_15_100100) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_16_090000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -357,6 +357,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_15_100100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "cadence_definition_id", null: false
+    t.jsonb "body_variables", default: {}, null: false
     t.index ["cadence_definition_id", "position"], name: "idx_cadence_step_definitions_on_definition_and_position", unique: true
     t.index ["cadence_definition_id", "template_key"], name: "idx_cadence_step_definitions_on_definition_and_key", unique: true
   end

@@ -72,6 +72,18 @@ RSpec.describe 'Cadence Step Definitions API', type: :request do
       expect(step_one.reload.wait_window_minutes).to eq(30)
       expect(step_one.reload.media_url).to eq('https://cdn.example.com/v.mp4')
     end
+
+    it 'updates the body_variables mapping' do
+      patch "/api/v1/accounts/#{account.id}/cadences/step_definitions/#{step_one.id}",
+            params: {
+              cadence_definition_id: cadence_definition.id,
+              body_variables: { '1' => '{{ contact.name }}' }
+            },
+            headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(step_one.reload.body_variables).to eq({ '1' => '{{ contact.name }}' })
+    end
   end
 
   describe 'DELETE /api/v1/accounts/{account.id}/cadences/step_definitions/:id' do
