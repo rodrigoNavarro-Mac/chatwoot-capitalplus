@@ -304,6 +304,7 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
       ref="templateParserRef"
       :template="selectedTemplate"
       :inbox-id="state.inboxId"
+      autofill-name-variable
     />
 
     <!-- Audience type toggle -->

@@ -40,6 +40,13 @@ const props = defineProps({
     type: [Number, String],
     default: null,
   },
+  // En campañas, la variable 1 del cuerpo casi siempre es el nombre del contacto.
+  // Se precarga como expresión Liquid (el renderer de campañas la resuelve por
+  // contacto al enviar) para no tener que escribirla a mano en cada campaña.
+  autofillNameVariable: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['sendMessage', 'resetTemplate', 'back']);
@@ -156,6 +163,11 @@ const initializeTemplateParameters = () => {
     props.template,
     hasMediaHeader.value
   );
+
+  if (props.autofillNameVariable && processedParams.value.body?.['1'] === '') {
+    processedParams.value.body['1'] = '{{ contact.name }}';
+  }
+
   prefillMediaFromCadenceStep();
 };
 
