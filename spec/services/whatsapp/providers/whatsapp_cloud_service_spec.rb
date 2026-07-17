@@ -276,7 +276,8 @@ describe Whatsapp::Providers::WhatsappCloudService do
       instance_double(
         HTTParty::Response,
         body: error_response.to_json,
-        parsed_response: error_response
+        parsed_response: error_response,
+        code: 400
       )
     end
 
@@ -299,7 +300,8 @@ describe Whatsapp::Providers::WhatsappCloudService do
         instance_double(
           HTTParty::Response,
           body: '{}',
-          parsed_response: {}
+          parsed_response: {},
+          code: 400
         )
       end
 
