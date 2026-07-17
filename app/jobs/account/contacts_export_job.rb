@@ -3,6 +3,11 @@ class Account::ContactsExportJob < ApplicationJob
 
   LABELS_COLUMN = 'labels'.freeze
   LABELS_DELIMITER = ','.freeze
+  LAST_MESSAGE_STATUS_COLUMN = 'last_message_status'.freeze
+  LAST_TEMPLATE_NAME_COLUMN = 'last_template_name'.freeze
+  VIRTUAL_COLUMNS = [LABELS_COLUMN, LAST_MESSAGE_STATUS_COLUMN, LAST_TEMPLATE_NAME_COLUMN].freeze
+  MESSAGE_STATUS_LABELS = { 'sent' => 'Enviado', 'delivered' => 'Entregado', 'read' => 'Visto', 'failed' => 'Error' }.freeze
+  WHATSAPP_CHANNEL_TYPE = 'Channel::Whatsapp'.freeze
 
   def perform(account_id, user_id, column_names, params)
     @account = Account.find(account_id)
@@ -19,6 +24,8 @@ class Account::ContactsExportJob < ApplicationJob
   def generate_csv(headers)
     contacts_to_export = contacts.to_a
     preload_contact_labels(contacts_to_export) if headers.include?(LABELS_COLUMN)
+    preload_last_message_status(contacts_to_export) if headers.include?(LAST_MESSAGE_STATUS_COLUMN)
+    preload_last_template_name(contacts_to_export) if headers.include?(LAST_TEMPLATE_NAME_COLUMN)
 
     csv_data = CSV.generate do |csv|
       csv << headers
@@ -32,6 +39,8 @@ class Account::ContactsExportJob < ApplicationJob
 
   def value_for_header(contact, header)
     return contact_labels_by_id.fetch(contact.id, []).join(LABELS_DELIMITER) if header == LABELS_COLUMN
+    return last_message_status_by_contact_id[contact.id] if header == LAST_MESSAGE_STATUS_COLUMN
+    return last_template_name_by_contact_id[contact.id] if header == LAST_TEMPLATE_NAME_COLUMN
 
     contact.send(header)
   end
@@ -56,6 +65,44 @@ class Account::ContactsExportJob < ApplicationJob
     @contact_labels_by_id ||= Hash.new { |hash, contact_id| hash[contact_id] = [] }
   end
 
+  def last_whatsapp_outgoing_messages(contact_ids)
+    Message
+      .joins(:conversation, :inbox)
+      .where(account_id: @account.id, message_type: :outgoing)
+      .where(inboxes: { channel_type: WHATSAPP_CHANNEL_TYPE })
+      .where(conversations: { contact_id: contact_ids })
+  end
+
+  def preload_last_message_status(contacts_to_export)
+    contact_ids = contacts_to_export.map(&:id)
+    return if contact_ids.blank?
+
+    last_whatsapp_outgoing_messages(contact_ids)
+      .select('DISTINCT ON (conversations.contact_id) conversations.contact_id AS contact_id, messages.status AS status')
+      .reorder('conversations.contact_id, messages.created_at DESC, messages.id DESC')
+      .each { |row| last_message_status_by_contact_id[row.contact_id] = MESSAGE_STATUS_LABELS[row.status] }
+  end
+
+  def last_message_status_by_contact_id
+    @last_message_status_by_contact_id ||= {}
+  end
+
+  def preload_last_template_name(contacts_to_export)
+    contact_ids = contacts_to_export.map(&:id)
+    return if contact_ids.blank?
+
+    last_whatsapp_outgoing_messages(contact_ids)
+      .where("messages.additional_attributes -> 'template_params' ->> 'name' IS NOT NULL")
+      .select("DISTINCT ON (conversations.contact_id) conversations.contact_id AS contact_id,
+                messages.additional_attributes -> 'template_params' ->> 'name' AS template_name")
+      .reorder('conversations.contact_id, messages.created_at DESC, messages.id DESC')
+      .each { |row| last_template_name_by_contact_id[row.contact_id] = row.template_name }
+  end
+
+  def last_template_name_by_contact_id
+    @last_template_name_by_contact_id ||= {}
+  end
+
   def contacts
     if @params.present? && @params[:payload].present? && @params[:payload].any?
       result = ::Contacts::FilterService.new(@account, @account_user, @params).perform
@@ -70,9 +117,9 @@ class Account::ContactsExportJob < ApplicationJob
   def valid_headers(column_names)
     requested_headers = column_names.presence || default_columns
 
-    # Keep requested header order while allowing the virtual labels column.
+    # Keep requested header order while allowing the virtual columns.
     requested_headers.select do |header|
-      header == LABELS_COLUMN || Contact.column_names.include?(header)
+      VIRTUAL_COLUMNS.include?(header) || Contact.column_names.include?(header)
     end.uniq
   end
 
@@ -102,6 +149,6 @@ class Account::ContactsExportJob < ApplicationJob
   end
 
   def default_columns
-    %w[id name email phone_number labels]
+    %w[id name email phone_number labels last_message_status last_template_name]
   end
 end

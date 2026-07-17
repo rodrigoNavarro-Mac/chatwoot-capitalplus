@@ -167,4 +167,61 @@ RSpec.describe Account::ContactsExportJob do
       expect(csv_data.length).to eq(8)
     end
   end
+
+  context 'when exporting the last WhatsApp message status and template name' do
+    let(:whatsapp_channel) { create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false) }
+    let(:whatsapp_inbox) { whatsapp_channel.inbox }
+    let(:contact) { create(:contact, account: account, phone_number: '+15550001111') }
+    let(:conversation) do
+      create(:conversation, account: account, inbox: whatsapp_inbox, contact: contact)
+    end
+
+    def row_for(contact)
+      csv_content = account.contacts_export.download.force_encoding('UTF-8').delete_prefix("\xEF\xBB\xBF")
+      csv_data = CSV.parse(csv_content, headers: true)
+      csv_data.find { |r| r['id'] == contact.id.to_s }
+    end
+
+    it 'exports the status of the most recent outgoing WhatsApp message translated to spanish' do
+      create(:message, account: account, conversation: conversation, inbox: whatsapp_inbox, message_type: :outgoing, status: :delivered,
+                       created_at: 2.hours.ago)
+      create(:message, account: account, conversation: conversation, inbox: whatsapp_inbox, message_type: :outgoing, status: :read,
+                       created_at: 1.hour.ago)
+
+      described_class.perform_now(account.id, user.id, %w[id last_message_status], {})
+
+      expect(row_for(contact)['last_message_status']).to eq('Visto')
+    end
+
+    it 'exports the name of the most recent template message even if a later non-template message was sent' do
+      create(:message, account: account, conversation: conversation, inbox: whatsapp_inbox, message_type: :outgoing,
+                       additional_attributes: { 'template_params' => { 'name' => 'sample_shipping_confirmation' } },
+                       created_at: 2.hours.ago)
+      create(:message, account: account, conversation: conversation, inbox: whatsapp_inbox, message_type: :outgoing,
+                       created_at: 1.hour.ago)
+
+      described_class.perform_now(account.id, user.id, %w[id last_template_name], {})
+
+      expect(row_for(contact)['last_template_name']).to eq('sample_shipping_confirmation')
+    end
+
+    it 'ignores messages sent through non-WhatsApp channels' do
+      widget_inbox = create(:inbox, account: account, channel: create(:channel_widget, account: account))
+      other_conversation = create(:conversation, account: account, inbox: widget_inbox, contact: contact)
+      create(:message, account: account, conversation: other_conversation, inbox: widget_inbox, message_type: :outgoing, status: :read)
+
+      described_class.perform_now(account.id, user.id, %w[id last_message_status last_template_name], {})
+
+      row = row_for(contact)
+      expect(row['last_message_status']).to be_nil
+      expect(row['last_template_name']).to be_nil
+    end
+
+    it 'includes the new columns by default' do
+      described_class.perform_now(account.id, user.id, [], {})
+
+      csv_data = CSV.parse(account.contacts_export.download, headers: true)
+      expect(csv_data.headers).to include('last_message_status', 'last_template_name')
+    end
+  end
 end
