@@ -2,6 +2,7 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
   include DateRangeHelper
 
   before_action :fetch_cadence_enrollment, only: [:show, :pause, :resume, :cancel]
+  before_action :fetch_conversation, only: [:create]
   before_action :check_authorization
 
   def index
@@ -9,6 +10,24 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
   end
 
   def show; end
+
+  # Inscribe manualmente una conversación elegible en la cadencia que le corresponda por
+  # CadenceDefinitionResolver (mismo reparto/segmento que usaría el enroll automático al
+  # asignarla) — no permite forzar una variante específica.
+  def create
+    return render_enrollment_error('already_enrolled') if CadenceEnrollment.exists?(conversation_id: @conversation.id)
+    return render_enrollment_error('not_eligible') unless Cadences::EligibilityChecker.new(conversation: @conversation).eligible?
+
+    @cadence_enrollment = Cadences::EnrollmentService.new(conversation: @conversation).enroll!
+    render_enrollment_error('cadence_not_configured') if @cadence_enrollment.blank?
+  end
+
+  # Conversaciones candidatas para el modal de "Enrolar manualmente": mismos criterios que
+  # Cadences::EligibilityChecker, sin repetirlos, para que nunca se pueda elegir algo que
+  # #create luego rechazaría.
+  def eligible_conversations
+    @conversations = eligible_conversations_scope
+  end
 
   def pause
     @cadence_enrollment.update!(status: :paused_by_response, stopped_reason: 'manual_pause')
@@ -30,8 +49,43 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
     @cadence_enrollment = Current.account.cadence_enrollments.find(params[:id])
   end
 
+  def fetch_conversation
+    @conversation = Current.account.conversations.find(create_params[:conversation_id])
+  end
+
   def check_authorization
     authorize(@cadence_enrollment || CadenceEnrollment)
+  end
+
+  def render_enrollment_error(reason)
+    render json: { error: reason }, status: :unprocessable_entity
+  end
+
+  def eligible_conversations_scope
+    candidates = Current.account.conversations
+                        .joins(:inbox, :contact)
+                        .where(inboxes: { channel_type: 'Channel::Whatsapp' })
+                        .open.assigned
+                        .where.not(id: CadenceEnrollment.select(:conversation_id))
+    candidates = apply_conversation_search(candidates)
+    candidates.includes(:assignee, :inbox, :contact).order(created_at: :desc).limit(200)
+              .select { |conversation| Cadences::EligibilityChecker.new(conversation: conversation).eligible? }
+              .first(20)
+  end
+
+  def apply_conversation_search(scope)
+    query = params[:q].to_s.strip
+    return scope if query.blank?
+
+    if query.match?(/\A\d+\z/)
+      scope.where(display_id: query.to_i)
+    else
+      scope.where('contacts.name ILIKE :q OR contacts.phone_number ILIKE :q', q: "%#{query}%")
+    end
+  end
+
+  def create_params
+    params.permit(:conversation_id)
   end
 
   def filtered_enrollments

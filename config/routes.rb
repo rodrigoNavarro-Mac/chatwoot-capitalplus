@@ -133,11 +133,14 @@ Rails.application.routes.draw do
               get :csv_usage_report
             end
           end
-          resources :cadence_enrollments, only: [:index, :show] do
+          resources :cadence_enrollments, only: [:index, :show, :create] do
             member do
               post :pause
               post :resume
               post :cancel
+            end
+            collection do
+              get :eligible_conversations
             end
           end
           resources :cadence_call_tasks, only: [:index] do

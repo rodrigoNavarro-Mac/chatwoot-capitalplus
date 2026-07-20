@@ -12,6 +12,8 @@ import CadenceStepsTable from './components/CadenceStepsTable.vue';
 import CadenceAgentsTable from './components/CadenceAgentsTable.vue';
 import CadenceTemplatesTable from './components/CadenceTemplatesTable.vue';
 import CadenceActiveLeadsTable from './components/CadenceActiveLeadsTable.vue';
+import EnrollConversationModal from './components/EnrollConversationModal.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 
 const { t } = useI18n();
 
@@ -35,6 +37,7 @@ const steps = ref([]);
 const agentsMetrics = ref([]);
 const templates = ref([]);
 const activeLeads = ref([]);
+const enrollModalRef = ref(null);
 
 const queryParams = computed(() => {
   const params = {};
@@ -168,6 +171,10 @@ const onCancel = async id => {
   fetchActiveLeads();
 };
 
+const onEnrolled = () => {
+  fetchActiveLeads();
+};
+
 onMounted(refresh);
 watch(filters, refresh, { deep: true });
 watch(activeTab, refresh);
@@ -178,25 +185,40 @@ watch(activeTab, refresh);
     <div class="max-w-6xl mx-auto pb-12">
       <ReportHeader :header-title="t('CADENCE.TITLE')" />
 
-      <div class="flex gap-4 border-b border-n-weak mb-4">
-        <button
-          v-for="tab in TABS"
-          :key="tab"
-          class="pb-2 text-sm border-b-2 -mb-px"
-          :class="
-            activeTab === tab
-              ? 'border-n-blue-9 text-n-slate-12 font-medium'
-              : 'border-transparent text-n-slate-11'
-          "
-          @click="activeTab = tab"
-        >
-          {{
-            t(`CADENCE.TABS.${tab === 'summary' ? 'SUMMARY' : 'ACTIVE_LEADS'}`)
-          }}
-        </button>
+      <div
+        class="flex items-center justify-between border-b border-n-weak mb-4"
+      >
+        <div class="flex gap-4">
+          <button
+            v-for="tab in TABS"
+            :key="tab"
+            class="pb-2 text-sm border-b-2 -mb-px"
+            :class="
+              activeTab === tab
+                ? 'border-n-blue-9 text-n-slate-12 font-medium'
+                : 'border-transparent text-n-slate-11'
+            "
+            @click="activeTab = tab"
+          >
+            {{
+              t(
+                `CADENCE.TABS.${tab === 'summary' ? 'SUMMARY' : 'ACTIVE_LEADS'}`
+              )
+            }}
+          </button>
+        </div>
+        <Button
+          v-if="activeTab === 'active_leads'"
+          :label="t('CADENCE.ENROLL_MODAL.OPEN_BUTTON')"
+          size="sm"
+          class="mb-2"
+          @click="enrollModalRef?.open()"
+        />
       </div>
 
       <CadenceFilters v-model="filters" />
+
+      <EnrollConversationModal ref="enrollModalRef" @enrolled="onEnrolled" />
 
       <div v-if="isLoading" class="flex justify-center py-8">
         <Spinner />

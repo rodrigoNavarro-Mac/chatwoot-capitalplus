@@ -3,6 +3,14 @@ class CadenceEnrollmentPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def create?
+    @account_user.administrator?
+  end
+
+  def eligible_conversations?
+    @account_user.administrator?
+  end
+
   def show?
     @account_user.administrator?
   end

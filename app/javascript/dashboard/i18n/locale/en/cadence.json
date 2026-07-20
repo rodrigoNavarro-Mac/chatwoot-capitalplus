@@ -111,6 +111,22 @@
       "FETCH_ANALYTICS": "Could not fetch cadence analytics",
       "FETCH_LEADS": "Could not fetch active cadence leads"
     },
+    "ENROLL_MODAL": {
+      "OPEN_BUTTON": "Enroll manually",
+      "TITLE": "Enroll a conversation manually",
+      "DESCRIPTION": "Search for an eligible WhatsApp conversation — open, assigned, not already in a cadence — and enroll it in the cadence that matches its inbox and segment.",
+      "SEARCH_PLACEHOLDER": "Search by contact name, phone or conversation #",
+      "EMPTY": "No eligible conversations found",
+      "CONFIRM": "Enroll",
+      "CANCEL": "Cancel",
+      "SUCCESS": "Conversation enrolled",
+      "ERRORS": {
+        "ALREADY_ENROLLED": "This conversation is already enrolled in a cadence",
+        "NOT_ELIGIBLE": "This conversation is no longer eligible for a cadence",
+        "NOT_CONFIGURED": "This inbox has no cadence configured for this conversation",
+        "GENERIC": "Could not enroll the conversation"
+      }
+    },
     "DEFINITIONS": {
       "TITLE": "Cadences",
       "DESCRIPTION": "Create one cadence per razón de compra segment, or several for the same segment to run an A/B test — new leads are split automatically between the variants of a segment based on how many each has received so far.",

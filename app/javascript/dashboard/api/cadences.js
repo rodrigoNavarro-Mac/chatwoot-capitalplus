@@ -22,6 +22,16 @@ class CadencesAPI extends ApiClient {
     return axios.post(`${this.url}/${id}/cancel`);
   }
 
+  enroll(conversationId) {
+    return axios.post(this.url, { conversation_id: conversationId });
+  }
+
+  eligibleConversations(query = '') {
+    return axios.get(`${this.url}/eligible_conversations`, {
+      params: { q: query },
+    });
+  }
+
   callTasks(params = {}) {
     return axios.get(`${this.baseUrl()}/cadence_call_tasks`, { params });
   }

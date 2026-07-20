@@ -18,6 +18,8 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
     )
   end
 
+  before { account.enable_features!(:whatsapp_cadences) }
+
   describe 'GET /api/v1/accounts/{account.id}/cadence_enrollments' do
     it 'returns unauthorized for agents' do
       get "/api/v1/accounts/#{account.id}/cadence_enrollments", headers: agent.create_new_auth_token, as: :json
@@ -66,6 +68,91 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
 
       expect(response).to have_http_status(:success)
       expect(enrollment.reload.status).to eq('failed')
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments' do
+    let(:other_contact) { create(:contact, account: account, phone_number: '+15557654321') }
+    let(:other_conversation) do
+      create(:conversation, account: account, inbox: whatsapp_inbox, contact: other_contact, assignee: agent, status: 'open')
+    end
+
+    it 'returns unauthorized for agents' do
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments",
+           params: { conversation_id: other_conversation.id }, headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'enrolls an eligible conversation for administrators' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/cadence_enrollments",
+             params: { conversation_id: other_conversation.id }, headers: administrator.create_new_auth_token, as: :json
+      end.to change(CadenceEnrollment, :count).by(1)
+
+      expect(response).to have_http_status(:success)
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:current_step]).to eq(0)
+      expect(CadenceEnrollment.find_by(conversation_id: other_conversation.id)).to be_present
+    end
+
+    it 'returns already_enrolled when the conversation already has an enrollment' do
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments",
+           params: { conversation_id: conversation.id }, headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body, symbolize_names: true)[:error]).to eq('already_enrolled')
+    end
+
+    it 'returns not_eligible when the conversation has no assignee' do
+      other_conversation.update!(assignee: nil)
+
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments",
+           params: { conversation_id: other_conversation.id }, headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body, symbolize_names: true)[:error]).to eq('not_eligible')
+    end
+  end
+
+  describe 'GET /api/v1/accounts/{account.id}/cadence_enrollments/eligible_conversations' do
+    let(:other_contact) { create(:contact, account: account, name: 'Jane Doe', phone_number: '+15557654321') }
+    let!(:other_conversation) do
+      create(:conversation, account: account, inbox: whatsapp_inbox, contact: other_contact, assignee: agent, status: 'open')
+    end
+
+    it 'returns unauthorized for agents' do
+      get "/api/v1/accounts/#{account.id}/cadence_enrollments/eligible_conversations",
+          headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'lists eligible conversations, excluding conversations already enrolled' do
+      get "/api/v1/accounts/#{account.id}/cadence_enrollments/eligible_conversations",
+          headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body.pluck(:id)).to contain_exactly(other_conversation.id)
+    end
+
+    it 'filters by contact name' do
+      get "/api/v1/accounts/#{account.id}/cadence_enrollments/eligible_conversations",
+          params: { q: 'Jane' }, headers: administrator.create_new_auth_token, as: :json
+
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body.pluck(:id)).to contain_exactly(other_conversation.id)
+    end
+
+    it 'excludes conversations without an assignee' do
+      other_conversation.update!(assignee: nil)
+
+      get "/api/v1/accounts/#{account.id}/cadence_enrollments/eligible_conversations",
+          headers: administrator.create_new_auth_token, as: :json
+
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body).to be_empty
     end
   end
 end
