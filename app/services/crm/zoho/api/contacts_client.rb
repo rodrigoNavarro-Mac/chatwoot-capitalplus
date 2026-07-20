@@ -19,8 +19,12 @@ class Crm::Zoho::Api::ContactsClient < Crm::Zoho::Api::BaseClient
     put("Contacts/#{zoho_id}", { data: [data] })
   end
 
+  # `fields` es obligatorio para que Zoho devuelva el registro completo (sin él, la API
+  # "Get Specific Record" omite campos estándar como Title/Account_Name aunque tengan valor).
+  FIND_FIELDS = 'First_Name,Last_Name,Email,Phone,Mobile,Title,Account_Name,Owner'.freeze
+
   def find(zoho_id)
-    response = get("Contacts/#{zoho_id}")
+    response = get("Contacts/#{zoho_id}", fields: FIND_FIELDS)
     response.is_a?(Hash) ? response.dig('data', 0) : nil
   rescue Crm::Zoho::Api::BaseClient::ApiError
     nil

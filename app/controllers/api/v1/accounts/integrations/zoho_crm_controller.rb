@@ -17,7 +17,17 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
   ZOHO_DEAL_FIELD_MAP = {
     'plazo'       => 'Plazos',
     'presupuesto' => 'Amount',
-    'desarrollo'  => 'Desarollo'
+    'desarrollo'  => 'Desarrollo'
+  }.freeze
+
+  # La API "Get Specific Record" de Zoho v7 no devuelve todos los campos por defecto: sin el
+  # parámetro `fields`, muchos campos estándar (Company, Owner, Amount, Account_Name, etc.)
+  # vienen vacíos u omitidos aunque sí tengan valor en Zoho. Por eso el panel mostraba datos
+  # incompletos/desactualizados pese a que el registro sí existía.
+  ZOHO_RECORD_FIELDS = {
+    'Leads'    => %w[First_Name Last_Name Email Phone Mobile Company Owner Lead_Status Lead_Source],
+    'Contacts' => %w[First_Name Last_Name Email Phone Mobile Title Account_Name Owner],
+    'Deals'    => %w[Deal_Name Account_Name Amount Closing_Date Stage Owner]
   }.freeze
   before_action :fetch_hook
   before_action :load_contact
@@ -271,7 +281,9 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
   end
 
   def fetch_record
-    response = Crm::Zoho::Api::BaseClient.new(@hook).get("#{@zoho_module}/#{@zoho_id}")
+    fields = ZOHO_RECORD_FIELDS[@zoho_module]
+    params = fields ? { fields: fields.join(',') } : {}
+    response = Crm::Zoho::Api::BaseClient.new(@hook).get("#{@zoho_module}/#{@zoho_id}", params)
     Array(response['data']).first || {}
   rescue StandardError
     {}
