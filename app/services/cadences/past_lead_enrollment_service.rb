@@ -1,9 +1,9 @@
 # Inscribe una conversacion que YA recibio una plantilla de WhatsApp fuera de la cadencia
 # (manual desde el composer/API, o desde Crm::Zoho::SendInitialTemplateService) en la
 # CadenceDefinition configurada para su inbox, arrancando en el paso que corresponde a esa
-# plantilla en vez de repetir el paso 1. Pensado para el backfill de leads pasados via rake
-# task (lib/tasks/cadences.rake), no se usa en el flujo en vivo (ese sigue siendo
-# Cadences::EnrollmentService, disparado por CadenceListener#assignee_changed).
+# plantilla en vez de repetir el paso 1. Se usa tanto para el backfill de leads pasados via
+# rake task (lib/tasks/cadences.rake) como en el flujo en vivo (CadenceListener#assignee_changed
+# lo intenta primero; si no hay plantilla previa que matchee, cae a Cadences::EnrollmentService).
 class Cadences::PastLeadEnrollmentService
   include Cadences::EventLogger
 

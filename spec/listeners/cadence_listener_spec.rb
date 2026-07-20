@@ -18,14 +18,29 @@ describe CadenceListener do
   describe '#assignee_changed' do
     let(:event) { Events::Base.new('assignee.changed', Time.zone.now, conversation: conversation) }
 
-    it 'enrolls the conversation when it gains an assignee' do
+    it 'enrolls the conversation at step 0 when it gains an assignee with no prior template' do
       conversation.update!(assignee: agent)
 
       expect { listener.assignee_changed(event) }.to change(CadenceEnrollment, :count).by(1)
+      expect(CadenceEnrollment.find_by(conversation_id: conversation.id).current_step).to eq(0)
     end
 
     it 'does not enroll when the conversation has no assignee' do
       expect { listener.assignee_changed(event) }.not_to change(CadenceEnrollment, :count)
+    end
+
+    context 'when a template was already sent outside the cadence (e.g. Crm::Zoho::SendInitialTemplateService)' do
+      before do
+        create(:message, conversation: conversation, account: account, inbox: whatsapp_inbox,
+                         message_type: :outgoing, created_at: 2.days.ago,
+                         additional_attributes: { template_params: { 'name' => 'cadencia_paso_2', 'language' => 'es_MX' } })
+        conversation.update!(assignee: agent)
+      end
+
+      it 'enrolls at the step matching the already-sent template instead of repeating step 1' do
+        expect { listener.assignee_changed(event) }.to change(CadenceEnrollment, :count).by(1)
+        expect(CadenceEnrollment.find_by(conversation_id: conversation.id).current_step).to eq(2)
+      end
     end
   end
 

@@ -68,7 +68,6 @@ class Crm::Zoho::SendInitialTemplateService
 
   def persist_message(inbox, contact_inbox, template, named_keys, wamid)
     conversation = find_or_create_conversation(contact_inbox, inbox)
-    assign_agent(conversation)
     conversation.messages.create!(
       message_type: :outgoing,
       account_id: @account.id,
@@ -86,6 +85,10 @@ class Crm::Zoho::SendInitialTemplateService
         }
       }
     )
+    # La asignación va después de crear el mensaje: dispara ASSIGNEE_CHANGED, y CadenceListener
+    # necesita que este mensaje ya exista para poder enganchar el enrollment en el paso que
+    # corresponde a esta plantilla en vez de repetirla desde el paso 0 (ver PastLeadEnrollmentService).
+    assign_agent(conversation)
   end
 
   def validate_required_fields!
