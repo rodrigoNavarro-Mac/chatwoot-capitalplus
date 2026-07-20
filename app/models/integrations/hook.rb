@@ -24,6 +24,12 @@ class Integrations::Hook < ApplicationRecord
   # TODO: Remove guard once encryption keys become mandatory (target 3-4 releases out).
   encrypts :access_token, deterministic: true if Chatwoot.encryption_configured?
 
+  # `settings` carries plaintext credentials for several integrations (Zoho refresh_token/
+  # client_secret, Slack/Notion/Linear tokens, OpenAI api_key, ...). Nothing queries hooks by
+  # settings content (grep confirmed), so non-deterministic encryption is safe here. Reads/writes
+  # stay transparent (hook.settings still returns a plain Hash) — no other call site changes.
+  encrypts :settings if Chatwoot.encryption_configured?
+
   validates :account_id, presence: true
   validates :app_id, presence: true
   validates :inbox_id, presence: true, if: -> { hook_type == 'inbox' }
