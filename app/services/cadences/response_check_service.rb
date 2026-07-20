@@ -46,6 +46,7 @@ class Cadences::ResponseCheckService
     enrollment.update!(status: :pending_agent_call, last_call_task_created_at: Time.current)
     log_cadence_event(enrollment, 'call_task_created', step: step, metadata: { no_agent: task.user_id.blank? })
     notify_agent(task) if task.user_id.present?
+    Crm::Zoho::CallTaskSyncService.new(task).call
   end
 
   def notify_agent(task)

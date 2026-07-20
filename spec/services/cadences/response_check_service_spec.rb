@@ -38,6 +38,15 @@ describe Cadences::ResponseCheckService do
       expect(enrollment.reload.status).to eq('pending_agent_call')
     end
 
+    it 'attempts to sync the call task to Zoho CRM' do
+      # rubocop:disable RSpec/AnyInstance -- CallTaskSyncService is instantiated internally
+      # inside ResponseCheckService, no injection seam without a testing-only parameter.
+      expect_any_instance_of(Crm::Zoho::CallTaskSyncService).to receive(:call)
+      # rubocop:enable RSpec/AnyInstance
+
+      described_class.new(enrollment: enrollment, step: 1).perform
+    end
+
     it 'does not create a duplicate call task for the same step' do
       described_class.new(enrollment: enrollment, step: 1).perform
 
