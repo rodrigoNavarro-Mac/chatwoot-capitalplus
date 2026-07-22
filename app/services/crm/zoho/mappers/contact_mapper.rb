@@ -25,7 +25,8 @@ class Crm::Zoho::Mappers::ContactMapper
       'First_Name' => first_name,
       'Last_Name' => last_name.presence || '(sin apellido)',
       'Email' => contact.email.presence,
-      'Phone' => contact.phone_number.presence
+      'Phone' => contact.phone_number.presence,
+      'Mobile' => contact.phone_number.presence
     }.compact
   end
 
@@ -34,7 +35,8 @@ class Crm::Zoho::Mappers::ContactMapper
       'First_Name' => first_name,
       'Last_Name' => last_name.presence || '(sin apellido)',
       'Email' => contact.email.presence,
-      'Phone' => contact.phone_number.presence
+      'Phone' => contact.phone_number.presence,
+      'Mobile' => contact.phone_number.presence
     }.compact
   end
 
