@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import { useMapGetter } from 'dashboard/composables/store';
 import CadencesAPI from 'dashboard/api/cadences';
 import ReportHeader from '../reports/components/ReportHeader.vue';
 import ReportMetricCard from '../reports/components/ReportMetricCard.vue';
@@ -38,6 +39,13 @@ const agentsMetrics = ref([]);
 const templates = ref([]);
 const activeLeads = ref([]);
 const enrollModalRef = ref(null);
+const inboxes = useMapGetter('inboxes/getInboxes');
+const showEnrollPastLeadsConfirmation = ref(false);
+
+const selectedInboxName = computed(() => {
+  const inbox = inboxes.value.find(i => i.id === filters.value.inbox_id);
+  return inbox ? inbox.name : null;
+});
 
 const queryParams = computed(() => {
   const params = {};
@@ -175,6 +183,21 @@ const onEnrolled = () => {
   fetchActiveLeads();
 };
 
+const closeEnrollPastLeadsConfirmation = () => {
+  showEnrollPastLeadsConfirmation.value = false;
+};
+
+const confirmEnrollPastLeads = async () => {
+  const inboxId = filters.value.inbox_id || null;
+  closeEnrollPastLeadsConfirmation();
+  try {
+    await CadencesAPI.enrollPastLeads(inboxId);
+    useAlert(t('CADENCE.ENROLL_PAST_LEADS.SUCCESS'));
+  } catch (error) {
+    useAlert(t('CADENCE.ENROLL_PAST_LEADS.ERROR'));
+  }
+};
+
 onMounted(refresh);
 watch(filters, refresh, { deep: true });
 watch(activeTab, refresh);
@@ -207,18 +230,40 @@ watch(activeTab, refresh);
             }}
           </button>
         </div>
-        <Button
-          v-if="activeTab === 'active_leads'"
-          :label="t('CADENCE.ENROLL_MODAL.OPEN_BUTTON')"
-          size="sm"
-          class="mb-2"
-          @click="enrollModalRef?.open()"
-        />
+        <div v-if="activeTab === 'active_leads'" class="flex gap-2 mb-2">
+          <Button
+            :label="t('CADENCE.ENROLL_PAST_LEADS.OPEN_BUTTON')"
+            size="sm"
+            faded
+            @click="showEnrollPastLeadsConfirmation = true"
+          />
+          <Button
+            :label="t('CADENCE.ENROLL_MODAL.OPEN_BUTTON')"
+            size="sm"
+            @click="enrollModalRef?.open()"
+          />
+        </div>
       </div>
 
       <CadenceFilters v-model="filters" />
 
       <EnrollConversationModal ref="enrollModalRef" @enrolled="onEnrolled" />
+
+      <woot-delete-modal
+        v-model:show="showEnrollPastLeadsConfirmation"
+        :on-close="closeEnrollPastLeadsConfirmation"
+        :on-confirm="confirmEnrollPastLeads"
+        :title="t('CADENCE.ENROLL_PAST_LEADS.CONFIRM_TITLE')"
+        :message="
+          selectedInboxName
+            ? t('CADENCE.ENROLL_PAST_LEADS.CONFIRM_MESSAGE_INBOX', {
+                inbox: selectedInboxName,
+              })
+            : t('CADENCE.ENROLL_PAST_LEADS.CONFIRM_MESSAGE_ALL')
+        "
+        :confirm-text="t('CADENCE.ENROLL_PAST_LEADS.CONFIRM_YES')"
+        :reject-text="t('CADENCE.ENROLL_PAST_LEADS.CONFIRM_NO')"
+      />
 
       <div v-if="isLoading" class="flex justify-center py-8">
         <Spinner />

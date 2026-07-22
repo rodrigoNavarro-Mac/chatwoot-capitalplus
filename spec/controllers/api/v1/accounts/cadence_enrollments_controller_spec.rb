@@ -104,8 +104,18 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
       expect(JSON.parse(response.body, symbolize_names: true)[:error]).to eq('already_enrolled')
     end
 
-    it 'returns not_eligible when the conversation has no assignee' do
+    it 'enrolls a conversation with no assignee (assignee is not required for eligibility)' do
       other_conversation.update!(assignee: nil)
+
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments",
+           params: { conversation_id: other_conversation.id }, headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(CadenceEnrollment.find_by(conversation_id: other_conversation.id)).to be_present
+    end
+
+    it 'returns not_eligible when the whatsapp_cadences feature is disabled' do
+      account.disable_features!(:whatsapp_cadences)
 
       post "/api/v1/accounts/#{account.id}/cadence_enrollments",
            params: { conversation_id: other_conversation.id }, headers: administrator.create_new_auth_token, as: :json
@@ -153,6 +163,30 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
 
       body = JSON.parse(response.body, symbolize_names: true)
       expect(body).to be_empty
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments/enroll_past_leads' do
+    it 'returns unauthorized for agents' do
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments/enroll_past_leads",
+           headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'enqueues Cadences::EnrollPastLeadsJob scoped to the account, with no inbox_id by default' do
+      expect { post "/api/v1/accounts/#{account.id}/cadence_enrollments/enroll_past_leads", headers: administrator.create_new_auth_token, as: :json }
+        .to have_enqueued_job(Cadences::EnrollPastLeadsJob).with(account.id, inbox_id: nil)
+
+      expect(response).to have_http_status(:success)
+      expect(JSON.parse(response.body, symbolize_names: true)).to eq(enqueued: true)
+    end
+
+    it 'passes inbox_id through when given' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/cadence_enrollments/enroll_past_leads",
+             params: { inbox_id: whatsapp_inbox.id }, headers: administrator.create_new_auth_token, as: :json
+      end.to have_enqueued_job(Cadences::EnrollPastLeadsJob).with(account.id, inbox_id: whatsapp_inbox.id)
     end
   end
 end

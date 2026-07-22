@@ -11,6 +11,10 @@ class CadenceEnrollmentPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def enroll_past_leads?
+    @account_user.administrator?
+  end
+
   def show?
     @account_user.administrator?
   end
