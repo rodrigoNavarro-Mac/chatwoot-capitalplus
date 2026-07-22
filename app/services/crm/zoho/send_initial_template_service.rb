@@ -68,27 +68,38 @@ class Crm::Zoho::SendInitialTemplateService
 
   def persist_message(inbox, contact_inbox, template, named_keys, wamid)
     conversation = find_or_create_conversation(contact_inbox, inbox)
-    conversation.messages.create!(
+    message = conversation.messages.create!(
       message_type: :outgoing,
       account_id: @account.id,
       inbox_id: inbox.id,
       content: render_template_body(template, named_keys).presence || @template_name,
       source_id: wamid,
       status: :sent,
-      additional_attributes: {
-        template_params: {
-          'name' => @template_name,
-          'language' => @template_language,
-          'header' => @header,
-          'body_params' => @body_params,
-          'button_params' => @button_params
-        }
-      }
+      additional_attributes: { template_params: message_template_params }
     )
+    attach_header_media(message)
     # La asignación va después de crear el mensaje: dispara ASSIGNEE_CHANGED, y CadenceListener
     # necesita que este mensaje ya exista para poder enganchar el enrollment en el paso que
     # corresponde a esta plantilla en vez de repetirla desde el paso 0 (ver PastLeadEnrollmentService).
     assign_agent(conversation)
+  end
+
+  def message_template_params
+    {
+      'name' => @template_name,
+      'language' => @template_language,
+      'header' => @header,
+      'body_params' => @body_params,
+      'button_params' => @button_params
+    }
+  end
+
+  # header['link'] es la única forma de previsualizar el media en el chat: si el header
+  # llegó con 'id' (media ya subida a Meta) en vez de 'link', no hay URL pública que adjuntar.
+  def attach_header_media(message)
+    return if @header.blank?
+
+    Whatsapp::TemplateHeaderAttachmentService.new(message: message, media_url: @header['link'], media_type: @header['type']).call
   end
 
   def validate_required_fields!

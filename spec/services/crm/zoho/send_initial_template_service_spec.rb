@@ -120,6 +120,23 @@ describe Crm::Zoho::SendInitialTemplateService do
 
         expect(header['parameters']).to eq([{ 'type' => 'image', 'image' => { 'link' => 'https://dominio.com/imagen.png' } }])
       end
+
+      it 'attaches the header media as a previewable Attachment on the message' do
+        described_class.new(account, params.merge(header: { type: 'image', link: 'https://dominio.com/imagen.png' })).perform
+
+        attachment = inbox.conversations.last.messages.last.attachments.last
+        expect(attachment).to be_present
+        expect(attachment.file_type).to eq('image')
+        expect(attachment.external_url).to eq('https://dominio.com/imagen.png')
+      end
+    end
+
+    context 'with a media header sent by Meta media id instead of a public link' do
+      it 'does not create an Attachment since there is no public URL to preview' do
+        described_class.new(account, params.merge(header: { type: 'image', id: '123456789' })).perform
+
+        expect(inbox.conversations.last.messages.last.attachments).to be_empty
+      end
     end
 
     it 'raises Whatsapp::TemplateValidationError when two header sources are sent simultaneously' do

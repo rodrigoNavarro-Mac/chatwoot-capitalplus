@@ -149,6 +149,53 @@ describe Messages::MessageBuilder do
       end
     end
 
+    context 'when sending a WhatsApp template with a media header' do
+      let(:params) do
+        ActionController::Parameters.new({
+                                           content: 'Hello',
+                                           template_params: {
+                                             name: 'sample_template',
+                                             language: 'en',
+                                             processed_params: {
+                                               header: { media_url: 'https://cdn.example.com/promo.jpg', media_type: 'image' }
+                                             }
+                                           }
+                                         })
+      end
+
+      it 'attaches the header media so the chat shows a preview' do
+        message = message_builder
+
+        attachment = message.attachments.last
+        expect(attachment).to be_present
+        expect(attachment.file_type).to eq('image')
+        expect(attachment.external_url).to eq('https://cdn.example.com/promo.jpg')
+      end
+
+      context 'when a real file was also uploaded alongside the template' do
+        let(:params) do
+          ActionController::Parameters.new({
+                                             content: 'Hello',
+                                             attachments: [Rack::Test::UploadedFile.new('spec/assets/avatar.png', 'image/png')],
+                                             template_params: {
+                                               name: 'sample_template',
+                                               language: 'en',
+                                               processed_params: {
+                                                 header: { media_url: 'https://cdn.example.com/promo.jpg', media_type: 'image' }
+                                               }
+                                             }
+                                           })
+        end
+
+        it 'does not attach the header media, keeping only the uploaded file' do
+          message = message_builder
+
+          expect(message.attachments.count).to eq(1)
+          expect(message.attachments.first.external_url).to be_blank
+        end
+      end
+    end
+
     context 'when email channel messages' do
       let!(:channel_email) { create(:channel_email, account: account) }
       let(:inbox_member) { create(:inbox_member, inbox: channel_email.inbox) }
