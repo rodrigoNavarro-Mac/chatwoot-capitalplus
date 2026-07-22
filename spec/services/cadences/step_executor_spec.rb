@@ -32,6 +32,16 @@ describe Cadences::StepExecutor do
       expect(enrollment.cadence_events.pluck(:event_type)).to include('template_sent')
     end
 
+    it 'persists the sent template as a visible outgoing message in the conversation' do
+      described_class.new(enrollment: enrollment).execute_current_step!
+
+      message = conversation.messages.outgoing.last
+      expect(message).to be_present
+      expect(message.source_id).to eq('wamid.step1')
+      expect(message.status).to eq('sent')
+      expect(message.additional_attributes.dig('template_params', 'name')).to be_present
+    end
+
     it 'does not resend the step once already sent (idempotent)' do
       described_class.new(enrollment: enrollment).execute_current_step!
       enrollment.reload
@@ -67,6 +77,19 @@ describe Cadences::StepExecutor do
       ).and_call_original
 
       described_class.new(enrollment: enrollment).execute_current_step!
+    end
+
+    it 'attaches the header media as a previewable Attachment on the message' do
+      cadence_definition.cadence_step_definitions.find_by(position: 1)
+                        .update!(media_url: 'https://cdn.example.com/video.mp4', media_type: 'video')
+      enrollment # force creation with the updated step definition in its snapshot
+
+      described_class.new(enrollment: enrollment).execute_current_step!
+
+      attachment = conversation.messages.outgoing.last.attachments.last
+      expect(attachment).to be_present
+      expect(attachment.file_type).to eq('video')
+      expect(attachment.external_url).to eq('https://cdn.example.com/video.mp4')
     end
 
     it 'resolves body_variables through Liquid using the contact drop' do

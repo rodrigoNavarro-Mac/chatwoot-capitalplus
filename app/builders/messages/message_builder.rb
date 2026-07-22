@@ -28,10 +28,21 @@ class Messages::MessageBuilder
     # The frontend is equipped to handle this case
     process_email_content
     @message.save!
+    attach_template_header_media
     @message
   end
 
   private
+
+  # No aplica si ya hay un adjunto subido a mano junto con el template.
+  def attach_template_header_media
+    return if @attachments.present?
+
+    header = @message.additional_attributes&.dig('template_params', 'processed_params', 'header')
+    return if header.blank?
+
+    Whatsapp::TemplateHeaderAttachmentService.new(message: @message, media_url: header['media_url'], media_type: header['media_type']).call
+  end
 
   # Extracts content attributes from the given params.
   # - Converts ActionController::Parameters to a regular hash if needed.

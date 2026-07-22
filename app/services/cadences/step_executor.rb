@@ -36,6 +36,8 @@ class Cadences::StepExecutor
     wa_message_id = send_whatsapp_template(template_params)
     return terminate!('send_failed') if wa_message_id.blank?
 
+    persist_message(definition, template_params, wa_message_id)
+
     step_number = definition[:position]
     enrollment.update!(
       current_step: step_number,
@@ -99,6 +101,26 @@ class Cadences::StepExecutor
   rescue StandardError => e
     Rails.logger.error "[Cadences::StepExecutor] send failed enrollment=#{enrollment.id}: #{e.message}"
     nil
+  end
+
+  # A diferencia del composer/Zoho (donde el Message ya existe antes de pegarle al provider),
+  # aquí el envío es el primer paso: sin esto, el HTTP a Meta triunfa pero nada queda en
+  # conversation.messages, así que el agente nunca ve la plantilla en el chat.
+  def persist_message(definition, template_params, wa_message_id)
+    message = conversation.messages.create!(
+      message_type: :outgoing,
+      account_id: account.id,
+      inbox_id: inbox.id,
+      content: definition[:template_name],
+      source_id: wa_message_id,
+      status: :sent,
+      additional_attributes: { template_params: template_params.compact }
+    )
+    attach_header_media(message, definition)
+  end
+
+  def attach_header_media(message, definition)
+    Whatsapp::TemplateHeaderAttachmentService.new(message: message, media_url: definition[:media_url], media_type: definition[:media_type]).call
   end
 
   def terminate!(reason)
