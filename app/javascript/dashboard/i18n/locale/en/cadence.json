@@ -111,6 +111,16 @@
       "FETCH_ANALYTICS": "Could not fetch cadence analytics",
       "FETCH_LEADS": "Could not fetch active cadence leads"
     },
+    "ENROLL_PAST_LEADS": {
+      "OPEN_BUTTON": "Enroll past leads",
+      "CONFIRM_TITLE": "Enroll past leads in cadence?",
+      "CONFIRM_MESSAGE_ALL": "This will enroll every open WhatsApp conversation across all inboxes that already received a message but was never enrolled in a cadence — each one starts at the step matching its last template, or at step 1 if none was sent. Runs in the background and may take a few minutes.",
+      "CONFIRM_MESSAGE_INBOX": "This will enroll every open WhatsApp conversation in {inbox} that already received a message but was never enrolled in a cadence — each one starts at the step matching its last template, or at step 1 if none was sent. Runs in the background and may take a few minutes.",
+      "CONFIRM_YES": "Yes, enroll them",
+      "CONFIRM_NO": "Cancel",
+      "SUCCESS": "Started enrolling past leads in the background — refresh this list in a few minutes",
+      "ERROR": "Could not start the bulk enrollment"
+    },
     "ENROLL_MODAL": {
       "OPEN_BUTTON": "Enroll manually",
       "TITLE": "Enroll a conversation manually",

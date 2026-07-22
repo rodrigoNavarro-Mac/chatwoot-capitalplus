@@ -32,6 +32,10 @@ class CadencesAPI extends ApiClient {
     });
   }
 
+  enrollPastLeads(inboxId = null) {
+    return axios.post(`${this.url}/enroll_past_leads`, { inbox_id: inboxId });
+  }
+
   callTasks(params = {}) {
     return axios.get(`${this.baseUrl()}/cadence_call_tasks`, { params });
   }

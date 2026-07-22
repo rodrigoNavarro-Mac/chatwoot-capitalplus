@@ -2,7 +2,7 @@ class Cadences::EligibilityChecker
   pattr_initialize [:conversation!]
 
   def eligible?
-    whatsapp_inbox? && feature_enabled? && conversation_open? && assignee? && contact_reachable?
+    whatsapp_inbox? && feature_enabled? && conversation_open? && contact_reachable?
   end
 
   private
@@ -19,10 +19,6 @@ class Cadences::EligibilityChecker
 
   def conversation_open?
     conversation.status == 'open' && contact.present? && !contact.blocked?
-  end
-
-  def assignee?
-    conversation.assignee_id.present?
   end
 
   def contact_reachable?

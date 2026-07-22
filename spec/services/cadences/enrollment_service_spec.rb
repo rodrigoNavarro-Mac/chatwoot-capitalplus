@@ -65,10 +65,11 @@ describe Cadences::EnrollmentService do
       expect { described_class.new(conversation: conversation).enroll! }.not_to change(CadenceEnrollment, :count)
     end
 
-    it 'does not enroll when the conversation has no assignee' do
+    it 'enrolls even when the conversation has no assignee' do
       conversation.update!(assignee_id: nil)
 
-      expect { described_class.new(conversation: conversation).enroll! }.not_to change(CadenceEnrollment, :count)
+      expect { described_class.new(conversation: conversation).enroll! }.to change(CadenceEnrollment, :count).by(1)
+      expect(CadenceEnrollment.last.assignee_id).to be_nil
     end
 
     it 'does not enroll a non-WhatsApp conversation' do

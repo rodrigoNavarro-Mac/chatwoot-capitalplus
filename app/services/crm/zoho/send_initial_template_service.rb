@@ -78,10 +78,9 @@ class Crm::Zoho::SendInitialTemplateService
       additional_attributes: { template_params: message_template_params }
     )
     attach_header_media(message)
-    # La asignación va después de crear el mensaje: dispara ASSIGNEE_CHANGED, y CadenceListener
-    # necesita que este mensaje ya exista para poder enganchar el enrollment en el paso que
-    # corresponde a esta plantilla en vez de repetirla desde el paso 0 (ver PastLeadEnrollmentService).
     assign_agent(conversation)
+    # No depende de assignee (Zoho no siempre manda assignee_email): se engancha directo aquí.
+    Cadences::EnrollConversationService.new(conversation: conversation).call
   end
 
   def message_template_params

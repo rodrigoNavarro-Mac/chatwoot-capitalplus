@@ -29,6 +29,15 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
     @conversations = eligible_conversations_scope
   end
 
+  # Inscripción masiva: dispara Cadences::EnrollPastLeadsJob en segundo plano para todas las
+  # conversaciones de WhatsApp de la cuenta (o de un inbox puntual) que ya recibieron mensajes
+  # pero nunca quedaron enroladas en cadencia — mismo criterio que el rake task
+  # cadences:enroll_past_leads, pero disparable desde el botón del dashboard.
+  def enroll_past_leads
+    Cadences::EnrollPastLeadsJob.perform_later(Current.account.id, inbox_id: params[:inbox_id].presence)
+    render json: { enqueued: true }
+  end
+
   def pause
     @cadence_enrollment.update!(status: :paused_by_response, stopped_reason: 'manual_pause')
   end

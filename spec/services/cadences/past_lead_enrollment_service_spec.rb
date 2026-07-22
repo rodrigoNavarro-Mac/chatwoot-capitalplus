@@ -38,14 +38,24 @@ describe Cadences::PastLeadEnrollmentService do
       expect(result.detail).to eq('already_enrolled')
     end
 
-    it 'skips a conversation that is not eligible (no assignee)' do
-      conversation.update!(assignee: nil)
+    it 'skips a conversation that is not eligible (feature disabled)' do
+      account.disable_features!(:whatsapp_cadences)
       send_template_message(name: 'cadencia_paso_1')
 
       result = described_class.new(conversation: conversation).call
 
       expect(result.status).to eq(:skipped)
       expect(result.detail).to eq('not_eligible')
+    end
+
+    it 'enrolls a conversation with no assignee (e.g. a new lead sent from Zoho before assignment)' do
+      conversation.update!(assignee: nil)
+      send_template_message(name: 'cadencia_paso_1')
+
+      result = described_class.new(conversation: conversation).call
+
+      expect(result.status).to eq(:enrolled)
+      expect(CadenceEnrollment.find_by(conversation_id: conversation.id).assignee_id).to be_nil
     end
 
     it 'skips a conversation with no template sent yet' do
