@@ -1,9 +1,9 @@
 class Crm::Zoho::Api::LeadsClient < Crm::Zoho::Api::BaseClient
   def search(email: nil, phone: nil)
-    value = email.presence || phone.presence
-    return [] if value.blank?
+    criteria = search_criteria(email: email, phone: phone)
+    return [] if criteria.blank?
 
-    response = get('Leads/search', word: value)
+    response = get('Leads/search', criteria: criteria)
     response.is_a?(Hash) ? Array(response['data']) : []
   rescue Crm::Zoho::Api::BaseClient::ApiError => e
     return [] if e.code == 204

@@ -30,7 +30,50 @@ class Crm::Zoho::Api::BaseClient
     request(:put, path, body: body.to_json)
   end
 
+  protected
+
+  # Zoho stores the number in either field depending on how the record was
+  # created (agents commonly load the WhatsApp number under "Mobile").
+  PHONE_FIELDS = %w[Phone Mobile].freeze
+
+  # Builds a Zoho "criteria" query that matches a record by email or by phone.
+  # Uses field-level exact matching (unlike the `word` full-text search, this
+  # does not depend on the module's Search Layout configuration) and compares
+  # the phone number in a few common formats (E.164, digits only, national
+  # number without country code) since Zoho records are often entered by hand
+  # without the "+" or the country code, against both the Phone and Mobile
+  # fields.
+  def search_criteria(email: nil, phone: nil)
+    clauses = []
+    clauses << "(Email:equals:#{email})" if email.present?
+    phone_variants(phone).each do |value|
+      PHONE_FIELDS.each { |field| clauses << "(#{field}:equals:#{value})" }
+    end
+
+    return nil if clauses.empty?
+    return clauses.first if clauses.size == 1
+
+    "(#{clauses.join('or')})"
+  end
+
   private
+
+  def phone_variants(phone)
+    return [] if phone.blank?
+
+    digits = phone.delete('+')
+    variants = [phone, digits]
+
+    parsed = TelephoneNumber.parse(phone)
+    if parsed.valid?
+      national = digits.sub(/\A#{Regexp.escape(parsed.country.country_code)}/, '')
+      variants << national if national.present?
+    end
+
+    variants.uniq
+  rescue StandardError
+    [phone]
+  end
 
   def request(method, path, options = {})
     url = "#{@base_uri}/#{path}"
