@@ -55,6 +55,21 @@ describe Cadences::EnrollPastLeadsJob do
     expect { described_class.new.perform(account.id) }.not_to change(CadenceEnrollment, :count)
   end
 
+  # Reproduce el caso real: un lead recibio una plantilla fuera de la cadencia (ej. el
+  # disparador inicial de Zoho, antes de que existiera una CadenceDefinition activa) cuyo
+  # nombre no coincide con ningun paso configurado. PastLeadEnrollmentService por si solo lo
+  # deja en no_matching_step y nunca lo engancha; este job debe caer a un enrollment fresco en
+  # el paso 0 en vez de dejarlo fuera para siempre.
+  it 'falls back to a fresh step-0 enrollment when the previously sent template matches no configured step' do
+    send_template_message(conversation, whatsapp_inbox, name: 'plantilla_inicial_formulario_fuego')
+
+    expect { described_class.new.perform(account.id) }.to change(CadenceEnrollment, :count).by(1)
+
+    enrollment = CadenceEnrollment.find_by(conversation_id: conversation.id)
+    expect(enrollment.status).to eq('active')
+    expect(enrollment.current_step).to eq(0)
+  end
+
   it 'skips conversations that are already enrolled' do
     send_template_message(conversation, whatsapp_inbox)
     Cadences::EnrollmentService.new(conversation: conversation).enroll!
