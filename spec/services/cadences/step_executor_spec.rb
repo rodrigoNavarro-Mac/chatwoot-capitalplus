@@ -119,5 +119,17 @@ describe Cadences::StepExecutor do
       expect(enrollment.reload.status).to eq('failed')
       expect(enrollment.stopped_reason).to eq('ineligible')
     end
+
+    it 'persists the real WhatsApp API error message when the send fails' do
+      enrollment # force creation before overriding the stub
+      stub_request(:post, /graph\.facebook\.com.*messages/)
+        .to_return(status: 400, body: { error: { message: 'Template name does not exist in the translation' } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new(enrollment: enrollment).execute_current_step!
+
+      expect(enrollment.reload.status).to eq('failed')
+      expect(enrollment.stopped_reason).to eq('send_failed: Template name does not exist in the translation')
+    end
   end
 end

@@ -33,8 +33,8 @@ class Cadences::StepExecutor
     template_params = resolve_template_params(definition)
     return terminate!('template_resolution_failed') if template_params.blank?
 
-    wa_message_id = send_whatsapp_template(template_params)
-    return terminate!('send_failed') if wa_message_id.blank?
+    wa_message_id, error_detail = send_whatsapp_template(template_params)
+    return terminate!('send_failed', error_detail) if wa_message_id.blank?
 
     persist_message(definition, template_params, wa_message_id)
 
@@ -94,13 +94,15 @@ class Cadences::StepExecutor
     channel = inbox.channel
     processor = Whatsapp::TemplateProcessorService.new(channel: channel, template_params: template_params)
     name, namespace, lang_code, processed_parameters = processor.call
-    return if name.blank?
+    return [nil, 'template_processor_returned_blank_name'] if name.blank?
 
     template_info = { name: name, namespace: namespace, lang_code: lang_code, parameters: processed_parameters }
-    channel.provider_service.send_template(contact.phone_number, template_info, nil)
+    provider = channel.provider_service
+    wa_message_id = provider.send_template(contact.phone_number, template_info, nil)
+    [wa_message_id, provider.last_send_error]
   rescue StandardError => e
     Rails.logger.error "[Cadences::StepExecutor] send failed enrollment=#{enrollment.id}: #{e.message}"
-    nil
+    [nil, e.message]
   end
 
   # A diferencia del composer/Zoho (donde el Message ya existe antes de pegarle al provider),
@@ -123,8 +125,9 @@ class Cadences::StepExecutor
     Whatsapp::TemplateHeaderAttachmentService.new(message: message, media_url: definition[:media_url], media_type: definition[:media_type]).call
   end
 
-  def terminate!(reason)
-    enrollment.update!(status: :failed, stopped_reason: reason)
-    log_cadence_event(enrollment, 'cadence_failed', metadata: { reason: reason })
+  def terminate!(reason, detail = nil)
+    stopped_reason = detail.present? ? "#{reason}: #{detail}".truncate(500) : reason
+    enrollment.update!(status: :failed, stopped_reason: stopped_reason)
+    log_cadence_event(enrollment, 'cadence_failed', metadata: { reason: reason, detail: detail }.compact)
   end
 end
