@@ -570,6 +570,11 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.REPORTS_BOT'),
           to: accountScopedRoute('bot_reports'),
         },
+        {
+          name: 'Reports Templates',
+          label: t('SIDEBAR.REPORTS_TEMPLATES'),
+          to: accountScopedRoute('templates_reports'),
+        },
         ...(hasCadences.value
           ? [
               {

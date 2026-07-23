@@ -108,6 +108,18 @@ class ReportsAPI extends ApiClient {
       },
     });
   }
+
+  getTemplatesReport({ from: since, to: until } = {}) {
+    return axios.get(`${this.url}/templates`, {
+      params: { since, until },
+    });
+  }
+
+  getTemplatesTimeseries({ from: since, to: until, groupBy } = {}) {
+    return axios.get(`${this.url}/templates_timeseries`, {
+      params: { since, until, group_by: groupBy },
+    });
+  }
 }
 
 export default new ReportsAPI();

@@ -636,6 +636,44 @@
       "VIEW_DETAILS": "Ver detalles"
     }
   },
+  "TEMPLATES_REPORTS": {
+    "HEADER": "Plantillas",
+    "DESCRIPTION": "Compara el rendimiento entre plantillas de WhatsApp — enviados, entregados, leídos y contestados — sin importar si se mandaron como bienvenida automática de Zoho o como paso de una cadencia de seguimiento.",
+    "FILTERS": {
+      "SINCE": "Desde",
+      "UNTIL": "Hasta",
+      "GROUP_BY": "Agrupar por",
+      "GROUP_BY_OPTIONS": {
+        "day": "Día",
+        "week": "Semana",
+        "month": "Mes"
+      }
+    },
+    "KPI": {
+      "TOTAL_SENT": "Plantillas enviadas",
+      "OVERALL_RESPONSE_RATE": "Tasa de respuesta general",
+      "BEST_TEMPLATE": "Plantilla con mejor desempeño"
+    },
+    "TABLE": {
+      "TITLE": "Rendimiento por plantilla",
+      "TEMPLATE_NAME": "Plantilla",
+      "SENT": "Enviados",
+      "DELIVERED": "Entregados",
+      "READ": "Leídos",
+      "FAILED": "Fallidos",
+      "RESPONDED": "Contestados",
+      "RESPONSE_RATE": "Tasa de respuesta",
+      "EMPTY": "No se envió ninguna plantilla en este rango de fechas"
+    },
+    "TIMESERIES_TABLE": {
+      "TITLE": "Evolución en el tiempo",
+      "PERIOD": "Periodo",
+      "EMPTY": "No hay suficientes datos para este rango todavía"
+    },
+    "ERRORS": {
+      "FETCH": "No se pudo obtener el reporte de plantillas"
+    }
+  },
   "SUMMARY_REPORTS": {
     "INBOX": "Bandeja de entrada",
     "AGENT": "Agente",
