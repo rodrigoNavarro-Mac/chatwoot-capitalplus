@@ -16,11 +16,21 @@ class Cadences::EnrollmentService
     enrollment = CadenceEnrollment.create!(enrollment_attributes(cadence_definition, snapshot))
 
     log_cadence_event(enrollment, 'cadence_started', step: 0)
-    Cadences::AdvanceJob.perform_later(enrollment.id)
+    schedule_first_step!(enrollment)
     enrollment
   end
 
   private
+
+  # El paso 1 puede tener su propio schedule_type (ej. "day_offset_at_time": 1 dia despues a
+  # cierta hora), igual que cualquier otro paso — no siempre es "immediate". ScheduleCalculator
+  # ya usa enrollment.created_at como anchor cuando todavia no se mando ninguna plantilla, asi
+  # que sirve tal cual para calcular el primer envio tambien.
+  def schedule_first_step!(enrollment)
+    first_step = enrollment.step_definition_for(1)
+    run_at = Cadences::ScheduleCalculator.new(enrollment: enrollment, definition: first_step).next_run_at
+    Cadences::AdvanceJob.set(wait_until: run_at).perform_later(enrollment.id)
+  end
 
   def enrollment_attributes(cadence_definition, snapshot)
     {

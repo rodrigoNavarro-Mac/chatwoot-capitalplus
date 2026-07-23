@@ -53,6 +53,17 @@ describe Cadences::EnrollmentService do
         .to have_enqueued_job(Cadences::AdvanceJob)
     end
 
+    it 'respects a non-immediate schedule_type configured for step 1 instead of sending right away' do
+      whatsapp_inbox.cadence_definitions.first.cadence_step_definitions.find_by(position: 1)
+                    .update!(schedule_type: 'day_offset_at_time', day_offset: 1, time_of_day: '13:50', offset_minutes: nil)
+      expected_run_at = ActiveSupport::TimeZone['America/Mexico_City'].local(2026, 7, 24, 13, 50)
+
+      travel_to Time.zone.local(2026, 7, 23, 10, 0) do
+        expect { described_class.new(conversation: conversation).enroll! }
+          .to have_enqueued_job(Cadences::AdvanceJob).at(expected_run_at)
+      end
+    end
+
     it 'does not enroll twice for the same conversation' do
       described_class.new(conversation: conversation).enroll!
 
