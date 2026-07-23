@@ -2,6 +2,8 @@ module Redis::RedisKeys
   ## Inbox Keys
   # Array storing the ordered ids for agent round robin assignment
   ROUND_ROBIN_AGENTS = 'ROUND_ROBIN_AGENTS:%<inbox_id>d'.freeze
+  # Claim-based lock: holder wins the right to send a cadence WhatsApp template for this inbox in the current window
+  CADENCE_SEND_RATE_LIMIT_KEY = 'CADENCE::SEND_RATE_LIMIT::INBOX::%<inbox_id>d'.freeze
 
   ## Conversation keys
   # Detect whether to send an email reply to the conversation

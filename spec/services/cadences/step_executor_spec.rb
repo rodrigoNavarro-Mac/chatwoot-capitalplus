@@ -131,5 +131,32 @@ describe Cadences::StepExecutor do
       expect(enrollment.reload.status).to eq('failed')
       expect(enrollment.stopped_reason).to eq('send_failed: Template name does not exist in the translation')
     end
+
+    it 'reschedules instead of sending when another send already claimed the rate limit slot for this inbox' do
+      enrollment # force creation
+      rate_limiter = instance_double(Cadences::SendRateLimiter, claim_slot!: false)
+      allow(Cadences::SendRateLimiter).to receive(:new).with(inbox: whatsapp_inbox).and_return(rate_limiter)
+
+      expect { described_class.new(enrollment: enrollment).execute_current_step! }
+        .to have_enqueued_job(Cadences::AdvanceJob).with(enrollment.id)
+
+      enrollment.reload
+      expect(enrollment.status).to eq('active')
+      expect(enrollment.current_step).to eq(0)
+    end
+
+    it 'does not reschedule the same enrollment twice for the same inbox within the rate limit window' do
+      other_contact = create(:contact, account: account, phone_number: '+15559998888')
+      other_conversation = create(:conversation, account: account, inbox: whatsapp_inbox, contact: other_contact, assignee: agent, status: 'open')
+      other_enrollment = Cadences::EnrollmentService.new(conversation: other_conversation).enroll!
+
+      described_class.new(enrollment: enrollment).execute_current_step!
+      expect(enrollment.reload.status).to eq('waiting_response')
+
+      expect { described_class.new(enrollment: other_enrollment).execute_current_step! }
+        .to have_enqueued_job(Cadences::AdvanceJob).with(other_enrollment.id)
+
+      expect(other_enrollment.reload.status).to eq('active')
+    end
   end
 end
