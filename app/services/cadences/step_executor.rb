@@ -2,6 +2,7 @@ class Cadences::StepExecutor
   include Cadences::EventLogger
 
   PseudoCampaign = Struct.new(:sender, :inbox, :account)
+  RATE_LIMIT_RETRY_JITTER = (2.0..5.0)
 
   pattr_initialize [:enrollment!]
 
@@ -17,6 +18,8 @@ class Cadences::StepExecutor
     definition = enrollment.step_definition_for(step_number)
     return terminate!('no_next_step') if definition.blank?
 
+    return reschedule_for_rate_limit! unless rate_limiter.claim_slot!
+
     send_step(definition)
   end
 
@@ -27,6 +30,17 @@ class Cadences::StepExecutor
 
   def still_eligible?
     Cadences::EligibilityChecker.new(conversation: conversation).eligible?
+  end
+
+  def rate_limiter
+    @rate_limiter ||= Cadences::SendRateLimiter.new(inbox: inbox)
+  end
+
+  # A diferencia de terminate!, esto no marca el enrollment como failed: el status/current_step
+  # quedan igual y AdvanceJob se vuelve a encolar un poco despues (con jitter para que varios
+  # enrollments compitiendo por el mismo turno no reintenten todos en el mismo instante).
+  def reschedule_for_rate_limit!
+    Cadences::AdvanceJob.set(wait_until: Time.current + rand(RATE_LIMIT_RETRY_JITTER).seconds).perform_later(enrollment.id)
   end
 
   def send_step(definition)
