@@ -1,9 +1,17 @@
 class Cadences::Analytics::StepsBuilder < Cadences::Analytics::BaseBuilder
   def build
-    observed_steps.map { |step, template_key| step_metrics(step, template_key) }
+    attach_drop_off(observed_steps.map { |step, template_key| step_metrics(step, template_key) })
   end
 
   private
+
+  def attach_drop_off(metrics)
+    metrics.each_with_index do |metric, index|
+      previous_sent = index.zero? ? metric[:sent] : metrics[index - 1][:sent]
+      metric[:drop_off_rate] = safe_rate(previous_sent - metric[:sent], previous_sent)
+    end
+    metrics
+  end
 
   # Los pasos ya no son una lista fija: se derivan de lo realmente enviado (CadenceEvent),
   # así el reporte sigue siendo correcto aunque la config de pasos haya cambiado desde

@@ -11,7 +11,9 @@ class Cadences::Analytics::SummaryBuilder < Cadences::Analytics::BaseBuilder
       avg_lead_response_time_seconds: avg_lead_response_time,
       avg_agent_action_time_seconds: avg_agent_action_time,
       recovered_count: recovered_count,
-      cold_count: cold_count
+      cold_count: cold_count,
+      abandonment_rate: safe_rate(cold_count, leads_in_cadence),
+      recovered_rate: safe_rate(recovered_count, leads_in_cadence)
     }
   end
 

@@ -22,6 +22,9 @@ defineProps({
             </th>
             <th class="px-3 py-2">{{ $t('CADENCE.STEPS_TABLE.SENT') }}</th>
             <th class="px-3 py-2">
+              {{ $t('CADENCE.STEPS_TABLE.DROP_OFF_RATE') }}
+            </th>
+            <th class="px-3 py-2">
               {{ $t('CADENCE.STEPS_TABLE.RESPONDED') }}
             </th>
             <th class="px-3 py-2">
@@ -46,6 +49,7 @@ defineProps({
             <td class="px-3 py-2">{{ step.step }}</td>
             <td class="px-3 py-2 font-mono text-xs">{{ step.template_key }}</td>
             <td class="px-3 py-2">{{ step.sent }}</td>
+            <td class="px-3 py-2">{{ step.drop_off_rate }}%</td>
             <td class="px-3 py-2">{{ step.responded }}</td>
             <td class="px-3 py-2">{{ step.response_rate }}%</td>
             <td class="px-3 py-2">{{ step.call_tasks_required }}</td>

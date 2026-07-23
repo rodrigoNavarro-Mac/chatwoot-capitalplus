@@ -26,7 +26,15 @@
       "AVG_LEAD_RESPONSE_TIME": "Avg. lead response time",
       "AVG_AGENT_ACTION_TIME": "Avg. agent action time",
       "RECOVERED": "Recovered leads",
-      "COLD": "Cold leads"
+      "COLD": "Cold leads",
+      "ABANDONMENT_RATE": "Abandonment rate",
+      "RECOVERED_RATE": "Recovered rate"
+    },
+    "FUNNEL": {
+      "TITLE": "Step funnel",
+      "DESCRIPTION": "How many leads made it to each step, and the drop-off from the previous one.",
+      "SENT": "{count} sent",
+      "DROP_OFF": "-{rate}% vs. previous step"
     },
     "VARIANTS_TABLE": {
       "TITLE": "Performance by cadence (A/B)",
@@ -47,6 +55,7 @@
       "RESPONDED": "Responded",
       "RESPONSE_RATE": "Response rate",
       "NO_RESPONSE": "No response",
+      "DROP_OFF_RATE": "Drop-off vs. previous step",
       "CALL_TASKS_REQUIRED": "Calls required",
       "CALL_TASKS_COMPLETED": "Calls completed",
       "CALL_COMPLIANCE_RATE": "Compliance",
