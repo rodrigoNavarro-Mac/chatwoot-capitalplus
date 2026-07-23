@@ -1,8 +1,10 @@
 class Cadences::EligibilityChecker
   pattr_initialize [:conversation!]
 
+  ELIGIBLE_STATUSES = %w[open pending].freeze
+
   def eligible?
-    whatsapp_inbox? && feature_enabled? && conversation_open? && contact_reachable?
+    whatsapp_inbox? && feature_enabled? && conversation_active? && contact_reachable?
   end
 
   private
@@ -17,8 +19,8 @@ class Cadences::EligibilityChecker
     account.feature_enabled?(:whatsapp_cadences)
   end
 
-  def conversation_open?
-    conversation.status == 'open' && contact.present? && !contact.blocked?
+  def conversation_active?
+    ELIGIBLE_STATUSES.include?(conversation.status) && contact.present? && !contact.blocked?
   end
 
   def contact_reachable?
