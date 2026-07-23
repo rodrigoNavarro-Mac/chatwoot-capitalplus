@@ -92,6 +92,24 @@ describe Cadences::StepExecutor do
       expect(attachment.external_url).to eq('https://cdn.example.com/video.mp4')
     end
 
+    it 'persists the rendered template body as the message content, not the internal template name' do
+      cadence_definition.cadence_step_definitions.find_by(position: 1)
+                        .update!(body_variables: { '1' => 'Hola {{ contact.name }}' })
+      new_template = {
+        'name' => 'cadencia_paso_1',
+        'language' => 'es_MX',
+        'status' => 'approved',
+        'components' => [{ 'type' => 'BODY', 'text' => '{{1}}, tenemos una oferta para ti.' }]
+      }
+      whatsapp_channel.update!(message_templates: whatsapp_channel.message_templates + [new_template])
+      enrollment # force creation with the updated step definition and registered template
+
+      described_class.new(enrollment: enrollment).execute_current_step!
+
+      message = conversation.messages.outgoing.last
+      expect(message.content).to eq("Hola #{contact.name}, tenemos una oferta para ti.")
+    end
+
     it 'resolves body_variables through Liquid using the contact drop' do
       cadence_definition.cadence_step_definitions.find_by(position: 1)
                         .update!(body_variables: { '1' => 'Hola {{ contact.name }}' })
