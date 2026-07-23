@@ -636,6 +636,44 @@
       "VIEW_DETAILS": "View Details"
     }
   },
+  "TEMPLATES_REPORTS": {
+    "HEADER": "Templates",
+    "DESCRIPTION": "Compare performance across WhatsApp templates — sent, delivered, read and responded — whether they were sent as the automatic Zoho welcome message or as a cadence follow-up step.",
+    "FILTERS": {
+      "SINCE": "Since",
+      "UNTIL": "Until",
+      "GROUP_BY": "Group by",
+      "GROUP_BY_OPTIONS": {
+        "day": "Day",
+        "week": "Week",
+        "month": "Month"
+      }
+    },
+    "KPI": {
+      "TOTAL_SENT": "Templates sent",
+      "OVERALL_RESPONSE_RATE": "Overall response rate",
+      "BEST_TEMPLATE": "Best performing template"
+    },
+    "TABLE": {
+      "TITLE": "Performance by template",
+      "TEMPLATE_NAME": "Template",
+      "SENT": "Sent",
+      "DELIVERED": "Delivered",
+      "READ": "Read",
+      "FAILED": "Failed",
+      "RESPONDED": "Responded",
+      "RESPONSE_RATE": "Response rate",
+      "EMPTY": "No templates were sent in this date range"
+    },
+    "TIMESERIES_TABLE": {
+      "TITLE": "Evolution over time",
+      "PERIOD": "Period",
+      "EMPTY": "Not enough data for this range yet"
+    },
+    "ERRORS": {
+      "FETCH": "Could not fetch the templates report"
+    }
+  },
   "SUMMARY_REPORTS": {
     "INBOX": "Inbox",
     "AGENT": "Agent",

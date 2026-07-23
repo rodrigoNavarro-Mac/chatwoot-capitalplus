@@ -87,6 +87,16 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: builder.build
   end
 
+  def templates
+    builder = V2::Reports::TemplatesReportBuilder.new(account: Current.account, params: templates_report_params)
+    render json: builder.build
+  end
+
+  def templates_timeseries
+    builder = V2::Reports::TemplatesReportBuilder.new(account: Current.account, params: templates_report_params)
+    render json: builder.timeseries
+  end
+
   private
 
   def generate_csv(filename, template)
@@ -182,6 +192,14 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
   end
 
   def outgoing_messages_count_params
+    {
+      group_by: params[:group_by],
+      since: params[:since],
+      until: params[:until]
+    }
+  end
+
+  def templates_report_params
     {
       group_by: params[:group_by],
       since: params[:since],

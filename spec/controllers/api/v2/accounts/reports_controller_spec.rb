@@ -422,4 +422,73 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
       end
     end
   end
+
+  describe 'GET /api/v2/accounts/{account.id}/reports/templates' do
+    let!(:contact) { create(:contact, account: account) }
+    let!(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
+
+    context 'when unauthenticated' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/reports/templates"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated as agent' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/reports/templates",
+            headers: agent.create_new_auth_token, as: :json
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated as admin' do
+      before do
+        create(:message, account: account, inbox: inbox, conversation: conversation,
+                          message_type: :outgoing, status: :read,
+                          additional_attributes: { template_params: { name: 'bienvenida' } })
+      end
+
+      it 'returns aggregated metrics per template' do
+        get "/api/v2/accounts/#{account.id}/reports/templates",
+            headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        body = response.parsed_body
+        row = body.find { |r| r['template_name'] == 'bienvenida' }
+        expect(row['sent']).to eq(1)
+        expect(row['read']).to eq(1)
+      end
+    end
+  end
+
+  describe 'GET /api/v2/accounts/{account.id}/reports/templates_timeseries' do
+    context 'when unauthenticated' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/reports/templates_timeseries"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated as admin' do
+      let!(:contact) { create(:contact, account: account) }
+      let!(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
+
+      before do
+        create(:message, account: account, inbox: inbox, conversation: conversation,
+                          message_type: :outgoing,
+                          additional_attributes: { template_params: { name: 'bienvenida' } })
+      end
+
+      it 'returns metrics grouped by period and template' do
+        get "/api/v2/accounts/#{account.id}/reports/templates_timeseries",
+            params: { group_by: 'day' },
+            headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        body = response.parsed_body
+        expect(body.first).to include('period', 'template_name', 'sent')
+      end
+    end
+  end
 end
