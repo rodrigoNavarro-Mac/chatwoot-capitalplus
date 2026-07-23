@@ -39,5 +39,27 @@ describe Cadences::Analytics::SummaryBuilder do
       expect(result[:response_rate]).to eq(33.33)
       expect(result[:cold_count]).to eq(1)
     end
+
+    it 'computes abandonment_rate and recovered_rate distinguishing cold from recovered' do
+      build_enrollment(status: :cold)
+      build_enrollment(status: :cold)
+      build_enrollment(status: :recovered)
+      build_enrollment(status: :waiting_response)
+
+      result = described_class.new(account: account).build
+
+      expect(result[:leads_in_cadence]).to eq(4)
+      expect(result[:cold_count]).to eq(2)
+      expect(result[:recovered_count]).to eq(1)
+      expect(result[:abandonment_rate]).to eq(50.0)
+      expect(result[:recovered_rate]).to eq(25.0)
+    end
+
+    it 'returns zeroed abandonment_rate and recovered_rate when there is no data' do
+      result = described_class.new(account: account).build
+
+      expect(result[:abandonment_rate]).to eq(0.0)
+      expect(result[:recovered_rate]).to eq(0.0)
+    end
   end
 end

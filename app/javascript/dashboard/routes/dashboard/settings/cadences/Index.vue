@@ -10,6 +10,7 @@ import Spinner from 'shared/components/Spinner.vue';
 import CadenceFilters from './components/CadenceFilters.vue';
 import CadenceVariantsTable from './components/CadenceVariantsTable.vue';
 import CadenceStepsTable from './components/CadenceStepsTable.vue';
+import CadenceFunnelChart from './components/CadenceFunnelChart.vue';
 import CadenceAgentsTable from './components/CadenceAgentsTable.vue';
 import CadenceTemplatesTable from './components/CadenceTemplatesTable.vue';
 import CadenceActiveLeadsTable from './components/CadenceActiveLeadsTable.vue';
@@ -117,6 +118,16 @@ const kpiCards = computed(() => {
       key: 'cold_count',
       label: t('CADENCE.KPI.COLD'),
       value: String(s.cold_count),
+    },
+    {
+      key: 'abandonment_rate',
+      label: t('CADENCE.KPI.ABANDONMENT_RATE'),
+      value: `${s.abandonment_rate}%`,
+    },
+    {
+      key: 'recovered_rate',
+      label: t('CADENCE.KPI.RECOVERED_RATE'),
+      value: `${s.recovered_rate}%`,
     },
   ];
 });
@@ -281,6 +292,7 @@ watch(activeTab, refresh);
         </div>
 
         <CadenceVariantsTable :variants="variants" />
+        <CadenceFunnelChart :steps="steps" />
         <CadenceStepsTable :steps="steps" />
         <CadenceAgentsTable :agents="agentsMetrics" />
         <CadenceTemplatesTable :templates="templates" />
