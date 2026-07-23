@@ -641,9 +641,9 @@
     "AGENT": "Agente",
     "TEAM": "Equipo",
     "LABEL": "Etiqueta",
-    "AVG_RESOLUTION_TIME": "Avg. Resolution Time",
-    "AVG_FIRST_RESPONSE_TIME": "Avg. First Response Time",
-    "AVG_REPLY_TIME": "Avg. Customer Waiting Time",
+    "AVG_RESOLUTION_TIME": "Tiempo prom. de resolución",
+    "AVG_FIRST_RESPONSE_TIME": "Tiempo prom. de primera respuesta",
+    "AVG_REPLY_TIME": "Tiempo prom. de espera del cliente",
     "RESOLUTION_COUNT": "Número de resoluciones",
     "CONVERSATIONS": "Núm. de conversaciones"
   }
