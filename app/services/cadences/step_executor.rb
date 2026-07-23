@@ -104,8 +104,11 @@ class Cadences::StepExecutor
     PseudoCampaign.new(conversation.assignee, inbox, account)
   end
 
+  def channel
+    @channel ||= inbox.channel
+  end
+
   def send_whatsapp_template(template_params)
-    channel = inbox.channel
     processor = Whatsapp::TemplateProcessorService.new(channel: channel, template_params: template_params)
     name, namespace, lang_code, processed_parameters = processor.call
     return [nil, 'template_processor_returned_blank_name'] if name.blank?
@@ -127,12 +130,42 @@ class Cadences::StepExecutor
       message_type: :outgoing,
       account_id: account.id,
       inbox_id: inbox.id,
-      content: definition[:template_name],
+      content: rendered_body(template_params) || definition[:template_name],
       source_id: wa_message_id,
       status: :sent,
       additional_attributes: { template_params: template_params.compact }
     )
     attach_header_media(message, definition)
+  end
+
+  # El chat debe mostrar el texto real que recibio el lead, no el nombre interno de la
+  # plantilla (ej. "wa_segundo_intento") — mismo criterio que
+  # Crm::Zoho::SendInitialTemplateService#render_template_body.
+  def rendered_body(template_params)
+    body_component = body_component_for(template_params)
+    return nil if body_component.blank?
+
+    substitute_placeholders(body_component['text'].to_s, template_params)
+  end
+
+  def body_component_for(template_params)
+    registered_template = find_registered_template(template_params)
+    return nil if registered_template.blank?
+
+    registered_template['components']&.find { |c| c['type']&.upcase == 'BODY' }
+  end
+
+  def substitute_placeholders(text, template_params)
+    (template_params.dig('processed_params', 'body') || {}).each do |placeholder, value|
+      text = text.gsub("{{#{placeholder}}}", value.to_s)
+    end
+    text.gsub(/\{\{[^}]+\}\}/, '').strip.presence
+  end
+
+  def find_registered_template(template_params)
+    channel.message_templates.find do |t|
+      t['name'] == template_params['name'] && t['language']&.downcase == template_params['language'].to_s.downcase
+    end
   end
 
   def attach_header_media(message, definition)
