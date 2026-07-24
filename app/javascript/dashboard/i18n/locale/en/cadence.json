@@ -101,6 +101,7 @@
       "VIEW_CONVERSATION": "View conversation",
       "PAUSE": "Pause",
       "RESUME": "Resume",
+      "RETRY": "Retry",
       "CANCEL": "Cancel",
       "YES": "Yes",
       "NO": "No",
@@ -129,6 +130,15 @@
       "CONFIRM_NO": "Cancel",
       "SUCCESS": "Started enrolling past leads in the background — refresh this list in a few minutes",
       "ERROR": "Could not start the bulk enrollment"
+    },
+    "RETRY_FAILED": {
+      "OPEN_BUTTON": "Retry failed ({count})",
+      "CONFIRM_TITLE": "Retry failed leads?",
+      "CONFIRM_MESSAGE": "This will reactivate {count} failed enrollment(s) matching the current filters and immediately retry sending their next template. Use this after fixing the underlying issue (e.g. an expired WhatsApp token or a rejected template).",
+      "CONFIRM_YES": "Yes, retry",
+      "CONFIRM_NO": "Cancel",
+      "SUCCESS": "Retried {count} failed enrollment(s)",
+      "ERROR": "Could not retry the failed enrollments"
     },
     "ENROLL_MODAL": {
       "OPEN_BUTTON": "Enroll manually",

@@ -142,6 +142,7 @@ Rails.application.routes.draw do
             collection do
               get :eligible_conversations
               post :enroll_past_leads
+              post :retry_failed
             end
           end
           resources :cadence_call_tasks, only: [:index] do

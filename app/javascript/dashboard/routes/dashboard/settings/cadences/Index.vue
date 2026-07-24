@@ -42,6 +42,11 @@ const activeLeads = ref([]);
 const enrollModalRef = ref(null);
 const inboxes = useMapGetter('inboxes/getInboxes');
 const showEnrollPastLeadsConfirmation = ref(false);
+const showRetryFailedConfirmation = ref(false);
+
+const failedLeadsCount = computed(
+  () => activeLeads.value.filter(lead => lead.status === 'failed').length
+);
 
 const selectedInboxName = computed(() => {
   const inbox = inboxes.value.find(i => i.id === filters.value.inbox_id);
@@ -209,6 +214,24 @@ const confirmEnrollPastLeads = async () => {
   }
 };
 
+const closeRetryFailedConfirmation = () => {
+  showRetryFailedConfirmation.value = false;
+};
+
+const confirmRetryFailed = async () => {
+  closeRetryFailedConfirmation();
+  try {
+    const { data } = await CadencesAPI.retryFailed({
+      ...queryParams.value,
+      status: 'failed',
+    });
+    useAlert(t('CADENCE.RETRY_FAILED.SUCCESS', { count: data.retried }));
+    fetchActiveLeads();
+  } catch (error) {
+    useAlert(t('CADENCE.RETRY_FAILED.ERROR'));
+  }
+};
+
 onMounted(refresh);
 watch(filters, refresh, { deep: true });
 watch(activeTab, refresh);
@@ -243,6 +266,15 @@ watch(activeTab, refresh);
         </div>
         <div v-if="activeTab === 'active_leads'" class="flex gap-2 mb-2">
           <Button
+            v-if="failedLeadsCount > 0"
+            :label="
+              t('CADENCE.RETRY_FAILED.OPEN_BUTTON', { count: failedLeadsCount })
+            "
+            size="sm"
+            faded
+            @click="showRetryFailedConfirmation = true"
+          />
+          <Button
             :label="t('CADENCE.ENROLL_PAST_LEADS.OPEN_BUTTON')"
             size="sm"
             faded
@@ -274,6 +306,18 @@ watch(activeTab, refresh);
         "
         :confirm-text="t('CADENCE.ENROLL_PAST_LEADS.CONFIRM_YES')"
         :reject-text="t('CADENCE.ENROLL_PAST_LEADS.CONFIRM_NO')"
+      />
+
+      <woot-delete-modal
+        v-model:show="showRetryFailedConfirmation"
+        :on-close="closeRetryFailedConfirmation"
+        :on-confirm="confirmRetryFailed"
+        :title="t('CADENCE.RETRY_FAILED.CONFIRM_TITLE')"
+        :message="
+          t('CADENCE.RETRY_FAILED.CONFIRM_MESSAGE', { count: failedLeadsCount })
+        "
+        :confirm-text="t('CADENCE.RETRY_FAILED.CONFIRM_YES')"
+        :reject-text="t('CADENCE.RETRY_FAILED.CONFIRM_NO')"
       />
 
       <div v-if="isLoading" class="flex justify-center py-8">

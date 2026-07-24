@@ -85,6 +85,13 @@ const formatDate = value => (value ? new Date(value).toLocaleString() : '---');
             <td class="px-3 py-2">{{ lead.current_step }}</td>
             <td class="px-3 py-2">
               <CadenceStatusBadge :status="lead.status" />
+              <span
+                v-if="lead.status === 'failed' && lead.stopped_reason"
+                class="block text-xs text-n-slate-11 mt-0.5 truncate max-w-[220px]"
+                :title="lead.stopped_reason"
+              >
+                {{ lead.stopped_reason }}
+              </span>
             </td>
             <td class="px-3 py-2">{{ formatDate(lead.next_action_at) }}</td>
             <td class="px-3 py-2">
@@ -112,6 +119,13 @@ const formatDate = value => (value ? new Date(value).toLocaleString() : '---');
                 @click="emit('resume', lead.id)"
               >
                 {{ t('CADENCE.ACTIVE_LEADS_TABLE.RESUME') }}
+              </button>
+              <button
+                v-if="lead.status === 'failed'"
+                class="text-xs text-n-teal-11 hover:underline"
+                @click="emit('resume', lead.id)"
+              >
+                {{ t('CADENCE.ACTIVE_LEADS_TABLE.RETRY') }}
               </button>
               <button
                 v-if="!['completed', 'failed', 'cold'].includes(lead.status)"

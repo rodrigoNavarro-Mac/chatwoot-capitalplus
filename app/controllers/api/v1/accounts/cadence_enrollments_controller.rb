@@ -47,6 +47,17 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
     Cadences::AdvanceJob.perform_later(@cadence_enrollment.id)
   end
 
+  # Reintento masivo: reactiva todos los enrollments "failed" que coincidan con los filtros
+  # actuales del listado (mismos filtros que #index) y vuelve a encolar su siguiente paso.
+  def retry_failed
+    failed_enrollments = filtered_enrollments.failed.to_a
+    failed_enrollments.each do |enrollment|
+      enrollment.update!(status: :active, stopped_reason: nil)
+      Cadences::AdvanceJob.perform_later(enrollment.id)
+    end
+    render json: { retried: failed_enrollments.size }
+  end
+
   def cancel
     @cadence_enrollment.cadence_call_tasks.pending.update_all(status: 'skipped') # rubocop:disable Rails/SkipsModelValidations
     @cadence_enrollment.update!(status: :failed, stopped_reason: 'manual_cancel')

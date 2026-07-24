@@ -15,6 +15,10 @@ class CadenceEnrollmentPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def retry_failed?
+    @account_user.administrator?
+  end
+
   def show?
     @account_user.administrator?
   end

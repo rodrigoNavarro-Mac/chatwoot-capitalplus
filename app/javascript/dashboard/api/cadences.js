@@ -36,6 +36,10 @@ class CadencesAPI extends ApiClient {
     return axios.post(`${this.url}/enroll_past_leads`, { inbox_id: inboxId });
   }
 
+  retryFailed(params = {}) {
+    return axios.post(`${this.url}/retry_failed`, params);
+  }
+
   callTasks(params = {}) {
     return axios.get(`${this.baseUrl()}/cadence_call_tasks`, { params });
   }
