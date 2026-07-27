@@ -34,6 +34,12 @@ class HookListener < BaseListener
     execute_account_hooks(event, conversation.account, conversation: conversation)
   end
 
+  def first_reply_created(event)
+    message = extract_message_and_account(event)[0]
+    conversation = message.conversation
+    execute_account_hooks(event, conversation.account, conversation: conversation, message: message)
+  end
+
   private
 
   def execute_hooks(event, message)
@@ -63,7 +69,7 @@ class HookListener < BaseListener
       'dialogflow' => ['message.created', 'message.updated'],
       'google_translate' => ['message.created'],
       'leadsquared' => ['contact.updated', 'conversation.created', 'conversation.resolved'],
-      'zoho_crm' => ['contact.updated', 'conversation.created', 'conversation.resolved'],
+      'zoho_crm' => ['contact.updated', 'conversation.created', 'conversation.resolved', 'first.reply.created'],
       'linear' => ['message.created']
     }
 
