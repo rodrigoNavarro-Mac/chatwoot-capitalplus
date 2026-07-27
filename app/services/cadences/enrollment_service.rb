@@ -29,6 +29,7 @@ class Cadences::EnrollmentService
   def schedule_first_step!(enrollment)
     first_step = enrollment.step_definition_for(1)
     run_at = Cadences::ScheduleCalculator.new(enrollment: enrollment, definition: first_step).next_run_at
+    enrollment.update!(next_action_at: run_at)
     Cadences::AdvanceJob.set(wait_until: run_at).perform_later(enrollment.id)
   end
 

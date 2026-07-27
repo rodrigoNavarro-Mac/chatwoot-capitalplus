@@ -71,6 +71,74 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
     end
   end
 
+  describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments/:id/pause' do
+    it 'pauses the enrollment for administrators' do
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments/#{enrollment.id}/pause",
+           headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(enrollment.reload.status).to eq('paused_by_response')
+      expect(enrollment.stopped_reason).to eq('manual_pause')
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments/:id/resume' do
+    before { enrollment.update!(status: :failed, stopped_reason: 'send_failed', next_action_at: 2.days.ago) }
+
+    it 'reactivates a failed enrollment, clears stopped_reason and refreshes next_action_at' do
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments/#{enrollment.id}/resume",
+           headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      enrollment.reload
+      expect(enrollment.status).to eq('active')
+      expect(enrollment.stopped_reason).to be_nil
+      expect(enrollment.next_action_at).to be_within(5.seconds).of(Time.current)
+    end
+
+    it 'enqueues Cadences::AdvanceJob for the enrollment' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/cadence_enrollments/#{enrollment.id}/resume",
+             headers: administrator.create_new_auth_token, as: :json
+      end.to have_enqueued_job(Cadences::AdvanceJob).with(enrollment.id)
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments/retry_failed' do
+    before { enrollment.update!(status: :failed, stopped_reason: 'no_next_step', next_action_at: 2.days.ago) }
+
+    it 'reactivates every failed enrollment matching the current filters and refreshes next_action_at' do
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments/retry_failed",
+           headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:retried]).to eq(1)
+
+      enrollment.reload
+      expect(enrollment.status).to eq('active')
+      expect(enrollment.stopped_reason).to be_nil
+      expect(enrollment.next_action_at).to be_within(5.seconds).of(Time.current)
+    end
+
+    it 'enqueues Cadences::AdvanceJob for each retried enrollment' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/cadence_enrollments/retry_failed",
+             headers: administrator.create_new_auth_token, as: :json
+      end.to have_enqueued_job(Cadences::AdvanceJob).with(enrollment.id)
+    end
+
+    it 'does not touch enrollments that are not failed' do
+      enrollment.update!(status: :active, stopped_reason: nil)
+
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments/retry_failed",
+           headers: administrator.create_new_auth_token, as: :json
+
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:retried]).to eq(0)
+    end
+  end
+
   describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments' do
     let(:other_contact) { create(:contact, account: account, phone_number: '+15557654321') }
     let(:other_conversation) do

@@ -43,8 +43,8 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
   end
 
   def resume
-    @cadence_enrollment.update!(status: :active, stopped_reason: nil)
-    Cadences::AdvanceJob.perform_later(@cadence_enrollment.id)
+    @cadence_enrollment.update!(status: :active, stopped_reason: nil, next_action_at: Time.current)
+    Cadences::AdvanceJob.set(wait_until: Time.current).perform_later(@cadence_enrollment.id)
   end
 
   # Reintento masivo: reactiva todos los enrollments "failed" que coincidan con los filtros
@@ -52,8 +52,8 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
   def retry_failed
     failed_enrollments = filtered_enrollments.failed.to_a
     failed_enrollments.each do |enrollment|
-      enrollment.update!(status: :active, stopped_reason: nil)
-      Cadences::AdvanceJob.perform_later(enrollment.id)
+      enrollment.update!(status: :active, stopped_reason: nil, next_action_at: Time.current)
+      Cadences::AdvanceJob.set(wait_until: Time.current).perform_later(enrollment.id)
     end
     render json: { retried: failed_enrollments.size }
   end
