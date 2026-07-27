@@ -43,6 +43,7 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
   end
 
   def resume
+    refresh_steps_snapshot!(@cadence_enrollment) if @cadence_enrollment.failed?
     @cadence_enrollment.update!(status: :active, stopped_reason: nil, next_action_at: Time.current)
     Cadences::AdvanceJob.set(wait_until: Time.current).perform_later(@cadence_enrollment.id)
   end
@@ -52,6 +53,7 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
   def retry_failed
     failed_enrollments = filtered_enrollments.failed.to_a
     failed_enrollments.each do |enrollment|
+      refresh_steps_snapshot!(enrollment)
       enrollment.update!(status: :active, stopped_reason: nil, next_action_at: Time.current)
       Cadences::AdvanceJob.set(wait_until: Time.current).perform_later(enrollment.id)
     end
@@ -79,6 +81,15 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
 
   def render_enrollment_error(reason)
     render json: { error: reason }, status: :unprocessable_entity
+  end
+
+  # Un enrollment failed pudo haber fallado por un paso mal configurado (media_url/media_type
+  # equivocado, etc.) que ya se corrigió en Configuración → Cadencia → Pasos. steps_snapshot
+  # queda congelado desde el enroll! original (ver Cadences::StepsRepository), así que sin este
+  # refresh el retry repetiría el mismo error para siempre, aunque el paso ya esté arreglado.
+  def refresh_steps_snapshot!(enrollment)
+    snapshot = Cadences::StepsRepository.snapshot_for(enrollment.cadence_definition)
+    enrollment.update!(steps_snapshot: snapshot) if snapshot.present?
   end
 
   def eligible_conversations_scope
