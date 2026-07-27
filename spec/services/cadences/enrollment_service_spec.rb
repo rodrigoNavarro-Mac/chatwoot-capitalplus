@@ -53,6 +53,12 @@ describe Cadences::EnrollmentService do
         .to have_enqueued_job(Cadences::AdvanceJob)
     end
 
+    it 'persists next_action_at on the enrollment (so the watchdog can cover it if the first AdvanceJob is lost)' do
+      described_class.new(conversation: conversation).enroll!
+
+      expect(CadenceEnrollment.last.next_action_at).to be_present
+    end
+
     it 'respects a non-immediate schedule_type configured for step 1 instead of sending right away' do
       whatsapp_inbox.cadence_definitions.first.cadence_step_definitions.find_by(position: 1)
                     .update!(schedule_type: 'day_offset_at_time', day_offset: 1, time_of_day: '13:50', offset_minutes: nil)
