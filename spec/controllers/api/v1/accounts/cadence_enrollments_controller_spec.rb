@@ -102,6 +102,17 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
              headers: administrator.create_new_auth_token, as: :json
       end.to have_enqueued_job(Cadences::AdvanceJob).with(enrollment.id)
     end
+
+    it 'refreshes steps_snapshot from the live cadence definition (a fixed media_url/media_type must take effect on retry)' do
+      expect(enrollment.steps_snapshot).to eq([])
+
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments/#{enrollment.id}/resume",
+           headers: administrator.create_new_auth_token, as: :json
+
+      enrollment.reload
+      expect(enrollment.steps_snapshot).not_to eq([])
+      expect(enrollment.step_definition_for(1)[:template_name]).to eq(cadence_definition.cadence_step_definitions.find_by(position: 1).template_name)
+    end
   end
 
   describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments/retry_failed' do
@@ -136,6 +147,17 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
 
       body = JSON.parse(response.body, symbolize_names: true)
       expect(body[:retried]).to eq(0)
+    end
+
+    it 'refreshes steps_snapshot from the live cadence definition (a fixed media_url/media_type must take effect on retry)' do
+      expect(enrollment.steps_snapshot).to eq([])
+
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments/retry_failed",
+           headers: administrator.create_new_auth_token, as: :json
+
+      enrollment.reload
+      expect(enrollment.steps_snapshot).not_to eq([])
+      expect(enrollment.step_definition_for(1)[:template_name]).to eq(cadence_definition.cadence_step_definitions.find_by(position: 1).template_name)
     end
   end
 
