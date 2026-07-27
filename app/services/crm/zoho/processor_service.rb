@@ -90,7 +90,39 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     raise
   end
 
+  def handle_first_reply_created(event_data)
+    conversation = event_data[:conversation]
+    contact = conversation.contact.tap(&:reload)
+    return log_skip("First reply on conversation ##{conversation.id}: contact not identifiable") unless identifiable_contact?(contact)
+
+    result = @finder.find_or_create(contact)
+    return unless lead_needs_first_contact_time?(result, contact, conversation)
+
+    timestamp = conversation.first_reply_created_at || event_data[:message]&.created_at
+    return if timestamp.blank?
+
+    @leads_client.update(result[:zoho_id], { 'First_Contact_Time' => timestamp.iso8601 })
+  rescue Crm::Zoho::Api::BaseClient::ApiError => e
+    log_api_error('handle_first_reply_created', conversation.id, e)
+  rescue StandardError => e
+    log_error('handle_first_reply_created', conversation.id, e)
+    raise
+  end
+
   private
+
+  def lead_needs_first_contact_time?(result, contact, conversation)
+    return log_skip("Conversation ##{conversation.id}: record is #{result[:zoho_module]}, not a Lead") unless result[:zoho_module] == 'Leads'
+
+    record = result[:record] || @finder.fetch_record(contact)
+    return log_skip("Lead ##{result[:zoho_id]} already has First_Contact_Time") if record.present? && record['First_Contact_Time'].present?
+
+    true
+  end
+
+  def log_skip(message)
+    Rails.logger.info("[ZOHO CRM] #{message}, skipping") && false
+  end
 
   def sync_contact_to_zoho(contact, result)
     data = Crm::Zoho::Mappers::ContactMapper.map(contact, module_name: result[:zoho_module])

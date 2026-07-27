@@ -134,5 +134,39 @@ describe HookListener do
         listener.contact_updated(contact_event)
       end
     end
+
+    context 'with zoho_crm hook' do
+      let(:hook) { create(:integrations_hook, :zoho_crm, account: account) }
+
+      before do
+        account.enable_features(:crm_integration)
+      end
+
+      it 'enqueues the job for conversation.created' do
+        expect(HookJob)
+          .to receive(:perform_later)
+          .with(hook, 'conversation.created', { conversation: conversation })
+
+        listener.conversation_created(conversation_event)
+      end
+
+      it 'enqueues the job for contact.updated' do
+        expect(HookJob)
+          .to receive(:perform_later)
+          .with(hook, 'contact.updated', { contact: conversation.contact })
+
+        listener.contact_updated(contact_event)
+      end
+
+      it 'enqueues the job for first.reply.created' do
+        first_reply_event = Events::Base.new('first.reply.created', Time.zone.now, message: message)
+
+        expect(HookJob)
+          .to receive(:perform_later)
+          .with(hook, 'first.reply.created', { conversation: conversation, message: message })
+
+        listener.first_reply_created(first_reply_event)
+      end
+    end
   end
 end

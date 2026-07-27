@@ -48,5 +48,19 @@ FactoryBot.define do
         }
       end
     end
+
+    trait :zoho_crm do
+      app_id { 'zoho_crm' }
+      settings do
+        {
+          'client_id' => SecureRandom.hex,
+          'client_secret' => SecureRandom.hex,
+          'refresh_token' => SecureRandom.hex,
+          'datacenter' => 'com',
+          'enable_conversation_note' => true,
+          'enable_transcript_note' => true
+        }
+      end
+    end
   end
 end

@@ -217,4 +217,53 @@ RSpec.describe HookJob do
       end
     end
   end
+
+  context 'when processing zoho_crm integration' do
+    let(:contact) { create(:contact, account: account) }
+    let(:conversation) { create(:conversation, account: account, contact: contact) }
+    let(:processor_service) { instance_double(Crm::Zoho::ProcessorService) }
+    let(:zoho_hook) { instance_double(Integrations::Hook, id: 456, app_id: 'zoho_crm', account: account) }
+
+    before do
+      allow(Crm::Zoho::ProcessorService).to receive(:new).with(zoho_hook).and_return(processor_service)
+      allow(zoho_hook).to receive(:disabled?).and_return(false)
+      allow(zoho_hook).to receive(:feature_allowed?).and_return(true)
+    end
+
+    context 'when processing first.reply.created event' do
+      let(:event_name) { 'first.reply.created' }
+      let(:message) { create(:message, account: account, conversation: conversation, message_type: :outgoing) }
+      let(:event_data) { { conversation: conversation, message: message } }
+
+      it 'uses a lock and calls handle_first_reply_created' do
+        allow(processor_service).to receive(:handle_first_reply_created).with(event_data)
+
+        job_instance = described_class.new
+        allow(job_instance).to receive(:with_lock).and_yield
+        allow(described_class).to receive(:new).and_return(job_instance)
+
+        expect(job_instance).to receive(:with_lock).with(
+          format(Redis::Alfred::CRM_PROCESS_MUTEX, hook_id: zoho_hook.id)
+        )
+        expect(processor_service).to receive(:handle_first_reply_created).with(event_data)
+
+        job_instance.perform(zoho_hook, event_name, event_data)
+      end
+    end
+
+    context 'when processing invalid event' do
+      let(:event_name) { 'invalid.event' }
+      let(:event_data) { { contact: contact } }
+
+      it 'does not process for invalid event names' do
+        job_instance = described_class.new
+        allow(job_instance).to receive(:with_lock)
+
+        expect(job_instance).not_to receive(:with_lock)
+        expect(processor_service).not_to receive(:handle_first_reply_created)
+
+        job_instance.perform(zoho_hook, event_name, event_data)
+      end
+    end
+  end
 end
