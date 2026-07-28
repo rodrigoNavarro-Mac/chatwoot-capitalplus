@@ -40,6 +40,8 @@ describe Cadences::StepExecutor do
       expect(message.source_id).to eq('wamid.step1')
       expect(message.status).to eq('sent')
       expect(message.additional_attributes.dig('template_params', 'name')).to be_present
+      expect(message.additional_attributes['cadence_enrollment_id']).to eq(enrollment.id)
+      expect(message.additional_attributes['cadence_step']).to eq(1)
     end
 
     it 'does not resend the step once already sent (idempotent)' do
@@ -148,6 +150,40 @@ describe Cadences::StepExecutor do
 
       expect(enrollment.reload.status).to eq('failed')
       expect(enrollment.stopped_reason).to eq('send_failed: Template name does not exist in the translation')
+    end
+
+    it 'retries instead of failing when Meta returns a media upload error (transient)' do
+      enrollment # force creation before overriding the stub
+      stub_request(:post, /graph\.facebook\.com.*messages/)
+        .to_return(status: 400, body: { error: { message: 'Media upload error', code: 131_053 } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+
+      expect { described_class.new(enrollment: enrollment).execute_current_step! }
+        .to have_enqueued_job(Cadences::AdvanceJob).with(enrollment.id)
+
+      enrollment.reload
+      expect(enrollment.status).to eq('active')
+      expect(enrollment.send_retry_count).to eq(1)
+      expect(enrollment.next_action_at).to be_within(5.seconds).of(2.minutes.from_now)
+    end
+
+    it 'retries when the HTTP call itself times out (network-level transient failure)' do
+      enrollment # force creation before overriding the stub
+      stub_request(:post, /graph\.facebook\.com.*messages/).to_timeout
+
+      described_class.new(enrollment: enrollment).execute_current_step!
+
+      enrollment.reload
+      expect(enrollment.status).to eq('active')
+      expect(enrollment.send_retry_count).to eq(1)
+    end
+
+    it 'resets send_retry_count once a step finally sends successfully' do
+      enrollment.update!(send_retry_count: 3)
+
+      described_class.new(enrollment: enrollment).execute_current_step!
+
+      expect(enrollment.reload.send_retry_count).to eq(0)
     end
 
     it 'reschedules instead of sending when another send already claimed the rate limit slot for this inbox' do

@@ -115,6 +115,26 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
     end
   end
 
+  describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments/:id/resume for a cold enrollment' do
+    before do
+      enrollment.update!(status: :cold, stopped_reason: 'no_response_after_cadence',
+                         next_action_at: 2.days.ago, steps_snapshot: cadence_steps_snapshot(count: 2))
+    end
+
+    it 'reactivates and refreshes steps_snapshot so the enrollment picks up steps added after it went cold' do
+      expect(enrollment.total_steps).to eq(2)
+
+      post "/api/v1/accounts/#{account.id}/cadence_enrollments/#{enrollment.id}/resume",
+           headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      enrollment.reload
+      expect(enrollment.status).to eq('active')
+      expect(enrollment.stopped_reason).to be_nil
+      expect(enrollment.total_steps).to eq(cadence_definition.cadence_step_definitions.count)
+    end
+  end
+
   describe 'POST /api/v1/accounts/{account.id}/cadence_enrollments/retry_failed' do
     before { enrollment.update!(status: :failed, stopped_reason: 'no_next_step', next_action_at: 2.days.ago) }
 

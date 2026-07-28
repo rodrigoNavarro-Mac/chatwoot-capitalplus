@@ -88,3 +88,11 @@ cadences_watchdog_job:
   cron: '*/30 * * * *'
   class: 'Cadences::WatchdogJob'
   queue: scheduled_jobs
+
+# executed hourly
+# reactivates "cold" enrollments (exhausted all steps that existed at the time without a
+# response) when a new step gets added to their cadence after the fact
+cadences_cold_reactivation_job:
+  cron: '0 * * * *'
+  class: 'Cadences::ColdReactivationJob'
+  queue: scheduled_jobs
