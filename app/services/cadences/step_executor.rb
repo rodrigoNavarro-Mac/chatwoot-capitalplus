@@ -3,6 +3,9 @@ class Cadences::StepExecutor
 
   PseudoCampaign = Struct.new(:sender, :inbox, :account)
   RATE_LIMIT_RETRY_JITTER = (2.0..5.0)
+  # Excepciones de red que valen la pena reintentar (a diferencia de bugs de código,
+  # que StandardError también atraparía pero no tiene sentido reintentar 5 veces).
+  NETWORK_ERROR_CLASSES = [Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED, SocketError].freeze
 
   pattr_initialize [:enrollment!]
 
@@ -47,17 +50,27 @@ class Cadences::StepExecutor
     template_params = resolve_template_params(definition)
     return terminate!('template_resolution_failed') if template_params.blank?
 
-    wa_message_id, error_detail = send_whatsapp_template(template_params)
-    return terminate!('send_failed', error_detail) if wa_message_id.blank?
+    wa_message_id, error_detail, error_code, transient = send_whatsapp_template(template_params)
+    return handle_send_failure(error_detail, error_code, transient) if wa_message_id.blank?
 
     persist_message(definition, template_params, wa_message_id)
+    advance_after_successful_send!(definition, wa_message_id)
+  end
 
+  def handle_send_failure(error_detail, error_code, transient)
+    Cadences::SendFailureHandler.new(
+      enrollment: enrollment, error_detail: error_detail, error_code: error_code, transient: transient
+    ).call
+  end
+
+  def advance_after_successful_send!(definition, wa_message_id)
     step_number = definition[:position]
     enrollment.update!(
       current_step: step_number,
       status: :waiting_response,
       last_template_sent_at: Time.current,
-      next_action_at: Time.current + definition[:wait_window_minutes].minutes
+      next_action_at: Time.current + definition[:wait_window_minutes].minutes,
+      send_retry_count: 0
     )
     log_cadence_event(enrollment, 'template_sent', step: step_number, template_key: definition[:template_key],
                                                    metadata: { wa_message_id: wa_message_id })
@@ -111,15 +124,21 @@ class Cadences::StepExecutor
   def send_whatsapp_template(template_params)
     processor = Whatsapp::TemplateProcessorService.new(channel: channel, template_params: template_params)
     name, namespace, lang_code, processed_parameters = processor.call
-    return [nil, 'template_processor_returned_blank_name'] if name.blank?
+    return [nil, 'template_processor_returned_blank_name', nil, false] if name.blank?
 
     template_info = { name: name, namespace: namespace, lang_code: lang_code, parameters: processed_parameters }
     provider = channel.provider_service
     wa_message_id = provider.send_template(contact.phone_number, template_info, nil)
-    [wa_message_id, provider.last_send_error]
+    [wa_message_id, provider.last_send_error, provider.last_api_error&.dig('code'), nil]
+  rescue *NETWORK_ERROR_CLASSES => e
+    log_send_error(e, transient: true)
   rescue StandardError => e
-    Rails.logger.error "[Cadences::StepExecutor] send failed enrollment=#{enrollment.id}: #{e.message}"
-    [nil, e.message]
+    log_send_error(e, transient: false)
+  end
+
+  def log_send_error(error, transient:)
+    Rails.logger.error "[Cadences::StepExecutor] send failed enrollment=#{enrollment.id}: #{error.message}"
+    [nil, error.message, nil, transient]
   end
 
   # A diferencia del composer/Zoho (donde el Message ya existe antes de pegarle al provider),
@@ -133,7 +152,15 @@ class Cadences::StepExecutor
       content: rendered_body(template_params) || definition[:template_name],
       source_id: wa_message_id,
       status: :sent,
-      additional_attributes: { template_params: template_params.compact }
+      additional_attributes: {
+        template_params: template_params.compact,
+        # Enlaza el mensaje a su enrollment/paso para que, si Meta reporta el fallo por
+        # webhook de status más tarde (ej. el video no pasó su validación de descarga),
+        # Whatsapp::IncomingMessageBaseService pueda encontrar el enrollment correcto y
+        # aplicar la misma política de reintento (ver Cadences::SendFailureHandler).
+        cadence_enrollment_id: enrollment.id,
+        cadence_step: definition[:position]
+      }
     )
     attach_header_media(message, definition)
   end

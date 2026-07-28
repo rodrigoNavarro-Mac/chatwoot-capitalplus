@@ -82,4 +82,12 @@ module Whatsapp::IncomingMessageServiceHelpers
 
     Whatsapp::MessageDedupLock.new(messages_data.first[:id]).acquire!
   end
+
+  def apply_failed_status_details(message, status)
+    error = status[:errors]&.first
+    return if error.blank?
+
+    message.external_error = "#{error[:code]}: #{error[:title]}"
+    mark_contact_wa_invalid(message.conversation&.contact) if error[:code].to_i == 131026
+  end
 end

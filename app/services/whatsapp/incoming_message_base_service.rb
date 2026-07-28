@@ -67,12 +67,10 @@ class Whatsapp::IncomingMessageBaseService
 
   def update_message_with_status(message, status)
     message.status = status[:status]
-    if status[:status] == 'failed' && status[:errors].present?
-      error = status[:errors]&.first
-      message.external_error = "#{error[:code]}: #{error[:title]}"
-      mark_contact_wa_invalid(message.conversation&.contact) if error[:code].to_i == 131026
-    end
+    apply_failed_status_details(message, status) if status[:status] == 'failed'
     message.save!
+    # Meta a veces valida el media de forma asíncrona; sin esto el CadenceEnrollment quedaba colgado.
+    Cadences::SendFailureHandler.handle_async_message_failure(message, status[:errors]&.first) if status[:status] == 'failed'
   end
 
   def create_messages

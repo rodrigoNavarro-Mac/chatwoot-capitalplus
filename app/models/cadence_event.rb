@@ -41,6 +41,7 @@ class CadenceEvent < ApplicationRecord
     cadence_recovered
     cadence_marked_cold
     cadence_failed
+    send_retry_scheduled
   ].freeze
 
   validates :event_type, presence: true, inclusion: { in: EVENT_TYPES }

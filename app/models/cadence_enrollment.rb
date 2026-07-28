@@ -9,6 +9,7 @@
 #  last_lead_response_at     :datetime
 #  last_template_sent_at     :datetime
 #  next_action_at            :datetime
+#  send_retry_count          :integer          default(0), not null
 #  status                    :string           default("active"), not null
 #  steps_snapshot            :jsonb            not null
 #  stopped_reason            :string
