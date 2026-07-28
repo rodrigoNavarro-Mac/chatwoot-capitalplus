@@ -10,6 +10,7 @@ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import CardMessagePreview from './CardMessagePreview.vue';
 import CardMessagePreviewWithMeta from './CardMessagePreviewWithMeta.vue';
 import CardPriorityIcon from './CardPriorityIcon.vue';
+import WhatsappWindowCountdown from 'dashboard/components/widgets/conversation/WhatsappWindowCountdown.vue';
 
 const props = defineProps({
   conversation: {
@@ -118,6 +119,9 @@ const onCardClick = e => {
           </span>
         </div>
       </div>
+      <WhatsappWindowCountdown
+        :expires-at="conversation.whatsapp_window_expires_at"
+      />
       <CardMessagePreview
         v-show="showMessagePreviewWithoutMeta"
         :conversation="conversation"

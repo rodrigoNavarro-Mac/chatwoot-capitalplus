@@ -5,6 +5,7 @@ import Avatar from 'next/avatar/Avatar.vue';
 import MessagePreview from './MessagePreview.vue';
 import InboxName from '../InboxName.vue';
 import TimeAgo from 'dashboard/components/ui/TimeAgo.vue';
+import WhatsappWindowCountdown from './WhatsappWindowCountdown.vue';
 import CardLabels from './conversationCardComponents/CardLabels.vue';
 import CardPriorityIcon from 'dashboard/components-next/Conversation/ConversationCard/CardPriorityIcon.vue';
 import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard/UnreadBadge.vue';
@@ -214,6 +215,9 @@ watch(
             :conversation-id="chat.id"
           />
         </span>
+        <WhatsappWindowCountdown
+          :expires-at="chat.whatsapp_window_expires_at"
+        />
         <UnreadBadge
           v-if="hasUnread"
           :count="unreadCount"

@@ -326,11 +326,11 @@ class Message < ApplicationRecord
     reopen_conversation
     mark_pending_conversation_as_open_for_human_response
     set_conversation_activity
+    update_whatsapp_window_expiry
     dispatch_create_events
     send_reply
     execute_message_template_hooks
     update_contact_activity
-    update_whatsapp_window_expiry
   end
 
   def update_whatsapp_window_expiry

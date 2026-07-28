@@ -10,6 +10,7 @@ import ReplyBox from './ReplyBox.vue';
 import MessageList from 'next/message/MessageList.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
+import WhatsappWindowCountdown from 'dashboard/components/widgets/conversation/WhatsappWindowCountdown.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ResizableEditorWrapper from './ResizableEditorWrapper.vue';
 
@@ -42,6 +43,7 @@ export default {
     MessageList,
     ReplyBox,
     Banner,
+    WhatsappWindowCountdown,
     ConversationLabelSuggestion,
     Spinner,
     ResizableEditorWrapper,
@@ -468,6 +470,14 @@ export default {
         class="mx-2 mt-2 overflow-hidden rounded-lg"
         :banner-message="$t('CONVERSATION.OLD_INSTAGRAM_INBOX_REPLY_BANNER')"
       />
+      <div
+        v-else-if="currentChat.whatsapp_window_expires_at"
+        class="mx-2 mt-2 px-3 py-1.5 rounded-lg bg-n-amber-3 border border-n-amber-6"
+      >
+        <WhatsappWindowCountdown
+          :expires-at="currentChat.whatsapp_window_expires_at"
+        />
+      </div>
     </div>
     <MessageList
       ref="conversationPanelRef"
