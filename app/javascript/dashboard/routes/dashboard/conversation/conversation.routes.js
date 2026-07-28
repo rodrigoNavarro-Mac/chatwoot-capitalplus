@@ -211,6 +211,29 @@ export default {
       }),
     },
     {
+      path: frontendURL('accounts/:accountId/whatsapp_window/conversations'),
+      name: 'conversation_whatsapp_window',
+      meta: {
+        permissions: CONVERSATION_PERMISSIONS,
+      },
+      component: ConversationView,
+      props: () => ({ conversationType: 'whatsapp_window_open' }),
+    },
+    {
+      path: frontendURL(
+        'accounts/:accountId/whatsapp_window/conversations/:conversationId'
+      ),
+      name: 'conversation_through_whatsapp_window',
+      meta: {
+        permissions: CONVERSATION_PERMISSIONS,
+      },
+      component: ConversationView,
+      props: route => ({
+        conversationId: route.params.conversationId,
+        conversationType: 'whatsapp_window_open',
+      }),
+    },
+    {
       path: frontendURL('accounts/:accountId/participating/conversations'),
       name: 'conversation_participating',
       meta: {

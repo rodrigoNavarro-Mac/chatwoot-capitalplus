@@ -387,6 +387,47 @@ RSpec.describe Message do
     end
   end
 
+  describe '#update_whatsapp_window_expiry' do
+    context 'when the inbox is a whatsapp channel' do
+      let!(:whatsapp_channel) { create(:channel_whatsapp, sync_templates: false, validate_provider_config: false) }
+      let(:conversation) { create(:conversation, inbox: whatsapp_channel.inbox, account: whatsapp_channel.account) }
+
+      it 'sets whatsapp_window_expires_at 24 hours after an incoming message' do
+        message = create(:message, conversation: conversation, message_type: :incoming)
+
+        expect(conversation.reload.whatsapp_window_expires_at).to be_within(1.second)
+          .of(message.created_at + Conversations::MessageWindowService::MESSAGING_WINDOW_24_HOURS)
+      end
+
+      it 'does not set whatsapp_window_expires_at for an outgoing message' do
+        create(:message, conversation: conversation, message_type: :outgoing)
+
+        expect(conversation.reload.whatsapp_window_expires_at).to be_nil
+      end
+
+      it 'refreshes whatsapp_window_expires_at when a newer incoming message arrives' do
+        create(:message, conversation: conversation, message_type: :incoming, created_at: 2.hours.ago)
+        first_expiry = conversation.reload.whatsapp_window_expires_at
+
+        newer_message = create(:message, conversation: conversation, message_type: :incoming)
+
+        expect(conversation.reload.whatsapp_window_expires_at).to be_within(1.second)
+          .of(newer_message.created_at + Conversations::MessageWindowService::MESSAGING_WINDOW_24_HOURS)
+        expect(conversation.whatsapp_window_expires_at).not_to eq first_expiry
+      end
+    end
+
+    context 'when the inbox is not a whatsapp channel' do
+      let(:conversation) { create(:conversation) }
+
+      it 'does not set whatsapp_window_expires_at' do
+        create(:message, conversation: conversation, message_type: :incoming)
+
+        expect(conversation.reload.whatsapp_window_expires_at).to be_nil
+      end
+    end
+  end
+
   context 'with webhook_data' do
     it 'contains the message attachment when attachment is present' do
       message = create(:message)

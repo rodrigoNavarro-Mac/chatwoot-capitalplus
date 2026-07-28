@@ -44,6 +44,7 @@ import {
   isOnMentionsView,
   isOnParticipatingView,
   isOnUnattendedView,
+  isOnWhatsappWindowView,
 } from '../store/modules/conversations/helpers/actionHelpers';
 import {
   getUserPermissions,
@@ -286,6 +287,12 @@ const pageTitle = computed(() => {
   }
   if (props.conversationType === wootConstants.CONVERSATION_TYPE.UNATTENDED) {
     return t('CHAT_LIST.UNATTENDED_HEADING');
+  }
+  if (
+    props.conversationType ===
+    wootConstants.CONVERSATION_TYPE.WHATSAPP_WINDOW_OPEN
+  ) {
+    return t('CHAT_LIST.WHATSAPP_WINDOW_HEADING');
   }
   if (hasActiveFolders.value) {
     return activeFolder.value.name;
@@ -634,6 +641,8 @@ function redirectToConversationList() {
     conversationType = wootConstants.CONVERSATION_TYPE.PARTICIPATING;
   } else if (isOnUnattendedView({ route: { name } })) {
     conversationType = wootConstants.CONVERSATION_TYPE.UNATTENDED;
+  } else if (isOnWhatsappWindowView({ route: { name } })) {
+    conversationType = wootConstants.CONVERSATION_TYPE.WHATSAPP_WINDOW_OPEN;
   }
   router.push(
     conversationListPageURL({

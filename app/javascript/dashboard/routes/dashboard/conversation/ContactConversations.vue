@@ -6,6 +6,7 @@ import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper';
 import {
   isOnMentionsView,
   isOnUnattendedView,
+  isOnWhatsappWindowView,
   isOnFoldersView,
 } from 'dashboard/store/modules/conversations/helpers/actionHelpers';
 import ConversationCard from 'dashboard/components/widgets/conversation/ConversationCard.vue';
@@ -60,6 +61,8 @@ const buildConversationUrl = conversationId => {
     conversationType = 'mention';
   } else if (isOnUnattendedView({ route: { name } })) {
     conversationType = 'unattended';
+  } else if (isOnWhatsappWindowView({ route: { name } })) {
+    conversationType = 'whatsapp_window_open';
   }
 
   return frontendURL(

@@ -330,6 +330,19 @@ class Message < ApplicationRecord
     send_reply
     execute_message_template_hooks
     update_contact_activity
+    update_whatsapp_window_expiry
+  end
+
+  def update_whatsapp_window_expiry
+    return unless incoming?
+    return unless conversation.inbox.channel_type == 'Channel::Whatsapp'
+
+    # rubocop:disable Rails/SkipsModelValidations
+    conversation.update_column(
+      :whatsapp_window_expires_at,
+      created_at + Conversations::MessageWindowService::MESSAGING_WINDOW_24_HOURS
+    )
+    # rubocop:enable Rails/SkipsModelValidations
   end
 
   def update_contact_activity

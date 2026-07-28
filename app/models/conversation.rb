@@ -2,33 +2,34 @@
 #
 # Table name: conversations
 #
-#  id                     :integer          not null, primary key
-#  additional_attributes  :jsonb
-#  agent_last_seen_at     :datetime
-#  assignee_last_seen_at  :datetime
-#  cached_label_list      :text
-#  contact_last_seen_at   :datetime
-#  custom_attributes      :jsonb
-#  first_reply_created_at :datetime
-#  identifier             :string
-#  last_activity_at       :datetime         not null
-#  priority               :integer
-#  snoozed_until          :datetime
-#  status                 :integer          default("open"), not null
-#  uuid                   :uuid             not null
-#  waiting_since          :datetime
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  account_id             :integer          not null
-#  assignee_agent_bot_id  :bigint
-#  assignee_id            :integer
-#  campaign_id            :bigint
-#  contact_id             :bigint
-#  contact_inbox_id       :bigint
-#  display_id             :integer          not null
-#  inbox_id               :integer          not null
-#  sla_policy_id          :bigint
-#  team_id                :bigint
+#  id                         :integer          not null, primary key
+#  additional_attributes      :jsonb
+#  agent_last_seen_at         :datetime
+#  assignee_last_seen_at      :datetime
+#  cached_label_list          :text
+#  contact_last_seen_at       :datetime
+#  custom_attributes          :jsonb
+#  first_reply_created_at     :datetime
+#  identifier                 :string
+#  last_activity_at           :datetime         not null
+#  priority                   :integer
+#  snoozed_until              :datetime
+#  status                     :integer          default("open"), not null
+#  uuid                       :uuid             not null
+#  waiting_since              :datetime
+#  whatsapp_window_expires_at :datetime
+#  created_at                 :datetime         not null
+#  updated_at                 :datetime         not null
+#  account_id                 :integer          not null
+#  assignee_agent_bot_id      :bigint
+#  assignee_id                :integer
+#  campaign_id                :bigint
+#  contact_id                 :bigint
+#  contact_inbox_id           :bigint
+#  display_id                 :integer          not null
+#  inbox_id                   :integer          not null
+#  sla_policy_id              :bigint
+#  team_id                    :bigint
 #
 # Indexes
 #
@@ -49,6 +50,7 @@
 #  index_conversations_on_team_id                     (team_id)
 #  index_conversations_on_uuid                        (uuid) UNIQUE
 #  index_conversations_on_waiting_since               (waiting_since)
+#  index_conversations_on_whatsapp_window_expires_at  (whatsapp_window_expires_at) WHERE (whatsapp_window_expires_at IS NOT NULL)
 #
 
 class Conversation < ApplicationRecord
@@ -79,6 +81,11 @@ class Conversation < ApplicationRecord
   scope :assigned, -> { where.not(assignee_id: nil) }
   scope :assigned_to, ->(agent) { where(assignee_id: agent.id) }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
+  scope :whatsapp_window_open, lambda {
+    joins(:inbox)
+      .where(inboxes: { channel_type: 'Channel::Whatsapp' })
+      .where('conversations.whatsapp_window_expires_at > ?', Time.current)
+  }
   scope :resolvable_not_waiting, lambda { |auto_resolve_after|
     return none if auto_resolve_after.to_i.zero?
 
