@@ -229,5 +229,22 @@ describe ConversationFinder do
         expect(result[:conversations].length).to be 2
       end
     end
+
+    context 'with whatsapp_window_open' do
+      let!(:whatsapp_channel) { create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false) }
+      let(:params) { { status: 'open', assignee_type: 'me', conversation_type: 'whatsapp_window_open' } }
+
+      it 'returns only whatsapp conversations with an unexpired window' do
+        create(:conversation, account: account, inbox: whatsapp_channel.inbox, assignee: user_1,
+                              whatsapp_window_expires_at: 1.hour.from_now) # open_window_conversation
+        create(:conversation, account: account, inbox: whatsapp_channel.inbox, assignee: user_1,
+                              whatsapp_window_expires_at: 1.hour.ago) # expired_window_conversation
+        create(:conversation, account: account, inbox: inbox, assignee: user_1,
+                              whatsapp_window_expires_at: 1.hour.from_now) # non_whatsapp_inbox_conversation
+
+        result = conversation_finder.perform
+        expect(result[:conversations].length).to be 1
+      end
+    end
   end
 end

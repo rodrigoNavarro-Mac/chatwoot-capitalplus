@@ -326,6 +326,12 @@ const menuItems = computed(() => {
           to: accountScopedRoute('conversation_unattended'),
         },
         {
+          name: 'WhatsappWindow',
+          activeOn: ['conversation_through_whatsapp_window'],
+          label: t('SIDEBAR.WHATSAPP_WINDOW_CONVERSATIONS'),
+          to: accountScopedRoute('conversation_whatsapp_window'),
+        },
+        {
           name: 'Folders',
           label: t('SIDEBAR.CUSTOM_VIEWS_FOLDER'),
           icon: 'i-lucide-folder',

@@ -30,6 +30,14 @@ export const isOnUnattendedView = ({ route: { name: routeName } }) => {
   return UNATTENDED_ROUTES.includes(routeName);
 };
 
+export const isOnWhatsappWindowView = ({ route: { name: routeName } }) => {
+  const WHATSAPP_WINDOW_ROUTES = [
+    'conversation_whatsapp_window',
+    'conversation_through_whatsapp_window',
+  ];
+  return WHATSAPP_WINDOW_ROUTES.includes(routeName);
+};
+
 export const isOnParticipatingView = ({ route: { name: routeName } }) => {
   const PARTICIPATING_ROUTES = [
     'conversation_participating',

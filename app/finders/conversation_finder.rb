@@ -144,6 +144,8 @@ class ConversationFinder
       @conversations = current_user.participating_conversations.where(account_id: current_account.id)
     when 'unattended'
       @conversations = @conversations.unattended
+    when 'whatsapp_window_open'
+      @conversations = @conversations.whatsapp_window_open
     end
     @conversations
   end

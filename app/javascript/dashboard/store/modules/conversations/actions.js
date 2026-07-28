@@ -8,6 +8,7 @@ import {
   isOnMentionsView,
   isOnParticipatingView,
   isOnUnattendedView,
+  isOnWhatsappWindowView,
   isOnFoldersView,
 } from './helpers/actionHelpers';
 import messageReadActions from './actions/messageReadActions';
@@ -384,6 +385,7 @@ const actions = {
       !isOnMentionsView(rootState) &&
       !isOnParticipatingView(rootState) &&
       !isOnUnattendedView(rootState) &&
+      !isOnWhatsappWindowView(rootState) &&
       isMatchingInboxFilter
     ) {
       commit(types.ADD_CONVERSATION, conversation);

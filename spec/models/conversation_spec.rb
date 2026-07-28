@@ -1169,4 +1169,37 @@ RSpec.describe Conversation do
       end
     end
   end
+
+  describe '.whatsapp_window_open' do
+    let!(:whatsapp_channel) { create(:channel_whatsapp, sync_templates: false, validate_provider_config: false) }
+    let(:account) { whatsapp_channel.account }
+
+    it 'includes whatsapp conversations with an unexpired window' do
+      conversation = create(:conversation, inbox: whatsapp_channel.inbox, account: account,
+                                           whatsapp_window_expires_at: 1.hour.from_now)
+
+      expect(described_class.whatsapp_window_open).to include(conversation)
+    end
+
+    it 'excludes whatsapp conversations with an expired window' do
+      conversation = create(:conversation, inbox: whatsapp_channel.inbox, account: account,
+                                           whatsapp_window_expires_at: 1.hour.ago)
+
+      expect(described_class.whatsapp_window_open).not_to include(conversation)
+    end
+
+    it 'excludes whatsapp conversations without a window' do
+      conversation = create(:conversation, inbox: whatsapp_channel.inbox, account: account)
+
+      expect(described_class.whatsapp_window_open).not_to include(conversation)
+    end
+
+    it 'excludes conversations from non-whatsapp inboxes even with an unexpired window' do
+      other_inbox = create(:inbox, account: account)
+      conversation = create(:conversation, inbox: other_inbox, account: account)
+      conversation.update_column(:whatsapp_window_expires_at, 1.hour.from_now) # rubocop:disable Rails/SkipsModelValidations
+
+      expect(described_class.whatsapp_window_open).not_to include(conversation)
+    end
+  end
 end
