@@ -6,6 +6,16 @@ class Cadences::StepExecutor
   # Excepciones de red que valen la pena reintentar (a diferencia de bugs de código,
   # que StandardError también atraparía pero no tiene sentido reintentar 5 veces).
   NETWORK_ERROR_CLASSES = [Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED, SocketError].freeze
+  # Links de "compartir" de servicios como Google Drive no devuelven el archivo directamente:
+  # devuelven una pagina HTML de vista previa. Meta nunca puede descargarlos como media, sin
+  # importar cuantas veces se reintente -- a diferencia de, por ejemplo, una URL sin extension
+  # de un object storage (Vercel Blob, S3, etc.), que si suele servir el Content-Type correcto
+  # y funciona bien. Ver incidente 2026-07-29/30: video con link de Google Drive reintentando
+  # en loop indefinidamente (665 envios en 7 dias antes de detectarse).
+  KNOWN_INVALID_MEDIA_HOST_PATTERNS = [
+    %r{drive\.google\.com/.*/view}i,
+    %r{drive\.google\.com/open\?}i
+  ].freeze
 
   pattr_initialize [:enrollment!]
 
@@ -47,6 +57,8 @@ class Cadences::StepExecutor
   end
 
   def send_step(definition)
+    return handle_send_failure("invalid_media_url: #{definition[:media_url]}", nil, false) if invalid_media_url?(definition)
+
     template_params = resolve_template_params(definition)
     return terminate!('template_resolution_failed') if template_params.blank?
 
@@ -65,13 +77,20 @@ class Cadences::StepExecutor
 
   def advance_after_successful_send!(definition, wa_message_id)
     step_number = definition[:position]
-    enrollment.update!(
+    attrs = {
       current_step: step_number,
       status: :waiting_response,
       last_template_sent_at: Time.current,
-      next_action_at: Time.current + definition[:wait_window_minutes].minutes,
-      send_retry_count: 0
-    )
+      next_action_at: Time.current + definition[:wait_window_minutes].minutes
+    }
+    # Un step con media puede ser aceptado por Meta en el momento y fallar la validacion de la
+    # media de forma asincrona minutos despues (ver Cadences::SendFailureHandler); resetear el
+    # contador de reintentos aqui, antes de esa confirmacion, hace que el conteo real se pierda
+    # y el ciclo de reintento nunca escale ni termine (incidente 2026-07-29: 81 envios cada
+    # ~2min sin parar, siempre en "intento 1"). Para pasos sin media, "aceptado" por Meta si es
+    # la confirmacion final, asi que ahi el reset es correcto.
+    attrs[:send_retry_count] = 0 if definition[:media_url].blank?
+    enrollment.update!(attrs)
     log_cadence_event(enrollment, 'template_sent', step: step_number, template_key: definition[:template_key],
                                                    metadata: { wa_message_id: wa_message_id })
 
@@ -94,6 +113,13 @@ class Cadences::StepExecutor
   # darle la forma que Whatsapp::TemplateProcessorService espera para cada componente.
   def processed_params_for(definition)
     { 'header' => header_params(definition), 'body' => body_params(definition) }.compact
+  end
+
+  def invalid_media_url?(definition)
+    media_url = definition[:media_url]
+    return false if media_url.blank?
+
+    KNOWN_INVALID_MEDIA_HOST_PATTERNS.any? { |pattern| media_url.match?(pattern) }
   end
 
   def header_params(definition)

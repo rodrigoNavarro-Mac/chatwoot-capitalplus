@@ -167,6 +167,31 @@ describe Cadences::StepExecutor do
       expect(enrollment.next_action_at).to be_within(5.seconds).of(2.minutes.from_now)
     end
 
+    it 'fails immediately without retrying when the media_url is a Google Drive share link (permanently broken, not transient)' do
+      cadence_definition.cadence_step_definitions.find_by(position: 1)
+                        .update!(media_url: 'https://drive.google.com/file/d/abc123/view?usp=sharing', media_type: 'video')
+      enrollment # force creation with the updated step definition in its snapshot
+
+      expect { described_class.new(enrollment: enrollment).execute_current_step! }
+        .not_to have_enqueued_job(Cadences::AdvanceJob)
+
+      enrollment.reload
+      expect(enrollment.status).to eq('failed')
+      expect(enrollment.stopped_reason).to include('invalid_media_url')
+      expect(enrollment.send_retry_count).to eq(0)
+    end
+
+    it 'does not flag an object-storage media_url without a file extension as invalid (it can still resolve a valid Content-Type)' do
+      cadence_definition.cadence_step_definitions.find_by(position: 1)
+                        .update!(media_url: 'https://cdn.example.com/blob/imagen-sin-extension', media_type: 'image')
+      enrollment # force creation with the updated step definition in its snapshot
+
+      expect { described_class.new(enrollment: enrollment).execute_current_step! }
+        .to have_enqueued_job(Cadences::CheckResponseJob)
+
+      expect(enrollment.reload.status).to eq('waiting_response')
+    end
+
     it 'retries when the HTTP call itself times out (network-level transient failure)' do
       enrollment # force creation before overriding the stub
       stub_request(:post, /graph\.facebook\.com.*messages/).to_timeout
@@ -184,6 +209,17 @@ describe Cadences::StepExecutor do
       described_class.new(enrollment: enrollment).execute_current_step!
 
       expect(enrollment.reload.send_retry_count).to eq(0)
+    end
+
+    it 'does not reset send_retry_count when a media step is merely accepted by Meta, since it can still fail validation asynchronously' do
+      cadence_definition.cadence_step_definitions.find_by(position: 1)
+                        .update!(media_url: 'https://cdn.example.com/video.mp4', media_type: 'video')
+      enrollment # force creation with the updated step definition in its snapshot
+      enrollment.update!(send_retry_count: 1)
+
+      described_class.new(enrollment: enrollment).execute_current_step!
+
+      expect(enrollment.reload.send_retry_count).to eq(1)
     end
 
     it 'reschedules instead of sending when another send already claimed the rate limit slot for this inbox' do
