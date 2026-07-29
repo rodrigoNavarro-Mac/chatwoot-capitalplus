@@ -52,6 +52,7 @@ Rails.application.routes.draw do
         scope module: :accounts do
           namespace :actions do
             resource :contact_merge, only: [:create]
+            resource :conversation_merge, only: [:create]
           end
           resource :bulk_actions, only: [:create]
           resource :onboarding, only: [:update]

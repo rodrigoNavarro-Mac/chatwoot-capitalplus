@@ -99,11 +99,22 @@
       "TRANSCRIPT_SHOW_MORE": "Show more",
       "TRANSCRIPT_SHOW_LESS": "Show less"
     },
+    "MERGE": {
+      "TITLE": "Merge conversation",
+      "DESCRIPTION": "Merge this conversation into another conversation from the same contact. All messages will be moved there and this conversation will be deleted.",
+      "LOADING": "Loading conversations...",
+      "EMPTY_STATE": "No other conversations found for this contact.",
+      "SUBMIT": "Merge conversation",
+      "CANCEL": "Cancel",
+      "SUCCESS_MESSAGE": "Conversation merged successfully",
+      "ERROR_MESSAGE": "Could not merge the conversation, try again!"
+    },
     "HEADER": {
       "RESOLVE_ACTION": "Resolve",
       "REOPEN_ACTION": "Reopen",
       "OPEN_ACTION": "Open",
       "MORE_ACTIONS": "More actions",
+      "MERGE_CONVERSATION": "Merge with another conversation",
       "OPEN": "More",
       "CLOSE": "Close",
       "DETAILS": "details",

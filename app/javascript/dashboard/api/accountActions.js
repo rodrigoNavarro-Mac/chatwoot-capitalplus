@@ -13,6 +13,13 @@ class AccountActions extends ApiClient {
       mergee_contact_id: childId,
     });
   }
+
+  mergeConversation(baseConversationId, mergeeConversationId) {
+    return axios.post(`${this.url}/conversation_merge`, {
+      base_conversation_id: baseConversationId,
+      mergee_conversation_id: mergeeConversationId,
+    });
+  }
 }
 
 export default new AccountActions();

@@ -120,16 +120,13 @@ class Crm::Zoho::SendInitialTemplateService
   end
 
   def find_or_create_conversation(contact_inbox, inbox)
-    existing = Conversation.where(
-      inbox_id: inbox.id,
-      contact_id: contact_inbox.contact_id,
-      contact_inbox_id: contact_inbox.id
-    ).where(status: [Conversation.statuses[:open], Conversation.statuses[:pending]])
-                           .order(created_at: :desc)
-                           .first
+    existing = find_existing_conversation(contact_inbox, inbox)
 
     if existing
-      existing.update!(status: :open) if existing.pending?
+      # Los mensajes que crea este servicio son outgoing, así que no disparan el
+      # auto-reopen de Message#reopen_conversation (solo corre para incoming) — hay que
+      # reabrir acá explícitamente si la conversación reusada estaba resolved.
+      existing.update!(status: :open) unless existing.open?
       return existing
     end
 
@@ -140,6 +137,15 @@ class Crm::Zoho::SendInitialTemplateService
       contact_inbox_id: contact_inbox.id,
       status: :open
     )
+  end
+
+  # Busca por contact_id (no contact_inbox_id exacto) para encontrar conversaciones aunque
+  # el lead haya terminado con un contact_inbox distinto (mismatch de wa_id) al de este envío
+  # — mismo criterio que Whatsapp::IncomingMessageBaseService#set_conversation.
+  def find_existing_conversation(contact_inbox, inbox)
+    scope = Conversation.where(inbox_id: inbox.id, contact_id: contact_inbox.contact_id, account_id: @account.id)
+    scope = scope.where.not(status: :resolved) unless inbox.lock_to_single_conversation
+    scope.order(created_at: :desc).first
   end
 
   def find_inbox!

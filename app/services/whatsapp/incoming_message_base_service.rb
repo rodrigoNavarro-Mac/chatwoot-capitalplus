@@ -121,27 +121,25 @@ class Whatsapp::IncomingMessageBaseService
   end
 
   def set_conversation
-    # if lock to single conversation is disabled, we will create a new conversation if previous conversation is resolved
-    @conversation = if @inbox.lock_to_single_conversation
-                      @contact_inbox.conversations.last
-                    else
-                      @contact_inbox.conversations
-                                    .where.not(status: :resolved).last
-                    end
+    @conversation = scope_conversations(@contact_inbox.conversations).last
     return if @conversation
 
     # Some contacts reply with a different wa_id (e.g. MX.xxxxxxx) than the phone-based
     # source_id used when the template was sent. In that case the contact_inbox lookup above
-    # finds nothing, but there is already an open/pending conversation for this contact in
-    # this inbox. Route the reply there to preserve the existing assignee.
-    @conversation = Conversation
-                      .where(inbox_id: @inbox.id, contact_id: @contact.id, account_id: @inbox.account_id)
-                      .where.not(status: :resolved)
-                      .order(created_at: :desc)
-                      .first
+    # finds nothing, but there is already a conversation for this contact in this inbox.
+    # Route the reply there to preserve the existing assignee, respecting
+    # lock_to_single_conversation the same way as the lookup above.
+    @conversation = scope_conversations(
+      Conversation.where(inbox_id: @inbox.id, contact_id: @contact.id, account_id: @inbox.account_id)
+    ).order(created_at: :desc).first
     return if @conversation
 
     @conversation = ::Conversation.create!(conversation_params)
+  end
+
+  # if lock to single conversation is disabled, we will create a new conversation if previous conversation is resolved
+  def scope_conversations(relation)
+    @inbox.lock_to_single_conversation ? relation : relation.where.not(status: :resolved)
   end
 
   def attach_files

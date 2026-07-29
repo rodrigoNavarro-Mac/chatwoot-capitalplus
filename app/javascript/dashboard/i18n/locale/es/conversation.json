@@ -89,11 +89,22 @@
       "AGENT_ANSWERED": "{agentName} answered",
       "JOIN_CALL": "Unirse a la llamada"
     },
+    "MERGE": {
+      "TITLE": "Fusionar conversación",
+      "DESCRIPTION": "Fusiona esta conversación con otra conversación del mismo contacto. Todos los mensajes se moverán ahí y esta conversación se eliminará.",
+      "LOADING": "Cargando conversaciones...",
+      "EMPTY_STATE": "No se encontraron otras conversaciones de este contacto.",
+      "SUBMIT": "Fusionar conversación",
+      "CANCEL": "Cancelar",
+      "SUCCESS_MESSAGE": "Conversación fusionada con éxito",
+      "ERROR_MESSAGE": "No se pudo fusionar la conversación, ¡inténtalo de nuevo!"
+    },
     "HEADER": {
       "RESOLVE_ACTION": "Resolver",
       "REOPEN_ACTION": "Reabrir",
       "OPEN_ACTION": "Abrir",
       "MORE_ACTIONS": "Otras acciones",
+      "MERGE_CONVERSATION": "Fusionar con otra conversación",
       "OPEN": "Más",
       "CLOSE": "Cerrar",
       "DETAILS": "detalles",

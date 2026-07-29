@@ -239,5 +239,55 @@ describe Crm::Zoho::SendInitialTemplateService do
         expect(inbox.conversations.count).to eq(0)
       end
     end
+
+    # find_or_create_conversation tenía su propia lógica de dedupe, separada de
+    # Whatsapp::IncomingMessageBaseService#set_conversation, que ignoraba
+    # lock_to_single_conversation y filtraba por contact_inbox_id exacto.
+    context 'when the contact already has a conversation under a different contact_inbox' do
+      # Número distinto y poco común para evitar cualquier colisión con datos de otros
+      # tests/seed de este mismo teléfono genérico usado en el resto del archivo.
+      let(:params) { super().merge(phone: '5219876501234') }
+      let!(:existing_contact) { create(:contact, account: account, phone_number: "+#{params[:phone]}") }
+      let!(:other_contact_inbox) { create(:contact_inbox, inbox: inbox, contact: existing_contact, source_id: '5219876509999') }
+
+      # El inbox tiene un agent_bot activo (ver el `before` de arriba), así que
+      # before_create :determine_conversation_status fuerza status: pending al crear,
+      # ignorando el status pasado al factory — hay que forzar resolved con un update
+      # posterior a la creación, no en los atributos iniciales.
+      it 'reopens the resolved conversation when lock_to_single_conversation is enabled' do
+        inbox.update!(lock_to_single_conversation: true)
+        existing_conversation = create(:conversation, account: account, inbox: inbox, contact: existing_contact,
+                                                      contact_inbox: other_contact_inbox)
+        existing_conversation.update!(status: 'resolved')
+
+        described_class.new(account, params).perform
+
+        expect(inbox.conversations.count).to eq(1)
+        expect(existing_conversation.reload.status).to eq('open')
+        expect(existing_conversation.messages.last.source_id).to eq('wamid.zoho1')
+      end
+
+      it 'creates a new conversation when lock_to_single_conversation is disabled and the existing one is resolved' do
+        inbox.update!(lock_to_single_conversation: false)
+        pre_existing = create(:conversation, account: account, inbox: inbox, contact: existing_contact,
+                                             contact_inbox: other_contact_inbox)
+        pre_existing.update!(status: 'resolved')
+
+        described_class.new(account, params).perform
+
+        expect(inbox.conversations.count).to eq(2)
+      end
+
+      it 'reuses the open conversation regardless of lock_to_single_conversation' do
+        inbox.update!(lock_to_single_conversation: false)
+        existing_conversation = create(:conversation, account: account, inbox: inbox, contact: existing_contact,
+                                                      contact_inbox: other_contact_inbox, status: 'open')
+
+        described_class.new(account, params).perform
+
+        expect(inbox.conversations.count).to eq(1)
+        expect(existing_conversation.messages.last.source_id).to eq('wamid.zoho1')
+      end
+    end
   end
 end

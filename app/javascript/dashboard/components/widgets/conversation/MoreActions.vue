@@ -6,6 +6,7 @@ import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { emitter } from 'shared/helpers/mitt';
 import EmailTranscriptModal from './EmailTranscriptModal.vue';
+import MergeConversationModal from './MergeConversationModal.vue';
 import ResolveAction from '../../buttons/ResolveAction.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
@@ -21,6 +22,8 @@ const store = useStore();
 const { t } = useI18n();
 
 const [showEmailActionsModal, toggleEmailModal] = useToggle(false);
+const [showMergeConversationModal, toggleMergeConversationModal] =
+  useToggle(false);
 const [showActionsDropdown, toggleDropdown] = useToggle(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
@@ -51,6 +54,13 @@ const actionMenuItems = computed(() => {
     value: 'send_transcript',
   });
 
+  items.push({
+    icon: 'i-ph-arrows-merge',
+    label: t('CONVERSATION.HEADER.MERGE_CONVERSATION'),
+    action: 'merge_conversation',
+    value: 'merge_conversation',
+  });
+
   return items;
 });
 
@@ -65,6 +75,8 @@ const handleActionClick = ({ action }) => {
     useAlert(t('CONTACT_PANEL.UNMUTED_SUCCESS'));
   } else if (action === 'send_transcript') {
     toggleEmailModal();
+  } else if (action === 'merge_conversation') {
+    toggleMergeConversationModal();
   }
 };
 
@@ -121,6 +133,12 @@ onUnmounted(() => {
       :show="showEmailActionsModal"
       :current-chat="currentChat"
       @cancel="toggleEmailModal"
+    />
+    <MergeConversationModal
+      v-if="showMergeConversationModal"
+      :show="showMergeConversationModal"
+      :current-chat="currentChat"
+      @cancel="toggleMergeConversationModal"
     />
   </div>
 </template>

@@ -370,6 +370,13 @@ const actions = {
     }
   },
 
+  // usada tras un merge: el backend ya destruyó la conversación mergee,
+  // aquí solo se refleja localmente sin volver a llamar a la API de borrado
+  removeMergedConversation: ({ commit, dispatch }, conversationId) => {
+    commit(types.DELETE_CONVERSATION, conversationId);
+    dispatch('conversationStats/get', {}, { root: true });
+  },
+
   addConversation({ commit, state, dispatch, rootState }, conversation) {
     const { currentInbox, appliedFilters } = state;
     const {
