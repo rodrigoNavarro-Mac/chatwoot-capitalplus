@@ -78,6 +78,35 @@ describe Whatsapp::IncomingMessageService do
         expect(contact_inbox.conversations.last.messages.last.content).to eq(params[:messages].first[:text][:body])
       end
 
+      # Cubre el fallback de reconciliación de wa_id (contact_inbox no matchea pero el
+      # contacto sí, ej. números MX con formato inconsistente): antes de este fix, el
+      # fallback siempre creaba una conversación nueva ignorando lock_to_single_conversation.
+      it 'reopens the existing resolved conversation via the contact_inbox mismatch fallback when lock_to_single_conversation is enabled' do
+        whatsapp_channel.inbox.update(lock_to_single_conversation: true)
+        contact = create(:contact, account: whatsapp_channel.account, phone_number: "+#{wa_id}")
+        other_contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, contact: contact, source_id: '9999999999')
+        last_conversation = create(:conversation, account: whatsapp_channel.account, inbox: whatsapp_channel.inbox, contact: contact,
+                                                  contact_inbox: other_contact_inbox, status: 'resolved')
+
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+
+        expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+        expect(last_conversation.reload.status).to eq('open')
+        expect(last_conversation.messages.last.content).to eq(params[:messages].first[:text][:body])
+      end
+
+      it 'creates a new conversation via the fallback when lock_to_single_conversation is disabled and resolved' do
+        whatsapp_channel.inbox.update(lock_to_single_conversation: false)
+        contact = create(:contact, account: whatsapp_channel.account, phone_number: "+#{wa_id}")
+        other_contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, contact: contact, source_id: '9999999999')
+        create(:conversation, account: whatsapp_channel.account, inbox: whatsapp_channel.inbox, contact: contact, contact_inbox: other_contact_inbox,
+                              status: 'resolved')
+
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+
+        expect(whatsapp_channel.inbox.conversations.count).to eq(2)
+      end
+
       it 'will not create duplicate messages when same message is received' do
         described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
         expect(whatsapp_channel.inbox.messages.count).to eq(1)
