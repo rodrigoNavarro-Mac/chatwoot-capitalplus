@@ -581,6 +581,11 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.REPORTS_TEMPLATES'),
           to: accountScopedRoute('templates_reports'),
         },
+        {
+          name: 'Reports Sales Funnel',
+          label: t('SIDEBAR.REPORTS_SALES_FUNNEL'),
+          to: accountScopedRoute('sales_funnel_reports'),
+        },
         ...(hasCadences.value
           ? [
               {

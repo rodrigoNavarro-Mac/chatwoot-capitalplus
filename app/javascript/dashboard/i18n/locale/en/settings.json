@@ -356,6 +356,7 @@
     "REPORTS_SLA": "SLA",
     "REPORTS_BOT": "Bot",
     "REPORTS_TEMPLATES": "Templates",
+    "REPORTS_SALES_FUNNEL": "Sales funnel",
     "REPORTS_AGENT": "Agents",
     "REPORTS_LABEL": "Labels",
     "REPORTS_INBOX": "Inbox",

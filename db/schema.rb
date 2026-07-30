@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_28_190000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_30_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1321,6 +1321,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_28_190000) do
     t.index ["account_id", "date", "dimension_type", "dimension_id", "metric"], name: "index_rollup_unique_key", unique: true
     t.index ["account_id", "dimension_type", "date"], name: "index_rollup_summary"
     t.index ["account_id", "metric", "date"], name: "index_rollup_timeseries"
+  end
+
+  create_table "sales_funnel_goals", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "development_key", null: false
+    t.string "stage", null: false
+    t.date "period_month", null: false
+    t.decimal "target_percent", precision: 5, scale: 2, default: "0.0", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "development_key", "stage", "period_month"], name: "index_sales_funnel_goals_on_account_development_stage_period", unique: true
+    t.index ["account_id"], name: "index_sales_funnel_goals_on_account_id"
   end
 
   create_table "sla_events", force: :cascade do |t|

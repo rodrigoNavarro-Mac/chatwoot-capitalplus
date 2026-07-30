@@ -55,6 +55,14 @@ module Api::V2::Accounts::ReportsHelper
 
   private
 
+  def sales_funnel_report_params
+    {
+      since: params[:since],
+      until: params[:until],
+      inbox_ids: params[:inbox_ids]
+    }
+  end
+
   def build_params(base_params)
     base_params.merge(
       {

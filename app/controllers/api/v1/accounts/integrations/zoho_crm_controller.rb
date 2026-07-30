@@ -102,6 +102,8 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
 
     return render json: { error: 'create_failed' }, status: :unprocessable_entity unless deal_id
 
+    persist_deal_link(deal_id, stage)
+
     render json: { deal_id: deal_id, deal_name: deal_name }
   rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity
@@ -162,6 +164,17 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
     @zoho_id     = ext&.dig('zoho_id')
     @zoho_module = ext&.dig('zoho_module').presence || 'Leads'
     render json: { error: 'not_linked' }, status: :not_found and return unless @zoho_id
+  end
+
+  # Cachea localmente el deal vinculado al contacto (Crm::Zoho::DealsSyncJob refresca este
+  # mismo par de claves periódicamente para reflejar cambios hechos directamente en Zoho).
+  def persist_deal_link(deal_id, stage)
+    ext_attrs = (@contact.additional_attributes || {}).deep_dup
+    ext_attrs['external'] ||= {}
+    ext_attrs['external']['zoho_deal_id']        = deal_id
+    ext_attrs['external']['zoho_deal_stage']     = stage
+    ext_attrs['external']['zoho_deal_synced_at'] = Time.current.iso8601
+    @contact.update!(additional_attributes: ext_attrs)
   end
 
   def raw_conv_attrs(conversation_id)

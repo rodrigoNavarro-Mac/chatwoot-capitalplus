@@ -356,6 +356,7 @@
     "REPORTS_SLA": "SLA",
     "REPORTS_BOT": "Bot",
     "REPORTS_TEMPLATES": "Plantillas",
+    "REPORTS_SALES_FUNNEL": "Embudo de ventas",
     "REPORTS_AGENT": "Agentes",
     "REPORTS_LABEL": "Etiquetas",
     "REPORTS_INBOX": "Bandeja de entrada",

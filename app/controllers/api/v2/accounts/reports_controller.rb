@@ -97,6 +97,11 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: builder.timeseries
   end
 
+  def sales_funnel
+    builder = V2::Reports::SalesFunnelBuilder.new(account: Current.account, params: sales_funnel_report_params)
+    render json: builder.build
+  end
+
   private
 
   def generate_csv(filename, template)
