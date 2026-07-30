@@ -120,6 +120,12 @@ class ReportsAPI extends ApiClient {
       params: { since, until, group_by: groupBy },
     });
   }
+
+  getSalesFunnelReport({ from: since, to: until, inboxIds } = {}) {
+    return axios.get(`${this.url}/sales_funnel`, {
+      params: { since, until, inbox_ids: inboxIds },
+    });
+  }
 }
 
 export default new ReportsAPI();

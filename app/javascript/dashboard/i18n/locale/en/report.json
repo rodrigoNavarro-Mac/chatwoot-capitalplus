@@ -674,6 +674,49 @@
       "FETCH": "Could not fetch the templates report"
     }
   },
+  "SALES_FUNNEL_REPORTS": {
+    "HEADER": "Sales funnel",
+    "DESCRIPTION": "Measure conversion from leads to closed-won deals, cross-referencing Chatwoot with Zoho CRM, split by inbox and development.",
+    "FILTERS": {
+      "SINCE": "Since",
+      "UNTIL": "Until",
+      "INBOX": "Inbox"
+    },
+    "STAGES": {
+      "leads": "Total leads",
+      "customer_replied": "Replied by customer",
+      "has_deal": "Has a Zoho deal",
+      "closed_won": "Deal closed won"
+    },
+    "TABLE": {
+      "TITLE": "Funnel by inbox",
+      "INBOX": "Inbox",
+      "DEVELOPMENT": "Development",
+      "STAGE": "Stage",
+      "COUNT": "Count",
+      "ACTUAL_PERCENT": "Actual %",
+      "TARGET_PERCENT": "Target %",
+      "DELTA": "Delta",
+      "EMPTY": "No inboxes with a configured development yet"
+    },
+    "GOALS": {
+      "TITLE": "Monthly goals",
+      "DEVELOPMENT": "Development",
+      "STAGE": "Stage",
+      "MONTH": "Month",
+      "TARGET_PERCENT": "Target %",
+      "ADD": "Add goal",
+      "SAVE": "Save",
+      "DELETE": "Delete",
+      "ERRORS": {
+        "SAVE": "Could not save the goal",
+        "DELETE": "Could not delete the goal"
+      }
+    },
+    "ERRORS": {
+      "FETCH": "Could not fetch the sales funnel report"
+    }
+  },
   "SUMMARY_REPORTS": {
     "INBOX": "Inbox",
     "AGENT": "Agent",

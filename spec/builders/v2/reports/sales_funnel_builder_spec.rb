@@ -1,0 +1,117 @@
+require 'rails_helper'
+
+describe V2::Reports::SalesFunnelBuilder do
+  let(:account) { create(:account) }
+  let(:agent_bot) { create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'torre-1' } }) }
+  let(:whatsapp_channel) do
+    create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', validate_provider_config: false, sync_templates: false)
+  end
+  let(:inbox) { whatsapp_channel.inbox }
+  let(:params) { { since: 20.days.ago.to_i.to_s, until: Time.current.to_i.to_s } }
+
+  before do
+    create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
+  end
+
+  def create_lead(zoho_id: SecureRandom.hex, zoho_deal_id: nil, zoho_deal_stage: nil, replied: false, created_at: 10.days.ago, target_inbox: inbox)
+    external = { 'zoho_id' => zoho_id, 'zoho_module' => 'Contacts' }
+    external['zoho_deal_id'] = zoho_deal_id if zoho_deal_id
+    external['zoho_deal_stage'] = zoho_deal_stage if zoho_deal_stage
+
+    contact = create(:contact, account: account, additional_attributes: { 'external' => external })
+    conversation = create(:conversation, account: account, inbox: target_inbox, contact: contact)
+    conversation.update_column(:created_at, created_at)
+    create(:message, account: account, inbox: target_inbox, conversation: conversation, message_type: 'incoming') if replied
+    contact
+  end
+
+  def stage(rows, stage_name, inbox_id: inbox.id)
+    rows.find { |r| r[:inbox_id] == inbox_id }[:stages].find { |s| s[:stage] == stage_name }
+  end
+
+  describe '#build' do
+    it 'only counts contacts linked to Zoho as leads' do
+      create_lead
+      unlinked_contact = create(:contact, account: account)
+      create(:conversation, account: account, inbox: inbox, contact: unlinked_contact).update_column(:created_at, 5.days.ago)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:count]).to eq(1)
+    end
+
+    it 'counts customer_replied only for leads whose conversation has an incoming message' do
+      create_lead(replied: true)
+      create_lead(replied: false)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'customer_replied')[:count]).to eq(1)
+      expect(stage(rows, 'customer_replied')[:actual_percent]).to eq(50.0)
+    end
+
+    it 'counts has_deal only for contacts with a cached zoho_deal_id' do
+      create_lead(replied: true, zoho_deal_id: 'deal-1')
+      create_lead(replied: true)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'has_deal')[:count]).to eq(1)
+    end
+
+    it 'counts closed_won only for deals whose cached stage is "Closed Won"' do
+      create_lead(replied: true, zoho_deal_id: 'deal-1', zoho_deal_stage: 'Closed Won')
+      create_lead(replied: true, zoho_deal_id: 'deal-2', zoho_deal_stage: 'Negotiation/Review')
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'closed_won')[:count]).to eq(1)
+    end
+
+    it "only counts a contact under the inbox of their globally-earliest conversation (their true point of entry)" do
+      other_channel = create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', validate_provider_config: false, sync_templates: false)
+      other_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'torre-2' } })
+      create(:agent_bot_inbox, inbox: other_channel.inbox, agent_bot: other_bot)
+
+      contact = create(:contact, account: account, additional_attributes: { 'external' => { 'zoho_id' => 'z-1', 'zoho_module' => 'Contacts' } })
+      first_conversation = create(:conversation, account: account, inbox: other_channel.inbox, contact: contact)
+      first_conversation.update_column(:created_at, 15.days.ago)
+      later_conversation = create(:conversation, account: account, inbox: inbox, contact: contact)
+      later_conversation.update_column(:created_at, 5.days.ago)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:count]).to eq(0)
+      expect(stage(rows, 'leads', inbox_id: other_channel.inbox.id)[:count]).to eq(1)
+    end
+
+    it 'excludes inboxes without a configured desarrollo' do
+      undeveloped_channel = create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', validate_provider_config: false, sync_templates: false)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(rows.map { |r| r[:inbox_id] }).not_to include(undeveloped_channel.inbox.id)
+    end
+
+    it 'filters by inbox_ids when given' do
+      other_channel = create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', validate_provider_config: false, sync_templates: false)
+      other_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'torre-2' } })
+      create(:agent_bot_inbox, inbox: other_channel.inbox, agent_bot: other_bot)
+
+      rows = described_class.new(account: account, params: params.merge(inbox_ids: [inbox.id])).build
+
+      expect(rows.map { |r| r[:inbox_id] }).to eq([inbox.id])
+    end
+
+    it 'attaches the monthly goal and delta for the matching development_key/stage' do
+      period_month = Time.zone.at(params[:since].to_i).to_date.beginning_of_month
+      create(:sales_funnel_goal, account: account, development_key: 'torre-1', stage: 'leads', period_month: period_month, target_percent: 50)
+      create_lead
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:target_percent]).to eq(50.0)
+      expect(stage(rows, 'leads')[:delta]).to eq(50.0)
+    end
+  end
+end

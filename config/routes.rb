@@ -290,6 +290,7 @@ Rails.application.routes.draw do
 
           resources :custom_attribute_definitions, only: [:index, :show, :create, :update, :destroy]
           resources :custom_filters, only: [:index, :show, :create, :update, :destroy]
+          resources :sales_funnel_goals, only: [:index, :create, :update, :destroy]
           resources :inboxes, only: [:index, :show, :create, :update, :destroy] do
             get :assignable_agents, on: :member
             get :campaigns, on: :member
@@ -553,6 +554,7 @@ Rails.application.routes.draw do
               get :outgoing_messages_count
               get :templates
               get :templates_timeseries
+              get :sales_funnel
             end
           end
           resource :year_in_review, only: [:show]

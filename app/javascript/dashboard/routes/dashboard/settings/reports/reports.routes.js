@@ -24,6 +24,7 @@ import BotReports from './BotReports.vue';
 import LiveReports from './LiveReports.vue';
 import SLAReports from './SLAReports.vue';
 import TemplatesReports from './TemplatesReports.vue';
+import SalesFunnelReport from './SalesFunnelReport.vue';
 
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
@@ -174,6 +175,12 @@ export default {
           name: 'templates_reports',
           meta,
           component: TemplatesReports,
+        },
+        {
+          path: 'sales_funnel',
+          name: 'sales_funnel_reports',
+          meta,
+          component: SalesFunnelReport,
         },
       ],
     },

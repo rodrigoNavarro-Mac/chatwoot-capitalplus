@@ -674,6 +674,49 @@
       "FETCH": "No se pudo obtener el reporte de plantillas"
     }
   },
+  "SALES_FUNNEL_REPORTS": {
+    "HEADER": "Embudo de ventas",
+    "DESCRIPTION": "Mide la conversión de leads a deals cerrados ganados, cruzando datos de Chatwoot con Zoho CRM, separado por entrada y desarrollo.",
+    "FILTERS": {
+      "SINCE": "Desde",
+      "UNTIL": "Hasta",
+      "INBOX": "Entrada"
+    },
+    "STAGES": {
+      "leads": "Leads totales",
+      "customer_replied": "Contestados por el cliente",
+      "has_deal": "Con deal en Zoho",
+      "closed_won": "Deal cerrado ganado"
+    },
+    "TABLE": {
+      "TITLE": "Embudo por entrada",
+      "INBOX": "Entrada",
+      "DEVELOPMENT": "Desarrollo",
+      "STAGE": "Etapa",
+      "COUNT": "Cantidad",
+      "ACTUAL_PERCENT": "% real",
+      "TARGET_PERCENT": "% meta",
+      "DELTA": "Diferencia",
+      "EMPTY": "No hay entradas con un desarrollo configurado todavía"
+    },
+    "GOALS": {
+      "TITLE": "Metas mensuales",
+      "DEVELOPMENT": "Desarrollo",
+      "STAGE": "Etapa",
+      "MONTH": "Mes",
+      "TARGET_PERCENT": "% meta",
+      "ADD": "Agregar meta",
+      "SAVE": "Guardar",
+      "DELETE": "Eliminar",
+      "ERRORS": {
+        "SAVE": "No se pudo guardar la meta",
+        "DELETE": "No se pudo eliminar la meta"
+      }
+    },
+    "ERRORS": {
+      "FETCH": "No se pudo obtener el reporte de embudo de ventas"
+    }
+  },
   "SUMMARY_REPORTS": {
     "INBOX": "Bandeja de entrada",
     "AGENT": "Agente",

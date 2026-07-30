@@ -96,3 +96,12 @@ cadences_cold_reactivation_job:
   cron: '0 * * * *'
   class: 'Cadences::ColdReactivationJob'
   queue: scheduled_jobs
+
+# executed hourly
+# cachea localmente la etapa del Deal de Zoho vinculado a cada contacto convertido, para que el
+# reporte de embudo de ventas (V2::Reports::SalesFunnelBuilder) no dependa de consultar Zoho
+# en vivo. Solo lectura sobre Zoho.
+zoho_deals_sync_job:
+  cron: '0 * * * *'
+  class: 'Crm::Zoho::DealsSyncJob'
+  queue: scheduled_jobs
