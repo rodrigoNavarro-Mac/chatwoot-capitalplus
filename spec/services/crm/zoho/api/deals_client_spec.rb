@@ -14,64 +14,87 @@ describe Crm::Zoho::Api::DealsClient do
     allow_any_instance_of(Crm::Zoho::TokenRefreshService).to receive(:token).and_return('fake-token') # rubocop:disable RSpec/AnyInstance
   end
 
-  def stub_coql(rows)
-    stub_request(:post, %r{zohoapis\.com/crm/v7/coql})
-      .to_return(status: 200, body: { data: rows }.to_json, headers: { 'Content-Type' => 'application/json' })
+  def stub_contacts_search(records)
+    stub_request(:get, %r{zohoapis\.com/crm/v7/Contacts/search})
+      .to_return(status: 200, body: { data: records }.to_json, headers: { 'Content-Type' => 'application/json' })
   end
 
-  describe '#deals_by_contact_ids' do
-    it 'maps each zoho contact id to its deal id and stage' do
-      stub_coql([
-                  { 'id' => 'deal-1', 'Stage' => 'Qualification', 'Contact_Name' => { 'id' => 'contact-1' }, 'Modified_Time' => '2026-01-01T00:00:00-06:00' }
-                ])
+  def stub_deals_search(records)
+    stub_request(:get, %r{zohoapis\.com/crm/v7/Deals/search})
+      .to_return(status: 200, body: { data: records }.to_json, headers: { 'Content-Type' => 'application/json' })
+  end
 
-      result = described_class.new(hook).deals_by_contact_ids(['contact-1'])
+  describe '#deals_for_contacts' do
+    it 'resolves the contact in Zoho by phone, then finds the deal linked to that contact id' do
+      stub_contacts_search([{ 'id' => 'zoho-contact-1' }])
+      deals_stub = stub_deals_search([{ 'id' => 'deal-1', 'Stage' => 'Qualification', 'Modified_Time' => '2026-01-01T00:00:00-06:00' }])
 
-      expect(result).to eq('contact-1' => { deal_id: 'deal-1', stage: 'Qualification', modified_time: '2026-01-01T00:00:00-06:00' })
+      result = described_class.new(hook).deals_for_contacts([{ id: 1, phone: '+15551234567', email: nil }])
+
+      expect(result).to eq(1 => { deal_id: 'deal-1', stage: 'Qualification', modified_time: '2026-01-01T00:00:00-06:00' })
+      expect(deals_stub.with(query: hash_including('criteria' => '(Contact_Name:equals:zoho-contact-1)'))).to have_been_requested
     end
 
-    it 'keeps the most recently modified deal when a contact has more than one' do
-      stub_coql([
-                  { 'id' => 'deal-old', 'Stage' => 'Qualification', 'Contact_Name' => { 'id' => 'contact-1' },
-                    'Modified_Time' => '2026-01-01T00:00:00-06:00' },
-                  { 'id' => 'deal-new', 'Stage' => 'Closed Won', 'Contact_Name' => { 'id' => 'contact-1' },
-                    'Modified_Time' => '2026-02-01T00:00:00-06:00' }
-                ])
+    it 'resolves the contact by email when the contact has no phone' do
+      stub_contacts_search([{ 'id' => 'zoho-contact-1' }])
+      stub_deals_search([{ 'id' => 'deal-1', 'Stage' => 'Qualification', 'Modified_Time' => '2026-01-01T00:00:00-06:00' }])
 
-      result = described_class.new(hook).deals_by_contact_ids(['contact-1'])
+      result = described_class.new(hook).deals_for_contacts([{ id: 1, phone: nil, email: 'lead@example.com' }])
 
-      expect(result['contact-1']).to eq(deal_id: 'deal-new', stage: 'Closed Won', modified_time: '2026-02-01T00:00:00-06:00')
+      expect(result[1]).to include(deal_id: 'deal-1')
     end
 
-    it 'ignores rows without a linked Contact_Name' do
-      stub_coql([{ 'id' => 'deal-1', 'Stage' => 'Qualification', 'Contact_Name' => nil, 'Modified_Time' => '2026-01-01T00:00:00-06:00' }])
+    it 'keeps the most recently modified deal when the contact has more than one' do
+      stub_contacts_search([{ 'id' => 'zoho-contact-1' }])
+      stub_deals_search([
+                          { 'id' => 'deal-old', 'Stage' => 'Qualification', 'Modified_Time' => '2026-01-01T00:00:00-06:00' },
+                          { 'id' => 'deal-new', 'Stage' => 'Closed Won', 'Modified_Time' => '2026-02-01T00:00:00-06:00' }
+                        ])
 
-      expect(described_class.new(hook).deals_by_contact_ids(['contact-1'])).to eq({})
+      result = described_class.new(hook).deals_for_contacts([{ id: 1, phone: '+15551234567', email: nil }])
+
+      expect(result[1]).to eq(deal_id: 'deal-new', stage: 'Closed Won', modified_time: '2026-02-01T00:00:00-06:00')
     end
 
-    it 'splits contact ids into batches of CONTACT_BATCH_SIZE, issuing one request per batch' do
-      contact_ids = (1..150).map { |i| "contact-#{i}" }
-      requests = []
-      stub_request(:post, %r{zohoapis\.com/crm/v7/coql}).to_return do |request|
-        requests << request
-        { status: 200, body: { data: [] }.to_json, headers: { 'Content-Type' => 'application/json' } }
-      end
+    it 'skips the contact when it cannot be resolved to a Zoho Contact (still just a Lead, or not found)' do
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Contacts/search}).to_return(status: 204, body: '')
 
-      described_class.new(hook).deals_by_contact_ids(contact_ids)
+      result = described_class.new(hook).deals_for_contacts([{ id: 1, phone: '+15551234567', email: nil }])
 
-      expect(requests.size).to eq(2)
+      expect(result).to eq({})
+      expect(WebMock).not_to have_requested(:get, %r{zohoapis\.com/crm/v7/Deals/search})
     end
 
-    it 'returns an empty hash when Zoho responds with 204 (no results)' do
-      stub_request(:post, %r{zohoapis\.com/crm/v7/coql}).to_return(status: 204, body: '')
+    it 'skips the contact when the resolved Zoho Contact has no deal' do
+      stub_contacts_search([{ 'id' => 'zoho-contact-1' }])
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Deals/search}).to_return(status: 204, body: '')
 
-      expect(described_class.new(hook).deals_by_contact_ids(['contact-1'])).to eq({})
+      result = described_class.new(hook).deals_for_contacts([{ id: 1, phone: '+15551234567', email: nil }])
+
+      expect(result).to eq({})
     end
 
-    it 'returns an empty hash without calling the API when there are no contact ids' do
-      described_class.new(hook).deals_by_contact_ids([])
+    it 'skips contacts without a phone or email without calling the API for them' do
+      described_class.new(hook).deals_for_contacts([{ id: 1, phone: nil, email: nil }])
 
-      expect(WebMock).not_to have_requested(:post, %r{zohoapis\.com/crm/v7/coql})
+      expect(WebMock).not_to have_requested(:get, %r{zohoapis\.com/crm/v7})
+    end
+
+    it 'processes each contact independently' do
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Contacts/search})
+        .with { |request| CGI.parse(URI(request.uri).query)['criteria'].first.include?('Phone:equals:+15551111111') }
+        .to_return(status: 200, body: { data: [{ 'id' => 'zoho-contact-1' }] }.to_json, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Contacts/search})
+        .with { |request| CGI.parse(URI(request.uri).query)['criteria'].first.include?('Phone:equals:+15552222222') }
+        .to_return(status: 204, body: '')
+      stub_deals_search([{ 'id' => 'deal-1', 'Stage' => 'Qualification', 'Modified_Time' => '2026-01-01T00:00:00-06:00' }])
+
+      result = described_class.new(hook).deals_for_contacts([
+                                                              { id: 1, phone: '+15551111111', email: nil },
+                                                              { id: 2, phone: '+15552222222', email: nil }
+                                                            ])
+
+      expect(result.keys).to eq([1])
     end
   end
 end

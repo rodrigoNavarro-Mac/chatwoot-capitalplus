@@ -680,7 +680,8 @@
     "FILTERS": {
       "SINCE": "Desde",
       "UNTIL": "Hasta",
-      "INBOX": "Entrada"
+      "INBOX": "Entrada",
+      "ALL_INBOXES": "Todas las entradas"
     },
     "STAGES": {
       "leads": "Leads totales",

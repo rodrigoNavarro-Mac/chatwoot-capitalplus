@@ -680,7 +680,8 @@
     "FILTERS": {
       "SINCE": "Since",
       "UNTIL": "Until",
-      "INBOX": "Inbox"
+      "INBOX": "Inbox",
+      "ALL_INBOXES": "All inboxes"
     },
     "STAGES": {
       "leads": "Total leads",
