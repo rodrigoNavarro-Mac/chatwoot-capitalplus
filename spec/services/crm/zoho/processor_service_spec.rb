@@ -47,38 +47,99 @@ RSpec.describe Crm::Zoho::ProcessorService do
       end
     end
 
-    context 'when the Lead already has First_Contact_Time set' do
+    context 'when the Lead already has both fields set' do
       before do
-        existing_record = { 'First_Contact_Time' => '2026-01-01T10:00:00-06:00' }
+        existing_record = { 'First_Contact_Time' => '2026-01-01T10:00:00-06:00', 'Tiempo_de_respuesta_inicial' => 5 }
         allow(finder).to receive(:find_or_create).with(contact)
                                                  .and_return(zoho_id: 'l1', zoho_module: 'Leads', record: existing_record)
         allow(leads_client).to receive(:update)
       end
 
-      it 'does not overwrite the existing value' do
+      it 'does not overwrite the existing values' do
         service.handle_first_reply_created(event_data)
         expect(leads_client).not_to have_received(:update)
       end
     end
 
-    context 'when the Lead has no First_Contact_Time yet' do
+    context 'when neither field is set on the Lead yet' do
       before do
-        conversation.update!(first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
+        conversation.update!(created_at: Time.zone.parse('2026-07-27T10:00:00-06:00'),
+                             first_reply_created_at: Time.zone.parse('2026-07-27T10:03:30-06:00'))
         allow(finder).to receive(:find_or_create).with(contact)
-                                                 .and_return(zoho_id: 'l1', zoho_module: 'Leads', record: { 'First_Contact_Time' => nil })
+                                                 .and_return(zoho_id: 'l1', zoho_module: 'Leads',
+                                                             record: { 'First_Contact_Time' => nil, 'Tiempo_de_respuesta_inicial' => nil })
         allow(leads_client).to receive(:update)
       end
 
-      it 'updates First_Contact_Time with the first reply timestamp' do
+      it 'sends First_Contact_Time and Tiempo_de_respuesta_inicial (rounded minutes) in a single update' do
+        service.handle_first_reply_created(event_data)
+        expect(leads_client).to have_received(:update)
+          .with('l1', { 'First_Contact_Time' => conversation.reload.first_reply_created_at.iso8601, 'Tiempo_de_respuesta_inicial' => 4 })
+      end
+    end
+
+    context 'when only Tiempo_de_respuesta_inicial is missing' do
+      before do
+        conversation.update!(created_at: Time.zone.parse('2026-07-27T10:00:00-06:00'),
+                             first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
+        existing_record = { 'First_Contact_Time' => '2026-01-01T00:00:00-06:00', 'Tiempo_de_respuesta_inicial' => nil }
+        allow(finder).to receive(:find_or_create).with(contact)
+                                                 .and_return(zoho_id: 'l1', zoho_module: 'Leads', record: existing_record)
+        allow(leads_client).to receive(:update)
+      end
+
+      it 'sends only Tiempo_de_respuesta_inicial' do
+        service.handle_first_reply_created(event_data)
+        expect(leads_client).to have_received(:update).with('l1', { 'Tiempo_de_respuesta_inicial' => 16 })
+      end
+    end
+
+    context 'when only First_Contact_Time is missing' do
+      before do
+        conversation.update!(first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
+        allow(finder).to receive(:find_or_create).with(contact)
+                                                 .and_return(zoho_id: 'l1', zoho_module: 'Leads',
+                                                             record: { 'First_Contact_Time' => nil, 'Tiempo_de_respuesta_inicial' => 3 })
+        allow(leads_client).to receive(:update)
+      end
+
+      it 'sends only First_Contact_Time' do
         service.handle_first_reply_created(event_data)
         expect(leads_client).to have_received(:update)
           .with('l1', { 'First_Contact_Time' => conversation.reload.first_reply_created_at.iso8601 })
       end
     end
 
+    context 'when a bot handled the conversation before the human reply' do
+      before do
+        conversation.update!(created_at: Time.zone.parse('2026-07-27T09:00:00-06:00'))
+        handoff_time = Time.zone.parse('2026-07-27T10:00:00-06:00')
+        create(
+          :reporting_event,
+          name: 'conversation_bot_handoff',
+          account: account,
+          inbox: conversation.inbox,
+          conversation: conversation,
+          event_start_time: conversation.created_at,
+          event_end_time: handoff_time
+        )
+        conversation.update!(first_reply_created_at: handoff_time + 90.seconds)
+        allow(finder).to receive(:find_or_create).with(contact)
+                                                 .and_return(zoho_id: 'l1', zoho_module: 'Leads', record: {})
+        allow(leads_client).to receive(:update)
+      end
+
+      it 'measures the response time from the bot handoff, not from the conversation start, rounded to the nearest minute' do
+        service.handle_first_reply_created(event_data)
+        expect(leads_client).to have_received(:update)
+          .with('l1', hash_including('Tiempo_de_respuesta_inicial' => 2))
+      end
+    end
+
     context 'when the finder result has no cached record' do
       before do
-        conversation.update!(first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
+        conversation.update!(created_at: Time.zone.parse('2026-07-27T10:00:00-06:00'),
+                             first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
         allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
         allow(finder).to receive(:fetch_record).with(contact).and_return({})
         allow(leads_client).to receive(:update)
@@ -88,7 +149,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
         service.handle_first_reply_created(event_data)
         expect(finder).to have_received(:fetch_record).with(contact)
         expect(leads_client).to have_received(:update)
-          .with('l1', { 'First_Contact_Time' => conversation.reload.first_reply_created_at.iso8601 })
+          .with('l1', { 'First_Contact_Time' => conversation.reload.first_reply_created_at.iso8601, 'Tiempo_de_respuesta_inicial' => 16 })
       end
     end
 

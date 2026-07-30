@@ -1,4 +1,6 @@
 class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
+  include ReportingEventHelper
+
   def self.crm_name
     'zoho'
   end
@@ -96,12 +98,12 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     return log_skip("First reply on conversation ##{conversation.id}: contact not identifiable") unless identifiable_contact?(contact)
 
     result = @finder.find_or_create(contact)
-    return unless lead_needs_first_contact_time?(result, contact, conversation)
+    return log_skip("Conversation ##{conversation.id}: record is #{result[:zoho_module]}, not a Lead") unless result[:zoho_module] == 'Leads'
 
     timestamp = conversation.first_reply_created_at || event_data[:message]&.created_at
     return if timestamp.blank?
 
-    @leads_client.update(result[:zoho_id], { 'First_Contact_Time' => timestamp.iso8601 })
+    sync_first_reply_fields(result, contact, conversation, timestamp)
   rescue Crm::Zoho::Api::BaseClient::ApiError => e
     log_api_error('handle_first_reply_created', conversation.id, e)
   rescue StandardError => e
@@ -111,13 +113,28 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
 
   private
 
-  def lead_needs_first_contact_time?(result, contact, conversation)
-    return log_skip("Conversation ##{conversation.id}: record is #{result[:zoho_module]}, not a Lead") unless result[:zoho_module] == 'Leads'
-
+  def sync_first_reply_fields(result, contact, conversation, timestamp)
     record = result[:record] || @finder.fetch_record(contact)
-    return log_skip("Lead ##{result[:zoho_id]} already has First_Contact_Time") if record.present? && record['First_Contact_Time'].present?
+    updates = first_reply_zoho_updates(record, conversation, timestamp)
+    return if updates.empty?
 
-    true
+    @leads_client.update(result[:zoho_id], updates)
+  end
+
+  # Only fields Zoho doesn't already have a value for get sent, per field, so a Lead edited
+  # manually on just one of them still gets the other backfilled.
+  def first_reply_zoho_updates(record, conversation, timestamp)
+    updates = {}
+    updates['First_Contact_Time'] = timestamp.iso8601 if zoho_field_blank?(record, 'First_Contact_Time')
+    if zoho_field_blank?(record, 'Tiempo_de_respuesta_inicial')
+      start_time = last_non_human_activity(conversation)
+      updates['Tiempo_de_respuesta_inicial'] = ((timestamp.to_i - start_time.to_i) / 60.0).round
+    end
+    updates
+  end
+
+  def zoho_field_blank?(record, field)
+    record.blank? || record[field].blank?
   end
 
   def log_skip(message)
