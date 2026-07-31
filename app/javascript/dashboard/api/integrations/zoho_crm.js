@@ -15,7 +15,7 @@ class ZohoCrmAPI extends ApiClient {
 
   createLead(contactId, conversationId) {
     return axios.post(`${this.url}/create_lead`, {
-      contact_id:      contactId,
+      contact_id: contactId,
       conversation_id: conversationId,
     });
   }
@@ -29,15 +29,15 @@ class ZohoCrmAPI extends ApiClient {
 
   pushToCrm(contactId, conversationId) {
     return axios.post(`${this.url}/push_to_crm`, {
-      contact_id:      contactId,
+      contact_id: contactId,
       conversation_id: conversationId,
     });
   }
 
   createDeal(contactId, dealName, stage, closingDate) {
     return axios.post(`${this.url}/create_deal`, {
-      contact_id:   contactId,
-      deal_name:    dealName,
+      contact_id: contactId,
+      deal_name: dealName,
       stage,
       closing_date: closingDate,
     });
@@ -49,6 +49,10 @@ class ZohoCrmAPI extends ApiClient {
       content,
       title,
     });
+  }
+
+  syncDeals() {
+    return axios.post(`${this.url}/sync_deals`);
   }
 }
 
