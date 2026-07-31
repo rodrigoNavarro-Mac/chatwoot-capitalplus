@@ -15,18 +15,20 @@ const { t } = useI18n();
 
 const inboxes = useMapGetter('inboxes/getInboxes');
 
-// Un icono por etapa + un ancho relativo decreciente (ver FunnelStageMeter) para que las 4
+// Un icono por etapa + un ancho relativo decreciente (ver FunnelStageMeter) para que las 5
 // filas se lean como un embudo angostándose en vez de una lista plana de barras iguales.
 const STAGE_ICONS = {
   leads: 'i-lucide-users',
   customer_replied: 'i-lucide-message-circle',
   has_deal: 'i-lucide-handshake',
+  visita_efectiva: 'i-lucide-map-pin',
   closed_won: 'i-lucide-trophy',
 };
 const STAGE_TAPER = {
   leads: 100,
   customer_replied: 92,
   has_deal: 84,
+  visita_efectiva: 80,
   closed_won: 76,
 };
 

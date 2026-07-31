@@ -1,17 +1,24 @@
 # Arma el embudo de ventas por entrada (inbox de WhatsApp) y desarrollo:
-#   leads totales -> contestados por el cliente -> con deal en Zoho -> deal cerrado ganado
+#   leads totales -> contestados por el cliente -> con deal en Zoho -> visita efectiva ->
+#   deal cerrado ganado
 #
 # Cada etapa es subconjunto de la anterior (igual que un embudo real), y el % de cada etapa se
 # calcula sobre el total de leads de esa misma entrada. El "desarrollo" de una entrada es el que
 # ya usa el resto del sistema Zoho (agent_bot.bot_config['variables']['desarrollo'], ver
 # Api::V1::Accounts::Integrations::ZohoCrmController#bot_variables_for). El estado del deal
-# (existe / cerrado ganado) se lee de additional_attributes['external'] en el contacto, cacheado
-# por Crm::Zoho::DealsSyncJob (o por ZohoCrmController#create_deal al crearlo desde Chatwoot).
+# (existe / visita efectiva / cerrado ganado) se lee de additional_attributes['external'] en el
+# contacto, cacheado por Crm::Zoho::DealsSyncJob (o por ZohoCrmController#create_deal al crearlo
+# desde Chatwoot).
 class V2::Reports::SalesFunnelBuilder
   include DateRangeHelper
 
+  # Valores internos ("actual_value") del campo Stage en el pipeline de Deals de Zoho de esta
+  # cuenta — NO son los labels en español que se ven en la UI de Zoho (que están traducidos).
+  # Confirmado contra la API real: "Visita efectiva" -> Qualification, "Cotizado con visita" ->
+  # Needs Analysis, "Apartado" -> Id. Decision Makers, "Cerrado ganado" -> Closed Won.
+  VISITA_EFECTIVA_STAGES = ['Qualification', 'Needs Analysis', 'Id. Decision Makers', 'Closed Won'].freeze
   CLOSED_WON_STAGES = ['Closed Won'].freeze
-  STAGES = %w[leads customer_replied has_deal closed_won].freeze
+  STAGES = %w[leads customer_replied has_deal visita_efectiva closed_won].freeze
 
   attr_reader :account, :params
 
@@ -42,7 +49,8 @@ class V2::Reports::SalesFunnelBuilder
     leads = leads_with_zoho_link(first_conversation_pairs(inbox))
     replied = customer_replied(leads)
     with_deal = pairs_with_deal(replied)
-    won = closed_won(with_deal)
+    visited = visita_efectiva(with_deal)
+    won = closed_won(visited)
 
     {
       inbox_id: inbox.id,
@@ -52,6 +60,7 @@ class V2::Reports::SalesFunnelBuilder
         stage_metric('leads', leads.size, leads.size, development_key),
         stage_metric('customer_replied', replied.size, leads.size, development_key),
         stage_metric('has_deal', with_deal.size, leads.size, development_key),
+        stage_metric('visita_efectiva', visited.size, leads.size, development_key),
         stage_metric('closed_won', won.size, leads.size, development_key)
       ]
     }
@@ -93,6 +102,17 @@ class V2::Reports::SalesFunnelBuilder
 
   def pairs_with_deal(pairs)
     filter_pairs_by_contact(pairs, "additional_attributes -> 'external' ->> 'zoho_deal_id' IS NOT NULL")
+  end
+
+  def visita_efectiva(pairs)
+    return [] if pairs.empty?
+
+    contact_ids = pairs.map(&:last)
+    visited_ids = Contact.where(id: contact_ids)
+                         .where("additional_attributes -> 'external' ->> 'zoho_deal_stage' IN (?)", VISITA_EFECTIVA_STAGES)
+                         .pluck(:id).to_set
+
+    pairs.select { |(_conversation_id, contact_id)| visited_ids.include?(contact_id) }
   end
 
   def closed_won(pairs)

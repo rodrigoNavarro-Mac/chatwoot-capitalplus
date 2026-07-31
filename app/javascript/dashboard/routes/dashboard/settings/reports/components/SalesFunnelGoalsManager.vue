@@ -16,7 +16,13 @@ const emit = defineEmits(['saved']);
 
 const { t } = useI18n();
 
-const STAGES = ['leads', 'customer_replied', 'has_deal', 'closed_won'];
+const STAGES = [
+  'leads',
+  'customer_replied',
+  'has_deal',
+  'visita_efectiva',
+  'closed_won',
+];
 
 const goals = ref([]);
 const isLoading = ref(false);

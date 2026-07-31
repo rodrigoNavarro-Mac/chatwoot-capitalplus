@@ -18,9 +18,9 @@
 #
 class SalesFunnelGoal < ApplicationRecord
   # Etapas del embudo que arma V2::Reports::SalesFunnelBuilder — ver ese builder para el
-  # significado exacto de cada una (leads totales, contestados por cliente, con deal, cerrado
-  # ganado).
-  STAGES = %w[leads customer_replied has_deal closed_won].freeze
+  # significado exacto de cada una (leads totales, contestados por cliente, con deal, visita
+  # efectiva, cerrado ganado).
+  STAGES = %w[leads customer_replied has_deal visita_efectiva closed_won].freeze
 
   belongs_to :account
 
