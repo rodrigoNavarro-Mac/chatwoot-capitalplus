@@ -414,6 +414,7 @@ Rails.application.routes.draw do
                 patch :update_stage
                 post :create_crm_note
                 post :push_to_crm
+                post :sync_deals
               end
             end
             resource :linear, controller: 'linear', only: [] do

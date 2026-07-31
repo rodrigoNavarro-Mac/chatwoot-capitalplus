@@ -677,6 +677,11 @@
   "SALES_FUNNEL_REPORTS": {
     "HEADER": "Sales funnel",
     "DESCRIPTION": "Measure conversion from leads to closed-won deals, cross-referencing Chatwoot with Zoho CRM, split by inbox and development.",
+    "SYNC": {
+      "BUTTON": "Sync now",
+      "SUCCESS": "Sync started — it may take a few minutes to show up",
+      "ERROR": "Could not start the sync"
+    },
     "FILTERS": {
       "SINCE": "Since",
       "UNTIL": "Until",

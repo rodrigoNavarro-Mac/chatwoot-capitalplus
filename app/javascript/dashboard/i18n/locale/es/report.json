@@ -677,6 +677,11 @@
   "SALES_FUNNEL_REPORTS": {
     "HEADER": "Embudo de ventas",
     "DESCRIPTION": "Mide la conversión de leads a deals cerrados ganados, cruzando datos de Chatwoot con Zoho CRM, separado por entrada y desarrollo.",
+    "SYNC": {
+      "BUTTON": "Sincronizar ahora",
+      "SUCCESS": "Sincronización iniciada — puede tardar unos minutos en reflejarse",
+      "ERROR": "No se pudo iniciar la sincronización"
+    },
     "FILTERS": {
       "SINCE": "Desde",
       "UNTIL": "Hasta",

@@ -82,5 +82,20 @@ describe Crm::Zoho::DealsSyncJob do
       expect { described_class.new.perform }.not_to raise_error
       expect(other_contact.reload.additional_attributes.dig('external', 'zoho_deal_id')).to eq('deal-2')
     end
+
+    it 'only syncs the given account when an account_id is passed (manual "sync now" trigger)' do
+      other_account = create(:account)
+      other_account.enable_features!('crm_integration')
+      create(:integrations_hook, :zoho_crm, account: other_account, status: 'enabled')
+      other_contact = create(:contact, account: other_account, phone_number: '+15559999999',
+                                       additional_attributes: { 'external' => { 'zoho_id' => 'lead-2' } })
+      create(:contact, account: account, phone_number: '+15551234567', additional_attributes: { 'external' => { 'zoho_id' => 'lead-1' } })
+      stub_zoho_deal(phone: '+15551234567', deal_id: 'deal-1', stage: 'Closed Won')
+      stub_zoho_deal(phone: '+15559999999', deal_id: 'deal-2', stage: 'Closed Won')
+
+      described_class.new.perform(account.id)
+
+      expect(other_contact.reload.additional_attributes.dig('external', 'zoho_deal_id')).to be_nil
+    end
   end
 end

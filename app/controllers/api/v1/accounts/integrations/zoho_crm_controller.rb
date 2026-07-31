@@ -20,8 +20,16 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
     'desarrollo'  => 'Desarollo'
   }.freeze
   before_action :fetch_hook
-  before_action :load_contact
+  before_action :load_contact, except: [:sync_deals]
   before_action :require_zoho_link, only: %i[contact_data update_stage create_crm_note create_deal push_to_crm]
+
+  # Encola Crm::Zoho::DealsSyncJob solo para esta cuenta (a diferencia de la corrida del cron,
+  # que sincroniza todas las cuentas con Zoho CRM habilitado) — botón "Sincronizar ahora" del
+  # reporte de embudo de ventas.
+  def sync_deals
+    Crm::Zoho::DealsSyncJob.perform_later(Current.account.id)
+    render json: { success: true }
+  end
 
   def contact_data
     rec = fetch_record

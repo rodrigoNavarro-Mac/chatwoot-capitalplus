@@ -14,8 +14,13 @@ class Crm::Zoho::DealsSyncJob < ApplicationJob
   # lote). Se procesa en tandas para no acumular una sola corrida gigante de requests.
   BATCH_SIZE = 50
 
-  def perform
-    Integrations::Hook.enabled.where(app_id: 'zoho_crm').find_each do |hook|
+  # account_id: si se pasa, sincroniza solo esa cuenta (botón "Sincronizar ahora" del reporte);
+  # si se omite, sincroniza todas las cuentas con Zoho CRM habilitado (corrida del cron).
+  def perform(account_id = nil)
+    hooks = Integrations::Hook.enabled.where(app_id: 'zoho_crm')
+    hooks = hooks.where(account_id: account_id) if account_id
+
+    hooks.find_each do |hook|
       sync_hook(hook)
     rescue StandardError => e
       Rails.logger.error "[Crm::Zoho::DealsSyncJob] hook=#{hook.id} error=#{e.message}"

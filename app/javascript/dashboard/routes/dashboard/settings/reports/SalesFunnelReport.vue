@@ -4,10 +4,12 @@ import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import ReportsAPI from 'dashboard/api/reports';
+import ZohoCrmAPI from 'dashboard/api/integrations/zoho_crm';
 import ReportHeader from './components/ReportHeader.vue';
 import FunnelStageMeter from './components/FunnelStageMeter.vue';
 import SalesFunnelGoalsManager from './components/SalesFunnelGoalsManager.vue';
 import Spinner from 'shared/components/Spinner.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 
 const { t } = useI18n();
 
@@ -81,6 +83,24 @@ const fetchReport = async () => {
 
 onMounted(fetchReport);
 watch(filters, fetchReport, { deep: true });
+
+const isSyncingDeals = ref(false);
+
+// Encola Crm::Zoho::DealsSyncJob para esta cuenta (corre en background — el job normalmente
+// corre solo/hora vía cron, este botón es para no tener que esperar la hora en punto). No
+// refresca el reporte automáticamente: el job puede tardar y no hay forma de saber cuándo
+// termina desde aquí.
+const syncDeals = async () => {
+  isSyncingDeals.value = true;
+  try {
+    await ZohoCrmAPI.syncDeals();
+    useAlert(t('SALES_FUNNEL_REPORTS.SYNC.SUCCESS'));
+  } catch (error) {
+    useAlert(t('SALES_FUNNEL_REPORTS.SYNC.ERROR'));
+  } finally {
+    isSyncingDeals.value = false;
+  }
+};
 </script>
 
 <template>
@@ -89,7 +109,16 @@ watch(filters, fetchReport, { deep: true });
       <ReportHeader
         :header-title="t('SALES_FUNNEL_REPORTS.HEADER')"
         :header-description="t('SALES_FUNNEL_REPORTS.DESCRIPTION')"
-      />
+      >
+        <Button
+          size="sm"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          :is-loading="isSyncingDeals"
+          :label="t('SALES_FUNNEL_REPORTS.SYNC.BUTTON')"
+          @click="syncDeals"
+        />
+      </ReportHeader>
 
       <div class="flex flex-wrap items-end gap-3 mb-6">
         <div class="flex flex-col gap-1">
