@@ -10,6 +10,13 @@ describe SalesFunnelGoal do
     expect(goal).to be_valid
   end
 
+  it 'accepts visita_efectiva as a valid stage' do
+    goal = described_class.new(account: account, development_key: 'torre-1', stage: 'visita_efectiva',
+                                period_month: Date.current, target_percent: 30)
+
+    expect(goal).to be_valid
+  end
+
   it 'rejects a stage outside STAGES' do
     goal = described_class.new(account: account, development_key: 'torre-1', stage: 'not_a_stage',
                                 period_month: Date.current, target_percent: 30)

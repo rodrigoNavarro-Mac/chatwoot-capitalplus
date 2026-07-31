@@ -68,6 +68,26 @@ describe V2::Reports::SalesFunnelBuilder do
       expect(stage(rows, 'closed_won')[:count]).to eq(1)
     end
 
+    it 'counts visita_efectiva for deals cached in any of the post-visit Zoho stages' do
+      create_lead(replied: true, zoho_deal_id: 'deal-1', zoho_deal_stage: 'Qualification')
+      create_lead(replied: true, zoho_deal_id: 'deal-2', zoho_deal_stage: 'Needs Analysis')
+      create_lead(replied: true, zoho_deal_id: 'deal-3', zoho_deal_stage: 'Id. Decision Makers')
+      create_lead(replied: true, zoho_deal_id: 'deal-4', zoho_deal_stage: 'Cotizado sin cita')
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'visita_efectiva')[:count]).to eq(3)
+    end
+
+    it 'counts a closed_won deal under visita_efectiva too, since closing implies the visit already happened' do
+      create_lead(replied: true, zoho_deal_id: 'deal-1', zoho_deal_stage: 'Closed Won')
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'visita_efectiva')[:count]).to eq(1)
+      expect(stage(rows, 'closed_won')[:count]).to eq(1)
+    end
+
     it "only counts a contact under the inbox of their globally-earliest conversation (their true point of entry)" do
       other_channel = create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', validate_provider_config: false, sync_templates: false)
       other_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'torre-2' } })
