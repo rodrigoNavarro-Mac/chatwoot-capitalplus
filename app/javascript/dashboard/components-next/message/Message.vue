@@ -4,6 +4,7 @@ import { useTimeoutFn } from '@vueuse/core';
 import { provideMessageContext } from './provider.js';
 import { useTrack } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { emitter } from 'shared/helpers/mitt';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -148,12 +149,36 @@ const route = useRoute();
 const inboxGetter = useMapGetter('inboxes/getInbox');
 const inbox = computed(() => inboxGetter.value(props.inboxId) || {});
 const { replaceInstallationName } = useBranding();
+const { isAdmin } = useAdmin();
+
+const isMessageDeleted = computed(() => {
+  return props.contentAttributes?.deleted;
+});
+
+// Admins can still see the original content of a deleted message, marked
+// clearly as deleted, so conversation traceability isn't lost when an
+// agent deletes a message.
+const showOriginalDeletedContent = computed(() => {
+  return (
+    isMessageDeleted.value &&
+    isAdmin.value &&
+    !!props.contentAttributes?.originalContent
+  );
+});
+
+const displayContent = computed(() => {
+  return showOriginalDeletedContent.value
+    ? props.contentAttributes.originalContent
+    : props.content;
+});
 
 /**
  * Computes the message variant based on props
  * @type {import('vue').ComputedRef<'user'|'agent'|'activity'|'private'|'bot'|'template'>}
  */
 const variant = computed(() => {
+  if (showOriginalDeletedContent.value) return MESSAGE_VARIANTS.DELETED;
+
   if (props.private) return MESSAGE_VARIANTS.PRIVATE;
 
   if (props.isEmailInbox) {
@@ -355,10 +380,6 @@ const isBubble = computed(() => {
   return props.messageType !== MESSAGE_TYPES.ACTIVITY;
 });
 
-const isMessageDeleted = computed(() => {
-  return props.contentAttributes?.deleted;
-});
-
 const payloadForContextMenu = computed(() => {
   return {
     id: props.id,
@@ -509,7 +530,9 @@ onMounted(setupHighlightTimer);
 
 provideMessageContext({
   ...toRefs(props),
+  content: displayContent,
   isPrivate: computed(() => props.private),
+  isDeletedForAdmin: showOriginalDeletedContent,
   variant,
   orientation,
   isBotOrAgentMessage,

@@ -19,8 +19,13 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def destroy
+    original_content = message.content
     ActiveRecord::Base.transaction do
-      message.update!(content: I18n.t('conversations.messages.deleted'), content_type: :text, content_attributes: { deleted: true })
+      message.update!(
+        content: I18n.t('conversations.messages.deleted'),
+        content_type: :text,
+        content_attributes: message.content_attributes.merge(deleted: true, original_content: original_content)
+      )
       message.attachments.destroy_all
     end
   end

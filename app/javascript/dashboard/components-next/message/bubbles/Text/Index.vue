@@ -8,8 +8,13 @@ import { MESSAGE_TYPES } from '../../constants';
 import { useMessageContext } from '../../provider.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
 
-const { content, attachments, contentAttributes, messageType } =
-  useMessageContext();
+const {
+  content,
+  attachments,
+  contentAttributes,
+  messageType,
+  isDeletedForAdmin,
+} = useMessageContext();
 
 const { hasTranslations, translationContent } =
   useTranslations(contentAttributes);
@@ -44,6 +49,12 @@ const handleSeeOriginal = () => {
 <template>
   <BaseBubble class="px-4 py-3" data-bubble-name="text">
     <div class="gap-3 flex flex-col">
+      <span
+        v-if="isDeletedForAdmin"
+        class="text-xs font-medium uppercase tracking-wide text-n-ruby-11"
+      >
+        {{ $t('CONVERSATION.DELETED_MESSAGE_LABEL') }}
+      </span>
       <span v-if="isEmpty" class="text-n-slate-11">
         {{ $t('CONVERSATION.NO_CONTENT') }}
       </span>

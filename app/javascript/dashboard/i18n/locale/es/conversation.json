@@ -71,6 +71,7 @@
     "RATING_TITLE": "Calificación",
     "FEEDBACK_TITLE": "Comentarios",
     "REPLY_MESSAGE_NOT_FOUND": "Mensaje no disponible",
+    "DELETED_MESSAGE_LABEL": "Eliminado",
     "CARD": {
       "SHOW_LABELS": "Mostrar etiquetas",
       "HIDE_LABELS": "Ocultar etiquetas",
