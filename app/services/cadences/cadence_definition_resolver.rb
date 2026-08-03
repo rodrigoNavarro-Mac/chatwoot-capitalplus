@@ -4,14 +4,22 @@
 #    entre ellas por conteo (asigna la que hasta ahora tiene menos enrollments) — así se
 #    logra el reparto "1 y 1" de un A/B/N test sin depender de un contador aparte que se
 #    pueda desincronizar.
-# 3. Si no hay match (segmento vacío o sin CadenceDefinition configurada para ese valor),
-#    usa la marcada is_default para el inbox, si existe.
+# 3. Si no hay match (segmento vacío o ninguna CadenceDefinition configurada para ese
+#    valor), aplica el mismo reparto 1 y 1 entre todas las CadenceDefinition activas del
+#    inbox que no tengan segment_value configurado (catch-all) — así varias cadencias
+#    activas sin segmento (p. ej. is_default + otra más) también se reparten los leads en
+#    vez de que todo caiga siempre en la marcada is_default.
+# 4. Si tampoco hay ninguna catch-all activa, usa la marcada is_default para el inbox,
+#    si existe (failsafe por si alguna vez hay un default con segment_value configurado).
 class Cadences::CadenceDefinitionResolver
   pattr_initialize [:conversation!]
 
   def resolve
     matching = matching_definitions
     return least_used(matching) if matching.any?
+
+    catch_all = catch_all_definitions
+    return least_used(catch_all) if catch_all.any?
 
     default_definition
   end
@@ -23,6 +31,10 @@ class Cadences::CadenceDefinitionResolver
     return [] if segment_value.blank?
 
     CadenceDefinition.active.for_inbox(conversation.inbox_id).matching_segment(segment_value).to_a
+  end
+
+  def catch_all_definitions
+    CadenceDefinition.active.for_inbox(conversation.inbox_id).without_segment.to_a
   end
 
   def least_used(candidates)

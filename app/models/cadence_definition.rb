@@ -23,8 +23,10 @@
 # Cadences::RazonCompraResolver) coincida con ese valor; varias CadenceDefinition activas
 # pueden compartir el mismo segment_value para correr un A/B/N test entre ellas —
 # Cadences::CadenceDefinitionResolver reparte los leads nuevos por conteo (la que tenga
-# menos enrollments hasta ahora). is_default marca la que atrapa a los leads sin segmento
-# que matchee (a lo sumo una por inbox).
+# menos enrollments hasta ahora). Ese mismo reparto 1 y 1 aplica también entre las
+# CadenceDefinition activas sin segment_value (catch-all) cuando el lead no matchea
+# ningún segmento. is_default solo marca cuál mostrar como la "por defecto" en el panel
+# (a lo sumo una por inbox); no implica que sea la única que reciba leads sin segmento.
 class CadenceDefinition < ApplicationRecord
   belongs_to :account
   belongs_to :inbox
@@ -38,6 +40,7 @@ class CadenceDefinition < ApplicationRecord
   scope :active, -> { where(active: true) }
   scope :for_inbox, ->(inbox_id) { where(inbox_id: inbox_id) }
   scope :matching_segment, ->(value) { where(segment_value: value) }
+  scope :without_segment, -> { where(segment_value: [nil, '']) }
 
   # Solo puede haber un default por inbox (índice único parcial); despejar el anterior y
   # marcar este en una transacción evita chocar contra esa restricción al reasignarlo.
