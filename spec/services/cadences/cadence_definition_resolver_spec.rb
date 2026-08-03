@@ -54,6 +54,20 @@ describe Cadences::CadenceDefinitionResolver do
       expect(described_class.new(conversation: conversation).resolve).to eq(default_definition)
     end
 
+    it 'balances leads between several active catch-all definitions (no shared segment) by least enrollment count' do
+      default_definition = build_definition(is_default: true)
+      other_definition = build_definition
+
+      other_contact = create(:contact, account: account, phone_number: '+15557654321')
+      other_conversation = create(:conversation, account: account, inbox: whatsapp_inbox, contact: other_contact, status: 'open')
+      CadenceEnrollment.create!(
+        account: account, conversation: other_conversation, contact: other_contact, inbox: whatsapp_inbox,
+        cadence_definition: default_definition
+      )
+
+      expect(described_class.new(conversation: conversation).resolve).to eq(other_definition)
+    end
+
     it 'returns nil when nothing matches and there is no default' do
       build_definition(segment_value: 'Vivienda')
 
