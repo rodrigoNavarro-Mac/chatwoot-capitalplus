@@ -15,11 +15,11 @@ fi
 
 echo "==> Actualizando código..."
 cd /opt/chatwoot
-git pull origin develop
+git pull origin main
 
-echo "==> Construyendo imagen Docker..."
+echo "==> Descargando última imagen Docker desde GHCR..."
 cd /opt/chatwoot/deploy
-docker compose -f docker-compose.production.yml build rails
+docker compose -f docker-compose.production.yml pull rails
 
 # Primer deploy: obtener certificado SSL antes de levantar nginx con HTTPS
 if [ "$FIRST_RUN" = true ]; then

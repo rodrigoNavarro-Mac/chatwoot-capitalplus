@@ -1,10 +1,14 @@
 version: '3.8'
 
 x-app: &app
-  build:
-    context: ..
-    dockerfile: docker/Dockerfile
-  image: chatwoot-capitalplus:latest
+  # Build local deshabilitado: la imagen ahora se compila en GitHub Actions
+  # y se publica en ghcr.io (ver .github/workflows/build_production_image.yml).
+  # Se deja comentado como fallback manual por si algún día hace falta
+  # reconstruir directamente en el servidor (docker compose build rails).
+  # build:
+  #   context: ..
+  #   dockerfile: docker/Dockerfile
+  image: ghcr.io/rodrigonavarro-mac/chatwoot-capitalplus:latest
   env_file: .env.production
   restart: unless-stopped
   depends_on:
