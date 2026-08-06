@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Bar } from 'vue-chartjs';
 import {
   Chart as ChartJS,
@@ -70,8 +70,15 @@ const defaultChartOptions = {
 const options = computed(() => {
   return { ...defaultChartOptions, ...props.chartOptions };
 });
+
+// Reexpone la instancia de Chart.js del <Bar> interno (vue-chartjs) para que un padre pueda
+// exportarla a imagen (chart.toBase64Image()), p. ej. para incrustarla en un PDF.
+const barRef = ref(null);
+defineExpose({
+  chart: computed(() => barRef.value?.chart),
+});
 </script>
 
 <template>
-  <Bar :data="collection" :options="options" />
+  <Bar ref="barRef" :data="collection" :options="options" />
 </template>

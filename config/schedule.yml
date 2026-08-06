@@ -105,3 +105,11 @@ zoho_deals_sync_job:
   cron: '0 * * * *'
   class: 'Crm::Zoho::DealsSyncJob'
   queue: scheduled_jobs
+
+# executed every monday at 0600 UTC
+# genera el reporte semanal operativo (KPIs + análisis LLM) de la semana recién cerrada, por
+# cada inbox con una cadencia activa
+generate_weekly_ops_report_job:
+  cron: '0 6 * * 1'
+  class: 'Reports::GenerateWeeklyOpsReportJob'
+  queue: scheduled_jobs

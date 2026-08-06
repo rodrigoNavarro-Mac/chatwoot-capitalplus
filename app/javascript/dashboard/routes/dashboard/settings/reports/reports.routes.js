@@ -25,6 +25,7 @@ import LiveReports from './LiveReports.vue';
 import SLAReports from './SLAReports.vue';
 import TemplatesReports from './TemplatesReports.vue';
 import SalesFunnelReport from './SalesFunnelReport.vue';
+import WeeklyOpsReport from './WeeklyOpsReport.vue';
 
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
@@ -181,6 +182,12 @@ export default {
           name: 'sales_funnel_reports',
           meta,
           component: SalesFunnelReport,
+        },
+        {
+          path: 'weekly_ops',
+          name: 'weekly_ops_reports',
+          meta,
+          component: WeeklyOpsReport,
         },
       ],
     },

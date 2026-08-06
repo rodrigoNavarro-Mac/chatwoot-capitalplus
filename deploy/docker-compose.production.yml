@@ -61,6 +61,13 @@ services:
     volumes:
       - redis_data:/data
 
+  # Convierte los .docx con membrete a PDF (LibreOffice headless por dentro).
+  # Ver Reports::DocxToPdfConverterService — sin puertos expuestos, solo accesible
+  # dentro de la red de docker-compose (igual que redis/postgres).
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped

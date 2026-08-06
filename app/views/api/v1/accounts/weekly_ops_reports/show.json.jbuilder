@@ -1,0 +1,9 @@
+json.id @weekly_ops_report.id
+json.inbox_id @weekly_ops_report.inbox_id
+json.period_start @weekly_ops_report.period_start
+json.period_end @weekly_ops_report.period_end
+json.status @weekly_ops_report.status
+json.kpis @weekly_ops_report.kpis
+json.llm_analysis @weekly_ops_report.llm_analysis
+json.generated_by_id @weekly_ops_report.generated_by_id
+json.created_at @weekly_ops_report.created_at

@@ -724,6 +724,58 @@
       "FETCH": "Could not fetch the sales funnel report"
     }
   },
+  "WEEKLY_OPS_REPORTS": {
+    "HEADER": "Weekly ops report",
+    "DESCRIPTION": "Contact times, sales pipeline, cadence performance and campaign results for one development, with an executive analysis written by AI.",
+    "GENERATE": "Generate report",
+    "DOWNLOAD_PDF": "Download PDF",
+    "EMPTY": "Select a development and a period, then generate the report",
+    "FILTERS": {
+      "INBOX": "Development",
+      "SELECT_INBOX": "Select a development",
+      "SINCE": "Since",
+      "UNTIL": "Until"
+    },
+    "CONTACT_TIME": {
+      "TITLE": "Contact time",
+      "FIRST_RESPONSE": "Time to advisor's first message",
+      "FIRST_RESPONSE_INFO": "Average time from the customer's first message to the advisor's first reply in the conversation.",
+      "REPLY_TIME": "Initial response time",
+      "REPLY_TIME_INFO": "Average reply time across the conversation."
+    },
+    "VOLUME": {
+      "NEW_CONVERSATIONS": "New conversations",
+      "NEW_CONVERSATIONS_INFO": "Conversations started in this development during the selected period."
+    },
+    "PIPELINE": {
+      "TITLE": "Sales pipeline"
+    },
+    "CADENCES": {
+      "RESPONSE_RATE": "Cadence response rate",
+      "RESPONSE_RATE_INFO": "Share of leads enrolled in a follow-up cadence that replied at least once.",
+      "BY_STATUS": "Cadence enrollments by status"
+    },
+    "ANALYSIS": {
+      "TITLE": "Executive analysis"
+    },
+    "CHART": {
+      "CURRENT_PERIOD": "Current period",
+      "PREVIOUS_PERIOD": "Previous period"
+    },
+    "BRANDING": {
+      "TOGGLE": "Customize PDF branding",
+      "ACCENT_COLOR": "Accent color",
+      "LOGO": "Logo",
+      "LETTERHEAD_TEMPLATE": "Letterhead template (.docx)",
+      "SAVE": "Save",
+      "SAVED": "Branding saved",
+      "ERROR": "Could not save the branding"
+    },
+    "ERRORS": {
+      "GENERATE": "Could not generate the report",
+      "DOWNLOAD": "Could not download the PDF"
+    }
+  },
   "SUMMARY_REPORTS": {
     "INBOX": "Inbox",
     "AGENT": "Agent",
