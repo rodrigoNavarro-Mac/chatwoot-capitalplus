@@ -77,6 +77,13 @@ class Inbox < ApplicationRecord
   has_one :agent_bot, through: :agent_bot_inbox
   has_many :webhooks, dependent: :destroy_async
   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
+  has_many :weekly_ops_reports, dependent: :destroy_async
+  # dependent: :destroy (no async): un has_one con :destroy_async dispara
+  # ActiveRecord::DestroyAssociationAsyncJob al reemplazar el registro (p. ej. al guardar un nuevo
+  # branding sobre uno existente), y ese job puede correr después de la nueva inserción y toparse
+  # con datos ya reemplazados — se vio como adjuntos (letterhead_template) que se guardaban bien
+  # en el request pero desaparecían segundos después. destroy síncrono evita la carrera.
+  has_one :report_branding, class_name: 'Reports::InboxBranding', dependent: :destroy
 
   enum sender_name_type: { friendly: 0, professional: 1 }
 

@@ -312,6 +312,11 @@ Rails.application.routes.draw do
             resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates' do
               post :analyze, on: :collection
             end
+
+            resources :weekly_ops_reports, only: [:index, :show, :create] do
+              post :pdf, on: :member
+            end
+            resource :report_branding, only: [:show, :update], controller: 'inbox_brandings'
           end
 
           resources :inbox_members, only: [:create, :show], param: :inbox_id do

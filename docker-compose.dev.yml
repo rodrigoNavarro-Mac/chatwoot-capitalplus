@@ -50,6 +50,12 @@ services:
       - "1025:1025"   # SMTP
       - "8025:8025"   # Web UI → http://localhost:8025
 
+  # Convierte los .docx con membrete a PDF (LibreOffice headless por dentro).
+  # Ver Reports::DocxToPdfConverterService — solo accesible dentro de la red de docker-compose.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+
   # ─── Inicialización de permisos ───────────────────────────────────────────────
   # Corre una sola vez para que el usuario vscode (UID 1000) pueda escribir
   # en los volúmenes creados por Docker como root.

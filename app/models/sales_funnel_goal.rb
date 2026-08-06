@@ -2,14 +2,14 @@
 #
 # Table name: sales_funnel_goals
 #
-#  id               :bigint           not null, primary key
-#  development_key  :string           not null
-#  period_month     :date             not null
-#  stage            :string           not null
-#  target_percent   :decimal(5, 2)    default(0.0), not null
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  account_id       :bigint           not null
+#  id              :bigint           not null, primary key
+#  development_key :string           not null
+#  period_month    :date             not null
+#  stage           :string           not null
+#  target_percent  :decimal(5, 2)    default(0.0), not null
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  account_id      :bigint           not null
 #
 # Indexes
 #

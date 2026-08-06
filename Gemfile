@@ -59,6 +59,7 @@ gem 'google-cloud-storage', '>= 1.48.0', require: false
 gem 'image_processing'
 gem 'prawn'
 gem 'prawn-table'
+gem 'rubyzip', require: 'zip'
 
 ##-- for actionmailbox --##
 gem 'aws-actionmailbox-ses', '~> 0'

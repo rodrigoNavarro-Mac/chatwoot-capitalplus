@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_30_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_05_100100) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1323,6 +1323,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_30_120000) do
     t.index ["account_id", "metric", "date"], name: "index_rollup_timeseries"
   end
 
+  create_table "reports_inbox_brandings", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.string "accent_color"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_reports_inbox_brandings_on_account_id"
+    t.index ["inbox_id"], name: "index_reports_inbox_brandings_on_inbox_id", unique: true
+  end
+
   create_table "sales_funnel_goals", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "development_key", null: false
@@ -1463,6 +1473,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_30_120000) do
     t.string "name"
     t.string "secret"
     t.index ["account_id", "url"], name: "index_webhooks_on_account_id_and_url", unique: true
+  end
+
+  create_table "weekly_ops_reports", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.bigint "generated_by_id"
+    t.date "period_start", null: false
+    t.date "period_end", null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "kpis", default: {}, null: false
+    t.text "llm_analysis"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_weekly_ops_reports_on_account_id"
+    t.index ["generated_by_id"], name: "index_weekly_ops_reports_on_generated_by_id"
+    t.index ["inbox_id", "period_start"], name: "index_weekly_ops_reports_on_inbox_and_period_start", unique: true
   end
 
   create_table "working_hours", force: :cascade do |t|

@@ -724,6 +724,58 @@
       "FETCH": "No se pudo obtener el reporte de embudo de ventas"
     }
   },
+  "WEEKLY_OPS_REPORTS": {
+    "HEADER": "Reporte semanal operativo",
+    "DESCRIPTION": "Tiempos de contacto, embudo de ventas, desempeño de cadencias y resultados de campañas de un desarrollo, con un análisis ejecutivo redactado por IA.",
+    "GENERATE": "Generar reporte",
+    "DOWNLOAD_PDF": "Descargar PDF",
+    "EMPTY": "Selecciona un desarrollo y un periodo, luego genera el reporte",
+    "FILTERS": {
+      "INBOX": "Desarrollo",
+      "SELECT_INBOX": "Selecciona un desarrollo",
+      "SINCE": "Desde",
+      "UNTIL": "Hasta"
+    },
+    "CONTACT_TIME": {
+      "TITLE": "Tiempos de contacto",
+      "FIRST_RESPONSE": "Tiempo hasta primer mensaje de asesor",
+      "FIRST_RESPONSE_INFO": "Tiempo promedio desde el primer mensaje del cliente hasta la primera respuesta del asesor en la conversación.",
+      "REPLY_TIME": "Tiempo de respuesta inicial",
+      "REPLY_TIME_INFO": "Tiempo promedio de respuesta del asesor a lo largo de la conversación."
+    },
+    "VOLUME": {
+      "NEW_CONVERSATIONS": "Conversaciones nuevas",
+      "NEW_CONVERSATIONS_INFO": "Conversaciones iniciadas en este desarrollo durante el periodo seleccionado."
+    },
+    "PIPELINE": {
+      "TITLE": "Embudo de ventas"
+    },
+    "CADENCES": {
+      "RESPONSE_RATE": "Tasa de respuesta de cadencia",
+      "RESPONSE_RATE_INFO": "Porcentaje de leads inscritos en una cadencia de seguimiento que respondieron al menos una vez.",
+      "BY_STATUS": "Inscripciones de cadencia por estado"
+    },
+    "ANALYSIS": {
+      "TITLE": "Análisis ejecutivo"
+    },
+    "CHART": {
+      "CURRENT_PERIOD": "Periodo actual",
+      "PREVIOUS_PERIOD": "Periodo anterior"
+    },
+    "BRANDING": {
+      "TOGGLE": "Personalizar branding del PDF",
+      "ACCENT_COLOR": "Color de acento",
+      "LOGO": "Logo",
+      "LETTERHEAD_TEMPLATE": "Plantilla con membrete (.docx)",
+      "SAVE": "Guardar",
+      "SAVED": "Branding guardado",
+      "ERROR": "No se pudo guardar el branding"
+    },
+    "ERRORS": {
+      "GENERATE": "No se pudo generar el reporte",
+      "DOWNLOAD": "No se pudo descargar el PDF"
+    }
+  },
   "SUMMARY_REPORTS": {
     "INBOX": "Bandeja de entrada",
     "AGENT": "Agente",
