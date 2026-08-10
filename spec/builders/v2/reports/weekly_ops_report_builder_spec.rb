@@ -47,7 +47,7 @@ describe V2::Reports::WeeklyOpsReportBuilder do
     end
 
     describe 'by_advisor' do
-      it 'includes advisors with conversations and/or contact-time events, sorted by conversations_count desc' do
+      it 'includes advisors with assigned conversations, sorted by conversations_count desc' do
         agent_a = create(:user, account: account, name: 'Agent A')
         agent_b = create(:user, account: account, name: 'Agent B')
 
@@ -70,6 +70,16 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       end
 
       it 'returns an empty array when the inbox has no advisor activity in range' do
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:by_advisor]).to eq([])
+      end
+
+      it 'excludes agents with contact-time events but no assigned conversations in range' do
+        agent = create(:user, account: account, name: 'Agent Without Assignments')
+        create(:reporting_event, account: account, inbox: inbox, user: agent, name: 'first_response',
+                                 value_in_business_hours: 600.0, created_at: 2.days.ago)
+
         result = described_class.new(account: account, inbox: inbox, params: params).build
 
         expect(result[:by_advisor]).to eq([])

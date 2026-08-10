@@ -99,11 +99,11 @@ class V2::Reports::WeeklyOpsReportBuilder
                       .sort_by { |advisor| -advisor[:conversations_count] }
   end
 
+  # Solo agentes con al menos una conversación asignada en el periodo — un agente que solo
+  # respondió un mensaje puntual sin quedar asignado (o una cuenta de admin/prueba) no cuenta
+  # como "asesor" para efectos de este desglose.
   def relevant_agent_ids
-    assignee_ids = advisor_conversations_scope.where.not(assignee_id: nil).distinct.pluck(:assignee_id)
-    event_agent_ids = contact_time_events.where.not(user_id: nil).distinct.pluck(:user_id)
-
-    assignee_ids | event_agent_ids
+    advisor_conversations_scope.where.not(assignee_id: nil).distinct.pluck(:assignee_id)
   end
 
   def advisor_conversations_scope
