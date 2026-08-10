@@ -69,4 +69,32 @@ describe Crm::Zoho::Api::LeadsClient do
       expect(WebMock).not_to have_requested(:get, %r{zohoapis\.com/crm/v7/Leads/search})
     end
   end
+
+  describe '#search_by_criteria' do
+    it 'sends the given criteria, page and per_page, and returns data with more_records' do
+      stub = stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+             .with do |request|
+               query = CGI.parse(URI(request.uri).query)
+               query['criteria'].first == '(Desarrollo:equals:Fuego)' && query['page'].first == '2' && query['per_page'].first == '50'
+             end
+             .to_return(
+               status: 200,
+               body: { data: [{ 'id' => 'lead-1' }], info: { more_records: true } }.to_json,
+               headers: { 'Content-Type' => 'application/json' }
+             )
+
+      result = described_class.new(hook).search_by_criteria('(Desarrollo:equals:Fuego)', page: 2, per_page: 50)
+
+      expect(result).to eq(data: [{ 'id' => 'lead-1' }], more_records: true)
+      expect(stub).to have_been_requested
+    end
+
+    it 'returns an empty result without raising when Zoho responds with 204 (no results)' do
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search}).to_return(status: 204, body: '')
+
+      result = described_class.new(hook).search_by_criteria('(Desarrollo:equals:Fuego)')
+
+      expect(result).to eq(data: [], more_records: false)
+    end
+  end
 end

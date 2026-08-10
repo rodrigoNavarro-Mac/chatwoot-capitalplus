@@ -22,6 +22,25 @@ class V2::Reports::WeeklyOpsReportBuilder
 
   CONTACT_TIME_METRICS = %w[first_response reply_time].freeze
 
+  # Valores internos ("actual_value") del campo Lead_Status en Zoho de esta cuenta, confirmados
+  # contra la API real (Api::CRM::getFields sobre el módulo Leads) — no son los labels en español
+  # que se ven en la UI de Zoho (que están traducidos). Mismo criterio que
+  # V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES para el Stage de Deals.
+  LEAD_STATUS_LABELS = {
+    'Nuevo contacto' => 'Nuevo contacto',
+    'Attempted to Contact' => 'Intento de contacto',
+    'Contact in Future' => 'Contactar en el futuro',
+    'Contacted' => 'Contactado',
+    'Calificado' => 'Calificado',
+    'Lost Lead' => 'Cliente perdido/Descartado',
+    'Pre-Qualified' => 'Previamente clasificado',
+    'Not Contacted' => 'Contacto no exitoso',
+    'Not Qualified' => 'No habilitado',
+    'Junk Lead' => 'Posible cliente no solicitado'
+  }.freeze
+  LOST_LEAD_STATUS = 'Lost Lead'.freeze
+  CONTACTED_STATUS = 'Contacted'.freeze
+
   attr_reader :account, :inbox, :params
 
   def initialize(account:, inbox:, params:, include_comparison: true)
@@ -40,6 +59,7 @@ class V2::Reports::WeeklyOpsReportBuilder
       contact_time: contact_time_metrics,
       by_advisor: by_advisor_metrics,
       pipeline: pipeline_metrics,
+      zoho_leads: zoho_leads_metrics,
       cadences: cadence_metrics,
       campaigns: campaign_metrics,
       comparison: include_comparison? ? comparison_metrics : nil
@@ -127,6 +147,44 @@ class V2::Reports::WeeklyOpsReportBuilder
 
   def pipeline_metrics
     V2::Reports::SalesFunnelBuilder.new(account: account, params: params.merge(inbox_ids: [inbox.id])).build.first
+  end
+
+  # Distribución de leads de Zoho (estado, fuente, motivo de descarte) para este desarrollo y
+  # periodo — consultado en vivo (ver Crm::Zoho::LeadsForPeriodService), a diferencia de
+  # #pipeline_metrics que solo mira contactos que ya tienen conversación en Chatwoot. Si el inbox
+  # no tiene "desarrollo" configurado, o Zoho no responde, no bloquea el resto del reporte: queda
+  # en nil y el frontend/PDF/docx simplemente omiten la sección.
+  def zoho_leads_metrics
+    return nil if development_key.blank? || range.blank?
+
+    leads = zoho_leads
+    return nil if leads.blank?
+
+    lost_leads = leads.select { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
+    quality_count = leads.count { |lead| lead['Lead_Status'] == CONTACTED_STATUS }
+
+    {
+      total: leads.size,
+      by_status: count_by(leads, 'Lead_Status', LEAD_STATUS_LABELS),
+      by_source: count_by(leads, 'Lead_Source'),
+      discard_reasons: count_by(lost_leads, 'Raz_n_de_descarte'),
+      quality_leads_count: quality_count,
+      quality_leads_percent: safe_rate(quality_count, leads.size)
+    }
+  end
+
+  def zoho_leads
+    Crm::Zoho::LeadsForPeriodService.new(account: account, development_key: development_key, range: range).fetch
+  end
+
+  def development_key
+    inbox.agent_bot&.bot_config&.dig('variables', 'desarrollo')
+  end
+
+  def count_by(leads, field, labels = nil)
+    leads.filter_map { |lead| lead[field] }
+         .tally
+         .transform_keys { |value| labels ? labels.fetch(value, value) : value }
   end
 
   def cadence_metrics

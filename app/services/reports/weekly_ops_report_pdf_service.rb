@@ -24,6 +24,9 @@ class Reports::WeeklyOpsReportPdfService
     render_header(pdf)
     render_summary_table(pdf)
     render_by_advisor_table(pdf)
+    render_pipeline_status_table(pdf)
+    render_lead_source_table(pdf)
+    render_discard_reasons_table(pdf)
     render_charts(pdf)
     render_analysis(pdf)
 
@@ -91,6 +94,44 @@ class Reports::WeeklyOpsReportPdfService
     pdf.move_down(6)
 
     header = ['Asesor', 'Conversaciones', 'Tiempo 1er mensaje (min)', 'Tiempo de respuesta (min)']
+    pdf.table([header] + rows, header: true, width: pdf.bounds.width) do |t|
+      t.row(0).font_style = :bold
+      t.row(0).background_color = accent_color
+    end
+    pdf.move_down(15)
+  end
+
+  def render_pipeline_status_table(pdf)
+    render_distribution_table(pdf, 'Distribución del pipeline', %w[Estado Leads %], pipeline_status_rows(kpis))
+  end
+
+  def render_lead_source_table(pdf)
+    rows = lead_source_rows(kpis)
+    return if rows.blank?
+
+    render_distribution_table(pdf, 'Fuentes de prospectos', %w[Fuente Leads %], rows)
+    render_quality_leads_line(pdf)
+  end
+
+  def render_quality_leads_line(pdf)
+    zoho_leads = kpis[:zoho_leads] || {}
+    count = zoho_leads[:quality_leads_count]
+    return if count.nil?
+
+    pdf.font_size(10) { pdf.text("Leads de calidad: #{count} (#{zoho_leads[:quality_leads_percent]}%)") }
+    pdf.move_down(15)
+  end
+
+  def render_discard_reasons_table(pdf)
+    render_distribution_table(pdf, 'Motivos de descarte', %w[Motivo Leads %], discard_reason_rows(kpis))
+  end
+
+  def render_distribution_table(pdf, title, header, rows)
+    return if rows.blank?
+
+    pdf.font_size(14) { pdf.text(title, style: :bold) }
+    pdf.move_down(6)
+
     pdf.table([header] + rows, header: true, width: pdf.bounds.width) do |t|
       t.row(0).font_style = :bold
       t.row(0).background_color = accent_color

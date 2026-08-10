@@ -32,7 +32,39 @@ module Reports::ReportSummaryRows
     end
   end
 
+  # Filas [estado, cantidad, % del total de leads] de la distribución del pipeline de Zoho por
+  # Lead_Status (Contactado, Intento de contacto, etc.) — ver
+  # V2::Reports::WeeklyOpsReportBuilder#zoho_leads_metrics.
+  def pipeline_status_rows(kpis)
+    distribution_rows(kpis, :by_status)
+  end
+
+  # Filas [fuente, cantidad, % del total de leads] por Lead_Source (Facebook Ads, Google Ads, etc.)
+  def lead_source_rows(kpis)
+    distribution_rows(kpis, :by_source)
+  end
+
+  # Filas [motivo, cantidad, % del total de leads descartados] — el % es sobre la suma de motivos,
+  # no sobre el total de leads (mismo criterio que usaba el reporte semanal anterior en Python).
+  def discard_reason_rows(kpis)
+    reasons = (kpis[:zoho_leads] || {})[:discard_reasons] || {}
+    rows_from_counts(reasons, reasons.values.sum)
+  end
+
   private
+
+  def distribution_rows(kpis, key)
+    zoho_leads = kpis[:zoho_leads] || {}
+    counts = zoho_leads[key] || {}
+    rows_from_counts(counts, zoho_leads[:total].to_i)
+  end
+
+  def rows_from_counts(counts, total)
+    counts.map do |label, count|
+      percent_text = total.positive? ? "#{(count.to_f / total * 100).round(1)}%" : '0%'
+      [label, count.to_s, percent_text]
+    end
+  end
 
   def percent(value)
     return nil if value.nil?

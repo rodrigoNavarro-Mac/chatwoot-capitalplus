@@ -17,6 +17,14 @@ describe Reports::WeeklyOpsReportPdfService do
           { 'user_id' => 1, 'name' => 'Elizabeth', 'conversations_count' => 12,
             'contact_time' => { 'first_response' => 8.0, 'reply_time' => 4.2 } }
         ],
+        'zoho_leads' => {
+          'total' => 4,
+          'by_status' => { 'Contactado' => 2, 'Intento de contacto' => 2 },
+          'by_source' => { 'Facebook Ads' => 3, 'Google Ads' => 1 },
+          'discard_reasons' => {},
+          'quality_leads_count' => 2,
+          'quality_leads_percent' => 50.0
+        },
         'cadences' => { 'total_enrollments' => 30, 'response_rate' => 62.5 },
         'campaigns' => { 'messages_sent' => 100 }
       }
@@ -31,6 +39,14 @@ describe Reports::WeeklyOpsReportPdfService do
 
   it 'renders fine when there is no by_advisor breakdown' do
     report.kpis = report.kpis.except('by_advisor')
+
+    io = described_class.new(weekly_ops_report: report).generate
+
+    expect(io.read.byteslice(0, 4)).to eq('%PDF')
+  end
+
+  it 'renders fine when there is no zoho_leads breakdown' do
+    report.kpis = report.kpis.except('zoho_leads')
 
     io = described_class.new(weekly_ops_report: report).generate
 

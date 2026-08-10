@@ -79,6 +79,39 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml.scan('<w:tbl>').size).to eq(1)
   end
 
+  it 'inserts the zoho_leads distribution tables (pipeline status, source, discard reasons)' do
+    report.kpis = report.kpis.merge(
+      'zoho_leads' => {
+        'total' => 3,
+        'by_status' => { 'Contactado' => 2, 'Cliente perdido/Descartado' => 1 },
+        'by_source' => { 'Facebook Ads' => 3 },
+        'discard_reasons' => { 'NO TUVO PRESUPUESTO' => 1 },
+        'quality_leads_count' => 2,
+        'quality_leads_percent' => 66.7
+      }
+    )
+
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).to include('Distribución del pipeline')
+    expect(document_xml).to include('Fuentes de prospectos')
+    expect(document_xml).to include('Motivos de descarte')
+    expect(document_xml).to include('Leads de calidad: 2 (66.7%)')
+    expect(document_xml).to include('NO TUVO PRESUPUESTO')
+    # tabla de resumen + desglose por asesor + 3 tablas de zoho_leads = 5
+    expect(document_xml.scan('<w:tbl>').size).to eq(5)
+  end
+
+  it 'omits the zoho_leads tables when there is no data' do
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).not_to include('Distribución del pipeline')
+    expect(document_xml).not_to include('Fuentes de prospectos')
+    expect(document_xml).not_to include('Motivos de descarte')
+  end
+
   it 'inserts the LLM analysis as paragraphs' do
     io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
 

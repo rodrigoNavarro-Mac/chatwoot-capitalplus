@@ -755,6 +755,16 @@
     "PIPELINE": {
       "TITLE": "Sales pipeline"
     },
+    "ZOHO_LEADS": {
+      "PIPELINE_STATUS_TITLE": "Pipeline distribution",
+      "SOURCE_TITLE": "Lead sources",
+      "DISCARD_TITLE": "Discard reasons",
+      "STATUS": "Status",
+      "SOURCE": "Source",
+      "REASON": "Reason",
+      "LEADS": "Leads",
+      "QUALITY_LEADS": "Quality leads: {count} ({percent}%)"
+    },
     "CADENCES": {
       "RESPONSE_RATE": "Cadence response rate",
       "RESPONSE_RATE_INFO": "Share of leads enrolled in a follow-up cadence that replied at least once.",
