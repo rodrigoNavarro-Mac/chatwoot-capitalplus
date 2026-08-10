@@ -266,6 +266,49 @@ const downloadPdf = async () => {
         </div>
 
         <div
+          v-if="kpis.by_advisor && kpis.by_advisor.length"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.TITLE') }}
+          </h3>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.ADVISOR') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.CONVERSATIONS') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.FIRST_RESPONSE') }}
+                </th>
+                <th class="py-1 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.REPLY_TIME') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="advisor in kpis.by_advisor"
+                :key="advisor.user_id"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ advisor.name }}</td>
+                <td class="py-1.5 pr-3">{{ advisor.conversations_count }}</td>
+                <td class="py-1.5 pr-3">
+                  {{ `${advisor.contact_time.first_response ?? '—'} min` }}
+                </td>
+                <td class="py-1.5">
+                  {{ `${advisor.contact_time.reply_time ?? '—'} min` }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
           class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
         >
           <h3 class="text-base font-semibold text-n-slate-12 mb-3">

@@ -10,6 +10,7 @@ require 'zip'
 # nuevas, solo lectura y reemplazo de texto.
 class Reports::WeeklyOpsReportDocxService
   include Reports::ReportSummaryRows
+  include Reports::WeeklyOpsReportDocxAdvisorTable
 
   W_XMLNS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'.freeze
   IMAGE_REL_TYPE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'.freeze
@@ -58,6 +59,15 @@ class Reports::WeeklyOpsReportDocxService
     sect_pr.add_previous_sibling(heading_xml("Reporte semanal — #{kpis[:inbox_name]}"))
     sect_pr.add_previous_sibling(paragraph_xml("Periodo: #{format_period}"))
     sect_pr.add_previous_sibling(summary_table_xml)
+    insert_by_advisor_table(sect_pr)
+  end
+
+  def insert_by_advisor_table(sect_pr)
+    rows = advisor_rows(kpis)
+    return if rows.blank?
+
+    sect_pr.add_previous_sibling(heading_xml('Desglose por asesor', size: 24))
+    sect_pr.add_previous_sibling(advisor_table_xml(rows))
   end
 
   def insert_charts(sect_pr, rels_xml, zip_file)

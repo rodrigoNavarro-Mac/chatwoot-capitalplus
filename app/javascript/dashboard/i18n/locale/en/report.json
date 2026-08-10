@@ -747,6 +747,11 @@
       "NEW_CONVERSATIONS": "New conversations",
       "NEW_CONVERSATIONS_INFO": "Conversations started in this development during the selected period."
     },
+    "BY_ADVISOR": {
+      "TITLE": "Breakdown by advisor",
+      "ADVISOR": "Advisor",
+      "CONVERSATIONS": "Conversations"
+    },
     "PIPELINE": {
       "TITLE": "Sales pipeline"
     },

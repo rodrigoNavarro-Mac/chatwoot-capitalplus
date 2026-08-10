@@ -747,6 +747,11 @@
       "NEW_CONVERSATIONS": "Conversaciones nuevas",
       "NEW_CONVERSATIONS_INFO": "Conversaciones iniciadas en este desarrollo durante el periodo seleccionado."
     },
+    "BY_ADVISOR": {
+      "TITLE": "Desglose por asesor",
+      "ADVISOR": "Asesor",
+      "CONVERSATIONS": "Conversaciones"
+    },
     "PIPELINE": {
       "TITLE": "Embudo de ventas"
     },
