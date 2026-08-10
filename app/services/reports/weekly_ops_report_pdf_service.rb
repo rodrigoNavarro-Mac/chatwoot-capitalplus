@@ -23,6 +23,7 @@ class Reports::WeeklyOpsReportPdfService
 
     render_header(pdf)
     render_summary_table(pdf)
+    render_by_advisor_table(pdf)
     render_charts(pdf)
     render_analysis(pdf)
 
@@ -76,6 +77,21 @@ class Reports::WeeklyOpsReportPdfService
 
     rows = [%w[Métrica Valor]] + summary_rows(kpis)
     pdf.table(rows, header: true, width: pdf.bounds.width) do |t|
+      t.row(0).font_style = :bold
+      t.row(0).background_color = accent_color
+    end
+    pdf.move_down(15)
+  end
+
+  def render_by_advisor_table(pdf)
+    rows = advisor_rows(kpis)
+    return if rows.blank?
+
+    pdf.font_size(14) { pdf.text('Desglose por asesor', style: :bold) }
+    pdf.move_down(6)
+
+    header = ['Asesor', 'Conversaciones', 'Tiempo 1er mensaje (min)', 'Tiempo de respuesta (min)']
+    pdf.table([header] + rows, header: true, width: pdf.bounds.width) do |t|
       t.row(0).font_style = :bold
       t.row(0).background_color = accent_color
     end

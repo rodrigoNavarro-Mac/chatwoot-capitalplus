@@ -19,6 +19,19 @@ module Reports::ReportSummaryRows
     rows.map { |label, value| [label, value.nil? ? '—' : value.to_s] }
   end
 
+  # Filas [nombre, conversaciones, tiempo 1er mensaje, tiempo de respuesta] del desglose por
+  # asesor — mismo dato que V2::Reports::WeeklyOpsReportBuilder#by_advisor_metrics, ya ordenado
+  # por conversations_count descendente.
+  def advisor_rows(kpis)
+    advisors = kpis[:by_advisor] || []
+
+    advisors.map do |advisor|
+      contact_time = advisor[:contact_time] || {}
+      row = [advisor[:name], advisor[:conversations_count], contact_time[:first_response], contact_time[:reply_time]]
+      row.map { |value| value.nil? ? '—' : value.to_s }
+    end
+  end
+
   private
 
   def percent(value)

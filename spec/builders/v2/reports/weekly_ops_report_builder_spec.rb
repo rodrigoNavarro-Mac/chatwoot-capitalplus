@@ -19,22 +19,61 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       expect(result[:volume][:new_conversations]).to eq(1)
     end
 
-    it 'averages first_response/reply_time (in minutes) from the inbox rollups within range' do
-      create(:reporting_events_rollup, account: account, dimension_type: 'inbox', dimension_id: inbox.id,
-                                       metric: 'first_response', date: 2.days.ago.to_date, count: 2, sum_value: 600.0)
-      create(:reporting_events_rollup, account: account, dimension_type: 'inbox', dimension_id: inbox.id,
-                                       metric: 'first_response', date: 20.days.ago.to_date, count: 5, sum_value: 6000.0)
+    it 'averages first_response/reply_time (in minutes, using business hours) from reporting events within range' do
+      create(:reporting_event, account: account, inbox: inbox, name: 'first_response',
+                               value: 1200.0, value_in_business_hours: 600.0, created_at: 2.days.ago)
+      create(:reporting_event, account: account, inbox: inbox, name: 'first_response',
+                               value: 1200.0, value_in_business_hours: 6000.0, created_at: 20.days.ago)
 
       result = described_class.new(account: account, inbox: inbox, params: params).build
 
-      expect(result[:contact_time][:first_response]).to eq(5.0)
+      expect(result[:contact_time][:first_response]).to eq(10.0)
     end
 
-    it 'returns nil contact time metrics when there are no rollups in range' do
+    it 'falls back to the raw value when value_in_business_hours is nil' do
+      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
+                               value: 300.0, value_in_business_hours: nil, created_at: 1.day.ago)
+
+      result = described_class.new(account: account, inbox: inbox, params: params).build
+
+      expect(result[:contact_time][:reply_time]).to eq(5.0)
+    end
+
+    it 'returns nil contact time metrics when there are no reporting events in range' do
       result = described_class.new(account: account, inbox: inbox, params: params).build
 
       expect(result[:contact_time][:first_response]).to be_nil
       expect(result[:contact_time][:reply_time]).to be_nil
+    end
+
+    describe 'by_advisor' do
+      it 'includes advisors with conversations and/or contact-time events, sorted by conversations_count desc' do
+        agent_a = create(:user, account: account, name: 'Agent A')
+        agent_b = create(:user, account: account, name: 'Agent B')
+
+        create(:conversation, account: account, inbox: inbox, assignee: agent_a).update_column(:created_at, 2.days.ago)
+        create(:conversation, account: account, inbox: inbox, assignee: agent_a).update_column(:created_at, 3.days.ago)
+        create(:conversation, account: account, inbox: inbox, assignee: agent_b).update_column(:created_at, 2.days.ago)
+
+        create(:reporting_event, account: account, inbox: inbox, user: agent_a, name: 'first_response',
+                                 value_in_business_hours: 600.0, created_at: 2.days.ago)
+        create(:reporting_event, account: account, inbox: inbox, user: agent_b, name: 'first_response',
+                                 value_in_business_hours: 1200.0, created_at: 2.days.ago)
+
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:by_advisor].map { |advisor| advisor[:name] }).to eq(['Agent A', 'Agent B'])
+        expect(result[:by_advisor][0][:conversations_count]).to eq(2)
+        expect(result[:by_advisor][0][:contact_time][:first_response]).to eq(10.0)
+        expect(result[:by_advisor][1][:conversations_count]).to eq(1)
+        expect(result[:by_advisor][1][:contact_time][:first_response]).to eq(20.0)
+      end
+
+      it 'returns an empty array when the inbox has no advisor activity in range' do
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:by_advisor]).to eq([])
+      end
     end
 
     it 'summarizes cadence enrollments and call tasks for the inbox' do

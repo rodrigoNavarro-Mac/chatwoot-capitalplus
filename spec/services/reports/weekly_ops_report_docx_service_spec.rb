@@ -21,6 +21,10 @@ describe Reports::WeeklyOpsReportDocxService do
       kpis: {
         'inbox_name' => 'Fuego', 'period' => { 'since' => '2026-07-27', 'until' => '2026-08-02' },
         'volume' => { 'new_conversations' => 42 }, 'contact_time' => { 'first_response' => 3.5 },
+        'by_advisor' => [
+          { 'user_id' => 1, 'name' => 'Elizabeth Sánchez', 'conversations_count' => 12,
+            'contact_time' => { 'first_response' => 8.0, 'reply_time' => 4.2 } }
+        ],
         'cadences' => {}, 'campaigns' => {}
       }
     )
@@ -55,6 +59,24 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml).to include('Periodo: 2026-07-27')
     expect(document_xml).to include('Conversaciones nuevas')
     expect(document_xml).to include('<w:tbl>')
+  end
+
+  it 'inserts the by_advisor breakdown as a second table' do
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).to include('Desglose por asesor')
+    expect(document_xml).to include('Elizabeth Sánchez')
+    expect(document_xml.scan('<w:tbl>').size).to eq(2)
+  end
+
+  it 'omits the by_advisor table when there is no breakdown' do
+    report.kpis = report.kpis.except('by_advisor')
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).not_to include('Desglose por asesor')
+    expect(document_xml.scan('<w:tbl>').size).to eq(1)
   end
 
   it 'inserts the LLM analysis as paragraphs' do

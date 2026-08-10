@@ -1,14 +1,22 @@
 # Arma los KPIs del "reporte semanal operativo" para UN inbox (= un desarrollo) y un rango de
-# fechas: volumen, tiempos de contacto (reusando los rollups nativos de Chatwoot), pipeline/
-# conversión de Zoho (reusando V2::Reports::SalesFunnelBuilder), desempeño de cadencias y de
-# campañas masivas, y el comparativo contra el periodo inmediato anterior (misma duración).
+# fechas: volumen, tiempos de contacto, desglose por asesor, pipeline/conversión de Zoho (reusando
+# V2::Reports::SalesFunnelBuilder), desempeño de cadencias y de campañas masivas, y el comparativo
+# contra el periodo inmediato anterior (misma duración).
 #
-# Tiempos de contacto: se leen de ReportingEventsRollup (dimension_type: 'inbox'), que Chatwoot ya
-# calcula nativamente a partir de ReportingEvent:
+# Tiempos de contacto: se leen directo de ReportingEvent (no del rollup ReportingEventsRollup) por
+# dos razones: (1) el rollup solo se llena si Account#reporting_timezone está configurado, y
+# depender de eso causó que los tiempos salieran vacíos en producción hasta configurarlo y
+# correr un backfill; (2) el rollup no soporta la dimensión combinada agente+inbox, que sí
+# necesitamos para el desglose por asesor. Para un reporte semanal de un solo inbox el volumen de
+# eventos es chico, así que consultar en vivo no es un problema de performance.
 #   - "first_response": tiempo hasta la primera respuesta del agente a un cliente en la
 #     conversación (mapea a "Tiempo hasta primer mensaje de asesor").
 #   - "reply_time": tiempo de respuesta promedio del agente a lo largo de la conversación (mapea a
 #     "Tiempo de respuesta inicial").
+#
+# Ambas métricas usan `value_in_business_hours` (tiempo transcurrido contando solo minutos dentro
+# del horario laboral configurado en el inbox — ver WorkingHour/ReportingEventListener), no el
+# tiempo crudo, igual que el reporte semanal anterior en Python.
 class V2::Reports::WeeklyOpsReportBuilder
   include DateRangeHelper
 
@@ -30,6 +38,7 @@ class V2::Reports::WeeklyOpsReportBuilder
       period: period_payload,
       volume: volume_metrics,
       contact_time: contact_time_metrics,
+      by_advisor: by_advisor_metrics,
       pipeline: pipeline_metrics,
       cadences: cadence_metrics,
       campaigns: campaign_metrics,
@@ -65,14 +74,55 @@ class V2::Reports::WeeklyOpsReportBuilder
     CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, average_minutes_for(metric)] }
   end
 
-  def average_minutes_for(metric)
-    rollups = ReportingEventsRollup.for_dimension('inbox', inbox.id).for_metric(metric)
-    rollups = rollups.for_date_range(*date_bounds) if range.present?
-
-    count = rollups.sum(:count)
+  def average_minutes_for(metric, user_id: nil)
+    events = reporting_events_for(metric, user_id: user_id)
+    count = events.count
     return nil if count.zero?
 
-    (rollups.sum(:sum_value) / count / 60.0).round(2)
+    (events.sum(Arel.sql('COALESCE(value_in_business_hours, value)')) / count / 60.0).round(2)
+  end
+
+  def reporting_events_for(metric, user_id: nil)
+    events = contact_time_events.where(name: metric)
+    events = events.where(user_id: user_id) if user_id.present?
+    events
+  end
+
+  def contact_time_events
+    events = ReportingEvent.where(inbox_id: inbox.id, name: CONTACT_TIME_METRICS)
+    events = events.where(created_at: range) if range.present?
+    events
+  end
+
+  def by_advisor_metrics
+    relevant_agent_ids.map { |user_id| advisor_stats(user_id) }
+                      .sort_by { |advisor| -advisor[:conversations_count] }
+  end
+
+  def relevant_agent_ids
+    assignee_ids = advisor_conversations_scope.where.not(assignee_id: nil).distinct.pluck(:assignee_id)
+    event_agent_ids = contact_time_events.where.not(user_id: nil).distinct.pluck(:user_id)
+
+    assignee_ids | event_agent_ids
+  end
+
+  def advisor_conversations_scope
+    conversations = inbox.conversations
+    conversations = conversations.where(created_at: range) if range.present?
+    conversations
+  end
+
+  def advisor_stats(user_id)
+    {
+      user_id: user_id,
+      name: advisor_name(user_id),
+      conversations_count: advisor_conversations_scope.where(assignee_id: user_id).count,
+      contact_time: CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, average_minutes_for(metric, user_id: user_id)] }
+    }
+  end
+
+  def advisor_name(user_id)
+    User.find_by(id: user_id)&.name || "Agente #{user_id}"
   end
 
   def pipeline_metrics
