@@ -755,6 +755,16 @@
     "PIPELINE": {
       "TITLE": "Embudo de ventas"
     },
+    "ZOHO_LEADS": {
+      "PIPELINE_STATUS_TITLE": "Distribución del pipeline",
+      "SOURCE_TITLE": "Fuentes de prospectos",
+      "DISCARD_TITLE": "Motivos de descarte",
+      "STATUS": "Estado",
+      "SOURCE": "Fuente",
+      "REASON": "Motivo",
+      "LEADS": "Leads",
+      "QUALITY_LEADS": "Leads de calidad: {count} ({percent}%)"
+    },
     "CADENCES": {
       "RESPONSE_RATE": "Tasa de respuesta de cadencia",
       "RESPONSE_RATE_INFO": "Porcentaje de leads inscritos en una cadencia de seguimiento que respondieron al menos una vez.",

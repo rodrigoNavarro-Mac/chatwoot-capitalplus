@@ -93,6 +93,14 @@ const contactTimeChartData = computed(() => {
   };
 });
 
+const discardReasonsTotal = computed(() => {
+  const reasons = kpis.value?.zoho_leads?.discard_reasons || {};
+  return Object.values(reasons).reduce((sum, count) => sum + count, 0);
+});
+
+const percentOf = (count, total) =>
+  total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0%';
+
 const cadenceChartData = computed(() => {
   const byStatus = kpis.value?.cadences?.by_status || {};
   const labels = Object.keys(byStatus);
@@ -355,6 +363,119 @@ const downloadPdf = async () => {
             :delta="stage.delta"
             :taper-percent="STAGE_TAPER[stage.stage]"
           />
+        </div>
+
+        <div
+          v-if="kpis.zoho_leads"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.PIPELINE_STATUS_TITLE') }}
+          </h3>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.STATUS') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                </th>
+                <th class="py-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(count, status) in kpis.zoho_leads.by_status"
+                :key="status"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ status }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
+                <td class="py-1.5">
+                  {{ percentOf(count, kpis.zoho_leads.total) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          v-if="kpis.zoho_leads"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.SOURCE_TITLE') }}
+          </h3>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.SOURCE') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                </th>
+                <th class="py-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(count, source) in kpis.zoho_leads.by_source"
+                :key="source"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ source }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
+                <td class="py-1.5">
+                  {{ percentOf(count, kpis.zoho_leads.total) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="text-sm text-n-slate-11 mt-3 mb-0">
+            {{
+              t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_LEADS', {
+                count: kpis.zoho_leads.quality_leads_count,
+                percent: kpis.zoho_leads.quality_leads_percent,
+              })
+            }}
+          </p>
+        </div>
+
+        <div
+          v-if="discardReasonsTotal"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.DISCARD_TITLE') }}
+          </h3>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.REASON') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                </th>
+                <th class="py-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(count, reason) in kpis.zoho_leads.discard_reasons"
+                :key="reason"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ reason }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
+                <td class="py-1.5">
+                  {{ percentOf(count, discardReasonsTotal) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div

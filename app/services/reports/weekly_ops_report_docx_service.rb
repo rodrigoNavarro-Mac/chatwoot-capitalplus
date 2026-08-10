@@ -10,7 +10,7 @@ require 'zip'
 # nuevas, solo lectura y reemplazo de texto.
 class Reports::WeeklyOpsReportDocxService
   include Reports::ReportSummaryRows
-  include Reports::WeeklyOpsReportDocxAdvisorTable
+  include Reports::WeeklyOpsReportDocxTables
 
   W_XMLNS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'.freeze
   IMAGE_REL_TYPE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'.freeze
@@ -60,6 +60,9 @@ class Reports::WeeklyOpsReportDocxService
     sect_pr.add_previous_sibling(paragraph_xml("Periodo: #{format_period}"))
     sect_pr.add_previous_sibling(summary_table_xml)
     insert_by_advisor_table(sect_pr)
+    insert_distribution_table(sect_pr, 'Distribución del pipeline', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], pipeline_status_rows(kpis))
+    insert_lead_source_table(sect_pr)
+    insert_distribution_table(sect_pr, 'Motivos de descarte', DISTRIBUTION_TABLE_HEADERS[:discard_reason], discard_reason_rows(kpis))
   end
 
   def insert_by_advisor_table(sect_pr)
@@ -67,7 +70,7 @@ class Reports::WeeklyOpsReportDocxService
     return if rows.blank?
 
     sect_pr.add_previous_sibling(heading_xml('Desglose por asesor', size: 24))
-    sect_pr.add_previous_sibling(advisor_table_xml(rows))
+    sect_pr.add_previous_sibling(simple_table_xml(ADVISOR_TABLE_HEADER, rows))
   end
 
   def insert_charts(sect_pr, rels_xml, zip_file)

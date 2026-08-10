@@ -86,6 +86,38 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       end
     end
 
+    describe 'zoho_leads' do
+      it 'is nil when the inbox has no desarrollo configured' do
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:zoho_leads]).to be_nil
+      end
+
+      it 'summarizes status, source and discard reason distribution from Zoho leads for this desarrollo/period' do
+        agent_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } })
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
+        leads = [
+          { 'Lead_Status' => 'Contacted', 'Lead_Source' => 'Facebook Ads' },
+          { 'Lead_Status' => 'Contacted', 'Lead_Source' => 'Facebook Ads' },
+          { 'Lead_Status' => 'Attempted to Contact', 'Lead_Source' => 'Google Ads' },
+          { 'Lead_Status' => 'Lost Lead', 'Lead_Source' => 'Facebook Ads', 'Raz_n_de_descarte' => 'NO TUVO PRESUPUESTO' }
+        ]
+        fake_service = instance_double(Crm::Zoho::LeadsForPeriodService, fetch: leads)
+        allow(Crm::Zoho::LeadsForPeriodService).to receive(:new)
+          .with(account: account, development_key: 'Fuego', range: anything)
+          .and_return(fake_service)
+
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:zoho_leads][:total]).to eq(4)
+        expect(result[:zoho_leads][:by_status]).to eq('Contactado' => 2, 'Intento de contacto' => 1, 'Cliente perdido/Descartado' => 1)
+        expect(result[:zoho_leads][:by_source]).to eq('Facebook Ads' => 3, 'Google Ads' => 1)
+        expect(result[:zoho_leads][:discard_reasons]).to eq('NO TUVO PRESUPUESTO' => 1)
+        expect(result[:zoho_leads][:quality_leads_count]).to eq(2)
+        expect(result[:zoho_leads][:quality_leads_percent]).to eq(50.0)
+      end
+    end
+
     it 'summarizes cadence enrollments and call tasks for the inbox' do
       cadence_definition = create_cadence_definition!(inbox)
       contact = create(:contact, account: account)
