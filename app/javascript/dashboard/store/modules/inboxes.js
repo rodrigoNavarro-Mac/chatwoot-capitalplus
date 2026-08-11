@@ -360,9 +360,15 @@ export const actions = {
       throw new Error(error);
     }
   },
-  assignWhatsappTemplate: async ({ commit }, { inboxId, templateName }) => {
+  assignWhatsappTemplate: async (
+    { commit },
+    { inboxId, templateName, mediaUrl, mediaName }
+  ) => {
     try {
-      const response = await InboxesAPI.assignTemplate(inboxId, templateName);
+      const response = await InboxesAPI.assignTemplate(inboxId, templateName, {
+        mediaUrl,
+        mediaName,
+      });
       commit(types.default.EDIT_INBOXES, response.data);
     } catch (error) {
       throw new Error(error);

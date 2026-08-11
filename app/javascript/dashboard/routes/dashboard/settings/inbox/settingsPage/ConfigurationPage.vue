@@ -15,6 +15,12 @@ import AddWhatsappNumberModal from './AddWhatsappNumberModal.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
 import InboxHealthAPI from 'dashboard/api/inboxHealth';
 import { templateMatchesInbox } from 'dashboard/helper/templateInboxMatcher';
+import NextInput from 'dashboard/components-next/input/Input.vue';
+import {
+  COMPONENT_TYPES,
+  MEDIA_FORMATS,
+  findComponentByType,
+} from 'dashboard/helper/templateHelper';
 
 export default {
   components: {
@@ -27,6 +33,7 @@ export default {
     TextArea,
     WhatsappReauthorize,
     AddWhatsappNumberModal,
+    NextInput,
   },
   mixins: [inboxMixin],
   props: {
@@ -51,6 +58,9 @@ export default {
       isSettingDefaults: false,
       showAddNumberModal: false,
       pendingTemplateNames: [],
+      mediaUrlDrafts: {},
+      mediaNameDrafts: {},
+      savingMediaTemplateNames: [],
     };
   },
   validations: {
@@ -109,10 +119,37 @@ export default {
         assignedNames.includes(template.name)
       );
     },
+    templatesWithMediaHeaderForThisInbox() {
+      const templates =
+        this.$store.getters['inboxes/getFilteredWhatsAppTemplates'](
+          this.inbox.id
+        ) || [];
+      return templates.filter(template => {
+        const header = findComponentByType(template, COMPONENT_TYPES.HEADER);
+        return header && MEDIA_FORMATS.includes(header.format);
+      });
+    },
   },
   watch: {
     inbox() {
       this.setDefaults();
+    },
+    templatesWithMediaHeaderForThisInbox: {
+      immediate: true,
+      handler(templates) {
+        templates.forEach(template => {
+          if (!(template.name in this.mediaUrlDrafts)) {
+            this.mediaUrlDrafts[template.name] =
+              this.inbox.template_inbox_media_defaults?.[template.name]
+                ?.media_url || '';
+          }
+          if (!(template.name in this.mediaNameDrafts)) {
+            this.mediaNameDrafts[template.name] =
+              this.inbox.template_inbox_media_defaults?.[template.name]
+                ?.media_name || '';
+          }
+        });
+      },
     },
     allowMobileWebview() {
       if (!this.isSettingDefaults) this.handleMobileWebviewFlag();
@@ -261,6 +298,33 @@ export default {
       } finally {
         this.pendingTemplateNames = this.pendingTemplateNames.filter(
           name => name !== templateName
+        );
+      }
+    },
+    getMediaFormat(template) {
+      return (
+        findComponentByType(template, COMPONENT_TYPES.HEADER)?.format || ''
+      );
+    },
+    async saveTemplateMedia(template) {
+      this.savingMediaTemplateNames.push(template.name);
+      try {
+        await this.$store.dispatch('inboxes/assignWhatsappTemplate', {
+          inboxId: this.inbox.id,
+          templateName: template.name,
+          mediaUrl: this.mediaUrlDrafts[template.name] || '',
+          mediaName: this.mediaNameDrafts[template.name] || '',
+        });
+        useAlert(
+          this.$t(
+            'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_MEDIA.SAVE_SUCCESS'
+          )
+        );
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.savingMediaTemplateNames = this.savingMediaTemplateNames.filter(
+          name => name !== template.name
         );
       }
     },
@@ -608,6 +672,66 @@ export default {
           {{
             $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_ASSIGNMENT.EMPTY')
           }}
+        </p>
+      </SettingsFieldSection>
+      <SettingsFieldSection
+        :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_MEDIA.TITLE')"
+        :help-text="
+          $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_MEDIA.SUBHEADER')
+        "
+      >
+        <div
+          v-if="templatesWithMediaHeaderForThisInbox.length"
+          class="space-y-3"
+        >
+          <div
+            v-for="template in templatesWithMediaHeaderForThisInbox"
+            :key="`media-${template.name}`"
+            class="p-3 rounded-lg bg-n-alpha-black2"
+          >
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-medium">{{ template.name }}</span>
+              <span class="text-xs text-n-slate-11 uppercase">{{
+                getMediaFormat(template)
+              }}</span>
+            </div>
+            <div class="flex flex-wrap gap-2 items-end">
+              <NextInput
+                v-model="mediaUrlDrafts[template.name]"
+                type="url"
+                class="flex-1 min-w-[16rem]"
+                :placeholder="
+                  $t(
+                    'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_MEDIA.URL_PLACEHOLDER'
+                  )
+                "
+              />
+              <NextInput
+                v-if="getMediaFormat(template) === 'DOCUMENT'"
+                v-model="mediaNameDrafts[template.name]"
+                class="w-48"
+                :placeholder="
+                  $t(
+                    'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_MEDIA.NAME_PLACEHOLDER'
+                  )
+                "
+              />
+              <NextButton
+                sm
+                :is-loading="savingMediaTemplateNames.includes(template.name)"
+                @click="saveTemplateMedia(template)"
+              >
+                {{
+                  $t(
+                    'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_MEDIA.SAVE_BUTTON'
+                  )
+                }}
+              </NextButton>
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-n-slate-11 text-sm">
+          {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_MEDIA.EMPTY') }}
         </p>
       </SettingsFieldSection>
       <SettingsFieldSection

@@ -36,10 +36,11 @@ module Api::V1::Accounts::Concerns::WhatsappHealthManagement
   def assign_whatsapp_template
     return render status: :unprocessable_entity, json: { error: 'Template name is required' } if params[:template_name].blank?
 
-    @inbox.whatsapp_template_inbox_assignments.find_or_create_by!(
+    assignment = @inbox.whatsapp_template_inbox_assignments.find_or_create_by!(
       account_id: @inbox.account_id,
       template_name: params[:template_name]
     )
+    assignment.update!(assignment_media_params) if params.key?(:media_url) || params.key?(:media_name)
     render 'api/v1/accounts/inboxes/show'
   rescue ActiveRecord::RecordInvalid => e
     render status: :unprocessable_entity, json: { error: e.message }
@@ -51,6 +52,13 @@ module Api::V1::Accounts::Concerns::WhatsappHealthManagement
   end
 
   private
+
+  def assignment_media_params
+    {
+      media_url: params[:media_url].presence,
+      media_name: params[:media_name].presence
+    }
+  end
 
   def validate_whatsapp_cloud_channel
     return if @inbox.channel.is_a?(Channel::Whatsapp) && @inbox.channel.provider == 'whatsapp_cloud'

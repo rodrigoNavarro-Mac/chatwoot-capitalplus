@@ -3,6 +3,8 @@
 # Table name: whatsapp_template_inbox_assignments
 #
 #  id            :bigint           not null, primary key
+#  media_name    :string
+#  media_url     :string
 #  template_name :string           not null
 #  created_at    :datetime         not null
 #  updated_at    :datetime         not null

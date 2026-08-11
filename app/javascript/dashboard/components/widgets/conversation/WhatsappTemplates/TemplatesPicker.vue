@@ -1,7 +1,11 @@
 <script setup>
 import { ref, computed, toRef } from 'vue';
 import { useAlert } from 'dashboard/composables';
-import { useFunctionGetter, useStore } from 'dashboard/composables/store';
+import {
+  useFunctionGetter,
+  useMapGetter,
+  useStore,
+} from 'dashboard/composables/store';
 import {
   COMPONENT_TYPES,
   MEDIA_FORMATS,
@@ -24,9 +28,27 @@ const store = useStore();
 const query = ref('');
 const isRefreshing = ref(false);
 
+const HEADER_ICONS = {
+  IMAGE: 'i-lucide-image',
+  VIDEO: 'i-lucide-video',
+  DOCUMENT: 'i-lucide-file-text',
+};
+
+const BUTTON_ICONS = {
+  QUICK_REPLY: 'i-lucide-corner-up-left',
+  URL: 'i-lucide-external-link',
+  PHONE_NUMBER: 'i-lucide-phone',
+  COPY_CODE: 'i-lucide-copy',
+};
+
 const whatsAppTemplateMessages = useFunctionGetter(
   'inboxes/getFilteredWhatsAppTemplates',
   toRef(props, 'inboxId')
+);
+
+const getInbox = useMapGetter('inboxes/getInbox');
+const mediaDefaults = computed(
+  () => getInbox.value(props.inboxId)?.template_inbox_media_defaults || {}
 );
 
 const filteredTemplateMessages = computed(() =>
@@ -54,6 +76,40 @@ const getTemplateButtons = template => {
 const hasMediaContent = template => {
   const header = getTemplateHeader(template);
   return header && MEDIA_FORMATS.includes(header.format);
+};
+
+const getMediaDefault = template => mediaDefaults.value[template.name];
+
+const getHeaderThumbnail = template => {
+  const header = getTemplateHeader(template);
+  if (header?.format !== 'IMAGE') return '';
+  return getMediaDefault(template)?.media_url || '';
+};
+
+const getHeaderIcon = template => {
+  const format = getTemplateHeader(template)?.format;
+  return HEADER_ICONS[format] || 'i-lucide-file';
+};
+
+const formatLabel = format => {
+  if (!format) return '';
+  return format.charAt(0) + format.slice(1).toLowerCase();
+};
+
+const getButtonIcon = button => BUTTON_ICONS[button.type] || 'i-lucide-square';
+
+const getButtonSubtitle = button => {
+  if (button.type === 'URL' && button.url) {
+    try {
+      return new URL(button.url).hostname;
+    } catch (error) {
+      return button.url;
+    }
+  }
+  if (button.type === 'PHONE_NUMBER' && button.phone_number) {
+    return button.phone_number;
+  }
+  return '';
 };
 
 const refreshTemplates = async () => {
@@ -97,97 +153,101 @@ const refreshTemplates = async () => {
       </button>
     </div>
     <div
-      class="bg-n-background outline-n-container outline outline-1 rounded-lg max-h-[18.75rem] overflow-y-auto p-2.5"
+      class="bg-n-background outline-n-container outline outline-1 rounded-lg max-h-[26rem] overflow-y-auto p-2.5 space-y-2"
     >
-      <div v-for="(template, i) in filteredTemplateMessages" :key="template.id">
-        <button
-          class="block p-2.5 w-full text-left rounded-lg cursor-pointer hover:bg-n-alpha-2 dark:hover:bg-n-solid-2"
-          @click="emit('onSelect', template)"
-        >
-          <div>
-            <div class="flex justify-between items-center mb-2.5">
-              <p class="text-sm">
-                {{ template.name }}
-              </p>
-              <span
-                class="inline-block px-2 py-1 text-xs leading-none rounded-lg cursor-default bg-n-slate-3 text-n-slate-12"
-              >
-                {{ t('WHATSAPP_TEMPLATES.PICKER.LABELS.LANGUAGE') }}:
-                {{ template.language }}
-              </span>
-            </div>
-            <!-- Header -->
-            <div v-if="getTemplateHeader(template)" class="mb-3">
-              <p class="text-xs font-medium text-n-slate-11">
-                {{ t('WHATSAPP_TEMPLATES.PICKER.HEADER') || 'HEADER' }}
-              </p>
-              <div
-                v-if="getTemplateHeader(template).format === 'TEXT'"
-                class="text-sm label-body"
-              >
-                {{ getTemplateHeader(template).text }}
-              </div>
-              <div
-                v-else-if="hasMediaContent(template)"
-                class="text-sm italic text-n-slate-11"
-              >
-                {{
-                  t('WHATSAPP_TEMPLATES.PICKER.MEDIA_CONTENT', {
-                    format: getTemplateHeader(template).format,
-                  }) ||
-                  `${getTemplateHeader(template).format} ${t('WHATSAPP_TEMPLATES.PICKER.MEDIA_CONTENT_FALLBACK')}`
-                }}
-              </div>
-            </div>
-
-            <!-- Body -->
-            <div>
-              <p class="text-xs font-medium text-n-slate-11">
-                {{ t('WHATSAPP_TEMPLATES.PICKER.BODY') || 'BODY' }}
-              </p>
-              <p class="text-sm label-body">{{ getTemplateBody(template) }}</p>
-            </div>
-
-            <!-- Footer -->
-            <div v-if="getTemplateFooter(template)" class="mt-3">
-              <p class="text-xs font-medium text-n-slate-11">
-                {{ t('WHATSAPP_TEMPLATES.PICKER.FOOTER') || 'FOOTER' }}
-              </p>
-              <p class="text-sm label-body">
-                {{ getTemplateFooter(template).text }}
-              </p>
-            </div>
-
-            <!-- Buttons -->
-            <div v-if="getTemplateButtons(template)" class="mt-3">
-              <p class="text-xs font-medium text-n-slate-11">
-                {{ t('WHATSAPP_TEMPLATES.PICKER.BUTTONS') || 'BUTTONS' }}
-              </p>
-              <div class="flex flex-wrap gap-1 mt-1">
-                <span
-                  v-for="button in getTemplateButtons(template).buttons"
-                  :key="button.text"
-                  class="px-2 py-1 text-xs rounded bg-n-slate-3 text-n-slate-12"
-                >
-                  {{ button.text }}
-                </span>
-              </div>
-            </div>
-
-            <div class="mt-3">
-              <p class="text-xs font-medium text-n-slate-11">
-                {{ t('WHATSAPP_TEMPLATES.PICKER.CATEGORY') || 'CATEGORY' }}
-              </p>
-              <p class="text-sm">{{ template.category }}</p>
-            </div>
+      <button
+        v-for="template in filteredTemplateMessages"
+        :key="`${template.name}-${template.language}`"
+        class="flex flex-col gap-2 p-3 w-full text-left rounded-xl outline outline-1 outline-n-container hover:outline-n-brand hover:bg-n-alpha-1 dark:hover:bg-n-solid-2 transition-colors cursor-pointer"
+        @click="emit('onSelect', template)"
+      >
+        <div class="flex justify-between items-start gap-2">
+          <p class="text-sm font-medium text-n-slate-12 truncate">
+            {{ template.name }}
+          </p>
+          <div class="flex gap-1 flex-shrink-0">
+            <span
+              class="inline-block px-2 py-0.5 text-xs leading-normal rounded-full bg-n-slate-3 text-n-slate-11"
+            >
+              {{ template.language }}
+            </span>
+            <span
+              v-if="template.category"
+              class="inline-block px-2 py-0.5 text-xs leading-normal rounded-full bg-n-slate-3 text-n-slate-11"
+            >
+              {{ template.category }}
+            </span>
           </div>
-        </button>
-        <hr
-          v-if="i != filteredTemplateMessages.length - 1"
-          :key="`hr-${i}`"
-          class="border-b border-solid border-n-weak my-2.5 mx-auto max-w-[95%]"
-        />
-      </div>
+        </div>
+
+        <!-- Header -->
+        <div v-if="getTemplateHeader(template)">
+          <div
+            v-if="getTemplateHeader(template).format === 'TEXT'"
+            class="text-sm font-semibold text-n-slate-12"
+          >
+            {{ getTemplateHeader(template).text }}
+          </div>
+          <div
+            v-else-if="hasMediaContent(template)"
+            class="flex items-center gap-2 p-1.5 rounded-md bg-n-alpha-1"
+          >
+            <img
+              v-if="getHeaderThumbnail(template)"
+              :src="getHeaderThumbnail(template)"
+              class="size-8 rounded object-cover flex-shrink-0"
+            />
+            <Icon
+              v-else
+              :icon="getHeaderIcon(template)"
+              class="size-4 text-n-slate-11 flex-shrink-0"
+            />
+            <span class="text-xs text-n-slate-11">
+              {{ formatLabel(getTemplateHeader(template).format) }}
+              <template v-if="getMediaDefault(template)?.media_url">
+                {{ t('WHATSAPP_TEMPLATES.PICKER.MEDIA_CONFIGURED') }}
+              </template>
+            </span>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <p class="text-sm text-n-slate-12 whitespace-pre-line line-clamp-3">
+          {{ getTemplateBody(template) }}
+        </p>
+
+        <!-- Footer -->
+        <p
+          v-if="getTemplateFooter(template)"
+          class="text-xs text-n-slate-10 italic"
+        >
+          {{ getTemplateFooter(template).text }}
+        </p>
+
+        <!-- Buttons -->
+        <div
+          v-if="getTemplateButtons(template)"
+          class="rounded-lg outline outline-1 outline-n-container divide-y divide-n-container overflow-hidden"
+        >
+          <div
+            v-for="button in getTemplateButtons(template).buttons"
+            :key="button.text"
+            class="flex items-center gap-2 px-3 py-1.5 text-n-blue-11"
+          >
+            <Icon
+              :icon="getButtonIcon(button)"
+              class="size-3.5 flex-shrink-0"
+            />
+            <span class="text-sm font-medium truncate">{{ button.text }}</span>
+            <span
+              v-if="getButtonSubtitle(button)"
+              class="ml-auto text-xs text-n-slate-10 truncate"
+            >
+              {{ getButtonSubtitle(button) }}
+            </span>
+          </div>
+        </div>
+      </button>
       <div v-if="!filteredTemplateMessages.length" class="py-8 text-center">
         <div v-if="query && whatsAppTemplateMessages.length">
           <p>
@@ -204,9 +264,3 @@ const refreshTemplates = async () => {
     </div>
   </div>
 </template>
-
-<style scoped lang="scss">
-.label-body {
-  font-family: monospace;
-}
-</style>

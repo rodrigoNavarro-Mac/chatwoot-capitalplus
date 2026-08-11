@@ -130,6 +130,11 @@ json.bot_name resource.channel.try(:bot_name) if resource.telegram?
 if resource.whatsapp?
   json.message_templates resource.channel.try(:message_templates)
   json.template_inbox_assignment_names resource.whatsapp_template_inbox_assignments.pluck(:template_name)
+  json.template_inbox_media_defaults(
+    resource.whatsapp_template_inbox_assignments.where.not(media_url: [nil, '']).each_with_object({}) do |assignment, defaults|
+      defaults[assignment.template_name] = { media_url: assignment.media_url, media_name: assignment.media_name }
+    end
+  )
   json.provider_config resource.channel.try(:provider_config) if Current.account_user&.administrator?
   json.reauthorization_required resource.channel.try(:reauthorization_required?)
   if resource.channel.try(:provider) == 'whatsapp_cloud' && Current.account_user&.administrator?
