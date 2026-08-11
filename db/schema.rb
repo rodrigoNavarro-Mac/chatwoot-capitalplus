@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_05_100100) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_11_101200) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1489,6 +1489,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_05_100100) do
     t.index ["account_id"], name: "index_weekly_ops_reports_on_account_id"
     t.index ["generated_by_id"], name: "index_weekly_ops_reports_on_generated_by_id"
     t.index ["inbox_id", "period_start"], name: "index_weekly_ops_reports_on_inbox_and_period_start", unique: true
+  end
+
+  create_table "whatsapp_template_inbox_assignments", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.string "template_name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "inbox_id"], name: "idx_on_account_id_inbox_id_50dc94ef25"
+    t.index ["account_id", "template_name", "inbox_id"], name: "index_wa_template_inbox_assignments_on_account_template_inbox", unique: true
+    t.index ["account_id"], name: "index_whatsapp_template_inbox_assignments_on_account_id"
+    t.index ["inbox_id"], name: "index_whatsapp_template_inbox_assignments_on_inbox_id"
   end
 
   create_table "working_hours", force: :cascade do |t|

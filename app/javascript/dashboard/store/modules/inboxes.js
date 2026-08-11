@@ -11,6 +11,7 @@ import AnalyticsHelper from '../../helper/AnalyticsHelper';
 import camelcaseKeys from 'camelcase-keys';
 import { ACCOUNT_EVENTS } from '../../helper/AnalyticsHelper/events';
 import { channelActions, buildInboxData } from './inboxes/channelActions';
+import { templateMatchesInbox } from 'dashboard/helper/templateInboxMatcher';
 
 export const state = {
   records: [],
@@ -104,7 +105,15 @@ export const getters = {
         return false;
       }
 
-      return true;
+      // Only show templates whose name matches this inbox's name, or that
+      // an admin has manually assigned to this inbox. Meta templates belong
+      // to the WhatsApp Business Account, not to a single phone number, so
+      // inboxes sharing a WABA otherwise see every other inbox's templates.
+      const assignedNames = inbox?.template_inbox_assignment_names || [];
+      return (
+        templateMatchesInbox(template.name, inbox?.name) ||
+        assignedNames.includes(template.name)
+      );
     });
   },
   getNewConversationInboxes($state) {
@@ -347,6 +356,22 @@ export const actions = {
   syncTemplates: async (_, inboxId) => {
     try {
       await InboxesAPI.syncTemplates(inboxId);
+    } catch (error) {
+      throw new Error(error);
+    }
+  },
+  assignWhatsappTemplate: async ({ commit }, { inboxId, templateName }) => {
+    try {
+      const response = await InboxesAPI.assignTemplate(inboxId, templateName);
+      commit(types.default.EDIT_INBOXES, response.data);
+    } catch (error) {
+      throw new Error(error);
+    }
+  },
+  unassignWhatsappTemplate: async ({ commit }, { inboxId, templateName }) => {
+    try {
+      const response = await InboxesAPI.unassignTemplate(inboxId, templateName);
+      commit(types.default.EDIT_INBOXES, response.data);
     } catch (error) {
       throw new Error(error);
     }

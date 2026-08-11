@@ -78,6 +78,7 @@ class Inbox < ApplicationRecord
   has_many :webhooks, dependent: :destroy_async
   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
   has_many :weekly_ops_reports, dependent: :destroy_async
+  has_many :whatsapp_template_inbox_assignments, dependent: :destroy_async
   # dependent: :destroy (no async): un has_one con :destroy_async dispara
   # ActiveRecord::DestroyAssociationAsyncJob al reemplazar el registro (p. ej. al guardar un nuevo
   # branding sobre uno existente), y ese job puede correr después de la nueva inserción y toparse

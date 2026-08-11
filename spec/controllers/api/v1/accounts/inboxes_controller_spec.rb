@@ -1100,6 +1100,101 @@ RSpec.describe 'Inboxes API', type: :request do
     end
   end
 
+  describe 'POST /api/v1/accounts/{account.id}/inboxes/:id/assign_whatsapp_template' do
+    let(:whatsapp_channel) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', sync_templates: false, validate_provider_config: false)
+    end
+    let(:whatsapp_inbox) { create(:inbox, account: account, channel: whatsapp_channel) }
+
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/assign_whatsapp_template",
+             params: { template_name: 'promo_boutique' }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated agent' do
+      it 'returns unauthorized for agent' do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/assign_whatsapp_template",
+             params: { template_name: 'promo_boutique' },
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated administrator' do
+      it 'creates the assignment and returns the inbox' do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/assign_whatsapp_template",
+             params: { template_name: 'promo_boutique' },
+             headers: admin.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(
+          whatsapp_inbox.whatsapp_template_inbox_assignments.pluck(:template_name)
+        ).to eq(['promo_boutique'])
+        json_response = response.parsed_body
+        expect(json_response['template_inbox_assignment_names']).to eq(['promo_boutique'])
+      end
+
+      it 'is idempotent when the template is already assigned' do
+        create(:whatsapp_template_inbox_assignment, account: account, inbox: whatsapp_inbox, template_name: 'promo_boutique')
+
+        post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/assign_whatsapp_template",
+             params: { template_name: 'promo_boutique' },
+             headers: admin.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(whatsapp_inbox.whatsapp_template_inbox_assignments.count).to eq(1)
+      end
+
+      it 'returns unprocessable entity when template_name is missing' do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/assign_whatsapp_template",
+             headers: admin.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+  end
+
+  describe 'DELETE /api/v1/accounts/{account.id}/inboxes/:id/unassign_whatsapp_template' do
+    let(:whatsapp_channel) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', sync_templates: false, validate_provider_config: false)
+    end
+    let(:whatsapp_inbox) { create(:inbox, account: account, channel: whatsapp_channel) }
+
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        delete "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/unassign_whatsapp_template",
+               params: { template_name: 'promo_boutique' }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated administrator' do
+      it 'removes the assignment and returns the inbox' do
+        create(:whatsapp_template_inbox_assignment, account: account, inbox: whatsapp_inbox, template_name: 'promo_boutique')
+
+        delete "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/unassign_whatsapp_template",
+               params: { template_name: 'promo_boutique' },
+               headers: admin.create_new_auth_token,
+               as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(whatsapp_inbox.whatsapp_template_inbox_assignments.count).to eq(0)
+        json_response = response.parsed_body
+        expect(json_response['template_inbox_assignment_names']).to eq([])
+      end
+    end
+  end
+
   describe 'GET /api/v1/accounts/{account.id}/inboxes/{inbox.id}/health' do
     let(:whatsapp_channel) do
       create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', sync_templates: false, validate_provider_config: false)
