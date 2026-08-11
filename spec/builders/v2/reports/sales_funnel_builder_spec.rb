@@ -79,6 +79,15 @@ describe V2::Reports::SalesFunnelBuilder do
       expect(stage(rows, 'visita_efectiva')[:count]).to eq(3)
     end
 
+    it 'counts visita_efectiva for deals cached with an orphaned legacy stage value from before a Zoho picklist rename' do
+      create_lead(replied: true, zoho_deal_id: 'deal-1', zoho_deal_stage: 'Visita efectiva')
+      create_lead(replied: true, zoho_deal_id: 'deal-2', zoho_deal_stage: 'Identify Decision Makers')
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'visita_efectiva')[:count]).to eq(2)
+    end
+
     it 'counts a closed_won deal under visita_efectiva too, since closing implies the visit already happened' do
       create_lead(replied: true, zoho_deal_id: 'deal-1', zoho_deal_stage: 'Closed Won')
 

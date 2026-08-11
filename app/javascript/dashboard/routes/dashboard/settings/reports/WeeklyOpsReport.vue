@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -115,6 +115,42 @@ const cadenceChartData = computed(() => {
     ],
   };
 });
+
+// Si ya existe un reporte generado para el inbox y el rango de fechas seleccionados, lo precarga
+// en vez de dejar la pantalla vacía esperando a que el usuario le dé "Generar reporte" de nuevo.
+const loadExistingReport = async () => {
+  report.value = null;
+  if (!canGenerate.value) return;
+
+  isLoading.value = true;
+  try {
+    const { data } = await WeeklyOpsReportsAPI.getReports(
+      filters.value.inboxId
+    );
+    const match = data.find(
+      existing =>
+        existing.period_start === filters.value.since &&
+        existing.period_end === filters.value.until &&
+        existing.status === 'completed'
+    );
+    if (match) {
+      const response = await WeeklyOpsReportsAPI.getReport(
+        filters.value.inboxId,
+        match.id
+      );
+      report.value = response.data;
+    }
+  } catch (error) {
+    // Silencioso: si falla la precarga, el usuario igual puede generar manualmente.
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+watch(
+  () => [filters.value.inboxId, filters.value.since, filters.value.until],
+  loadExistingReport
+);
 
 const fetchOrGenerate = async () => {
   if (!canGenerate.value) return;

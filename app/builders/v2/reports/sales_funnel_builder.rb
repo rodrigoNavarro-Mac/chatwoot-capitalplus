@@ -14,9 +14,22 @@ class V2::Reports::SalesFunnelBuilder
 
   # Valores internos ("actual_value") del campo Stage en el pipeline de Deals de Zoho de esta
   # cuenta — NO son los labels en español que se ven en la UI de Zoho (que están traducidos).
-  # Confirmado contra la API real: "Visita efectiva" -> Qualification, "Cotizado con visita" ->
-  # Needs Analysis, "Apartado" -> Id. Decision Makers, "Cerrado ganado" -> Closed Won.
-  VISITA_EFECTIVA_STAGES = ['Qualification', 'Needs Analysis', 'Id. Decision Makers', 'Closed Won'].freeze
+  # Confirmado contra la API real: "Visita efectiva - Videollamada" -> Qualification, "Cotizado
+  # con visita" -> Needs Analysis, "Apartado" -> Id. Decision Makers, "Cerrado ganado" -> Closed Won.
+  #
+  # El picklist de Stage en este Zoho tiene historial de valores "huérfanos" — opciones que
+  # existieron con un actual_value propio antes de que se renombraran/consolidaran, pero deals
+  # viejos siguen cargando el valor original en vez del nuevo (confirmado con un caso real: un
+  # deal con Stage = "Visita efectiva" a secas, que ya no aparece como opción del picklist actual,
+  # en vez de "Qualification"). Por eso la lista incluye ambos valores por etapa donde se conoce
+  # un huérfano — no hay forma de anticipar todos los que puedan existir, así que si aparece un
+  # caso nuevo hay que agregarlo aquí.
+  VISITA_EFECTIVA_STAGES = [
+    'Qualification', 'Visita efectiva',
+    'Needs Analysis',
+    'Id. Decision Makers', 'Identify Decision Makers',
+    'Closed Won'
+  ].freeze
   CLOSED_WON_STAGES = ['Closed Won'].freeze
   STAGES = %w[leads customer_replied has_deal visita_efectiva closed_won].freeze
 

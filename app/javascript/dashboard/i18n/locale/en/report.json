@@ -738,10 +738,10 @@
     },
     "CONTACT_TIME": {
       "TITLE": "Contact time",
-      "FIRST_RESPONSE": "Time to advisor's first message",
-      "FIRST_RESPONSE_INFO": "Average time from the customer's first message to the advisor's first reply in the conversation.",
-      "REPLY_TIME": "Initial response time",
-      "REPLY_TIME_INFO": "Average reply time across the conversation."
+      "FIRST_RESPONSE": "Time to first contact",
+      "FIRST_RESPONSE_INFO": "How long the advisor takes to reply to a new lead's first message — measures how fast initial contact happens.",
+      "REPLY_TIME": "Average reply time",
+      "REPLY_TIME_INFO": "Average advisor reply time across ALL replies in the conversation (not just the first one) — measures how responsive the conversation stays once it starts."
     },
     "VOLUME": {
       "NEW_CONVERSATIONS": "New conversations",
