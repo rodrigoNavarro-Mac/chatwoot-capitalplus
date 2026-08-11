@@ -43,8 +43,11 @@ class Crm::Aircall::CallProcessor
 
   attr_reader :account, :data
 
+  # El webhook manda raw_digits ya limpio, pero el endpoint REST de historial (GET /v1/calls) lo
+  # devuelve formateado con espacios ("+52 983 195 0040") — hay que normalizarlo antes de compararlo
+  # contra Contact#phone_number, que se guarda sin espacios.
   def raw_digits
-    data[:raw_digits].to_s
+    data[:raw_digits].to_s.gsub(/\s+/, '')
   end
 
   def aircall_call_id
