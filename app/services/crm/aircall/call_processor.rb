@@ -35,13 +35,35 @@ class Crm::Aircall::CallProcessor
     apply_call_attributes!(call)
     persist!(call)
 
-    message = Voice::CallMessageBuilder.new(call).perform!
-    call.update!(message_id: message.id) if call.message_id != message.id
+    create_message_without_corrupting_conversation_activity!(call, conversation)
   end
 
   private
 
   attr_reader :account, :data
+
+  # Voice::CallMessageBuilder fecha el mensaje con call.started_at (la fecha real de la llamada,
+  # casi siempre en el pasado) en vez de "ahora" — necesario para que el historial backfilled no
+  # quede todo fechado el día en que corrió el backfill. Pero los callbacks normales de Message
+  # (Message#set_conversation_activity, Message#set_waiting_since_on_incoming_message) asumen que
+  # todo mensaje nace en tiempo real y "rebobinarían" conversation.last_activity_at/waiting_since a
+  # esa fecha pasada, aunque la conversación haya tenido actividad real más reciente — así que se
+  # revierten aquí, acotado solo a este flujo, en vez de tocar el modelo Message (que sí necesita
+  # poder crear mensajes con created_at pasado libremente, ej. en specs).
+  def create_message_without_corrupting_conversation_activity!(call, conversation)
+    previous_last_activity_at = conversation.last_activity_at
+    previous_waiting_since = conversation.waiting_since
+
+    message = Voice::CallMessageBuilder.new(call).perform!
+    call.update!(message_id: message.id) if call.message_id != message.id
+
+    return unless message.previously_new_record?
+    return if previous_last_activity_at.blank? || message.created_at >= previous_last_activity_at
+
+    # rubocop:disable Rails/SkipsModelValidations
+    conversation.update_columns(last_activity_at: previous_last_activity_at, waiting_since: previous_waiting_since)
+    # rubocop:enable Rails/SkipsModelValidations
+  end
 
   # El webhook manda raw_digits ya limpio, pero el endpoint REST de historial (GET /v1/calls) lo
   # devuelve formateado con espacios ("+52 983 195 0040") — hay que normalizarlo antes de compararlo
