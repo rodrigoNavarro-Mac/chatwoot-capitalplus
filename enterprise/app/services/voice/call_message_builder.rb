@@ -30,8 +30,9 @@ class Voice::CallMessageBuilder
       content: I18n.t("conversations.messages.voice_call.#{call.provider}"),
       message_type: call.outgoing? ? 'outgoing' : 'incoming',
       content_type: 'voice_call',
-      content_attributes: { 'data' => build_data_payload }
-    }
+      content_attributes: { 'data' => build_data_payload },
+      created_at: call.started_at
+    }.compact
     Messages::MessageBuilder.new(sender, call.conversation, params).perform
   end
 

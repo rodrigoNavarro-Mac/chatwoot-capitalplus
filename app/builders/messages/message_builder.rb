@@ -118,8 +118,9 @@ class Messages::MessageBuilder
     message_type == 'outgoing' ? (message_sender || @user) : @conversation.contact
   end
 
-  def external_created_at
-    @params[:external_created_at].present? ? { external_created_at: @params[:external_created_at] } : {}
+  # external_created_at es solo metadata en content_attributes; created_at sí fecha el registro.
+  def timestamp_overrides
+    { external_created_at: @params[:external_created_at], created_at: @params[:created_at] }.compact_blank
   end
 
   def automation_rule_id
@@ -154,7 +155,7 @@ class Messages::MessageBuilder
       in_reply_to: @in_reply_to,
       echo_id: @params[:echo_id],
       source_id: @params[:source_id]
-    }.merge(external_created_at).merge(automation_rule_id).merge(campaign_id).merge(template_params)
+    }.merge(timestamp_overrides).merge(automation_rule_id).merge(campaign_id).merge(template_params)
   end
 
   def email_inbox?
