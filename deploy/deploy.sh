@@ -4,7 +4,7 @@
 # Actualizaciones: bash deploy.sh
 set -e
 
-cd /opt/chatwoot/deploy
+cd /opt/chatwoot/chatwoot-capitalplus/deploy
 
 FIRST_RUN=false
 if [ "$1" = "--first-run" ]; then
@@ -18,7 +18,7 @@ cd /opt/chatwoot
 git pull origin main
 
 echo "==> Descargando última imagen Docker desde GHCR..."
-cd /opt/chatwoot/deploy
+cd /opt/chatwoot/chatwoot-capitalplus/deploy
 docker compose -f docker-compose.production.yml pull rails
 
 # Primer deploy: obtener certificado SSL antes de levantar nginx con HTTPS
