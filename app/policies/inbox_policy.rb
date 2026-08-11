@@ -70,6 +70,14 @@ class InboxPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def assign_whatsapp_template?
+    @account_user.administrator?
+  end
+
+  def unassign_whatsapp_template?
+    @account_user.administrator?
+  end
+
   def enable_whatsapp_calling?
     @account_user.administrator?
   end

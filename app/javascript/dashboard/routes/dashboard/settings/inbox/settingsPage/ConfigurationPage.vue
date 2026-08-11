@@ -14,6 +14,7 @@ import WhatsappReauthorize from '../channels/whatsapp/Reauthorize.vue';
 import AddWhatsappNumberModal from './AddWhatsappNumberModal.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
 import InboxHealthAPI from 'dashboard/api/inboxHealth';
+import { templateMatchesInbox } from 'dashboard/helper/templateInboxMatcher';
 
 export default {
   components: {
@@ -49,6 +50,7 @@ export default {
       isUpdatingAllowedDomains: false,
       isSettingDefaults: false,
       showAddNumberModal: false,
+      pendingTemplateNames: [],
     };
   },
   validations: {
@@ -63,6 +65,49 @@ export default {
     },
     isForwardingEnabled() {
       return !!this.inbox.forwarding_enabled;
+    },
+    allWhatsappInboxes() {
+      return (this.$store.getters['inboxes/getInboxes'] || []).filter(inbox =>
+        Array.isArray(inbox.message_templates)
+      );
+    },
+    accountTemplateCatalog() {
+      const templatesByKey = new Map();
+      this.allWhatsappInboxes.forEach(inbox => {
+        (inbox.message_templates || []).forEach(template => {
+          const key = `${template.name}__${template.language}`;
+          if (!templatesByKey.has(key)) {
+            templatesByKey.set(key, template);
+          }
+        });
+      });
+      return Array.from(templatesByKey.values());
+    },
+    assignedTemplateNamesAccountWide() {
+      const names = new Set();
+      this.allWhatsappInboxes.forEach(inbox => {
+        (inbox.template_inbox_assignment_names || []).forEach(name =>
+          names.add(name)
+        );
+      });
+      return names;
+    },
+    unclaimedWhatsappTemplates() {
+      return this.accountTemplateCatalog.filter(template => {
+        const matchesAnyInbox = this.allWhatsappInboxes.some(candidate =>
+          templateMatchesInbox(template.name, candidate.name)
+        );
+        return (
+          !matchesAnyInbox &&
+          !this.assignedTemplateNamesAccountWide.has(template.name)
+        );
+      });
+    },
+    assignedTemplatesForThisInbox() {
+      const assignedNames = this.inbox.template_inbox_assignment_names || [];
+      return this.accountTemplateCatalog.filter(template =>
+        assignedNames.includes(template.name)
+      );
     },
   },
   watch: {
@@ -189,12 +234,44 @@ export default {
         this.isSyncingTemplates = false;
       }
     },
+    async assignTemplateToInbox(templateName) {
+      this.pendingTemplateNames.push(templateName);
+      try {
+        await this.$store.dispatch('inboxes/assignWhatsappTemplate', {
+          inboxId: this.inbox.id,
+          templateName,
+        });
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.pendingTemplateNames = this.pendingTemplateNames.filter(
+          name => name !== templateName
+        );
+      }
+    },
+    async unassignTemplateFromInbox(templateName) {
+      this.pendingTemplateNames.push(templateName);
+      try {
+        await this.$store.dispatch('inboxes/unassignWhatsappTemplate', {
+          inboxId: this.inbox.id,
+          templateName,
+        });
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.pendingTemplateNames = this.pendingTemplateNames.filter(
+          name => name !== templateName
+        );
+      }
+    },
     async registerWebhook() {
       this.isRegisteringWebhook = true;
       try {
         await InboxHealthAPI.registerWebhook(this.inbox.id);
         await this.$store.dispatch('inboxes/get');
-        useAlert(this.$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_REGISTER_SUCCESS'));
+        useAlert(
+          this.$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_REGISTER_SUCCESS')
+        );
       } catch (error) {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
       } finally {
@@ -408,7 +485,9 @@ export default {
               :is-loading="isRegisteringWebhook"
               @click="registerWebhook"
             >
-              {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_REGISTER_BUTTON') }}
+              {{
+                $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_REGISTER_BUTTON')
+              }}
             </NextButton>
           </div>
         </SettingsFieldSection>
@@ -467,6 +546,69 @@ export default {
         <NextButton :disabled="isSyncingTemplates" @click="syncTemplates">
           {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_BUTTON') }}
         </NextButton>
+      </SettingsFieldSection>
+      <SettingsFieldSection
+        :label="
+          $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_ASSIGNMENT.TITLE')
+        "
+        :help-text="
+          $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_ASSIGNMENT.SUBHEADER')
+        "
+      >
+        <div
+          v-if="assignedTemplatesForThisInbox.length"
+          class="mb-3 space-y-1.5"
+        >
+          <div
+            v-for="template in assignedTemplatesForThisInbox"
+            :key="`assigned-${template.name}`"
+            class="flex justify-between items-center px-2.5 py-1.5 rounded-lg bg-n-alpha-black2"
+          >
+            <span class="text-sm">{{ template.name }}</span>
+            <NextButton
+              faded
+              ruby
+              sm
+              :is-loading="pendingTemplateNames.includes(template.name)"
+              @click="unassignTemplateFromInbox(template.name)"
+            >
+              {{
+                $t(
+                  'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_ASSIGNMENT.UNASSIGN_BUTTON'
+                )
+              }}
+            </NextButton>
+          </div>
+        </div>
+        <div v-if="unclaimedWhatsappTemplates.length" class="space-y-1.5">
+          <div
+            v-for="template in unclaimedWhatsappTemplates"
+            :key="`unclaimed-${template.name}`"
+            class="flex justify-between items-center px-2.5 py-1.5 rounded-lg bg-n-alpha-black2"
+          >
+            <span class="text-sm">{{ template.name }}</span>
+            <NextButton
+              outline
+              sm
+              :is-loading="pendingTemplateNames.includes(template.name)"
+              @click="assignTemplateToInbox(template.name)"
+            >
+              {{
+                $t(
+                  'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_ASSIGNMENT.ASSIGN_BUTTON'
+                )
+              }}
+            </NextButton>
+          </div>
+        </div>
+        <p
+          v-else-if="!assignedTemplatesForThisInbox.length"
+          class="text-n-slate-11 text-sm"
+        >
+          {{
+            $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATE_ASSIGNMENT.EMPTY')
+          }}
+        </p>
       </SettingsFieldSection>
       <SettingsFieldSection
         :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_ADD_NUMBER_TITLE')"

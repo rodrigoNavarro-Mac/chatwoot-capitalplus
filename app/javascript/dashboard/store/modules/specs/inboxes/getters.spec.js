@@ -185,6 +185,7 @@ describe('#getters', () => {
             id: 1,
             channel_type: 'Channel::Whatsapp',
             message_templates: mixedStatusTemplates,
+            template_inbox_assignment_names: ['approved_template'],
           },
         ],
       };
@@ -233,6 +234,7 @@ describe('#getters', () => {
             id: 1,
             channel_type: 'Channel::Whatsapp',
             message_templates: interactiveTemplates,
+            template_inbox_assignment_names: ['regular_template'],
           },
         ],
       };
@@ -268,6 +270,7 @@ describe('#getters', () => {
             id: 1,
             channel_type: 'Channel::Whatsapp',
             message_templates: locationTemplates,
+            template_inbox_assignment_names: ['regular_template'],
           },
         ],
       };
@@ -301,6 +304,7 @@ describe('#getters', () => {
             id: 1,
             channel_type: 'Channel::Whatsapp',
             message_templates: authenticationTemplates,
+            template_inbox_assignment_names: ['regular_template'],
           },
         ],
       };
@@ -317,6 +321,9 @@ describe('#getters', () => {
             id: 1,
             channel_type: 'Channel::Whatsapp',
             message_templates: templates,
+            template_inbox_assignment_names: [
+              ...new Set(templates.map(template => template.name)),
+            ],
           },
         ],
       };
@@ -368,6 +375,7 @@ describe('#getters', () => {
             additional_attributes: {
               message_templates: fallbackTemplates,
             },
+            template_inbox_assignment_names: ['primary_template'],
           },
         ],
       };
@@ -395,6 +403,7 @@ describe('#getters', () => {
             additional_attributes: {
               message_templates: fallbackTemplates,
             },
+            template_inbox_assignment_names: ['fallback_template'],
           },
         ],
       };
@@ -402,6 +411,74 @@ describe('#getters', () => {
       const result = getters.getFilteredWhatsAppTemplates(state)(1);
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('fallback_template');
+    });
+
+    it('shows a template whose name matches the inbox name', () => {
+      const state = {
+        records: [
+          {
+            id: 1,
+            name: 'Boutique Polanco',
+            channel_type: 'Channel::Whatsapp',
+            message_templates: [
+              {
+                name: 'menu_boutiquepolanco_v2',
+                status: 'approved',
+                components: [{ type: 'BODY', text: 'Menu' }],
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = getters.getFilteredWhatsAppTemplates(state)(1);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('menu_boutiquepolanco_v2');
+    });
+
+    it('hides a template that does not match the inbox name and is not assigned', () => {
+      const state = {
+        records: [
+          {
+            id: 1,
+            name: 'Boutique Polanco',
+            channel_type: 'Channel::Whatsapp',
+            message_templates: [
+              {
+                name: 'ticket_status_updated',
+                status: 'approved',
+                components: [{ type: 'BODY', text: 'Status' }],
+              },
+            ],
+          },
+        ],
+      };
+
+      expect(getters.getFilteredWhatsAppTemplates(state)(1)).toEqual([]);
+    });
+
+    it('shows a template that does not match the inbox name but was manually assigned', () => {
+      const state = {
+        records: [
+          {
+            id: 1,
+            name: 'Boutique Polanco',
+            channel_type: 'Channel::Whatsapp',
+            message_templates: [
+              {
+                name: 'ticket_status_updated',
+                status: 'approved',
+                components: [{ type: 'BODY', text: 'Status' }],
+              },
+            ],
+            template_inbox_assignment_names: ['ticket_status_updated'],
+          },
+        ],
+      };
+
+      const result = getters.getFilteredWhatsAppTemplates(state)(1);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('ticket_status_updated');
     });
   });
 });

@@ -301,6 +301,8 @@ Rails.application.routes.draw do
             get :health, on: :member
             post :register_webhook, on: :member
             post :reset_secret, on: :member
+            post :assign_whatsapp_template, on: :member
+            delete :unassign_whatsapp_template, on: :member
             if ChatwootApp.enterprise?
               resource :conference, only: %i[create destroy], controller: 'conference' do
                 get :token, on: :member

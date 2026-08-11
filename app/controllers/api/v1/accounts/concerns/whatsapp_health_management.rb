@@ -3,7 +3,7 @@ module Api::V1::Accounts::Concerns::WhatsappHealthManagement
 
   included do
     skip_before_action :check_authorization, only: [:health, :register_webhook]
-    before_action :check_admin_authorization?, only: [:register_webhook]
+    before_action :check_admin_authorization?, only: [:register_webhook, :assign_whatsapp_template, :unassign_whatsapp_template]
     before_action :validate_whatsapp_cloud_channel, only: [:health, :register_webhook]
   end
 
@@ -31,6 +31,23 @@ module Api::V1::Accounts::Concerns::WhatsappHealthManagement
   rescue StandardError => e
     Rails.logger.error "[INBOX WEBHOOK] Webhook registration failed: #{e.message}"
     render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  def assign_whatsapp_template
+    return render status: :unprocessable_entity, json: { error: 'Template name is required' } if params[:template_name].blank?
+
+    @inbox.whatsapp_template_inbox_assignments.find_or_create_by!(
+      account_id: @inbox.account_id,
+      template_name: params[:template_name]
+    )
+    render 'api/v1/accounts/inboxes/show'
+  rescue ActiveRecord::RecordInvalid => e
+    render status: :unprocessable_entity, json: { error: e.message }
+  end
+
+  def unassign_whatsapp_template
+    @inbox.whatsapp_template_inbox_assignments.where(template_name: params[:template_name]).destroy_all
+    render 'api/v1/accounts/inboxes/show'
   end
 
   private
