@@ -50,6 +50,17 @@ describe V2::Reports::SalesFunnelBuilder do
       expect(stage(rows, 'customer_replied')[:actual_percent]).to eq(50.0)
     end
 
+    it 'counts customer_replied for a lead whose only "reply" is an Aircall voice_call message (no WhatsApp text)' do
+      contact = create_lead(replied: false)
+      conversation = contact.conversations.first
+      create(:message, account: account, inbox: inbox, conversation: conversation,
+                       message_type: 'incoming', content_type: 'voice_call')
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'customer_replied')[:count]).to eq(1)
+    end
+
     it 'counts has_deal only for contacts with a cached zoho_deal_id' do
       create_lead(replied: true, zoho_deal_id: 'deal-1')
       create_lead(replied: true)
