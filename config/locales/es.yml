@@ -244,6 +244,7 @@ es:
       voice_call:
         twilio: 'Voice Call'
         whatsapp: 'WhatsApp Call'
+        aircall: 'Aircall Call'
       delivery_status:
         error_code: 'Código de error: %{error_code}'
     activity:
