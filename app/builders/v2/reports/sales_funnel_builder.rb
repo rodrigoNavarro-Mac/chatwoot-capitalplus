@@ -152,11 +152,14 @@ class V2::Reports::SalesFunnelBuilder
     goals_by_key[[development_key, stage]]
   end
 
+  # La meta configurada para un desarrollo/etapa queda vigente hasta que se capture una nueva —
+  # no hace falta recapturar el mismo valor cada mes. Por cada (development_key, stage), usa la
+  # meta con el period_month más reciente que sea <= el mes del reporte (nunca una futura).
   def goals_by_key
     @goals_by_key ||= account.sales_funnel_goals
-                             .where(period_month: period_start)
-                             .index_by { |goal| [goal.development_key, goal.stage] }
-                             .transform_values { |goal| goal.target_percent.to_f }
+                             .where(period_month: ..period_start)
+                             .group_by { |goal| [goal.development_key, goal.stage] }
+                             .transform_values { |goals| goals.max_by(&:period_month).target_percent.to_f }
   end
 
   def period_start

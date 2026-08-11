@@ -133,5 +133,29 @@ describe V2::Reports::SalesFunnelBuilder do
       expect(stage(rows, 'leads')[:target_percent]).to eq(50.0)
       expect(stage(rows, 'leads')[:delta]).to eq(50.0)
     end
+
+    it 'keeps using the most recent past goal when there is none for the exact report month' do
+      period_month = Time.zone.at(params[:since].to_i).to_date.beginning_of_month
+      create(:sales_funnel_goal, account: account, development_key: 'torre-1', stage: 'leads',
+                                 period_month: period_month - 2.months, target_percent: 40)
+      create_lead
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:target_percent]).to eq(40.0)
+    end
+
+    it 'uses the newest applicable goal, ignoring any configured for a later month' do
+      period_month = Time.zone.at(params[:since].to_i).to_date.beginning_of_month
+      create(:sales_funnel_goal, account: account, development_key: 'torre-1', stage: 'leads',
+                                 period_month: period_month - 1.month, target_percent: 40)
+      create(:sales_funnel_goal, account: account, development_key: 'torre-1', stage: 'leads',
+                                 period_month: period_month + 1.month, target_percent: 90)
+      create_lead
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:target_percent]).to eq(40.0)
+    end
   end
 end
