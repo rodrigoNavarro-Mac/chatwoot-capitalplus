@@ -15,6 +15,7 @@
       "CATEGORY": "Category",
       "MEDIA_CONTENT": "Media Content",
       "MEDIA_CONTENT_FALLBACK": "media content",
+      "MEDIA_CONFIGURED": "· media configured",
       "NO_TEMPLATES_AVAILABLE": "No WhatsApp templates available. Click refresh to sync templates from WhatsApp.",
       "REFRESH_BUTTON": "Refresh templates",
       "REFRESH_SUCCESS": "Templates refresh initiated. It may take a couple of minutes to update.",

@@ -1153,6 +1153,27 @@ RSpec.describe 'Inboxes API', type: :request do
         expect(whatsapp_inbox.whatsapp_template_inbox_assignments.count).to eq(1)
       end
 
+      it 'saves a default media_url and media_name for the template on this inbox' do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/assign_whatsapp_template",
+             params: {
+               template_name: 'promo_boutique',
+               media_url: 'https://cdn.example.com/promo.jpg',
+               media_name: 'promo.jpg'
+             },
+             headers: admin.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        assignment = whatsapp_inbox.whatsapp_template_inbox_assignments.find_by(template_name: 'promo_boutique')
+        expect(assignment.media_url).to eq('https://cdn.example.com/promo.jpg')
+        expect(assignment.media_name).to eq('promo.jpg')
+
+        json_response = response.parsed_body
+        expect(json_response['template_inbox_media_defaults']).to eq(
+          { 'promo_boutique' => { 'media_url' => 'https://cdn.example.com/promo.jpg', 'media_name' => 'promo.jpg' } }
+        )
+      end
+
       it 'returns unprocessable entity when template_name is missing' do
         post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/assign_whatsapp_template",
              headers: admin.create_new_auth_token,

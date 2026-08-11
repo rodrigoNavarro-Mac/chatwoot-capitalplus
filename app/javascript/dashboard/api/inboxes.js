@@ -33,9 +33,11 @@ class Inboxes extends CacheEnabledApiClient {
     return axios.post(`${this.url}/${inboxId}/sync_templates`);
   }
 
-  assignTemplate(inboxId, templateName) {
+  assignTemplate(inboxId, templateName, { mediaUrl, mediaName } = {}) {
     return axios.post(`${this.url}/${inboxId}/assign_whatsapp_template`, {
       template_name: templateName,
+      ...(mediaUrl !== undefined ? { media_url: mediaUrl } : {}),
+      ...(mediaName !== undefined ? { media_name: mediaName } : {}),
     });
   }
 

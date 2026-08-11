@@ -12,6 +12,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
 import { requiredIf } from '@vuelidate/validators';
 import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store';
 
 import Input from 'dashboard/components-next/input/Input.vue';
 import {
@@ -130,6 +131,27 @@ const v$ = useVuelidate(
   { processedParams }
 );
 
+const getInbox = useMapGetter('inboxes/getInbox');
+
+// Default de media configurado una sola vez por plantilla+bandeja (Settings > Inbox).
+// Se aplica primero como base; si la cadencia trae su propio media_url (más específico
+// para ese paso), lo sobreescribe más abajo.
+const prefillMediaFromInboxDefault = () => {
+  if (!hasMediaHeader.value || !props.inboxId) return;
+
+  const inboxMediaDefault = getInbox.value(props.inboxId)
+    ?.template_inbox_media_defaults?.[props.template.name];
+  if (!inboxMediaDefault?.media_url) return;
+
+  processedParams.value.header = {
+    ...processedParams.value.header,
+    media_url: inboxMediaDefault.media_url,
+    ...(inboxMediaDefault.media_name
+      ? { media_name: inboxMediaDefault.media_name }
+      : {}),
+  };
+};
+
 // Si ya se configuró el media_url de esta plantilla como paso de una cadencia (en ese
 // inbox), lo precargamos aquí: el agente no debería tener que volver a pegarlo a mano.
 // El campo sigue siendo editable por si lo quiere cambiar para este envío puntual.
@@ -168,6 +190,7 @@ const initializeTemplateParameters = () => {
     processedParams.value.body['1'] = '{{ contact.name }}';
   }
 
+  prefillMediaFromInboxDefault();
   prefillMediaFromCadenceStep();
 };
 

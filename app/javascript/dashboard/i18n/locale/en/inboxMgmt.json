@@ -847,6 +847,15 @@
         "UNASSIGN_BUTTON": "Remove",
         "EMPTY": "No unclaimed templates found."
       },
+      "WHATSAPP_TEMPLATE_MEDIA": {
+        "TITLE": "Template Media Defaults",
+        "SUBHEADER": "Set a default media URL once per template so agents don't have to paste it every time they send it. This is used for any manual send from this inbox unless a cadence step sets its own media.",
+        "URL_PLACEHOLDER": "https://...",
+        "NAME_PLACEHOLDER": "Document filename (e.g., Invoice.pdf)",
+        "SAVE_BUTTON": "Save",
+        "SAVE_SUCCESS": "Default media saved successfully.",
+        "EMPTY": "No templates with an image, video or document header available for this inbox yet."
+      },
       "WHATSAPP_CALLING_ENABLED": {
         "LABEL": "Enable voice calling",
         "DESCRIPTION": "Allow agents to start and receive WhatsApp voice calls on this inbox. Available only on embedded-signup WhatsApp Cloud channels with calling permission granted by Meta."

@@ -688,6 +688,7 @@ Rails.application.routes.draw do
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
   post 'webhooks/zoho_crm/:account_id', to: 'webhooks/zoho_crm#process_payload'
   post 'webhooks/zoho_crm/:account_id/send_template', to: 'webhooks/zoho_crm#send_template'
+  post 'webhooks/aircall/:account_id/:secret_token', to: 'webhooks/aircall#process_payload'
 
   namespace :twitter do
     resource :callback, only: [:show]
