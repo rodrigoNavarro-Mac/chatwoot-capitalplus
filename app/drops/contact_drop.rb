@@ -12,11 +12,12 @@ class ContactDrop < BaseDrop
   end
 
   def first_name
-    @obj.try(:name).try(:split).try(:first).try(:capitalize) if @obj.try(:name).try(:split).try(:size) > 1
+    @obj.try(:name).try(:split).try(:first).try(:capitalize)
   end
 
   def last_name
-    @obj.try(:name).try(:split).try(:last).try(:capitalize) if @obj.try(:name).try(:split).try(:size) > 1
+    name_parts = @obj.try(:name).try(:split)
+    name_parts.try(:last).try(:capitalize) if name_parts.try(:size).to_i > 1
   end
 
   def custom_attribute

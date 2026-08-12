@@ -20,6 +20,11 @@ describe ContactDrop do
       contact.update!(name: 'john doe')
       expect(subject.last_name).to eq 'Doe'
     end
+
+    it 'returns the first name even when there is no last name' do
+      contact.update!(name: 'John')
+      expect(subject.first_name).to eq 'John'
+    end
   end
 
   context 'when last name' do
