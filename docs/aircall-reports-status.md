@@ -40,12 +40,9 @@ generado 2026-08-12. Cuenta de referencia en producción: **account_id 2 ("Capit
 
 ## ⚠️ Pendiente de verificar — no confirmado en producción
 
-- **Los fixes #4 y #5 (embudo en PDF, timezone) están en `main` pero el usuario NO había
-  desplegado la imagen nueva** en el último mensaje de esta sesión. Falta:
-  1. Confirmar que el build de GitHub Actions terminó para `9cf959d34` (o el commit más reciente).
-  2. `docker compose -f docker-compose.production.yml pull rails && up -d` en el servidor.
-  3. Generar un reporte nuevo y confirmar que el embudo aparece en el PDF/DOCX descargado, y que
-     el rango de fechas (period_end y la gráfica de leads) ya no corre un día de más.
+- ~~Los fixes #4 y #5 (embudo en PDF, timezone) sin desplegar/confirmar~~ — **confirmado por el
+  usuario el 2026-08-12: ya desplegado y funcionando en producción.** El embudo aparece en el
+  PDF/DOCX y el rango de fechas ya no corre un día de más.
 - **El webhook de Aircall en tiempo real nunca se probó end-to-end con una llamada real** — se
   configuró el `Integrations::Hook` (`account_id: 2, app_id: 'aircall'`, todos los scopes) y se
   verificó que el endpoint responde 200 con la ruta/secreto correctos, pero no hay confirmación de
