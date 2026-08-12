@@ -15,6 +15,11 @@ describe UserDrop do
       user.update!(name: 'john doe')
       expect(subject.first_name).to eq 'John'
     end
+
+    it 'returns the first name even when there is no last name' do
+      user.update!(name: 'John')
+      expect(subject.first_name).to eq 'John'
+    end
   end
 
   it('return the capitalized name') do
