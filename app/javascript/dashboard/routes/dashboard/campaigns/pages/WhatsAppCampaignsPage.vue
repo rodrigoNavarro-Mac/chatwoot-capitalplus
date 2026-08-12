@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import { useToggle } from '@vueuse/core';
 import { useStoreGetters, useMapGetter } from 'dashboard/composables/store';
 
@@ -9,11 +10,11 @@ import CampaignLayout from 'dashboard/components-next/Campaigns/CampaignLayout.v
 import CampaignList from 'dashboard/components-next/Campaigns/Pages/CampaignPage/CampaignList.vue';
 import WhatsAppCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/WhatsAppCampaignDialog.vue';
 import EditWhatsAppCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/EditWhatsAppCampaignDialog.vue';
-import WhatsAppCampaignMetricsDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/WhatsAppCampaign/WhatsAppCampaignMetricsDialog.vue';
 import ConfirmDeleteCampaignDialog from 'dashboard/components-next/Campaigns/Pages/CampaignPage/ConfirmDeleteCampaignDialog.vue';
 import WhatsAppCampaignEmptyState from 'dashboard/components-next/Campaigns/EmptyState/WhatsAppCampaignEmptyState.vue';
 
 const { t } = useI18n();
+const router = useRouter();
 const getters = useStoreGetters();
 
 const selectedCampaign = ref(null);
@@ -24,7 +25,6 @@ const isFetchingCampaigns = computed(() => uiFlags.value.isFetching);
 
 const confirmDeleteCampaignDialogRef = ref(null);
 const editCampaignDialogRef = ref(null);
-const metricsCampaignDialogRef = ref(null);
 
 const WhatsAppCampaigns = computed(
   () => getters['campaigns/getWhatsAppCampaigns'].value
@@ -45,8 +45,10 @@ const handleEdit = campaign => {
 };
 
 const handleMetrics = campaign => {
-  selectedCampaign.value = campaign;
-  metricsCampaignDialogRef.value.dialogRef.open();
+  router.push({
+    name: 'campaigns_whatsapp_recipients',
+    params: { campaignId: campaign.id },
+  });
 };
 </script>
 
@@ -88,10 +90,6 @@ const handleMetrics = campaign => {
     />
     <EditWhatsAppCampaignDialog
       ref="editCampaignDialogRef"
-      :selected-campaign="selectedCampaign"
-    />
-    <WhatsAppCampaignMetricsDialog
-      ref="metricsCampaignDialogRef"
       :selected-campaign="selectedCampaign"
     />
   </CampaignLayout>
