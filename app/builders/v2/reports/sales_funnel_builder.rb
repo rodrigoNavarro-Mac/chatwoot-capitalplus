@@ -116,12 +116,20 @@ class V2::Reports::SalesFunnelBuilder
     filter_pairs_by_contact(pairs, "additional_attributes -> 'external' ->> 'zoho_id' IS NOT NULL")
   end
 
+  # "Contestó" no es solo un mensaje incoming (WhatsApp, o una llamada que el cliente hizo) — una
+  # llamada SALIENTE (el asesor llamó al cliente) que el cliente contestó (Call#status ==
+  # 'completed') es la misma señal de engagement real, aunque el Message que crea
+  # Voice::CallMessageBuilder para esa llamada quede como outgoing (ver
+  # Crm::Aircall::CallProcessor). Caso real que detectó este hueco: deal en "Visita efectiva -
+  # Videollamada" cuyas 4 llamadas eran todas salientes contestadas (una de 379s) — customer_replied
+  # daba false porque nunca hubo un Message incoming.
   def customer_replied(pairs)
     return [] if pairs.empty?
 
     conversation_ids = pairs.map(&:first)
     replied_ids = Message.where(conversation_id: conversation_ids, message_type: :incoming)
                          .pluck(:conversation_id).to_set
+    replied_ids.merge(Call.where(conversation_id: conversation_ids, status: 'completed').pluck(:conversation_id))
 
     pairs.select { |(conversation_id, _contact_id)| replied_ids.include?(conversation_id) }
   end
