@@ -37,25 +37,58 @@ generado 2026-08-12. Cuenta de referencia en producción: **account_id 2 ("Capit
 | 3 | Efecto secundario del bug #2: `conversation.last_activity_at`/`waiting_since` de 292 conversaciones quedaron "rebobinados" a la fecha del backfill | Los callbacks normales de `Message` (`set_conversation_activity`, `set_waiting_since_on_incoming_message`) asumen que todo mensaje nace en tiempo real | `79d0176ec` — `Crm::Aircall::CallProcessor` restaura `last_activity_at`/`waiting_since` cuando el mensaje backdated no es más reciente que la actividad previa. Reparación de los 303 registros ya afectados: `ea003881f` (`rake chatwoot:repair_aircall_backdated_activity`, ya corrido en producción: 303 mensajes corregidos, 137 conversaciones recalculadas) |
 | 4 | El embudo de ventas (5 etapas: leads → customer_replied → has_deal → visita_efectiva → closed_won) nunca aparecía en el PDF/DOCX exportado | `kpis.pipeline.stages` solo se renderizaba en el dashboard Vue — `weekly_ops_report_pdf_service.rb`/`weekly_ops_report_docx_service.rb` nunca lo incluían | `9657ea3ce` — agrega `funnel_rows` compartido + tabla "Embudo de ventas" en ambos formatos |
 | 5 | El reporte corría un día extra en husos horarios detrás de UTC (México, UTC-6): rango 3-9 mostraba hasta el 10 | `toUnixSeconds` en `WeeklyOpsReport.vue` armaba el timestamp de "hasta" en la zona horaria LOCAL del navegador (sin sufijo `Z`); el backend interpreta since/until como epoch UTC — "9 de agosto 23:59:59 local" cruza a "10 de agosto" en UTC | `615bb1dc5` — agrega `Z` al string antes de parsearlo, forzando UTC |
+| 6 | El embudo no contaba llamadas SALIENTES contestadas como respuesta del cliente (`customer_replied`) | `customer_replied` solo miraba `Message.message_type == incoming`, pero una llamada saliente (asesor llama al cliente) contestada crea un `Message` `outgoing` — nunca se contaba, aunque hubo engagement real. Caso real (+529843128950, contact_id 198): deal en "Visita efectiva - Videollamada" en Zoho con 4 llamadas de Aircall, todas salientes y contestadas (una de 379s), pero `customer_replied` daba `false` | `501a45a87` (`b3e8a52b7`) — `customer_replied` ahora también cuenta cualquier `Call` con `status: completed` en la conversación, sin importar la dirección |
 
 ## ⚠️ Pendiente de verificar — no confirmado en producción
 
-- ~~Los fixes #4 y #5 (embudo en PDF, timezone) sin desplegar/confirmar~~ — **confirmado por el
-  usuario el 2026-08-12: ya desplegado y funcionando en producción.** El embudo aparece en el
-  PDF/DOCX y el rango de fechas ya no corre un día de más.
-- **El webhook de Aircall en tiempo real nunca se probó end-to-end con una llamada real** — se
-  configuró el `Integrations::Hook` (`account_id: 2, app_id: 'aircall'`, todos los scopes) y se
-  verificó que el endpoint responde 200 con la ruta/secreto correctos, pero no hay confirmación de
-  que una llamada real de Aircall haya llegado y se haya reflejado como mensaje. Si algo falla ahí,
-  revisar logs de Rails (`docker compose logs rails -f | grep -i aircall`) durante una llamada de
-  prueba.
-- Si después de desplegar el usuario sigue reportando que "el embudo no funciona correctamente",
-  el síntoma reportado hasta ahora ("no sale en el PDF") ya tiene fix — cualquier reclamo posterior
-  sería sobre la EXACTITUD de las etapas (conteos), no sobre que la sección exista. Ver
-  `V2::Reports::SalesFunnelBuilder` (`app/builders/v2/reports/sales_funnel_builder.rb`) para la
-  lógica de detección de cada etapa — ya tiene manejo de valores huérfanos del picklist de Zoho
-  (`VISITA_EFECTIVA_STAGES`), pero si aparece un nuevo valor de Stage no listado ahí, hay que
-  agregarlo (mismo patrón que las correcciones anteriores en este mismo builder).
+- El fix #6 (llamadas salientes contestadas) está en `main` pero falta desplegar y regenerar el
+  reporte del caso real (+529843128950 / contact_id 198, conversation_id 205) para confirmar que
+  ahora sí cuenta como `customer_replied` y, si el deal sigue en etapa post-visita, como
+  `visita_efectiva`.
+- **El webhook de Aircall en tiempo real ya se probó y funciona** (confirmado por el usuario
+  2026-08-12).
+- Si después de desplegar el fix #6 el usuario sigue reportando que el embudo "no cruza bien la
+  información", revisar `V2::Reports::SalesFunnelBuilder#customer_replied` y
+  `#visita_efectiva`/`VISITA_EFECTIVA_STAGES` — mismo patrón de diagnóstico: pedir un
+  contacto/teléfono concreto, revisar `additional_attributes['external']` cacheado en Chatwoot vía
+  `rails runner`, y comparar contra el Stage real del deal en Zoho (`actual_value` vs
+  `display_value` — MISMO ojo: el MCP de Zoho a veces devuelve el `display_value`
+  ["Visita efectiva - Videollamada"] en vez del `actual_value` ["Qualification"] que sí usa el
+  código; lo que importa es el valor CACHEADO en Chatwoot, no lo que devuelva el MCP).
+
+## 📋 Pendiente — que el reporte se apegue al reporte viejo (Python)
+
+El usuario compartió el reporte semanal viejo (Python) como referencia. Comparado con lo que existe
+hoy en `V2::Reports::WeeklyOpsReportBuilder`, faltan estas secciones/métricas (ninguna implementada
+todavía):
+
+1. **% Conversión como KPI de resumen** (deals creados / leads totales) — hoy no existe como
+   métrica de headline, solo se puede derivar de las etapas del embudo.
+2. **Gráfica "Leads generados por día" con líneas verticales punteadas marcando fin de semana** —
+   ya existe la gráfica de línea (`zoho_leads_timeline`), falta solo el marcado visual de fin de
+   semana.
+3. **"Distribución por Asesor" basada en LEADS de Zoho (Owner del lead), no en conversaciones
+   asignadas de Chatwoot** — el `by_advisor_metrics` actual es 100% de Chatwoot
+   (`assignee_id` de `Conversation`); el reporte viejo cuenta leads por dueño en Zoho, que es una
+   dimensión distinta. Requeriría leer `Owner` de cada lead ya traído por `zoho_leads_metrics`.
+4. **"Comparativo Semanal por Canal" (leads por fuente, semana actual vs anterior)** — el dato ya
+   existe (`zoho_leads.by_source` + `comparison.zoho_leads.by_source`, gracias a
+   `comparison_metrics`), solo falta el gráfico en el frontend.
+5. **"Calidad de Leads por Canal"** — hoy `quality_leads_count`/`quality_leads_percent` es un solo
+   total; el reporte viejo lo desglosa POR fuente. Requiere cambio de backend
+   (`zoho_leads_metrics`).
+6. **"Conversión y Descarte por Asesor"** — cuántos leads de cada asesor (dueño en Zoho) se
+   convirtieron a deal vs se descartaron. Cruce nuevo: leads agrupados por Owner Y por resultado
+   (deal creado / Lost Lead). No existe hoy.
+7. **"Tiempos de Contacto por Asesor: Entre Semana vs Fin de Semana"** — split adicional de
+   `contact_time`/`by_advisor` por día de semana vs fin de semana. No existe hoy.
+8. **"Distribución por Horario" (% leads dentro/fuera de horario laboral)** — no existe hoy; se
+   podría derivar de `Created_Time` de los leads de Zoho ya traídos.
+
+Es un esfuerzo grande (varios de estos son nuevas dimensiones de cruce Zoho, no solo
+formato/presentación). Recomendado: priorizar con el usuario cuáles de estas 8 secciones son
+realmente necesarias antes de implementar todo — algunas (2, 4) son baratas porque el dato ya
+existe; otras (3, 5, 6, 7, 8) requieren nueva lógica de backend.
 
 ## Mapa de archivos (para orientarse rápido)
 
