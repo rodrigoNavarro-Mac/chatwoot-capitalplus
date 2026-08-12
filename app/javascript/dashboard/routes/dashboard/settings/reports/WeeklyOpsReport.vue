@@ -119,8 +119,12 @@ const canGenerate = computed(
     isCompleteDate(filters.value.until)
 );
 
+// UTC explícito (sufijo Z): el backend interpreta since/until como epoch en UTC
+// (DateRangeHelper#parse_date_time). Sin el "Z", el navegador arma la fecha en su zona horaria
+// local, así que en cualquier huso detrás de UTC (ej. México, UTC-6) "9 de agosto 23:59:59 local"
+// cae en "10 de agosto" al convertir a UTC, corriendo el reporte un día.
 const toUnixSeconds = (dateValue, endOfDay = false) => {
-  const date = new Date(`${dateValue}T${endOfDay ? '23:59:59' : '00:00:00'}`);
+  const date = new Date(`${dateValue}T${endOfDay ? '23:59:59' : '00:00:00'}Z`);
   return Math.floor(date.getTime() / 1000).toString();
 };
 
