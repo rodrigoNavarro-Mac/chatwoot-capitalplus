@@ -23,6 +23,10 @@ class CampaignPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def recipients?
+    @account_user.administrator?
+  end
+
   def csv_usage_report?
     @account_user.administrator?
   end
