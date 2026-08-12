@@ -133,6 +133,7 @@ Rails.application.routes.draw do
             end
             collection do
               get :csv_usage_report
+              post :csv_preview
             end
           end
           resources :cadence_enrollments, only: [:index, :show, :create] do

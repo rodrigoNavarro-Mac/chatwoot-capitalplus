@@ -196,7 +196,16 @@
             "LABEL": "CSV file",
             "PLACEHOLDER": "Click to upload a CSV file",
             "INFO": "CSV must have a 'phone_number' column. Optional: 'name', 'email', and extra columns usable as contact.custom_attribute.column_name in the template.",
-            "ERROR": "CSV file is required"
+            "ERROR": "CSV file is required",
+            "PREVIEW": {
+              "CHECKING": "Checking CSV file...",
+              "SUMMARY": "{valid} of {total} rows are valid to send",
+              "MISSING_PHONE": "{count} row(s) without a phone number",
+              "DUPLICATE": "{count} duplicate phone number(s) in the file",
+              "ALREADY_BOUNCED": "{count} number(s) previously marked as invalid (bounced before)",
+              "NO_VALID_ROWS": "No valid contacts found in this file",
+              "ERROR": "Could not validate CSV file"
+            }
           },
           "SCHEDULED_AT": {
             "LABEL": "Scheduled time",

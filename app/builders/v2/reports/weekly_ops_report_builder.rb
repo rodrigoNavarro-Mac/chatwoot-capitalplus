@@ -22,25 +22,6 @@ class V2::Reports::WeeklyOpsReportBuilder
 
   CONTACT_TIME_METRICS = %w[first_response reply_time].freeze
 
-  # Valores internos ("actual_value") del campo Lead_Status en Zoho de esta cuenta, confirmados
-  # contra la API real (Api::CRM::getFields sobre el módulo Leads) — no son los labels en español
-  # que se ven en la UI de Zoho (que están traducidos). Mismo criterio que
-  # V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES para el Stage de Deals.
-  LEAD_STATUS_LABELS = {
-    'Nuevo contacto' => 'Nuevo contacto',
-    'Attempted to Contact' => 'Intento de contacto',
-    'Contact in Future' => 'Contactar en el futuro',
-    'Contacted' => 'Contactado',
-    'Calificado' => 'Calificado',
-    'Lost Lead' => 'Cliente perdido/Descartado',
-    'Pre-Qualified' => 'Previamente clasificado',
-    'Not Contacted' => 'Contacto no exitoso',
-    'Not Qualified' => 'No habilitado',
-    'Junk Lead' => 'Posible cliente no solicitado'
-  }.freeze
-  LOST_LEAD_STATUS = 'Lost Lead'.freeze
-  CONTACTED_STATUS = 'Contacted'.freeze
-
   # Granularidad de la gráfica de leads por periodo, según el tipo de reporte — semana → día,
   # mes → semana, trimestre → mes (ver V2::Reports::LeadsTimelineMetrics).
   TIMELINE_GRANULARITY_BY_PERIOD_TYPE = { 'week' => 'day', 'month' => 'week', 'quarter' => 'month' }.freeze
@@ -61,10 +42,14 @@ class V2::Reports::WeeklyOpsReportBuilder
       period: period_payload,
       volume: volume_metrics,
       contact_time: contact_time_metrics,
+      contact_time_by_period_of_week: contact_time_by_period_of_week,
       by_advisor: by_advisor_metrics,
       pipeline: pipeline_metrics,
-      zoho_leads: zoho_leads_metrics,
+      zoho_leads: zoho_leads_service.summary,
       zoho_leads_timeline: leads_timeline_metrics,
+      deals_created: zoho_leads_service.deals_created,
+      conversion_by_owner: zoho_leads_service.conversion_by_owner,
+      schedule_distribution: zoho_leads_service.schedule_distribution,
       aircall_calls: aircall_calls_metrics,
       cadences: cadence_metrics,
       campaigns: campaign_metrics,
@@ -100,24 +85,41 @@ class V2::Reports::WeeklyOpsReportBuilder
     CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, average_minutes_for(metric)] }
   end
 
-  def average_minutes_for(metric, user_id: nil)
-    events = reporting_events_for(metric, user_id: user_id)
+  # Lun-Vie vs Sáb-Dom, igual que el reporte semanal anterior en Python — para detectar si el
+  # tiempo de contacto se deteriora fuera de la operación entre semana.
+  def contact_time_by_period_of_week
+    {
+      weekday: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, average_minutes_for(m, weekday: true)] },
+      weekend: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, average_minutes_for(m, weekday: false)] }
+    }
+  end
+
+  def average_minutes_for(metric, user_id: nil, weekday: nil)
+    events = reporting_events_for(metric, user_id: user_id, weekday: weekday)
     count = events.count
     return nil if count.zero?
 
     (events.sum(Arel.sql('COALESCE(value_in_business_hours, value)')) / count / 60.0).round(2)
   end
 
-  def reporting_events_for(metric, user_id: nil)
-    events = contact_time_events.where(name: metric)
+  def reporting_events_for(metric, user_id: nil, weekday: nil)
+    events = contact_time_events(weekday: weekday).where(name: metric)
     events = events.where(user_id: user_id) if user_id.present?
     events
   end
 
-  def contact_time_events
+  def contact_time_events(weekday: nil)
     events = ReportingEvent.where(inbox_id: inbox.id, name: CONTACT_TIME_METRICS)
     events = events.where(created_at: range) if range.present?
-    events
+    filter_by_weekday(events, weekday)
+  end
+
+  # weekday: true → lunes-viernes, false → sábado-domingo, nil → sin filtro.
+  def filter_by_weekday(scope, weekday)
+    return scope if weekday.nil?
+
+    days = weekday ? (1..5).to_a : [0, 6]
+    scope.where('EXTRACT(DOW FROM created_at) IN (?)', days)
   end
 
   def by_advisor_metrics
@@ -132,10 +134,10 @@ class V2::Reports::WeeklyOpsReportBuilder
     advisor_conversations_scope.where.not(assignee_id: nil).distinct.pluck(:assignee_id)
   end
 
-  def advisor_conversations_scope
+  def advisor_conversations_scope(weekday: nil)
     conversations = inbox.conversations
     conversations = conversations.where(created_at: range) if range.present?
-    conversations
+    filter_by_weekday(conversations, weekday)
   end
 
   def advisor_stats(user_id)
@@ -143,8 +145,17 @@ class V2::Reports::WeeklyOpsReportBuilder
       user_id: user_id,
       name: advisor_name(user_id),
       conversations_count: advisor_conversations_scope.where(assignee_id: user_id).count,
-      contact_time: CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, average_minutes_for(metric, user_id: user_id)] }
+      contact_time: CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, average_minutes_for(metric, user_id: user_id)] },
+      by_period_of_week: advisor_period_of_week_stats(user_id)
     }
+  end
+
+  def advisor_period_of_week_stats(user_id)
+    [true, false].to_h do |weekday|
+      key = weekday ? :weekday : :weekend
+      [key, { conversations_count: advisor_conversations_scope(weekday: weekday).where(assignee_id: user_id).count,
+              contact_time: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, average_minutes_for(m, user_id: user_id, weekday: weekday)] } }]
+    end
   end
 
   def advisor_name(user_id)
@@ -155,49 +166,19 @@ class V2::Reports::WeeklyOpsReportBuilder
     V2::Reports::SalesFunnelBuilder.new(account: account, params: params.merge(inbox_ids: [inbox.id])).build.first
   end
 
-  # Distribución de leads de Zoho (estado, fuente, motivo de descarte) para este desarrollo y
-  # periodo — consultado en vivo (ver Crm::Zoho::LeadsForPeriodService), a diferencia de
-  # #pipeline_metrics que solo mira contactos que ya tienen conversación en Chatwoot. Si el inbox
-  # no tiene "desarrollo" configurado, o Zoho no responde, no bloquea el resto del reporte: queda
-  # en nil y el frontend/PDF/docx simplemente omiten la sección.
-  def zoho_leads_metrics
-    return nil if development_key.blank? || range.blank?
-
-    leads = zoho_leads
-    return nil if leads.blank?
-
-    lost_leads = leads.select { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
-    quality_count = leads.count { |lead| lead['Lead_Status'] == CONTACTED_STATUS }
-
-    {
-      total: leads.size,
-      by_status: count_by(leads, 'Lead_Status', LEAD_STATUS_LABELS),
-      by_source: count_by(leads, 'Lead_Source'),
-      discard_reasons: count_by(lost_leads, 'Raz_n_de_descarte'),
-      quality_leads_count: quality_count,
-      quality_leads_percent: safe_rate(quality_count, leads.size)
-    }
-  end
-
-  def zoho_leads
-    @zoho_leads ||= Crm::Zoho::LeadsForPeriodService.new(account: account, development_key: development_key, range: range).fetch
+  def zoho_leads_service
+    @zoho_leads_service ||= V2::Reports::ZohoLeadsMetrics.new(account: account, development_key: development_key, range: range, inbox: inbox)
   end
 
   def leads_timeline_metrics
     return nil if development_key.blank? || range.blank?
 
     granularity = TIMELINE_GRANULARITY_BY_PERIOD_TYPE.fetch(params[:period_type], 'day')
-    V2::Reports::LeadsTimelineMetrics.new(leads: zoho_leads, range: range, granularity: granularity, account: account).build
+    V2::Reports::LeadsTimelineMetrics.new(leads: zoho_leads_service.leads, range: range, granularity: granularity, account: account).build
   end
 
   def development_key
     inbox.agent_bot&.bot_config&.dig('variables', 'desarrollo')
-  end
-
-  def count_by(leads, field, labels = nil)
-    leads.filter_map { |lead| lead[field] }
-         .tally
-         .transform_keys { |value| labels ? labels.fetch(value, value) : value }
   end
 
   # "aircall_calls" y no "calls" para no confundirse con cadences[:calls_completed]/[:calls_pending]

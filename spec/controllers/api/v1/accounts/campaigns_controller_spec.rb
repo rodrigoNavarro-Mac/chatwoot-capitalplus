@@ -192,6 +192,58 @@ RSpec.describe 'Campaigns API', type: :request do
     end
   end
 
+  describe 'POST /api/v1/accounts/{account.id}/campaigns/csv_preview' do
+    let(:administrator) { create(:user, account: account, role: :administrator) }
+    let(:csv_file) do
+      Rack::Test::UploadedFile.new(
+        StringIO.new("phone_number,name\n5215512345678,Ana\n,SinTelefono\n"), 'text/csv', original_filename: 'audience.csv'
+      )
+    end
+
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        post "/api/v1/accounts/#{account.id}/campaigns/csv_preview",
+             params: { csv_audience: csv_file }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated user' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+
+      it 'returns unauthorized for agents' do
+        post "/api/v1/accounts/#{account.id}/campaigns/csv_preview",
+             params: { csv_audience: csv_file },
+             headers: agent.create_new_auth_token
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      it 'returns validation stats for administrators' do
+        post "/api/v1/accounts/#{account.id}/campaigns/csv_preview",
+             params: { csv_audience: csv_file },
+             headers: administrator.create_new_auth_token
+
+        expect(response).to have_http_status(:success)
+        body = JSON.parse(response.body, symbolize_names: true)
+        expect(body[:valid]).to be true
+        expect(body[:total_rows]).to eq(2)
+        expect(body[:valid_count]).to eq(1)
+        expect(body[:missing_phone_count]).to eq(1)
+      end
+
+      it 'returns an error when no file is sent' do
+        post "/api/v1/accounts/#{account.id}/campaigns/csv_preview",
+             headers: administrator.create_new_auth_token
+
+        expect(response).to have_http_status(:success)
+        body = JSON.parse(response.body, symbolize_names: true)
+        expect(body[:valid]).to be false
+      end
+    end
+  end
+
   describe 'DELETE /api/v1/accounts/{account.id}/campaigns/:id' do
     let(:inbox) { create(:inbox, account: account) }
     let!(:campaign) { create(:campaign, account: account, trigger_rules: { url: 'https://test.com' }) }

@@ -8,7 +8,8 @@ module Reports::WeeklyOpsReportDocxTables
     funnel: ['Etapa', 'Cantidad', '% real', '% meta', 'Diferencia'],
     pipeline_status: %w[Estado Leads %],
     lead_source: %w[Fuente Leads %],
-    discard_reason: %w[Motivo Leads %]
+    discard_reason: %w[Motivo Leads %],
+    owner: %w[Asesor Leads %]
   }.freeze
 
   def insert_lead_source_table(sect_pr)

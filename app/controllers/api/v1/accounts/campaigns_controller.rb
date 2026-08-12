@@ -1,7 +1,7 @@
 class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   RESULTS_PER_PAGE = 25
 
-  before_action :campaign, except: [:index, :create, :csv_usage_report]
+  before_action :campaign, except: [:index, :create, :csv_usage_report, :csv_preview]
   before_action :check_authorization
   before_action :set_current_page, only: [:recipients]
 
@@ -31,6 +31,13 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
 
   def csv_usage_report
     @csv_usage_report = Campaigns::CsvUsageReportBuilder.new(Current.account).build
+  end
+
+  def csv_preview
+    file = params[:csv_audience]
+    return render json: { valid: false, errors: ['No se recibió ningún archivo'] } if file.blank?
+
+    render json: Campaigns::CsvPreviewService.new(account: Current.account, file: file).build
   end
 
   def create

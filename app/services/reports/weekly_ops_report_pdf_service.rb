@@ -7,6 +7,9 @@ require 'prawn/table'
 # AgentBots::MaintenanceReportService para insertar imágenes con Prawn) y el análisis del LLM.
 class Reports::WeeklyOpsReportPdfService
   include Reports::ReportSummaryRows
+  include Reports::ReportSummaryRowsZoho
+  include Reports::ReportSummaryRowsPeriodOfWeek
+  include Reports::WeeklyOpsReportPdfTables
 
   MAX_IMAGE_WIDTH = 500
   MAX_IMAGE_HEIGHT = 260
@@ -22,13 +25,7 @@ class Reports::WeeklyOpsReportPdfService
     pdf = Prawn::Document.new(page_size: 'A4', margin: [40, 50, 40, 50])
 
     render_header(pdf)
-    render_summary_table(pdf)
-    render_by_advisor_table(pdf)
-    render_calls_table(pdf)
-    render_funnel_table(pdf)
-    render_pipeline_status_table(pdf)
-    render_lead_source_table(pdf)
-    render_discard_reasons_table(pdf)
+    render_tables(pdf)
     render_charts(pdf)
     render_analysis(pdf)
 
@@ -38,6 +35,23 @@ class Reports::WeeklyOpsReportPdfService
   end
 
   private
+
+  def render_tables(pdf)
+    render_summary_table(pdf)
+    render_deals_created_line(pdf)
+    render_by_advisor_table(pdf)
+    render_advisor_period_of_week_table(pdf)
+    render_contact_time_by_period_table(pdf)
+    render_calls_table(pdf)
+    render_funnel_table(pdf)
+    render_pipeline_status_table(pdf)
+    render_lead_source_table(pdf)
+    render_quality_by_source_table(pdf)
+    render_owner_table(pdf)
+    render_conversion_by_owner_table(pdf)
+    render_discard_reasons_table(pdf)
+    render_schedule_distribution_line(pdf)
+  end
 
   attr_reader :report, :branding, :chart_images
 

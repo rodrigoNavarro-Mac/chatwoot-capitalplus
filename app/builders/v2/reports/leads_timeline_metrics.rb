@@ -20,7 +20,8 @@ class V2::Reports::LeadsTimelineMetrics
     {
       granularity: granularity,
       labels: starts.map { |date| label_for(date) },
-      counts: starts.map { |date| counts_by_bucket[date] || 0 }
+      counts: starts.map { |date| counts_by_bucket[date] || 0 },
+      dates: starts.map(&:iso8601)
     }
   end
 

@@ -758,10 +758,25 @@
       "NEW_CONVERSATIONS": "Conversaciones nuevas",
       "NEW_CONVERSATIONS_INFO": "Conversaciones iniciadas en este desarrollo durante el periodo seleccionado."
     },
+    "DEALS": {
+      "TOTAL": "Deals creados",
+      "TOTAL_INFO": "Deals creados en Zoho para este desarrollo durante el periodo seleccionado.",
+      "CONVERSION_RATE": "% Conversión",
+      "CONVERSION_RATE_INFO": "Porcentaje de leads del periodo que se convirtieron en un deal."
+    },
     "BY_ADVISOR": {
       "TITLE": "Desglose por asesor",
       "ADVISOR": "Asesor",
       "CONVERSATIONS": "Conversaciones"
+    },
+    "PERIOD_OF_WEEK": {
+      "TITLE": "Tiempos de contacto: entre semana vs fin de semana",
+      "BY_ADVISOR_TITLE": "Desglose por asesor: entre semana vs fin de semana",
+      "WEEKDAY": "Entre semana (L-V)",
+      "WEEKEND": "Fin de semana (S-D)",
+      "PERIOD": "Periodo",
+      "CONVERSATIONS": "Conversaciones",
+      "CONVERSATIONS_BY_PERIOD": "Conversaciones (L-V / S-D)"
     },
     "CALLS": {
       "TITLE": "Llamadas (Aircall)",
@@ -785,11 +800,26 @@
       "PIPELINE_STATUS_TITLE": "Distribución del pipeline",
       "SOURCE_TITLE": "Fuentes de prospectos",
       "DISCARD_TITLE": "Motivos de descarte",
+      "OWNER_TITLE": "Distribución por asesor",
+      "QUALITY_BY_SOURCE_TITLE": "Calidad de leads por canal",
+      "CHANNEL_COMPARISON_TITLE": "Comparativo semanal por canal",
       "STATUS": "Estado",
       "SOURCE": "Fuente",
       "REASON": "Motivo",
+      "OWNER": "Asesor",
       "LEADS": "Leads",
+      "CONTACTED": "Contactados",
       "QUALITY_LEADS": "Leads de calidad: {count} ({percent}%)"
+    },
+    "CONVERSION_BY_OWNER": {
+      "TITLE": "Conversión y descarte por asesor",
+      "CONTACTED": "Contactados",
+      "LOST": "Descartados"
+    },
+    "SCHEDULE_DISTRIBUTION": {
+      "TITLE": "Distribución por horario",
+      "WITHIN": "Dentro de horario laboral",
+      "OUTSIDE": "Fuera de horario laboral"
     },
     "LEADS_TIMELINE": {
       "TITLE_DAY": "Leads creados por día",

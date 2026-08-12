@@ -185,6 +185,26 @@
             "PLACEHOLDER": "Seleccione las etiquetas personalizadas",
             "ERROR": "El público es requerido"
           },
+          "AUDIENCE_TYPE": {
+            "LABEL": "Tipo de audiencia",
+            "LABELS": "Etiquetas",
+            "CSV": "CSV"
+          },
+          "CSV_AUDIENCE": {
+            "LABEL": "Archivo CSV",
+            "PLACEHOLDER": "Haz clic para subir un archivo CSV",
+            "INFO": "El CSV debe tener una columna 'phone_number'. Opcionales: 'name', 'email', y columnas extra usables como contact.custom_attribute.column_name en la plantilla.",
+            "ERROR": "El archivo CSV es obligatorio",
+            "PREVIEW": {
+              "CHECKING": "Verificando archivo CSV...",
+              "SUMMARY": "{valid} de {total} filas son válidas para enviar",
+              "MISSING_PHONE": "{count} fila(s) sin número de teléfono",
+              "DUPLICATE": "{count} número(s) de teléfono duplicado(s) en el archivo",
+              "ALREADY_BOUNCED": "{count} número(s) ya marcado(s) como inválido (rebotó antes)",
+              "NO_VALID_ROWS": "No se encontraron contactos válidos en este archivo",
+              "ERROR": "No se pudo validar el archivo CSV"
+            }
+          },
           "SCHEDULED_AT": {
             "LABEL": "Programar tiempo",
             "PLACEHOLDER": "Por favor, seleccione la hora",

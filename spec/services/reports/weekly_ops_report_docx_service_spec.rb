@@ -164,6 +164,39 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml).not_to include('Motivos de descarte')
   end
 
+  it 'inserts the report-parity metrics (deals created, owner/quality breakdown, weekday-vs-weekend)' do
+    report.kpis = report.kpis.deep_merge(
+      'by_advisor' => [
+        { 'user_id' => 1, 'name' => 'Elizabeth Sánchez', 'conversations_count' => 12,
+          'contact_time' => { 'first_response' => 8.0, 'reply_time' => 4.2 },
+          'by_period_of_week' => {
+            'weekday' => { 'conversations_count' => 10, 'contact_time' => { 'first_response' => 7.0 } },
+            'weekend' => { 'conversations_count' => 2, 'contact_time' => { 'first_response' => 15.0 } }
+          } }
+      ],
+      'zoho_leads' => { 'by_owner' => { 'Elizabeth Sánchez' => 3, 'Carlos' => 1 },
+                        'quality_by_source' => { 'Facebook Ads' => { 'total' => 3, 'quality' => 2 } } },
+      'deals_created' => { 'total' => 1, 'conversion_rate' => 25.0 },
+      'conversion_by_owner' => [{ 'owner' => 'Elizabeth Sánchez', 'contacted' => 2, 'lost' => 1 }],
+      'schedule_distribution' => { 'within_business_hours' => 3, 'outside_business_hours' => 1, 'total' => 4 },
+      'contact_time_by_period_of_week' => {
+        'weekday' => { 'first_response' => 7.0, 'reply_time' => 3.5 },
+        'weekend' => { 'first_response' => 15.0, 'reply_time' => 9.0 }
+      }
+    )
+
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).to include('Deals creados: 1 (% conversión: 25.0%)')
+    expect(document_xml).to include('Desglose por asesor: entre semana vs fin de semana')
+    expect(document_xml).to include('Tiempos de contacto: entre semana vs fin de semana')
+    expect(document_xml).to include('Calidad de leads por canal')
+    expect(document_xml).to include('Distribución por asesor (Zoho)')
+    expect(document_xml).to include('Conversión y descarte por asesor')
+    expect(document_xml).to include('Leads en horario laboral: 3 — fuera de horario: 1 (de 4 totales)')
+  end
+
   it 'inserts the LLM analysis as paragraphs' do
     io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
 

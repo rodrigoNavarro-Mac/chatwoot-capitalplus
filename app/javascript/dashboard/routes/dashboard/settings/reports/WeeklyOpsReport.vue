@@ -110,6 +110,9 @@ const isDownloading = ref(false);
 const contactTimeChartRef = ref(null);
 const cadenceChartRef = ref(null);
 const leadsTimelineChartRef = ref(null);
+const channelComparisonChartRef = ref(null);
+const qualityBySourceChartRef = ref(null);
+const conversionByOwnerChartRef = ref(null);
 
 const isCompleteDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const canGenerate = computed(
@@ -192,11 +195,29 @@ const leadsTimelineTitle = computed(() => {
   return t(TIMELINE_TITLE_KEYS[granularity] || TIMELINE_TITLE_KEYS.day);
 });
 
+// Los labels del timeline ya vienen formateados para mostrar ("03/08"), así que el día de la
+// semana real se resuelve aparte a partir de `dates` (ISO) para pintar sábado/domingo distinto —
+// mismo objetivo visual que las líneas verticales punteadas del reporte viejo, sin depender de
+// chartjs-plugin-annotation (no está instalado en este proyecto).
+const isWeekendDate = dateValue => {
+  if (!dateValue) return false;
+  const day = new Date(`${dateValue}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+};
+
 const leadsTimelineChartData = computed(() => {
   const timeline = kpis.value?.zoho_leads_timeline || {
     labels: [],
     counts: [],
+    dates: [],
   };
+  const isDayGranularity =
+    (kpis.value?.zoho_leads_timeline?.granularity || 'day') === 'day';
+  const pointBackgroundColor = isDayGranularity
+    ? timeline.labels.map((_, index) =>
+        isWeekendDate(timeline.dates?.[index]) ? '#d62728' : '#2ca02c'
+      )
+    : '#2ca02c';
   return {
     labels: timeline.labels,
     datasets: [
@@ -204,9 +225,71 @@ const leadsTimelineChartData = computed(() => {
         label: leadsTimelineTitle.value,
         borderColor: '#2ca02c',
         backgroundColor: '#2ca02c',
-        pointBackgroundColor: '#2ca02c',
+        pointBackgroundColor,
         fill: false,
         data: timeline.counts,
+      },
+    ],
+  };
+});
+
+const channelComparisonChartData = computed(() => {
+  const current = kpis.value?.zoho_leads?.by_source || {};
+  const previous = kpis.value?.comparison?.zoho_leads?.by_source || {};
+  const labels = [
+    ...new Set([...Object.keys(current), ...Object.keys(previous)]),
+  ];
+  return {
+    labels,
+    datasets: [
+      {
+        label: t('WEEKLY_OPS_REPORTS.CHART.CURRENT_PERIOD'),
+        backgroundColor: '#1f77b4',
+        data: labels.map(label => current[label] || 0),
+      },
+      {
+        label: t('WEEKLY_OPS_REPORTS.CHART.PREVIOUS_PERIOD'),
+        backgroundColor: '#c7c7c7',
+        data: labels.map(label => previous[label] || 0),
+      },
+    ],
+  };
+});
+
+const qualityBySourceChartData = computed(() => {
+  const bySource = kpis.value?.zoho_leads?.quality_by_source || {};
+  const labels = Object.keys(bySource);
+  return {
+    labels,
+    datasets: [
+      {
+        label: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS'),
+        backgroundColor: '#c7c7c7',
+        data: labels.map(label => bySource[label]?.total || 0),
+      },
+      {
+        label: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.CONTACTED'),
+        backgroundColor: '#2ca02c',
+        data: labels.map(label => bySource[label]?.quality || 0),
+      },
+    ],
+  };
+});
+
+const conversionByOwnerChartData = computed(() => {
+  const rows = kpis.value?.conversion_by_owner || [];
+  return {
+    labels: rows.map(row => row.owner),
+    datasets: [
+      {
+        label: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.CONTACTED'),
+        backgroundColor: '#2ca02c',
+        data: rows.map(row => row.contacted),
+      },
+      {
+        label: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.LOST'),
+        backgroundColor: '#d62728',
+        data: rows.map(row => row.lost),
       },
     ],
   };
@@ -294,6 +377,18 @@ const downloadPdf = async () => {
       leadsTimelineChartRef.value?.chart && {
         title: leadsTimelineTitle.value,
         data_url: leadsTimelineChartRef.value.chart.toBase64Image(),
+      },
+      channelComparisonChartRef.value?.chart && {
+        title: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.CHANNEL_COMPARISON_TITLE'),
+        data_url: channelComparisonChartRef.value.chart.toBase64Image(),
+      },
+      qualityBySourceChartRef.value?.chart && {
+        title: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_BY_SOURCE_TITLE'),
+        data_url: qualityBySourceChartRef.value.chart.toBase64Image(),
+      },
+      conversionByOwnerChartRef.value?.chart && {
+        title: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.TITLE'),
+        data_url: conversionByOwnerChartRef.value.chart.toBase64Image(),
       },
     ].filter(Boolean);
 
@@ -475,6 +570,18 @@ const downloadPdf = async () => {
             :value="`${kpis.cadences.response_rate ?? 0}%`"
             :info-text="t('WEEKLY_OPS_REPORTS.CADENCES.RESPONSE_RATE_INFO')"
           />
+          <template v-if="kpis.deals_created">
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.DEALS.TOTAL')"
+              :value="String(kpis.deals_created.total)"
+              :info-text="t('WEEKLY_OPS_REPORTS.DEALS.TOTAL_INFO')"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.DEALS.CONVERSION_RATE')"
+              :value="`${kpis.deals_created.conversion_rate}%`"
+              :info-text="t('WEEKLY_OPS_REPORTS.DEALS.CONVERSION_RATE_INFO')"
+            />
+          </template>
         </div>
 
         <div
@@ -518,6 +625,119 @@ const downloadPdf = async () => {
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div
+          v-if="kpis.contact_time_by_period_of_week"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.TITLE') }}
+          </h3>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.PERIOD') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.FIRST_RESPONSE') }}
+                </th>
+                <th class="py-1 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.REPLY_TIME') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t border-n-container text-n-slate-12">
+                <td class="py-1.5 pr-3">
+                  {{ t('WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.WEEKDAY') }}
+                </td>
+                <td class="py-1.5 pr-3">
+                  {{
+                    `${kpis.contact_time_by_period_of_week.weekday?.first_response ?? '—'} min`
+                  }}
+                </td>
+                <td class="py-1.5">
+                  {{
+                    `${kpis.contact_time_by_period_of_week.weekday?.reply_time ?? '—'} min`
+                  }}
+                </td>
+              </tr>
+              <tr class="border-t border-n-container text-n-slate-12">
+                <td class="py-1.5 pr-3">
+                  {{ t('WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.WEEKEND') }}
+                </td>
+                <td class="py-1.5 pr-3">
+                  {{
+                    `${kpis.contact_time_by_period_of_week.weekend?.first_response ?? '—'} min`
+                  }}
+                </td>
+                <td class="py-1.5">
+                  {{
+                    `${kpis.contact_time_by_period_of_week.weekend?.reply_time ?? '—'} min`
+                  }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <template
+            v-if="
+              kpis.by_advisor &&
+              kpis.by_advisor.some(advisor => advisor.by_period_of_week)
+            "
+          >
+            <h4 class="text-sm font-semibold text-n-slate-12 mt-5 mb-2">
+              {{ t('WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.BY_ADVISOR_TITLE') }}
+            </h4>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-n-slate-11">
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.ADVISOR') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.WEEKDAY') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.WEEKEND') }}
+                  </th>
+                  <th class="py-1 font-medium">
+                    {{
+                      t(
+                        'WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.CONVERSATIONS_BY_PERIOD'
+                      )
+                    }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="advisor in kpis.by_advisor"
+                  :key="advisor.user_id"
+                  class="border-t border-n-container text-n-slate-12"
+                >
+                  <td class="py-1.5 pr-3">{{ advisor.name }}</td>
+                  <td class="py-1.5 pr-3">
+                    {{
+                      `${advisor.by_period_of_week?.weekday?.contact_time?.first_response ?? '—'} min`
+                    }}
+                  </td>
+                  <td class="py-1.5 pr-3">
+                    {{
+                      `${advisor.by_period_of_week?.weekend?.contact_time?.first_response ?? '—'} min`
+                    }}
+                  </td>
+                  <td class="py-1.5">
+                    {{
+                      `${advisor.by_period_of_week?.weekday?.conversations_count ?? 0} / ${advisor.by_period_of_week?.weekend?.conversations_count ?? 0}`
+                    }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
         </div>
 
         <div
@@ -636,6 +856,51 @@ const downloadPdf = async () => {
         </div>
 
         <div
+          v-if="channelComparisonChartData.labels.length"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.CHANNEL_COMPARISON_TITLE') }}
+          </h3>
+          <div class="h-64">
+            <BarChart
+              ref="channelComparisonChartRef"
+              :collection="channelComparisonChartData"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="qualityBySourceChartData.labels.length"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_BY_SOURCE_TITLE') }}
+          </h3>
+          <div class="h-64">
+            <BarChart
+              ref="qualityBySourceChartRef"
+              :collection="qualityBySourceChartData"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="conversionByOwnerChartData.labels.length"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.TITLE') }}
+          </h3>
+          <div class="h-64">
+            <BarChart
+              ref="conversionByOwnerChartRef"
+              :collection="conversionByOwnerChartData"
+            />
+          </div>
+        </div>
+
+        <div
           v-if="kpis.pipeline"
           class="flex flex-col gap-5 mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
         >
@@ -734,6 +999,45 @@ const downloadPdf = async () => {
         </div>
 
         <div
+          v-if="
+            kpis.zoho_leads &&
+            kpis.zoho_leads.by_owner &&
+            Object.keys(kpis.zoho_leads.by_owner).length
+          "
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER_TITLE') }}
+          </h3>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                </th>
+                <th class="py-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(count, owner) in kpis.zoho_leads.by_owner"
+                :key="owner"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ owner }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
+                <td class="py-1.5">
+                  {{ percentOf(count, kpis.zoho_leads.total) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
           v-if="discardReasonsTotal"
           class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
         >
@@ -766,6 +1070,27 @@ const downloadPdf = async () => {
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div
+          v-if="kpis.schedule_distribution"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.TITLE') }}
+          </h3>
+          <div class="grid grid-cols-2 gap-4">
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.WITHIN')"
+              :value="String(kpis.schedule_distribution.within_business_hours)"
+              :info-text="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.WITHIN')"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.OUTSIDE')"
+              :value="String(kpis.schedule_distribution.outside_business_hours)"
+              :info-text="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.OUTSIDE')"
+            />
+          </div>
         </div>
 
         <div

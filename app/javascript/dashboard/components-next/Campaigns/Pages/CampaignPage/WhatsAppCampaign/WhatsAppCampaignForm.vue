@@ -4,9 +4,11 @@ import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useMapGetter } from 'dashboard/composables/store';
+import CampaignsAPI from 'dashboard/api/campaigns';
 
 import Input from 'dashboard/components-next/input/Input.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import TagMultiSelectComboBox from 'dashboard/components-next/combobox/TagMultiSelectComboBox.vue';
 import WhatsAppTemplateParser from 'dashboard/components-next/whatsapp/WhatsAppTemplateParser.vue';
@@ -48,6 +50,9 @@ const state = reactive({ ...initialState });
 const csvFile = ref(null);
 const hasAttemptedSubmit = ref(false);
 const templateParserRef = ref(null);
+const csvPreview = ref(null);
+const isPreviewingCsv = ref(false);
+let csvPreviewToken = 0;
 
 const isEditMode = computed(() => !!props.selectedCampaign);
 
@@ -134,7 +139,16 @@ const hasRequiredTemplateParams = computed(() => {
 
 const isSubmitDisabled = computed(() => {
   if (v$.value.$invalid) return true;
-  if (state.audienceType === 'csv' && !csvFile.value) return true;
+  if (state.audienceType === 'csv') {
+    if (!csvFile.value) return true;
+    if (isPreviewingCsv.value) return true;
+    if (
+      csvPreview.value &&
+      (!csvPreview.value.valid || !csvPreview.value.valid_count)
+    ) {
+      return true;
+    }
+  }
   return !hasRequiredTemplateParams.value;
 });
 
@@ -151,6 +165,7 @@ const timestampToLocalDatetimeString = timestamp => {
 const resetState = () => {
   Object.assign(state, initialState);
   csvFile.value = null;
+  csvPreview.value = null;
   hasAttemptedSubmit.value = false;
   v$.value.$reset();
 };
@@ -185,8 +200,31 @@ watch(templateOptions, options => {
 
 const handleCancel = () => emit('cancel');
 
+const previewCsvFile = async file => {
+  csvPreviewToken += 1;
+  const token = csvPreviewToken;
+  isPreviewingCsv.value = true;
+  csvPreview.value = null;
+  try {
+    const response = await CampaignsAPI.previewCsv(file);
+    if (token !== csvPreviewToken) return;
+    csvPreview.value = response.data;
+  } catch (error) {
+    if (token !== csvPreviewToken) return;
+    csvPreview.value = {
+      valid: false,
+      errors: [t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.PREVIEW.ERROR')],
+    };
+  } finally {
+    if (token === csvPreviewToken) isPreviewingCsv.value = false;
+  }
+};
+
 const handleCsvFileChange = event => {
-  csvFile.value = event.target.files[0] || null;
+  const file = event.target.files[0] || null;
+  csvFile.value = file;
+  csvPreview.value = null;
+  if (file) previewCsvFile(file);
 };
 
 const setAudienceType = type => {
@@ -195,6 +233,7 @@ const setAudienceType = type => {
     state.selectedAudience = [];
   } else {
     csvFile.value = null;
+    csvPreview.value = null;
   }
 };
 
@@ -388,6 +427,68 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
       <p v-if="csvAudienceError" class="mt-1 text-xs text-n-red-9">
         {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.ERROR') }}
       </p>
+
+      <div
+        v-if="isPreviewingCsv"
+        class="flex items-center gap-2 mt-1 text-xs text-n-slate-11"
+      >
+        <Spinner :size="14" />
+        {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.PREVIEW.CHECKING') }}
+      </div>
+
+      <div
+        v-else-if="csvPreview && !csvPreview.valid"
+        class="flex flex-col gap-0.5 mt-1 text-xs text-n-red-9"
+      >
+        <p v-for="(error, index) in csvPreview.errors" :key="index">
+          {{ error }}
+        </p>
+      </div>
+
+      <div
+        v-else-if="csvPreview"
+        class="flex flex-col gap-0.5 mt-1 text-xs"
+        :class="csvPreview.valid_count ? 'text-n-slate-11' : 'text-n-red-9'"
+      >
+        <p v-if="csvPreview.valid_count" class="text-n-teal-11 font-medium">
+          {{
+            t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.PREVIEW.SUMMARY', {
+              valid: csvPreview.valid_count,
+              total: csvPreview.total_rows,
+            })
+          }}
+        </p>
+        <p v-else>
+          {{
+            t(
+              'CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.PREVIEW.NO_VALID_ROWS'
+            )
+          }}
+        </p>
+        <p v-if="csvPreview.missing_phone_count">
+          {{
+            t(
+              'CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.PREVIEW.MISSING_PHONE',
+              { count: csvPreview.missing_phone_count }
+            )
+          }}
+        </p>
+        <p v-if="csvPreview.duplicate_count">
+          {{
+            t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.PREVIEW.DUPLICATE', {
+              count: csvPreview.duplicate_count,
+            })
+          }}
+        </p>
+        <p v-if="csvPreview.already_bounced_count">
+          {{
+            t(
+              'CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.PREVIEW.ALREADY_BOUNCED',
+              { count: csvPreview.already_bounced_count }
+            )
+          }}
+        </p>
+      </div>
     </div>
 
     <Input

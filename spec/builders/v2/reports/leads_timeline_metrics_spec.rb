@@ -15,6 +15,7 @@ describe V2::Reports::LeadsTimelineMetrics do
       expect(result[:granularity]).to eq('day')
       expect(result[:labels]).to eq(%w[03/08 04/08 05/08])
       expect(result[:counts]).to eq([2, 0, 1])
+      expect(result[:dates]).to eq(%w[2026-08-03 2026-08-04 2026-08-05])
     end
 
     it 'buckets leads by week (Monday-start) when granularity is week' do

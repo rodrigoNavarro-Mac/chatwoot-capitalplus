@@ -758,10 +758,25 @@
       "NEW_CONVERSATIONS": "New conversations",
       "NEW_CONVERSATIONS_INFO": "Conversations started in this development during the selected period."
     },
+    "DEALS": {
+      "TOTAL": "Deals created",
+      "TOTAL_INFO": "Deals created in Zoho for this development during the selected period.",
+      "CONVERSION_RATE": "% Conversion",
+      "CONVERSION_RATE_INFO": "Percentage of leads from the period that converted into a deal."
+    },
     "BY_ADVISOR": {
       "TITLE": "Breakdown by advisor",
       "ADVISOR": "Advisor",
       "CONVERSATIONS": "Conversations"
+    },
+    "PERIOD_OF_WEEK": {
+      "TITLE": "Contact time: weekday vs weekend",
+      "BY_ADVISOR_TITLE": "Breakdown by advisor: weekday vs weekend",
+      "WEEKDAY": "Weekday (Mon-Fri)",
+      "WEEKEND": "Weekend (Sat-Sun)",
+      "PERIOD": "Period",
+      "CONVERSATIONS": "Conversations",
+      "CONVERSATIONS_BY_PERIOD": "Conversations (weekday / weekend)"
     },
     "CALLS": {
       "TITLE": "Calls (Aircall)",
@@ -785,11 +800,26 @@
       "PIPELINE_STATUS_TITLE": "Pipeline distribution",
       "SOURCE_TITLE": "Lead sources",
       "DISCARD_TITLE": "Discard reasons",
+      "OWNER_TITLE": "Breakdown by advisor",
+      "QUALITY_BY_SOURCE_TITLE": "Lead quality by channel",
+      "CHANNEL_COMPARISON_TITLE": "Weekly comparison by channel",
       "STATUS": "Status",
       "SOURCE": "Source",
       "REASON": "Reason",
+      "OWNER": "Advisor",
       "LEADS": "Leads",
+      "CONTACTED": "Contacted",
       "QUALITY_LEADS": "Quality leads: {count} ({percent}%)"
+    },
+    "CONVERSION_BY_OWNER": {
+      "TITLE": "Conversion and discard by advisor",
+      "CONTACTED": "Contacted",
+      "LOST": "Discarded"
+    },
+    "SCHEDULE_DISTRIBUTION": {
+      "TITLE": "Schedule distribution",
+      "WITHIN": "Within business hours",
+      "OUTSIDE": "Outside business hours"
     },
     "LEADS_TIMELINE": {
       "TITLE_DAY": "Leads created per day",

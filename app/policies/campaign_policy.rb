@@ -30,4 +30,8 @@ class CampaignPolicy < ApplicationPolicy
   def csv_usage_report?
     @account_user.administrator?
   end
+
+  def csv_preview?
+    @account_user.administrator?
+  end
 end

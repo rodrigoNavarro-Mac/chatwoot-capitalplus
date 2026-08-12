@@ -27,6 +27,22 @@ class Crm::Zoho::Api::DealsClient < Crm::Zoho::Api::BaseClient
     end
   end
 
+  # Búsqueda por criteria arbitrario (a diferencia de #deals_for_contacts, que arma su propio
+  # criteria de un solo contacto) — usado por Crm::Zoho::DealsForPeriodService para traer todos los
+  # deals de un desarrollo creados en un rango de fechas, paginando (mismo patrón que
+  # Crm::Zoho::Api::LeadsClient#search_by_criteria).
+  def search_by_criteria(criteria, page: 1, per_page: 200)
+    response = get('Deals/search', criteria: criteria, page: page, per_page: per_page)
+    data = response.is_a?(Hash) ? Array(response['data']) : []
+    more_records = response.is_a?(Hash) ? response.dig('info', 'more_records') || false : false
+
+    { data: data, more_records: more_records }
+  rescue Crm::Zoho::Api::BaseClient::ApiError => e
+    return { data: [], more_records: false } if e.code == 204
+
+    raise
+  end
+
   private
 
   def resolve_contact_id(contact)

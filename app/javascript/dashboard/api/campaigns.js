@@ -12,6 +12,12 @@ class CampaignsAPI extends ApiClient {
     return axios.patch(`${this.url}/${campaignId}`, formData);
   }
 
+  previewCsv(csvFile) {
+    const formData = new FormData();
+    formData.append('csv_audience', csvFile);
+    return axios.post(`${this.url}/csv_preview`, formData);
+  }
+
   metrics(campaignId) {
     return axios.get(`${this.url}/${campaignId}/metrics`);
   }

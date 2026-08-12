@@ -83,6 +83,32 @@ describe Reports::WeeklyOpsReportPdfService do
     expect(io.read.byteslice(0, 4)).to eq('%PDF')
   end
 
+  it 'renders fine with the report-parity metrics (deals, owner/quality breakdown, weekday-vs-weekend)' do
+    report.kpis = report.kpis.deep_merge(
+      'by_advisor' => [
+        { 'user_id' => 1, 'name' => 'Elizabeth', 'conversations_count' => 12,
+          'contact_time' => { 'first_response' => 8.0, 'reply_time' => 4.2 },
+          'by_period_of_week' => {
+            'weekday' => { 'conversations_count' => 10, 'contact_time' => { 'first_response' => 7.0 } },
+            'weekend' => { 'conversations_count' => 2, 'contact_time' => { 'first_response' => 15.0 } }
+          } }
+      ],
+      'zoho_leads' => { 'by_owner' => { 'Elizabeth' => 3, 'Carlos' => 1 },
+                        'quality_by_source' => { 'Facebook Ads' => { 'total' => 3, 'quality' => 2 } } },
+      'deals_created' => { 'total' => 1, 'conversion_rate' => 25.0 },
+      'conversion_by_owner' => [{ 'owner' => 'Elizabeth', 'contacted' => 2, 'lost' => 1 }],
+      'schedule_distribution' => { 'within_business_hours' => 3, 'outside_business_hours' => 1, 'total' => 4 },
+      'contact_time_by_period_of_week' => {
+        'weekday' => { 'first_response' => 7.0, 'reply_time' => 3.5 },
+        'weekend' => { 'first_response' => 15.0, 'reply_time' => 9.0 }
+      }
+    )
+
+    io = described_class.new(weekly_ops_report: report).generate
+
+    expect(io.read.byteslice(0, 4)).to eq('%PDF')
+  end
+
   it 'uses the branding accent color when given' do
     branding = Reports::InboxBranding.new(account: account, inbox: inbox, accent_color: '#abcdef')
 
