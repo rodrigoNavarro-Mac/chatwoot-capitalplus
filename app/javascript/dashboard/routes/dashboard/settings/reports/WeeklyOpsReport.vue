@@ -10,6 +10,7 @@ import FunnelStageMeter from './components/FunnelStageMeter.vue';
 import ReportMetricCard from './components/ReportMetricCard.vue';
 import ReportBrandingPanel from './components/ReportBrandingPanel.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
+import LineChart from 'shared/components/charts/LineChart.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 
@@ -197,7 +198,10 @@ const leadsTimelineChartData = computed(() => {
     datasets: [
       {
         label: leadsTimelineTitle.value,
+        borderColor: '#2ca02c',
         backgroundColor: '#2ca02c',
+        pointBackgroundColor: '#2ca02c',
+        fill: false,
         data: timeline.counts,
       },
     ],
@@ -620,7 +624,7 @@ const downloadPdf = async () => {
             {{ leadsTimelineTitle }}
           </h3>
           <div class="h-64">
-            <BarChart
+            <LineChart
               ref="leadsTimelineChartRef"
               :collection="leadsTimelineChartData"
             />
