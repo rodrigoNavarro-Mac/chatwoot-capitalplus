@@ -15,6 +15,14 @@ class CampaignsAPI extends ApiClient {
   metrics(campaignId) {
     return axios.get(`${this.url}/${campaignId}/metrics`);
   }
+
+  recipients(campaignId, params) {
+    return axios.get(`${this.url}/${campaignId}/recipients`, { params });
+  }
+
+  exportRecipients(campaignId, params) {
+    return axios.get(`${this.url}/${campaignId}/recipients.csv`, { params });
+  }
 }
 
 export default new CampaignsAPI();

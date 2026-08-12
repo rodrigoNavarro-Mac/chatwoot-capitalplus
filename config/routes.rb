@@ -129,6 +129,7 @@ Rails.application.routes.draw do
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :metrics
+              get :recipients
             end
             collection do
               get :csv_usage_report

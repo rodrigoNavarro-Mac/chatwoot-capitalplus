@@ -274,6 +274,45 @@
         "ERROR_MESSAGE": "There was an error loading the campaign metrics. Please try again."
       }
     },
+    "WHATSAPP_RECIPIENTS": {
+      "TITLE": "Recipients",
+      "BACK_TO_CAMPAIGNS": "Back to campaigns",
+      "SEARCH_PLACEHOLDER": "Search by name or phone number",
+      "FILTERS": {
+        "STATUS": {
+          "LABEL": "Status",
+          "QUEUED": "Queued",
+          "SENT": "Sent",
+          "DELIVERED": "Delivered",
+          "READ": "Read",
+          "FAILED": "Failed"
+        },
+        "RESPONDED": {
+          "LABEL": "Response",
+          "RESPONDED": "Responded",
+          "NOT_RESPONDED": "Not responded"
+        }
+      },
+      "TABLE": {
+        "HEADERS": {
+          "NAME": "Name / Phone",
+          "STATUS": "Status",
+          "SENT_AT": "Sent",
+          "DELIVERED_AT": "Delivered",
+          "READ_AT": "Read",
+          "FAILED_REASON": "Failure reason",
+          "RESPONDED": "Responded"
+        },
+        "EMPTY": "No recipients found with these filters"
+      },
+      "EXPORT": {
+        "LABEL": "Export CSV",
+        "ERROR_MESSAGE": "The CSV export could not be completed"
+      },
+      "API": {
+        "ERROR_MESSAGE": "There was an error loading the campaign recipients. Please try again."
+      }
+    },
     "CONFIRM_DELETE": {
       "TITLE": "Are you sure to delete?",
       "DESCRIPTION": "The delete action is permanent and cannot be reversed.",

@@ -201,6 +201,80 @@
         }
       }
     },
+    "WHATSAPP_METRICS": {
+      "TITLE": "Métricas de la campaña",
+      "CLOSE": "Cerrar",
+      "AUDIENCE_COUNT": {
+        "LABEL": "Audiencia",
+        "TOOLTIP": "Total de destinatarios programados para esta campaña."
+      },
+      "SENT": {
+        "LABEL": "Enviados",
+        "TOOLTIP": "Mensajes enviados exitosamente a WhatsApp."
+      },
+      "DELIVERED": {
+        "LABEL": "Entregados",
+        "TOOLTIP": "Mensajes confirmados como entregados al dispositivo del destinatario."
+      },
+      "READ": {
+        "LABEL": "Leídos",
+        "TOOLTIP": "Mensajes que el destinatario abrió."
+      },
+      "FAILED": {
+        "LABEL": "Fallidos",
+        "TOOLTIP": "Mensajes que no se pudieron enviar o entregar."
+      },
+      "RESPONDED": {
+        "LABEL": "Respondieron",
+        "TOOLTIP": "Destinatarios que respondieron después de recibir esta campaña."
+      },
+      "RESPONSE_RATE": {
+        "LABEL": "Tasa de respuesta",
+        "TOOLTIP": "Respondieron dividido entre enviados, como porcentaje."
+      },
+      "API": {
+        "ERROR_MESSAGE": "Ocurrió un error al cargar las métricas de la campaña. Por favor intente nuevamente."
+      }
+    },
+    "WHATSAPP_RECIPIENTS": {
+      "TITLE": "Destinatarios",
+      "BACK_TO_CAMPAIGNS": "Volver a campañas",
+      "SEARCH_PLACEHOLDER": "Buscar por nombre o teléfono",
+      "FILTERS": {
+        "STATUS": {
+          "LABEL": "Estado",
+          "QUEUED": "En cola",
+          "SENT": "Enviado",
+          "DELIVERED": "Entregado",
+          "READ": "Leído",
+          "FAILED": "Fallido"
+        },
+        "RESPONDED": {
+          "LABEL": "Respuesta",
+          "RESPONDED": "Respondió",
+          "NOT_RESPONDED": "No respondió"
+        }
+      },
+      "TABLE": {
+        "HEADERS": {
+          "NAME": "Nombre / Teléfono",
+          "STATUS": "Estado",
+          "SENT_AT": "Enviado",
+          "DELIVERED_AT": "Entregado",
+          "READ_AT": "Leído",
+          "FAILED_REASON": "Motivo de falla",
+          "RESPONDED": "Respondió"
+        },
+        "EMPTY": "No se encontraron destinatarios con estos filtros"
+      },
+      "EXPORT": {
+        "LABEL": "Exportar CSV",
+        "ERROR_MESSAGE": "No se pudo exportar el CSV"
+      },
+      "API": {
+        "ERROR_MESSAGE": "No se pudieron cargar los destinatarios de la campaña. Por favor intente nuevamente."
+      }
+    },
     "CONFIRM_DELETE": {
       "TITLE": "¿Está seguro de eliminar?",
       "DESCRIPTION": "La acción de eliminación es permanente y no puede ser revertida.",
