@@ -2,6 +2,34 @@
 # Reports::WeeklyOpsReportPdfService (Prawn) y Reports::WeeklyOpsReportDocxService (membrete .docx)
 # para que ambos formatos de salida muestren exactamente los mismos números.
 module Reports::ReportSummaryRows
+  # Mismos labels que SALES_FUNNEL_REPORTS.STAGES en report.json (es) — el PDF/DOCX no pasa por
+  # i18n, así que se hardcodean en español aquí igual que el resto de los títulos de este servicio.
+  STAGE_LABELS = {
+    'leads' => 'Leads totales',
+    'customer_replied' => 'Contestados por el cliente',
+    'has_deal' => 'Con deal en Zoho',
+    'visita_efectiva' => 'Visita efectiva',
+    'closed_won' => 'Deal cerrado ganado'
+  }.freeze
+
+  # Filas [etapa, cantidad, % real, % meta, diferencia] del embudo de ventas — mismo dato que
+  # V2::Reports::SalesFunnelBuilder#build_row (ver V2::Reports::WeeklyOpsReportBuilder#pipeline_metrics,
+  # que reusa ese builder para el inbox del reporte).
+  def funnel_rows(kpis)
+    stages = (kpis[:pipeline] || {})[:stages] || []
+
+    stages.map do |stage|
+      row = [
+        STAGE_LABELS[stage[:stage]] || stage[:stage],
+        stage[:count],
+        percent(stage[:actual_percent]),
+        percent(stage[:target_percent]),
+        percent(stage[:delta])
+      ]
+      row.map { |value| value.nil? ? '—' : value.to_s }
+    end
+  end
+
   def summary_rows(kpis)
     contact_time = kpis[:contact_time] || {}
     volume = kpis[:volume] || {}

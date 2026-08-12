@@ -79,6 +79,31 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml.scan('<w:tbl>').size).to eq(1)
   end
 
+  it 'inserts the sales funnel stages as a table' do
+    report.kpis = report.kpis.merge(
+      'pipeline' => {
+        'stages' => [
+          { 'stage' => 'leads', 'count' => 10, 'actual_percent' => 100.0, 'target_percent' => nil, 'delta' => nil },
+          { 'stage' => 'customer_replied', 'count' => 7, 'actual_percent' => 70.0, 'target_percent' => 60.0, 'delta' => 10.0 }
+        ]
+      }
+    )
+
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).to include('Embudo de ventas')
+    expect(document_xml).to include('Leads totales')
+    expect(document_xml).to include('Contestados por el cliente')
+  end
+
+  it 'omits the funnel table when there is no pipeline data' do
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).not_to include('Embudo de ventas')
+  end
+
   it 'inserts the aircall_calls advisor breakdown as a table plus a summary line' do
     report.kpis = report.kpis.merge(
       'aircall_calls' => {

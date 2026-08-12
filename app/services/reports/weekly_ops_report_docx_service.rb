@@ -61,6 +61,7 @@ class Reports::WeeklyOpsReportDocxService
     sect_pr.add_previous_sibling(summary_table_xml)
     insert_by_advisor_table(sect_pr)
     insert_calls_table(sect_pr)
+    insert_distribution_table(sect_pr, 'Embudo de ventas', DISTRIBUTION_TABLE_HEADERS[:funnel], funnel_rows(kpis))
     insert_distribution_table(sect_pr, 'Distribución del pipeline', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], pipeline_status_rows(kpis))
     insert_lead_source_table(sect_pr)
     insert_distribution_table(sect_pr, 'Motivos de descarte', DISTRIBUTION_TABLE_HEADERS[:discard_reason], discard_reason_rows(kpis))

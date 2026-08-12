@@ -5,6 +5,7 @@ module Reports::WeeklyOpsReportDocxTables
   ADVISOR_TABLE_HEADER = ['Asesor', 'Conversaciones', 'Tiempo 1er mensaje (min)', 'Tiempo de respuesta (min)'].freeze
   CALLS_ADVISOR_TABLE_HEADER = ['Asesor', 'Llamadas', '% Contestadas', 'Duración promedio'].freeze
   DISTRIBUTION_TABLE_HEADERS = {
+    funnel: ['Etapa', 'Cantidad', '% real', '% meta', 'Diferencia'],
     pipeline_status: %w[Estado Leads %],
     lead_source: %w[Fuente Leads %],
     discard_reason: %w[Motivo Leads %]
