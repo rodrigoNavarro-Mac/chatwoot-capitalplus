@@ -118,6 +118,56 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       end
     end
 
+    describe 'aircall_calls' do
+      it 'is nil when the inbox has no Aircall calls in range' do
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:aircall_calls]).to be_nil
+      end
+
+      it 'summarizes total, answered rate, average duration and direction for Aircall calls in range' do
+        conversation = create(:conversation, account: account, inbox: inbox)
+        create(:call, conversation: conversation, provider: :aircall, direction: :incoming,
+                      status: 'completed', duration_seconds: 120, started_at: 2.days.ago)
+        create(:call, conversation: conversation, provider: :aircall, direction: :incoming,
+                      status: 'completed', duration_seconds: 60, started_at: 2.days.ago)
+        create(:call, conversation: conversation, provider: :aircall, direction: :outgoing,
+                      status: 'no_answer', started_at: 2.days.ago)
+        create(:call, conversation: conversation, provider: :twilio, status: 'completed', started_at: 2.days.ago)
+
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:aircall_calls][:total]).to eq(3)
+        expect(result[:aircall_calls][:answered]).to eq(2)
+        expect(result[:aircall_calls][:answered_percent]).to eq(66.67)
+        expect(result[:aircall_calls][:avg_duration_seconds]).to eq(90)
+        expect(result[:aircall_calls][:incoming]).to eq(2)
+        expect(result[:aircall_calls][:outgoing]).to eq(1)
+      end
+
+      it 'breaks down calls by the agent who accepted/made them, sorted by total desc' do
+        agent_a = create(:user, account: account, name: 'Agent A')
+        agent_b = create(:user, account: account, name: 'Agent B')
+        conversation = create(:conversation, account: account, inbox: inbox)
+        create(:call, conversation: conversation, provider: :aircall, status: 'completed',
+                      duration_seconds: 100, accepted_by_agent: agent_a, started_at: 2.days.ago)
+        create(:call, conversation: conversation, provider: :aircall, status: 'no_answer',
+                      accepted_by_agent: agent_a, started_at: 2.days.ago)
+        create(:call, conversation: conversation, provider: :aircall, status: 'completed',
+                      duration_seconds: 200, accepted_by_agent: agent_b, started_at: 2.days.ago)
+
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+        by_advisor = result[:aircall_calls][:by_advisor]
+
+        expect(by_advisor.map { |a| a[:name] }).to eq(['Agent A', 'Agent B'])
+        expect(by_advisor[0][:total]).to eq(2)
+        expect(by_advisor[0][:answered]).to eq(1)
+        expect(by_advisor[0][:avg_duration_seconds]).to eq(100)
+        expect(by_advisor[1][:total]).to eq(1)
+        expect(by_advisor[1][:avg_duration_seconds]).to eq(200)
+      end
+    end
+
     it 'summarizes cadence enrollments and call tasks for the inbox' do
       cadence_definition = create_cadence_definition!(inbox)
       contact = create(:contact, account: account)

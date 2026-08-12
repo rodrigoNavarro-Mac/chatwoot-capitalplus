@@ -695,6 +695,9 @@
       "visita_efectiva": "Effective visit",
       "closed_won": "Deal closed won"
     },
+    "CALLS": {
+      "SUMMARY": "Calls: {total} ({percent}% answered)"
+    },
     "TABLE": {
       "TITLE": "Funnel by inbox",
       "INBOX": "Inbox",
@@ -751,6 +754,21 @@
       "TITLE": "Breakdown by advisor",
       "ADVISOR": "Advisor",
       "CONVERSATIONS": "Conversations"
+    },
+    "CALLS": {
+      "TITLE": "Calls (Aircall)",
+      "TOTAL": "Total calls",
+      "TOTAL_INFO": "Aircall calls logged for this development during the period.",
+      "ANSWERED_PERCENT": "% answered",
+      "ANSWERED_PERCENT_INFO": "Percentage of calls that were answered (excludes missed/unanswered calls).",
+      "AVG_DURATION": "Average duration",
+      "AVG_DURATION_INFO": "Average duration of answered calls.",
+      "AVG_DURATION_SHORT": "Avg. duration",
+      "DIRECTION": "Incoming / Outgoing",
+      "DIRECTION_INFO": "Calls the customer made to the advisor vs. calls the advisor made to the customer.",
+      "BY_ADVISOR_TITLE": "Calls by advisor",
+      "ADVISOR": "Advisor",
+      "TOTAL_CALLS": "Calls"
     },
     "PIPELINE": {
       "TITLE": "Sales pipeline"

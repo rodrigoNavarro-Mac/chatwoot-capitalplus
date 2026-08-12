@@ -75,8 +75,21 @@ class V2::Reports::SalesFunnelBuilder
         stage_metric('has_deal', with_deal.size, leads.size, development_key),
         stage_metric('visita_efectiva', visited.size, leads.size, development_key),
         stage_metric('closed_won', won.size, leads.size, development_key)
-      ]
+      ],
+      calls: calls_metric(inbox)
     }
+  end
+
+  # Total de llamadas de Aircall del inbox en el periodo y % contestadas — "contestada" es
+  # status == 'completed', el único valor que Crm::Aircall::CallProcessor asigna a una llamada
+  # que sí tuvo answered_at (ver app/services/crm/aircall/call_processor.rb).
+  def calls_metric(inbox)
+    scope = account.calls.aircall.where(inbox_id: inbox.id)
+    scope = scope.where(started_at: range) if range.present?
+    total = scope.count
+    answered = scope.where(status: 'completed').count
+
+    { total: total, answered: answered, answered_percent: safe_rate(answered, total) }
   end
 
   # ids (conversation_id, contact_id) de la conversación más antigua de cada contacto de la

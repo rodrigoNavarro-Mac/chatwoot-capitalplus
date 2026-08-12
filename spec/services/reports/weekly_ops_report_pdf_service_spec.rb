@@ -17,6 +17,13 @@ describe Reports::WeeklyOpsReportPdfService do
           { 'user_id' => 1, 'name' => 'Elizabeth', 'conversations_count' => 12,
             'contact_time' => { 'first_response' => 8.0, 'reply_time' => 4.2 } }
         ],
+        'aircall_calls' => {
+          'total' => 10, 'answered' => 7, 'answered_percent' => 70.0, 'avg_duration_seconds' => 145,
+          'incoming' => 6, 'outgoing' => 4,
+          'by_advisor' => [
+            { 'user_id' => 1, 'name' => 'Elizabeth', 'total' => 10, 'answered' => 7, 'answered_percent' => 70.0, 'avg_duration_seconds' => 145 }
+          ]
+        },
         'zoho_leads' => {
           'total' => 4,
           'by_status' => { 'Contactado' => 2, 'Intento de contacto' => 2 },
@@ -39,6 +46,14 @@ describe Reports::WeeklyOpsReportPdfService do
 
   it 'renders fine when there is no by_advisor breakdown' do
     report.kpis = report.kpis.except('by_advisor')
+
+    io = described_class.new(weekly_ops_report: report).generate
+
+    expect(io.read.byteslice(0, 4)).to eq('%PDF')
+  end
+
+  it 'renders fine when there is no aircall_calls breakdown' do
+    report.kpis = report.kpis.except('aircall_calls')
 
     io = described_class.new(weekly_ops_report: report).generate
 

@@ -51,6 +51,30 @@ module Reports::ReportSummaryRows
     rows_from_counts(reasons, reasons.values.sum)
   end
 
+  # Filas [nombre, llamadas, % contestadas, duración promedio] del desglose de llamadas de Aircall
+  # por asesor — ver V2::Reports::WeeklyOpsReportBuilder#calls_by_advisor.
+  def call_advisor_rows(kpis)
+    advisors = (kpis[:aircall_calls] || {})[:by_advisor] || []
+
+    advisors.map do |advisor|
+      row = [advisor[:name], advisor[:total], percent(advisor[:answered_percent]), format_duration(advisor[:avg_duration_seconds])]
+      row.map { |value| value.nil? ? '—' : value.to_s }
+    end
+  end
+
+  def call_summary_line_text(kpis)
+    calls = kpis[:aircall_calls]
+    return nil if calls.blank?
+
+    "Llamadas: #{calls[:total]} (#{calls[:answered_percent]}% contestadas, #{calls[:incoming]} entrantes / #{calls[:outgoing]} salientes)"
+  end
+
+  def format_duration(seconds)
+    return nil if seconds.nil?
+
+    "#{seconds / 60}m #{seconds % 60}s"
+  end
+
   private
 
   def distribution_rows(kpis, key)

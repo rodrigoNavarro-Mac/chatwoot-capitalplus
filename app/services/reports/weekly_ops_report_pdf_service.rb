@@ -24,6 +24,7 @@ class Reports::WeeklyOpsReportPdfService
     render_header(pdf)
     render_summary_table(pdf)
     render_by_advisor_table(pdf)
+    render_calls_table(pdf)
     render_pipeline_status_table(pdf)
     render_lead_source_table(pdf)
     render_discard_reasons_table(pdf)
@@ -98,6 +99,30 @@ class Reports::WeeklyOpsReportPdfService
       t.row(0).font_style = :bold
       t.row(0).background_color = accent_color
     end
+    pdf.move_down(15)
+  end
+
+  def render_calls_table(pdf)
+    rows = call_advisor_rows(kpis)
+    return if rows.blank?
+
+    pdf.font_size(14) { pdf.text('Llamadas por asesor (Aircall)', style: :bold) }
+    pdf.move_down(6)
+
+    header = ['Asesor', 'Llamadas', '% Contestadas', 'Duración promedio']
+    pdf.table([header] + rows, header: true, width: pdf.bounds.width) do |t|
+      t.row(0).font_style = :bold
+      t.row(0).background_color = accent_color
+    end
+    pdf.move_down(15)
+    render_calls_summary_line(pdf)
+  end
+
+  def render_calls_summary_line(pdf)
+    text = call_summary_line_text(kpis)
+    return if text.blank?
+
+    pdf.font_size(10) { pdf.text(text) }
     pdf.move_down(15)
   end
 

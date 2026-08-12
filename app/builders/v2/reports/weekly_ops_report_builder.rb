@@ -60,6 +60,7 @@ class V2::Reports::WeeklyOpsReportBuilder
       by_advisor: by_advisor_metrics,
       pipeline: pipeline_metrics,
       zoho_leads: zoho_leads_metrics,
+      aircall_calls: aircall_calls_metrics,
       cadences: cadence_metrics,
       campaigns: campaign_metrics,
       comparison: include_comparison? ? comparison_metrics : nil
@@ -185,6 +186,13 @@ class V2::Reports::WeeklyOpsReportBuilder
     leads.filter_map { |lead| lead[field] }
          .tally
          .transform_keys { |value| labels ? labels.fetch(value, value) : value }
+  end
+
+  # "aircall_calls" y no "calls" para no confundirse con cadences[:calls_completed]/[:calls_pending]
+  # (tareas de llamada manual de cadencias, otra feature). Extraído a una clase aparte
+  # (V2::Reports::WeeklyOpsReportCallsMetrics) solo para no pasar el límite de tamaño de esta clase.
+  def aircall_calls_metrics
+    V2::Reports::WeeklyOpsReportCallsMetrics.new(inbox: inbox, range: range).build
   end
 
   def cadence_metrics

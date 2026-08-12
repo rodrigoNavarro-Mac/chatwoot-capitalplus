@@ -695,6 +695,9 @@
       "visita_efectiva": "Visita efectiva",
       "closed_won": "Deal cerrado ganado"
     },
+    "CALLS": {
+      "SUMMARY": "Llamadas: {total} ({percent}% contestadas)"
+    },
     "TABLE": {
       "TITLE": "Embudo por entrada",
       "INBOX": "Entrada",
@@ -751,6 +754,21 @@
       "TITLE": "Desglose por asesor",
       "ADVISOR": "Asesor",
       "CONVERSATIONS": "Conversaciones"
+    },
+    "CALLS": {
+      "TITLE": "Llamadas (Aircall)",
+      "TOTAL": "Llamadas totales",
+      "TOTAL_INFO": "Llamadas de Aircall registradas en este desarrollo durante el periodo.",
+      "ANSWERED_PERCENT": "% contestadas",
+      "ANSWERED_PERCENT_INFO": "Porcentaje de llamadas que fueron contestadas (no cuenta llamadas perdidas/sin respuesta).",
+      "AVG_DURATION": "Duración promedio",
+      "AVG_DURATION_INFO": "Duración promedio de las llamadas contestadas.",
+      "AVG_DURATION_SHORT": "Duración prom.",
+      "DIRECTION": "Entrantes / Salientes",
+      "DIRECTION_INFO": "Llamadas que el cliente hizo al asesor vs. llamadas que el asesor hizo al cliente.",
+      "BY_ADVISOR_TITLE": "Llamadas por asesor",
+      "ADVISOR": "Asesor",
+      "TOTAL_CALLS": "Llamadas"
     },
     "PIPELINE": {
       "TITLE": "Embudo de ventas"
