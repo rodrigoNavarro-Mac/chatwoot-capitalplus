@@ -14,10 +14,11 @@ class WeeklyOpsReportsAPI extends ApiClient {
     return axios.get(`${this.url}/${inboxId}/weekly_ops_reports/${id}`);
   }
 
-  generateReport(inboxId, { since, until }) {
+  generateReport(inboxId, { since, until, periodType }) {
     return axios.post(`${this.url}/${inboxId}/weekly_ops_reports`, {
       since,
       until,
+      period_type: periodType,
     });
   }
 

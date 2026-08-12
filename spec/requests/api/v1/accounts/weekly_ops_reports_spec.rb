@@ -38,6 +38,26 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
 
       expect(WeeklyOpsReport.where(inbox: inbox).count).to eq(1)
     end
+
+    it 'defaults to period_type week when not given' do
+      post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+           params: params, headers: administrator.create_new_auth_token, as: :json
+
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:period_type]).to eq('week')
+    end
+
+    it 'creates a separate record for a different period_type even with an overlapping period_start' do
+      post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+           params: params, headers: administrator.create_new_auth_token, as: :json
+
+      post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+           params: params.merge(period_type: 'month'), headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(WeeklyOpsReport.where(inbox: inbox).count).to eq(2)
+      expect(WeeklyOpsReport.where(inbox: inbox).pluck(:period_type)).to match_array(%w[week month])
+    end
   end
 
   describe 'GET /api/v1/accounts/{account.id}/inboxes/{inbox.id}/weekly_ops_reports' do

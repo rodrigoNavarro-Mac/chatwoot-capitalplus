@@ -41,6 +41,10 @@ class V2::Reports::WeeklyOpsReportBuilder
   LOST_LEAD_STATUS = 'Lost Lead'.freeze
   CONTACTED_STATUS = 'Contacted'.freeze
 
+  # Granularidad de la gráfica de leads por periodo, según el tipo de reporte — semana → día,
+  # mes → semana, trimestre → mes (ver V2::Reports::LeadsTimelineMetrics).
+  TIMELINE_GRANULARITY_BY_PERIOD_TYPE = { 'week' => 'day', 'month' => 'week', 'quarter' => 'month' }.freeze
+
   attr_reader :account, :inbox, :params
 
   def initialize(account:, inbox:, params:, include_comparison: true)
@@ -60,6 +64,7 @@ class V2::Reports::WeeklyOpsReportBuilder
       by_advisor: by_advisor_metrics,
       pipeline: pipeline_metrics,
       zoho_leads: zoho_leads_metrics,
+      zoho_leads_timeline: leads_timeline_metrics,
       aircall_calls: aircall_calls_metrics,
       cadences: cadence_metrics,
       campaigns: campaign_metrics,
@@ -175,7 +180,14 @@ class V2::Reports::WeeklyOpsReportBuilder
   end
 
   def zoho_leads
-    Crm::Zoho::LeadsForPeriodService.new(account: account, development_key: development_key, range: range).fetch
+    @zoho_leads ||= Crm::Zoho::LeadsForPeriodService.new(account: account, development_key: development_key, range: range).fetch
+  end
+
+  def leads_timeline_metrics
+    return nil if development_key.blank? || range.blank?
+
+    granularity = TIMELINE_GRANULARITY_BY_PERIOD_TYPE.fetch(params[:period_type], 'day')
+    V2::Reports::LeadsTimelineMetrics.new(leads: zoho_leads, range: range, granularity: granularity, account: account).build
   end
 
   def development_key

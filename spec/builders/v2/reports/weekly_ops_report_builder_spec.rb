@@ -118,6 +118,58 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       end
     end
 
+    describe 'zoho_leads_timeline' do
+      it 'is nil when the inbox has no desarrollo configured' do
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:zoho_leads_timeline]).to be_nil
+      end
+
+      it 'buckets leads by day for a week-type report, and reuses the same Zoho fetch as zoho_leads_metrics' do
+        agent_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } })
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
+        leads = [
+          { 'Created_Time' => 2.days.ago.iso8601, 'Lead_Status' => 'Contacted' },
+          { 'Created_Time' => 2.days.ago.iso8601, 'Lead_Status' => 'Contacted' },
+          { 'Created_Time' => 1.day.ago.iso8601, 'Lead_Status' => 'Contacted' }
+        ]
+        fake_service = instance_double(Crm::Zoho::LeadsForPeriodService, fetch: leads)
+        allow(Crm::Zoho::LeadsForPeriodService).to receive(:new).and_return(fake_service)
+
+        result = described_class.new(account: account, inbox: inbox, params: params.merge(period_type: 'week'), include_comparison: false).build
+
+        expect(result[:zoho_leads_timeline][:granularity]).to eq('day')
+        expect(result[:zoho_leads_timeline][:counts].sum).to eq(3)
+        # zoho_leads_metrics y zoho_leads_timeline comparten la misma llamada memoizada a Zoho.
+        expect(fake_service).to have_received(:fetch).once
+      end
+
+      it 'still returns a full zero-filled timeline when there are no leads in range' do
+        agent_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } })
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
+        fake_service = instance_double(Crm::Zoho::LeadsForPeriodService, fetch: [])
+        allow(Crm::Zoho::LeadsForPeriodService).to receive(:new).and_return(fake_service)
+
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:zoho_leads_timeline][:counts]).to all(eq(0))
+        expect(result[:zoho_leads_timeline][:labels]).not_to be_empty
+      end
+
+      it 'uses week granularity for a month-type report, and month granularity for a quarter-type report' do
+        agent_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } })
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
+        fake_service = instance_double(Crm::Zoho::LeadsForPeriodService, fetch: [])
+        allow(Crm::Zoho::LeadsForPeriodService).to receive(:new).and_return(fake_service)
+
+        month_result = described_class.new(account: account, inbox: inbox, params: params.merge(period_type: 'month')).build
+        quarter_result = described_class.new(account: account, inbox: inbox, params: params.merge(period_type: 'quarter')).build
+
+        expect(month_result[:zoho_leads_timeline][:granularity]).to eq('week')
+        expect(quarter_result[:zoho_leads_timeline][:granularity]).to eq('month')
+      end
+    end
+
     describe 'aircall_calls' do
       it 'is nil when the inbox has no Aircall calls in range' do
         result = described_class.new(account: account, inbox: inbox, params: params).build

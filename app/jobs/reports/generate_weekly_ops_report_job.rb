@@ -28,12 +28,12 @@ class Reports::GenerateWeeklyOpsReportJob < ApplicationJob
     kpis = V2::Reports::WeeklyOpsReportBuilder.new(
       account: account,
       inbox: inbox,
-      params: { since: since_date.beginning_of_day.to_i.to_s, until: until_date.beginning_of_day.to_i.to_s }
+      params: { since: since_date.beginning_of_day.to_i.to_s, until: until_date.beginning_of_day.to_i.to_s, period_type: 'week' }
     ).build
     analysis = Reports::WeeklyOpsAnalysisLlmService.new(account: account, kpis: kpis).generate
 
     period = kpis[:period] || {}
-    record = inbox.weekly_ops_reports.find_or_initialize_by(period_start: period[:since])
+    record = inbox.weekly_ops_reports.find_or_initialize_by(period_start: period[:since], period_type: 'week')
     record.update!(account: account, period_end: period[:until], kpis: kpis, llm_analysis: analysis, status: 'completed')
   end
 end
