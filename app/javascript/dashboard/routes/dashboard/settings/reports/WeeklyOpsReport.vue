@@ -46,7 +46,61 @@ const defaultRange = () => {
   return { since: toDateInputValue(since), until: toDateInputValue(until) };
 };
 
-const filters = ref({ inboxId: '', ...defaultRange() });
+const filters = ref({ inboxId: '', periodType: 'week', ...defaultRange() });
+
+// Valores solo para los pickers de mes/trimestre — filters.since/until siguen siendo la fuente de
+// verdad que consume canGenerate/fetchOrGenerate/loadExistingReport sin cambios.
+const pad2 = value => String(value).padStart(2, '0');
+
+const defaultMonthValue = () => {
+  const now = new Date();
+  const lastClosedMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${lastClosedMonth.getFullYear()}-${pad2(lastClosedMonth.getMonth() + 1)}`;
+};
+
+const defaultQuarter = () => {
+  const now = new Date();
+  const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+  return currentQuarter === 1
+    ? { year: now.getFullYear() - 1, quarter: 4 }
+    : { year: now.getFullYear(), quarter: currentQuarter - 1 };
+};
+
+const monthValue = ref(defaultMonthValue());
+const quarterDefaults = defaultQuarter();
+const quarterYear = ref(quarterDefaults.year);
+const quarterNumber = ref(quarterDefaults.quarter);
+
+const applyMonthRange = () => {
+  const [year, month] = monthValue.value.split('-').map(Number);
+  filters.value.since = toDateInputValue(new Date(year, month - 1, 1));
+  filters.value.until = toDateInputValue(new Date(year, month, 0));
+};
+
+const applyQuarterRange = () => {
+  const startMonth = (quarterNumber.value - 1) * 3;
+  filters.value.since = toDateInputValue(
+    new Date(quarterYear.value, startMonth, 1)
+  );
+  filters.value.until = toDateInputValue(
+    new Date(quarterYear.value, startMonth + 3, 0)
+  );
+};
+
+watch(
+  () => filters.value.periodType,
+  periodType => {
+    if (periodType === 'month') applyMonthRange();
+    else if (periodType === 'quarter') applyQuarterRange();
+    else Object.assign(filters.value, defaultRange());
+  }
+);
+watch(monthValue, () => {
+  if (filters.value.periodType === 'month') applyMonthRange();
+});
+watch([quarterYear, quarterNumber], () => {
+  if (filters.value.periodType === 'quarter') applyQuarterRange();
+});
 
 const isLoading = ref(false);
 const report = ref(null);
@@ -54,6 +108,7 @@ const isDownloading = ref(false);
 
 const contactTimeChartRef = ref(null);
 const cadenceChartRef = ref(null);
+const leadsTimelineChartRef = ref(null);
 
 const isCompleteDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const canGenerate = computed(
@@ -121,8 +176,37 @@ const cadenceChartData = computed(() => {
   };
 });
 
-// Si ya existe un reporte generado para el inbox y el rango de fechas seleccionados, lo precarga
-// en vez de dejar la pantalla vacía esperando a que el usuario le dé "Generar reporte" de nuevo.
+const TIMELINE_TITLE_KEYS = {
+  day: 'WEEKLY_OPS_REPORTS.LEADS_TIMELINE.TITLE_DAY',
+  week: 'WEEKLY_OPS_REPORTS.LEADS_TIMELINE.TITLE_WEEK',
+  month: 'WEEKLY_OPS_REPORTS.LEADS_TIMELINE.TITLE_MONTH',
+};
+
+const leadsTimelineTitle = computed(() => {
+  const granularity = kpis.value?.zoho_leads_timeline?.granularity || 'day';
+  return t(TIMELINE_TITLE_KEYS[granularity] || TIMELINE_TITLE_KEYS.day);
+});
+
+const leadsTimelineChartData = computed(() => {
+  const timeline = kpis.value?.zoho_leads_timeline || {
+    labels: [],
+    counts: [],
+  };
+  return {
+    labels: timeline.labels,
+    datasets: [
+      {
+        label: leadsTimelineTitle.value,
+        backgroundColor: '#2ca02c',
+        data: timeline.counts,
+      },
+    ],
+  };
+});
+
+// Si ya existe un reporte generado para el inbox, el rango de fechas y el tipo de periodo
+// seleccionados, lo precarga en vez de dejar la pantalla vacía esperando a que el usuario le dé
+// "Generar reporte" de nuevo.
 const loadExistingReport = async () => {
   report.value = null;
   if (!canGenerate.value) return;
@@ -136,6 +220,7 @@ const loadExistingReport = async () => {
       existing =>
         existing.period_start === filters.value.since &&
         existing.period_end === filters.value.until &&
+        existing.period_type === filters.value.periodType &&
         existing.status === 'completed'
     );
     if (match) {
@@ -153,7 +238,12 @@ const loadExistingReport = async () => {
 };
 
 watch(
-  () => [filters.value.inboxId, filters.value.since, filters.value.until],
+  () => [
+    filters.value.inboxId,
+    filters.value.since,
+    filters.value.until,
+    filters.value.periodType,
+  ],
   loadExistingReport
 );
 
@@ -167,6 +257,7 @@ const fetchOrGenerate = async () => {
       {
         since: toUnixSeconds(filters.value.since),
         until: toUnixSeconds(filters.value.until, true),
+        periodType: filters.value.periodType,
       }
     );
     report.value = response.data;
@@ -191,6 +282,10 @@ const downloadPdf = async () => {
       cadenceChartRef.value?.chart && {
         title: t('WEEKLY_OPS_REPORTS.CADENCES.BY_STATUS'),
         data_url: cadenceChartRef.value.chart.toBase64Image(),
+      },
+      leadsTimelineChartRef.value?.chart && {
+        title: leadsTimelineTitle.value,
+        data_url: leadsTimelineChartRef.value.chart.toBase64Image(),
       },
     ].filter(Boolean);
 
@@ -245,24 +340,84 @@ const downloadPdf = async () => {
         </div>
         <div class="flex flex-col gap-1">
           <label class="text-xs text-n-slate-11">
-            {{ t('WEEKLY_OPS_REPORTS.FILTERS.SINCE') }}
+            {{ t('WEEKLY_OPS_REPORTS.FILTERS.PERIOD_TYPE') }}
           </label>
-          <input
-            v-model="filters.since"
-            type="date"
-            class="!mb-0 !h-8 text-sm"
-          />
+          <select v-model="filters.periodType" class="!mb-0 !h-8 text-sm">
+            <option value="week">
+              {{ t('WEEKLY_OPS_REPORTS.FILTERS.WEEK') }}
+            </option>
+            <option value="month">
+              {{ t('WEEKLY_OPS_REPORTS.FILTERS.MONTH') }}
+            </option>
+            <option value="quarter">
+              {{ t('WEEKLY_OPS_REPORTS.FILTERS.QUARTER') }}
+            </option>
+          </select>
         </div>
-        <div class="flex flex-col gap-1">
+
+        <template v-if="filters.periodType === 'week'">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('WEEKLY_OPS_REPORTS.FILTERS.SINCE') }}
+            </label>
+            <input
+              v-model="filters.since"
+              type="date"
+              class="!mb-0 !h-8 text-sm"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('WEEKLY_OPS_REPORTS.FILTERS.UNTIL') }}
+            </label>
+            <input
+              v-model="filters.until"
+              type="date"
+              class="!mb-0 !h-8 text-sm"
+            />
+          </div>
+        </template>
+
+        <div
+          v-else-if="filters.periodType === 'month'"
+          class="flex flex-col gap-1"
+        >
           <label class="text-xs text-n-slate-11">
-            {{ t('WEEKLY_OPS_REPORTS.FILTERS.UNTIL') }}
+            {{ t('WEEKLY_OPS_REPORTS.FILTERS.MONTH') }}
           </label>
-          <input
-            v-model="filters.until"
-            type="date"
-            class="!mb-0 !h-8 text-sm"
-          />
+          <input v-model="monthValue" type="month" class="!mb-0 !h-8 text-sm" />
         </div>
+
+        <template v-else>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('WEEKLY_OPS_REPORTS.FILTERS.QUARTER') }}
+            </label>
+            <select v-model.number="quarterNumber" class="!mb-0 !h-8 text-sm">
+              <option :value="1">
+                {{ t('WEEKLY_OPS_REPORTS.FILTERS.Q1') }}
+              </option>
+              <option :value="2">
+                {{ t('WEEKLY_OPS_REPORTS.FILTERS.Q2') }}
+              </option>
+              <option :value="3">
+                {{ t('WEEKLY_OPS_REPORTS.FILTERS.Q3') }}
+              </option>
+              <option :value="4">
+                {{ t('WEEKLY_OPS_REPORTS.FILTERS.Q4') }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">&nbsp;</label>
+            <input
+              v-model.number="quarterYear"
+              type="number"
+              class="!mb-0 !h-8 text-sm w-24"
+            />
+          </div>
+        </template>
+
         <Button
           size="sm"
           icon="i-lucide-sparkles"
@@ -452,6 +607,23 @@ const downloadPdf = async () => {
           </h3>
           <div class="h-64">
             <BarChart ref="cadenceChartRef" :collection="cadenceChartData" />
+          </div>
+        </div>
+
+        <div
+          v-if="
+            kpis.zoho_leads_timeline && kpis.zoho_leads_timeline.labels.length
+          "
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ leadsTimelineTitle }}
+          </h3>
+          <div class="h-64">
+            <BarChart
+              ref="leadsTimelineChartRef"
+              :collection="leadsTimelineChartData"
+            />
           </div>
         </div>
 

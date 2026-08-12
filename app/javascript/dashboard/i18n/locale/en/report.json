@@ -737,7 +737,15 @@
       "INBOX": "Development",
       "SELECT_INBOX": "Select a development",
       "SINCE": "Since",
-      "UNTIL": "Until"
+      "UNTIL": "Until",
+      "PERIOD_TYPE": "Period",
+      "WEEK": "Week",
+      "MONTH": "Month",
+      "QUARTER": "Quarter",
+      "Q1": "Q1",
+      "Q2": "Q2",
+      "Q3": "Q3",
+      "Q4": "Q4"
     },
     "CONTACT_TIME": {
       "TITLE": "Contact time",
@@ -782,6 +790,11 @@
       "REASON": "Reason",
       "LEADS": "Leads",
       "QUALITY_LEADS": "Quality leads: {count} ({percent}%)"
+    },
+    "LEADS_TIMELINE": {
+      "TITLE_DAY": "Leads created per day",
+      "TITLE_WEEK": "Leads created per week",
+      "TITLE_MONTH": "Leads created per month"
     },
     "CADENCES": {
       "RESPONSE_RATE": "Cadence response rate",

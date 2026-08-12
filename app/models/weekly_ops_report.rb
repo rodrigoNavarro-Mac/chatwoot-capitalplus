@@ -7,6 +7,7 @@
 #  llm_analysis    :text
 #  period_end      :date             not null
 #  period_start    :date             not null
+#  period_type     :string           default("week"), not null
 #  status          :string           default("pending"), not null
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
@@ -16,9 +17,9 @@
 #
 # Indexes
 #
-#  index_weekly_ops_reports_on_account_id              (account_id)
-#  index_weekly_ops_reports_on_generated_by_id         (generated_by_id)
-#  index_weekly_ops_reports_on_inbox_and_period_start  (inbox_id,period_start) UNIQUE
+#  index_weekly_ops_reports_on_account_id               (account_id)
+#  index_weekly_ops_reports_on_generated_by_id          (generated_by_id)
+#  index_weekly_ops_reports_on_inbox_period_start_type  (inbox_id,period_start,period_type) UNIQUE
 #
 # Snapshot persistido de un reporte semanal operativo (KPIs + análisis del LLM) para un inbox y
 # periodo dados. Se genera automáticamente cada semana (Reports::GenerateWeeklyOpsReportJob) o
@@ -29,10 +30,11 @@ class WeeklyOpsReport < ApplicationRecord
   belongs_to :generated_by, class_name: 'User', optional: true
 
   enum status: { pending: 'pending', completed: 'completed', failed: 'failed' }
+  enum period_type: { week: 'week', month: 'month', quarter: 'quarter' }
 
   validates :period_start, presence: true
   validates :period_end, presence: true
-  validates :period_start, uniqueness: { scope: :inbox_id }
+  validates :period_start, uniqueness: { scope: [:inbox_id, :period_type] }
 
   scope :filter_by_inbox_id, ->(inbox_id) { where(inbox_id: inbox_id) if inbox_id.present? }
   scope :recent_first, -> { order(period_start: :desc) }

@@ -62,15 +62,16 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
   end
 
   def generate_report!
+    period_type = params[:period_type].presence || 'week'
     kpis = V2::Reports::WeeklyOpsReportBuilder.new(
       account: Current.account,
       inbox: @inbox,
-      params: { since: params[:since], until: params[:until] }
+      params: { since: params[:since], until: params[:until], period_type: period_type }
     ).build
     analysis = Reports::WeeklyOpsAnalysisLlmService.new(account: Current.account, kpis: kpis).generate
 
     period = kpis[:period] || {}
-    record = @inbox.weekly_ops_reports.find_or_initialize_by(period_start: period[:since])
+    record = @inbox.weekly_ops_reports.find_or_initialize_by(period_start: period[:since], period_type: period_type)
     record.assign_attributes(
       account: Current.account,
       period_end: period[:until],
