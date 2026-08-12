@@ -25,6 +25,7 @@ class Reports::WeeklyOpsReportPdfService
     render_summary_table(pdf)
     render_by_advisor_table(pdf)
     render_calls_table(pdf)
+    render_funnel_table(pdf)
     render_pipeline_status_table(pdf)
     render_lead_source_table(pdf)
     render_discard_reasons_table(pdf)
@@ -124,6 +125,10 @@ class Reports::WeeklyOpsReportPdfService
 
     pdf.font_size(10) { pdf.text(text) }
     pdf.move_down(15)
+  end
+
+  def render_funnel_table(pdf)
+    render_distribution_table(pdf, 'Embudo de ventas', ['Etapa', 'Cantidad', '% real', '% meta', 'Diferencia'], funnel_rows(kpis))
   end
 
   def render_pipeline_status_table(pdf)
