@@ -101,6 +101,11 @@ const discardReasonsTotal = computed(() => {
 const percentOf = (count, total) =>
   total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0%';
 
+const formatDuration = seconds => {
+  if (seconds === null || seconds === undefined) return '—';
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+};
+
 const cadenceChartData = computed(() => {
   const byStatus = kpis.value?.cadences?.by_status || {};
   const labels = Object.keys(byStatus);
@@ -350,6 +355,75 @@ const downloadPdf = async () => {
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div
+          v-if="kpis.aircall_calls"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.CALLS.TITLE') }}
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.CALLS.TOTAL')"
+              :value="String(kpis.aircall_calls.total)"
+              :info-text="t('WEEKLY_OPS_REPORTS.CALLS.TOTAL_INFO')"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.CALLS.ANSWERED_PERCENT')"
+              :value="`${kpis.aircall_calls.answered_percent}%`"
+              :info-text="t('WEEKLY_OPS_REPORTS.CALLS.ANSWERED_PERCENT_INFO')"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.CALLS.AVG_DURATION')"
+              :value="formatDuration(kpis.aircall_calls.avg_duration_seconds)"
+              :info-text="t('WEEKLY_OPS_REPORTS.CALLS.AVG_DURATION_INFO')"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.CALLS.DIRECTION')"
+              :value="`${kpis.aircall_calls.incoming} / ${kpis.aircall_calls.outgoing}`"
+              :info-text="t('WEEKLY_OPS_REPORTS.CALLS.DIRECTION_INFO')"
+            />
+          </div>
+
+          <template v-if="kpis.aircall_calls.by_advisor.length">
+            <h4 class="text-sm font-semibold text-n-slate-12 mb-2">
+              {{ t('WEEKLY_OPS_REPORTS.CALLS.BY_ADVISOR_TITLE') }}
+            </h4>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-n-slate-11">
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.CALLS.ADVISOR') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.CALLS.TOTAL_CALLS') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.CALLS.ANSWERED_PERCENT') }}
+                  </th>
+                  <th class="py-1 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.CALLS.AVG_DURATION_SHORT') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="advisor in kpis.aircall_calls.by_advisor"
+                  :key="advisor.user_id"
+                  class="border-t border-n-container text-n-slate-12"
+                >
+                  <td class="py-1.5 pr-3">{{ advisor.name }}</td>
+                  <td class="py-1.5 pr-3">{{ advisor.total }}</td>
+                  <td class="py-1.5 pr-3">{{ advisor.answered_percent }}%</td>
+                  <td class="py-1.5">
+                    {{ formatDuration(advisor.avg_duration_seconds) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
         </div>
 
         <div

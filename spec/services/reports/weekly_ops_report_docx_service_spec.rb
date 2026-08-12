@@ -79,6 +79,33 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml.scan('<w:tbl>').size).to eq(1)
   end
 
+  it 'inserts the aircall_calls advisor breakdown as a table plus a summary line' do
+    report.kpis = report.kpis.merge(
+      'aircall_calls' => {
+        'total' => 10, 'answered' => 7, 'answered_percent' => 70.0, 'avg_duration_seconds' => 125,
+        'incoming' => 6, 'outgoing' => 4,
+        'by_advisor' => [
+          { 'user_id' => 1, 'name' => 'Elizabeth Sánchez', 'total' => 10, 'answered' => 7, 'answered_percent' => 70.0, 'avg_duration_seconds' => 125 }
+        ]
+      }
+    )
+
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).to include('Llamadas por asesor')
+    expect(document_xml).to include('Llamadas: 10 (70.0% contestadas, 6 entrantes / 4 salientes)')
+    # tabla de resumen + desglose por asesor + tabla de llamadas = 3
+    expect(document_xml.scan('<w:tbl>').size).to eq(3)
+  end
+
+  it 'omits the aircall_calls table when there is no data' do
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).not_to include('Llamadas por asesor')
+  end
+
   it 'inserts the zoho_leads distribution tables (pipeline status, source, discard reasons)' do
     report.kpis = report.kpis.merge(
       'zoho_leads' => {

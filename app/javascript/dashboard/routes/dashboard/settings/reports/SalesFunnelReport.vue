@@ -198,6 +198,19 @@ const syncDeals = async () => {
             :delta="stage.delta"
             :taper-percent="STAGE_TAPER[stage.stage]"
           />
+
+          <div
+            v-if="row.calls && row.calls.total"
+            class="text-sm text-n-slate-11 flex items-center gap-2"
+          >
+            <fluent-icon icon="call" size="14" />
+            {{
+              t('SALES_FUNNEL_REPORTS.CALLS.SUMMARY', {
+                total: row.calls.total,
+                percent: row.calls.answered_percent,
+              })
+            }}
+          </div>
         </div>
 
         <div

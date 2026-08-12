@@ -3,6 +3,7 @@
 # `escape` del servicio que lo incluye (mismo helper que el resto de las tablas/párrafos).
 module Reports::WeeklyOpsReportDocxTables
   ADVISOR_TABLE_HEADER = ['Asesor', 'Conversaciones', 'Tiempo 1er mensaje (min)', 'Tiempo de respuesta (min)'].freeze
+  CALLS_ADVISOR_TABLE_HEADER = ['Asesor', 'Llamadas', '% Contestadas', 'Duración promedio'].freeze
   DISTRIBUTION_TABLE_HEADERS = {
     pipeline_status: %w[Estado Leads %],
     lead_source: %w[Fuente Leads %],
@@ -23,6 +24,22 @@ module Reports::WeeklyOpsReportDocxTables
     return if count.nil?
 
     sect_pr.add_previous_sibling(paragraph_xml("Leads de calidad: #{count} (#{zoho_leads[:quality_leads_percent]}%)"))
+  end
+
+  def insert_calls_table(sect_pr)
+    rows = call_advisor_rows(kpis)
+    return if rows.blank?
+
+    sect_pr.add_previous_sibling(heading_xml('Llamadas por asesor (Aircall)', size: 24))
+    sect_pr.add_previous_sibling(simple_table_xml(CALLS_ADVISOR_TABLE_HEADER, rows))
+    insert_calls_summary_line(sect_pr)
+  end
+
+  def insert_calls_summary_line(sect_pr)
+    text = call_summary_line_text(kpis)
+    return if text.blank?
+
+    sect_pr.add_previous_sibling(paragraph_xml(text))
   end
 
   def insert_distribution_table(sect_pr, title, header, rows)

@@ -29,6 +29,10 @@ describe V2::Reports::SalesFunnelBuilder do
     rows.find { |r| r[:inbox_id] == inbox_id }[:stages].find { |s| s[:stage] == stage_name }
   end
 
+  def row_calls(rows, inbox_id: inbox.id)
+    rows.find { |r| r[:inbox_id] == inbox_id }[:calls]
+  end
+
   describe '#build' do
     it 'only counts contacts linked to Zoho as leads' do
       create_lead
@@ -176,6 +180,26 @@ describe V2::Reports::SalesFunnelBuilder do
       rows = described_class.new(account: account, params: params).build
 
       expect(stage(rows, 'leads')[:target_percent]).to eq(40.0)
+    end
+
+    it 'reports total and answered Aircall calls per inbox' do
+      contact = create_lead
+      conversation = contact.conversations.first
+      create(:call, conversation: conversation, provider: :aircall, status: 'completed', started_at: 5.days.ago)
+      create(:call, conversation: conversation, provider: :aircall, status: 'no_answer', started_at: 5.days.ago)
+      create(:call, conversation: conversation, provider: :twilio, status: 'completed', started_at: 5.days.ago)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(row_calls(rows)).to eq(total: 2, answered: 1, answered_percent: 50.0)
+    end
+
+    it 'reports zero calls when the inbox has no Aircall calls' do
+      create_lead
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(row_calls(rows)).to eq(total: 0, answered: 0, answered_percent: 0.0)
     end
   end
 end
