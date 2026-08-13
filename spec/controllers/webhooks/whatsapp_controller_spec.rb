@@ -89,6 +89,37 @@ RSpec.describe 'Webhooks::WhatsappController', type: :request do
       expect(response).to have_http_status(:success)
     end
 
+    it 'accepts webhook payloads even when Meta sends display_phone_number with the Mexican mobile "1" prefix the channel does not have' do
+      channel_secret = 'channel-whatsapp-secret'
+      channel.update!(phone_number: '+525569440704', provider_config: channel.provider_config.merge('app_secret' => channel_secret))
+
+      allow(Webhooks::WhatsappEventsJob).to receive(:perform_later)
+      expect(Webhooks::WhatsappEventsJob).to receive(:perform_later)
+
+      channel_body = {
+        object: 'whatsapp_business_account',
+        entry: [{
+          changes: [{
+            value: {
+              metadata: {
+                display_phone_number: '5215569440704',
+                phone_number_id: channel.provider_config['phone_number_id']
+              }
+            }
+          }]
+        }]
+      }.to_json
+
+      post_whatsapp_webhook(
+        "/webhooks/whatsapp/#{channel.phone_number}",
+        channel_body,
+        signature: signature_for(channel_body, channel_secret),
+        env: {}
+      )
+
+      expect(response).to have_http_status(:success)
+    end
+
     it 'skips signature validation for 360dialog channels' do
       dialog_channel = create(:channel_whatsapp, provider: 'default', sync_templates: false, validate_provider_config: false)
       allow(Webhooks::WhatsappEventsJob).to receive(:perform_later)

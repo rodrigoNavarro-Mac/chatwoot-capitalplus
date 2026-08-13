@@ -337,6 +337,32 @@ RSpec.describe Webhooks::WhatsappEventsJob do
       end.not_to change(Conversation, :count)
     end
 
+    it 'resolves the channel even when display_phone_number has the Mexican mobile "1" prefix the channel does not have' do
+      mx_channel = create(:channel_whatsapp, phone_number: '+525569440704', provider: 'whatsapp_cloud', sync_templates: false,
+                                              validate_provider_config: false)
+      wb_params = {
+        phone_number: channel.phone_number,
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            changes: [
+              {
+                value: {
+                  metadata: {
+                    phone_number_id: mx_channel.provider_config['phone_number_id'],
+                    display_phone_number: '5215569440704'
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+      allow(Whatsapp::IncomingMessageWhatsappCloudService).to receive(:new).and_return(process_service)
+      expect(Whatsapp::IncomingMessageWhatsappCloudService).to receive(:new).with(inbox: mx_channel.inbox, params: wb_params)
+      job.perform_now(wb_params)
+    end
+
     it 'will not enque Whatsapp::IncomingMessageWhatsappCloudService when invalid phone number id' do
       other_channel = create(:channel_whatsapp, phone_number: '+1987654', provider: 'whatsapp_cloud', sync_templates: false,
                                                 validate_provider_config: false)
