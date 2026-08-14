@@ -1,6 +1,9 @@
 class Webhooks::WhatsappController < ActionController::API
   include MetaTokenVerifyConcern
 
+  # Runs before signature verification so the raw payload is captured even when
+  # the request gets rejected downstream (bad signature, unresolved channel, etc.)
+  before_action :log_raw_webhook_event, only: :process_payload
   before_action :verify_meta_signature!, only: :process_payload
 
   def process_payload
@@ -15,6 +18,18 @@ class Webhooks::WhatsappController < ActionController::API
   end
 
   private
+
+  def log_raw_webhook_event
+    metadata = params.dig(:entry, 0, :changes, 0, :value, :metadata) || {}
+
+    WhatsappWebhookEvent.create!(
+      phone_number: params[:phone_number] || normalized_phone_number(metadata[:display_phone_number]),
+      phone_number_id: metadata[:phone_number_id],
+      payload: params.to_unsafe_hash.except('controller', 'action')
+    )
+  rescue StandardError => e
+    Rails.logger.error "Failed to persist raw WhatsApp webhook event: #{e.message}"
+  end
 
   def valid_token?(token)
     if params[:phone_number].present?

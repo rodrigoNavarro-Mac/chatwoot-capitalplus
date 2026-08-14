@@ -113,3 +113,17 @@ generate_weekly_ops_report_job:
   cron: '0 6 * * 1'
   class: 'Reports::GenerateWeeklyOpsReportJob'
   queue: scheduled_jobs
+
+# executed daily at 2235 UTC
+# removes raw WhatsApp webhook audit rows older than 30 days
+remove_old_whatsapp_webhook_events_job:
+  cron: '35 22 * * *'
+  class: 'Internal::RemoveOldWhatsappWebhookEventsJob'
+  queue: purgable
+
+# executed daily at 0700 UTC
+# compares Chatwoot's WhatsApp campaign delivery stats against Meta's template_analytics API
+reconcile_meta_analytics_job:
+  cron: '0 7 * * *'
+  class: 'Campaigns::ReconcileMetaAnalyticsJob'
+  queue: scheduled_jobs

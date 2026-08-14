@@ -322,6 +322,25 @@ describe Whatsapp::IncomingMessageService do
         expect(message.status).to eq('sent')
         expect { described_class.new(inbox: whatsapp_channel.inbox, params: status_params).perform }.not_to raise_error
       end
+
+      it 'processes every status when Meta batches multiple updates in a single webhook call' do
+        other_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+        other_message = create(:message, account: whatsapp_channel.account, conversation: other_conversation,
+                                          source_id: 'other-wamid', status: 'sent')
+
+        status_params = {
+          'statuses' => [
+            { 'recipient_id' => from, 'id' => from, 'status' => 'delivered' },
+            { 'recipient_id' => from, 'id' => 'other-wamid', 'status' => 'read' }
+          ]
+        }.with_indifferent_access
+
+        message = Message.find_by!(source_id: from)
+        described_class.new(inbox: whatsapp_channel.inbox, params: status_params).perform
+
+        expect(message.reload.status).to eq('delivered')
+        expect(other_message.reload.status).to eq('read')
+      end
     end
 
     context 'when valid interactive message params' do

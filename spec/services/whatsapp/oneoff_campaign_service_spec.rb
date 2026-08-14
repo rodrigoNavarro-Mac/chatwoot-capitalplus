@@ -256,5 +256,54 @@ describe Whatsapp::OneoffCampaignService do
         expect(campaign.reload.completed?).to be true
       end
     end
+
+    context 'when contacts already have a delivery for this campaign (e.g. reactivating a paused campaign)' do
+      it 'does not resend to labeled contacts that already have a recorded send' do
+        already_sent_contact, pending_contact = create_list(:contact, 2, :with_phone_number, account: account)
+        already_sent_contact.update_labels([label1.title])
+        pending_contact.update_labels([label1.title])
+        CampaignMessageDelivery.create!(
+          account: account, campaign: campaign, audience_type: 'labels', contact: already_sent_contact,
+          phone_number: already_sent_contact.phone_number, source_id: 'wamid.already-sent'
+        )
+
+        described_class.new(campaign: campaign).perform
+
+        enqueued_args = enqueued_jobs.select { |j| j[:job] == Campaigns::SendCampaignContactJob }.map { |j| j[:args] }
+        expect(enqueued_args).to include([campaign.id, pending_contact.id])
+        expect(enqueued_args).not_to include([campaign.id, already_sent_contact.id])
+      end
+
+      it 'does resend to a contact whose previous attempt never actually went out' do
+        failed_contact = create(:contact, :with_phone_number, account: account)
+        failed_contact.update_labels([label1.title])
+        CampaignMessageDelivery.create!(
+          account: account, campaign: campaign, audience_type: 'labels', contact: failed_contact,
+          phone_number: failed_contact.phone_number, source_id: nil, status: 'failed'
+        )
+
+        described_class.new(campaign: campaign).perform
+
+        enqueued_args = enqueued_jobs.select { |j| j[:job] == Campaigns::SendCampaignContactJob }.map { |j| j[:args] }
+        expect(enqueued_args).to include([campaign.id, failed_contact.id])
+      end
+
+      it 'does not resend to a CSV phone number that already has a recorded send' do
+        csv_campaign = create(:campaign, inbox: whatsapp_inbox, account: account, audience_type: 'csv', template_params: template_params)
+        csv_campaign.csv_audience.attach(generate_csv_file([%w[phone_number name], ['+15550001111', 'Already Sent'], ['+15550002222', 'Pending']]))
+        CampaignMessageDelivery.create!(
+          account: account, campaign: csv_campaign, audience_type: 'csv',
+          phone_number: '+15550001111', source_id: 'wamid.already-sent'
+        )
+
+        described_class.new(campaign: csv_campaign).perform
+
+        enqueued_phones = enqueued_jobs
+                          .select { |j| j[:job] == Campaigns::SendCampaignContactJob }
+                          .map { |j| j[:args][2]['phone_number'] }
+        expect(enqueued_phones).to include('+15550002222')
+        expect(enqueued_phones).not_to include('+15550001111')
+      end
+    end
   end
 end

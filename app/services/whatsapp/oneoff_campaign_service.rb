@@ -38,16 +38,17 @@ class Whatsapp::OneoffCampaignService
 
   # Called by Campaigns::SendCampaignContactJob (CSV-based) — returns WA message ID or nil
   def send_to_csv_contact(contact_data)
-    phone = contact_data['phone_number'].presence || contact_data['phone'].presence
-    return if phone.blank?
+    raw_phone = contact_data['phone_number'].presence || contact_data['phone'].presence
+    return if raw_phone.blank?
     return if campaign.template_params.blank?
 
-    virtual_contact = build_virtual_contact(contact_data)
+    phone = Whatsapp::CsvContactPhoneNormalizer.new(inbox: inbox).normalize(raw_phone)
+    virtual_contact = build_virtual_contact(contact_data, phone)
     processed_template_params = process_liquid_template_params(virtual_contact)
     return if processed_template_params.nil?
 
     wa_message_id, send_error = send_whatsapp_template_message(to: phone, template_params: processed_template_params)
-    delivery_recorder.record_csv_delivery(phone: phone, wa_message_id: wa_message_id, send_error: send_error)
+    delivery_recorder.record_csv_delivery(phone: phone, contact_name: virtual_contact.name, wa_message_id: wa_message_id, send_error: send_error)
     wa_message_id
   rescue StandardError => e
     Rails.logger.error "Failed to send CSV campaign #{campaign.id} to #{contact_data['phone_number']}: #{e.message}"
@@ -95,21 +96,27 @@ class Whatsapp::OneoffCampaignService
     contacts = campaign.account.contacts
                        .tagged_with(audience_labels, any: true)
                        .where("(additional_attributes->>'wa_valid') IS DISTINCT FROM 'false'")
+    already_sent_contact_ids = load_already_sent_contact_ids
 
-    campaign.update_column(:audience_count, contacts.count)
+    campaign.update!(audience_count: contacts.count)
     Rails.logger.info "Scheduling #{contacts.count} contacts for campaign #{campaign.id}"
 
     current_time = advance_to_window(Time.current)
-
     contacts.each do |contact|
-      Campaigns::SendCampaignContactJob.set(wait_until: current_time).perform_later(campaign.id, contact.id)
-      delay = rand(campaign.delay_min_seconds..campaign.delay_max_seconds)
-      current_time = advance_to_window(current_time + delay.seconds)
+      next if already_sent_contact_ids.include?(contact.id)
+
+      current_time = schedule_labeled_contact(contact, current_time)
     end
 
     Rails.logger.info "Campaign #{campaign.id}: last message scheduled at #{current_time}"
   end
 
+  def schedule_labeled_contact(contact, current_time)
+    Campaigns::SendCampaignContactJob.set(wait_until: current_time).perform_later(campaign.id, contact.id)
+    advance_to_window(current_time + next_send_delay.seconds)
+  end
+
+  # rubocop:disable Metrics/AbcSize
   def schedule_contacts_from_csv
     unless campaign.csv_audience.attached?
       Rails.logger.error "Campaign #{campaign.id}: no CSV file attached, skipping scheduling"
@@ -118,23 +125,46 @@ class Whatsapp::OneoffCampaignService
 
     rows = parse_csv_rows
     invalid_phones = load_invalid_phones
+    already_sent_phones = load_already_sent_phones
 
-    campaign.update_column(:audience_count, rows.size)
+    campaign.update!(audience_count: rows.size)
     Rails.logger.info "Scheduling #{rows.size} CSV rows for campaign #{campaign.id}"
 
     current_time = advance_to_window(Time.current)
-
     rows.each do |row|
-      phone = row['phone_number'].presence || row['phone'].presence
-      next if phone.blank?
-      next if invalid_phones.include?(phone)
-
-      Campaigns::SendCampaignContactJob.set(wait_until: current_time).perform_later(campaign.id, nil, row)
-      delay = rand(campaign.delay_min_seconds..campaign.delay_max_seconds)
-      current_time = advance_to_window(current_time + delay.seconds)
+      current_time = schedule_csv_row(row, invalid_phones, already_sent_phones, current_time)
     end
 
     Rails.logger.info "Campaign #{campaign.id}: last CSV message scheduled at #{current_time}"
+  end
+  # rubocop:enable Metrics/AbcSize
+
+  def schedule_csv_row(row, invalid_phones, already_sent_phones, current_time)
+    raw_phone = row['phone_number'].presence || row['phone'].presence
+    return current_time if raw_phone.blank?
+
+    phone = Whatsapp::CsvContactPhoneNormalizer.new(inbox: inbox).normalize(raw_phone)
+    return current_time if invalid_phones.include?(phone) || already_sent_phones.include?(phone)
+
+    row_args = [campaign.id, nil, row.merge('phone_number' => phone, 'phone' => phone)]
+    Campaigns::SendCampaignContactJob.set(wait_until: current_time).perform_later(*row_args)
+    advance_to_window(current_time + next_send_delay.seconds)
+  end
+
+  def next_send_delay
+    rand(campaign.delay_min_seconds..campaign.delay_max_seconds)
+  end
+
+  # A blank source_id means the send attempt never actually reached Meta (recorded as
+  # 'failed' at send time), so those are safe to retry. Anything with a source_id already
+  # went out as a real WhatsApp message and must not be sent again if the campaign gets
+  # re-run (e.g. reactivated after being paused).
+  def load_already_sent_phones
+    campaign.campaign_message_deliveries.where(audience_type: 'csv').where.not(source_id: nil).pluck(:phone_number).to_set
+  end
+
+  def load_already_sent_contact_ids
+    campaign.campaign_message_deliveries.where(audience_type: 'labels').where.not(source_id: nil).pluck(:contact_id).to_set
   end
 
   def parse_csv_rows
@@ -156,12 +186,12 @@ class Whatsapp::OneoffCampaignService
     Set.new
   end
 
-  def build_virtual_contact(data)
+  def build_virtual_contact(data, phone)
     reserved_keys = %w[phone_number phone name email]
     extra_attrs = data.reject { |k, _| reserved_keys.include?(k.to_s) }
     VirtualContact.new(
-      data['name'].presence || data['phone_number'].presence || data['phone'],
-      data['phone_number'].presence || data['phone'],
+      data['name'].presence || phone,
+      phone,
       data['email'],
       extra_attrs
     )
