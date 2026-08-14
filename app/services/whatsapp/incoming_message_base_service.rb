@@ -48,9 +48,15 @@ class Whatsapp::IncomingMessageBaseService
     campaign_delivery_tracker.mark_response!(@contact, @message, @conversation, outgoing_echo: outgoing_echo)
   end
 
+  # Meta can batch multiple status updates (e.g. delivered + read for different
+  # recipients) into a single webhook call's `statuses` array, especially under
+  # high volume like a campaign send. Processing only the first one silently
+  # dropped the rest, undercounting delivered/read stats.
   def process_statuses
-    status = @processed_params[:statuses].first
+    @processed_params[:statuses].each { |status| process_single_status(status) }
+  end
 
+  def process_single_status(status)
     if find_message_by_source_id(status[:id])
       update_whatsapp_identifiers_from_status(status)
       update_message_with_status(@message, status)

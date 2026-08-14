@@ -178,6 +178,46 @@ RSpec.describe 'Webhooks::WhatsappController', type: :request do
       expect(Webhooks::WhatsappEventsJob).not_to have_received(:perform_later)
     end
 
+    it 'persists the raw payload even when the webhook is rejected for an invalid signature' do
+      expect do
+        post_whatsapp_webhook('/webhooks/whatsapp/123221321', body, signature: 'sha256=invalid-signature')
+      end.to change(WhatsappWebhookEvent, :count).by(1)
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(WhatsappWebhookEvent.last.payload['content']).to eq('hello')
+    end
+
+    it 'persists the raw payload for a successfully processed webhook' do
+      allow(Webhooks::WhatsappEventsJob).to receive(:perform_later)
+
+      channel_body = {
+        object: 'whatsapp_business_account',
+        entry: [{
+          changes: [{
+            value: {
+              metadata: {
+                display_phone_number: channel.phone_number.delete_prefix('+'),
+                phone_number_id: channel.provider_config['phone_number_id']
+              }
+            }
+          }]
+        }]
+      }.to_json
+
+      expect do
+        post_whatsapp_webhook(
+          "/webhooks/whatsapp/#{channel.phone_number}",
+          channel_body,
+          signature: signature_for(channel_body, client_secret),
+          env: {}
+        )
+      end.to change(WhatsappWebhookEvent, :count).by(1)
+
+      event = WhatsappWebhookEvent.last
+      expect(event.phone_number_id).to eq(channel.provider_config['phone_number_id'])
+      expect(event.phone_number).to eq(channel.phone_number)
+    end
+
     context 'when phone number is in inactive list' do
       before do
         allow(GlobalConfig).to receive(:get_value).with('INACTIVE_WHATSAPP_NUMBERS').and_return('+1234567890,+9876543210')

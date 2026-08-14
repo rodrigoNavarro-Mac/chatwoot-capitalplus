@@ -12,21 +12,27 @@ class Whatsapp::PhoneNumberNormalizationService
   # @param provider [Symbol] :cloud or :twilio
   # @return [String] Normalized source_id in provider format or original if not found
   def normalize_and_find_contact_by_provider(raw_number, provider)
-    # Extract clean number based on provider format
     clean_number = extract_clean_number(raw_number, provider)
-
-    # Find appropriate normalizer for the country
     normalizer = find_normalizer_for_country(clean_number)
     return raw_number unless normalizer
 
-    # Normalize the clean number
-    normalized_clean_number = normalizer.normalize(clean_number)
-
-    # Format for provider and check for existing contact
-    provider_format = format_for_provider(normalized_clean_number, provider)
+    provider_format = format_for_provider(normalizer.normalize(clean_number), provider)
     existing_contact_inbox = find_existing_contact_inbox(provider_format)
 
     existing_contact_inbox&.source_id || raw_number
+  end
+
+  # Returns the number normalized and formatted for the given provider (e.g. clean digits
+  # for :cloud, "whatsapp:+..." for :twilio), or the original raw_number unchanged if no
+  # country-specific normalizer applies. Unlike normalize_and_find_contact_by_provider, this
+  # does not require or look up an existing contact_inbox — useful for outbound sends (e.g.
+  # CSV campaigns) where the recipient may not be a contact yet.
+  def normalize(raw_number, provider)
+    clean_number = extract_clean_number(raw_number, provider)
+    normalizer = find_normalizer_for_country(clean_number)
+    return raw_number unless normalizer
+
+    format_for_provider(normalizer.normalize(clean_number), provider)
   end
 
   private

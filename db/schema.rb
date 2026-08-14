@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_12_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_14_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -419,6 +419,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_12_130000) do
     t.bigint "response_conversation_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "contact_name"
     t.index ["account_id", "phone_number"], name: "idx_on_account_id_phone_number_b81823726f"
     t.index ["campaign_id"], name: "index_campaign_message_deliveries_on_campaign_id"
     t.index ["contact_id"], name: "index_campaign_message_deliveries_on_contact_id"
@@ -1504,6 +1505,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_12_130000) do
     t.index ["account_id", "template_name", "inbox_id"], name: "index_wa_template_inbox_assignments_on_account_template_inbox", unique: true
     t.index ["account_id"], name: "index_whatsapp_template_inbox_assignments_on_account_id"
     t.index ["inbox_id"], name: "index_whatsapp_template_inbox_assignments_on_inbox_id"
+  end
+
+  create_table "whatsapp_webhook_events", force: :cascade do |t|
+    t.string "phone_number"
+    t.string "phone_number_id"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_whatsapp_webhook_events_on_created_at"
+    t.index ["phone_number_id"], name: "index_whatsapp_webhook_events_on_phone_number_id"
   end
 
   create_table "working_hours", force: :cascade do |t|
