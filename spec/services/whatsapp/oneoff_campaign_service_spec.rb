@@ -305,5 +305,41 @@ describe Whatsapp::OneoffCampaignService do
         expect(enqueued_phones).not_to include('+15550001111')
       end
     end
+
+    context 'when the campaign has a configured timezone (regression for the UTC send-window bug)' do
+      it 'schedules for today when the send window is still open in the campaign timezone, even at the UTC window boundary' do
+        contact = create(:contact, :with_phone_number, account: account)
+        contact.update_labels([label1.title])
+        campaign.update!(timezone: 'America/Mexico_City', send_window_start: '09:00', send_window_end: '20:00')
+
+        # 20:00 UTC is exactly the send_window_end when misread as UTC (the incident), but
+        # it's only 14:00 in America/Mexico_City (UTC-6) - well inside the window. Before the
+        # fix, advance_to_window compared against Time.current in the server's UTC zone and
+        # pushed every contact to the next day.
+        travel_to Time.utc(2026, 8, 14, 20, 0, 15) do
+          described_class.new(campaign: campaign).perform
+        end
+
+        job = enqueued_jobs.find { |j| j[:job] == Campaigns::SendCampaignContactJob }
+        expect(job).to be_present
+        expect(Time.zone.at(job[:at]).to_date).to eq Date.new(2026, 8, 14)
+      end
+
+      it 'pushes to the next day when the send window has actually closed in the campaign timezone' do
+        contact = create(:contact, :with_phone_number, account: account)
+        contact.update_labels([label1.title])
+        campaign.update!(timezone: 'America/Mexico_City', send_window_start: '09:00', send_window_end: '20:00')
+
+        # 02:00:15 UTC on the 15th is 20:00:15 the previous day in America/Mexico_City -
+        # genuinely past the window in the campaign's own timezone.
+        travel_to Time.utc(2026, 8, 15, 2, 0, 15) do
+          described_class.new(campaign: campaign).perform
+        end
+
+        job = enqueued_jobs.find { |j| j[:job] == Campaigns::SendCampaignContactJob }
+        expect(job).to be_present
+        expect(Time.zone.at(job[:at]).in_time_zone('America/Mexico_City').to_date).to eq Date.new(2026, 8, 15)
+      end
+    end
   end
 end

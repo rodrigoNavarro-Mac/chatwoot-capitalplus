@@ -5,6 +5,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useMapGetter } from 'dashboard/composables/store';
 import CampaignsAPI from 'dashboard/api/campaigns';
+import { timeZoneOptions } from 'dashboard/routes/dashboard/settings/inbox/helpers/businessHour.js';
 
 import Input from 'dashboard/components-next/input/Input.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -44,6 +45,7 @@ const initialState = {
   delayMaxSeconds: 420,
   sendWindowStart: '09:00',
   sendWindowEnd: '19:00',
+  timezone: 'UTC',
 };
 
 const state = reactive({ ...initialState });
@@ -94,6 +96,8 @@ const audienceList = computed(() =>
 const inboxOptions = computed(() =>
   mapToOptions(formState.inboxes.value, 'id', 'name')
 );
+
+const timeZoneOptionsList = computed(() => timeZoneOptions());
 
 const templateOptions = computed(() => {
   if (!state.inboxId) return [];
@@ -184,6 +188,7 @@ watch(
     state.delayMaxSeconds = campaign.delay_max_seconds ?? 420;
     state.sendWindowStart = campaign.send_window_start ?? '09:00';
     state.sendWindowEnd = campaign.send_window_end ?? '19:00';
+    state.timezone = campaign.timezone ?? 'UTC';
   },
   { immediate: true }
 );
@@ -265,6 +270,7 @@ const prepareCampaignDetails = () => {
     delay_max_seconds: state.delayMaxSeconds,
     send_window_start: state.sendWindowStart,
     send_window_end: state.sendWindowEnd,
+    timezone: state.timezone,
   };
 };
 
@@ -513,6 +519,19 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
         :label="t('CAMPAIGN.WHATSAPP.CREATE.FORM.SEND_WINDOW_END.LABEL')"
         type="time"
         class="flex-1"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label for="timezone" class="mb-0.5 text-sm font-medium text-n-slate-12">
+        {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.TIMEZONE.LABEL') }}
+      </label>
+      <ComboBox
+        id="timezone"
+        v-model="state.timezone"
+        :options="timeZoneOptionsList"
+        :placeholder="t('CAMPAIGN.WHATSAPP.CREATE.FORM.TIMEZONE.PLACEHOLDER')"
+        class="[&>div>button]:bg-n-alpha-black2 [&>div>button:not(.focused)]:dark:outline-n-weak [&>div>button:not(.focused)]:hover:!outline-n-slate-6"
       />
     </div>
 

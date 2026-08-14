@@ -36,7 +36,8 @@ class Campaigns::CampaignRecipientsFinder
 
     sanitized = "%#{@params[:q].strip}%"
     scope.left_joins(:contact).where(
-      'campaign_message_deliveries.phone_number ILIKE :q OR contacts.name ILIKE :q', q: sanitized
+      'campaign_message_deliveries.phone_number ILIKE :q OR campaign_message_deliveries.contact_name ILIKE :q OR contacts.name ILIKE :q',
+      q: sanitized
     )
   end
 end

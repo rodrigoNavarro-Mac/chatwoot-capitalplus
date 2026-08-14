@@ -21,6 +21,7 @@ if resource.campaign_type == 'one_off'
   json.delay_max_seconds resource.delay_max_seconds
   json.send_window_start resource.send_window_start
   json.send_window_end resource.send_window_end
+  json.timezone resource.timezone
   json.has_csv_audience resource.csv_audience.attached?
 end
 json.trigger_rules resource.trigger_rules

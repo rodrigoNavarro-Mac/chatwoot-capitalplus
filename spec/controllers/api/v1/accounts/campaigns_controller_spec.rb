@@ -189,6 +189,122 @@ RSpec.describe 'Campaigns API', type: :request do
         expect(response).to have_http_status(:success)
         expect(JSON.parse(response.body, symbolize_names: true)[:title]).to eq('test')
       end
+
+      it 'accepts a timezone' do
+        patch "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}",
+              params: { inbox_id: inbox.id, title: 'test', message: 'test message', timezone: 'America/Mexico_City' },
+              headers: administrator.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(JSON.parse(response.body, symbolize_names: true)[:timezone]).to eq('America/Mexico_City')
+      end
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/campaigns/:id/pause' do
+    let(:inbox) { create(:inbox, account: account) }
+
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :processing)
+
+        post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/pause", as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated user' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:administrator) { create(:user, account: account, role: :administrator) }
+
+      it 'returns unauthorized for agents' do
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :processing)
+
+        post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/pause",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      it 'pauses a processing campaign and cancels its pending sends' do
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :processing)
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/pause",
+               headers: administrator.create_new_auth_token,
+               as: :json
+        end.to have_enqueued_job(Campaigns::CancelScheduledJobsJob).with(campaign.id)
+
+        expect(response).to have_http_status(:success)
+        expect(campaign.reload.paused?).to be true
+      end
+
+      it 'returns unprocessable_entity when the campaign is not running' do
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :active)
+
+        post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/pause",
+             headers: administrator.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(campaign.reload.active?).to be true
+      end
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/campaigns/:id/resume' do
+    let(:inbox) { create(:inbox, account: account) }
+
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :paused)
+
+        post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/resume", as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated user' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:administrator) { create(:user, account: account, role: :administrator) }
+
+      it 'returns unauthorized for agents' do
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :paused)
+
+        post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/resume",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      it 'resumes a paused campaign' do
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :paused)
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/resume",
+               headers: administrator.create_new_auth_token,
+               as: :json
+        end.to have_enqueued_job(Campaigns::ResumeCampaignJob).with(campaign.id)
+
+        expect(response).to have_http_status(:success)
+        expect(campaign.reload.processing?).to be true
+      end
+
+      it 'returns unprocessable_entity when the campaign is not paused' do
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :active)
+
+        post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/resume",
+             headers: administrator.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(campaign.reload.active?).to be true
+      end
     end
   end
 

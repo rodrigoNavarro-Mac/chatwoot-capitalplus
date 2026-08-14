@@ -53,6 +53,18 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
     head :ok
   end
 
+  def pause
+    return render json: { error: 'Campaign is not running' }, status: :unprocessable_entity unless @campaign.pause!
+
+    Campaigns::CancelScheduledJobsJob.perform_later(@campaign.id)
+  end
+
+  def resume
+    return render json: { error: 'Campaign is not paused' }, status: :unprocessable_entity unless @campaign.resume!
+
+    Campaigns::ResumeCampaignJob.perform_later(@campaign.id)
+  end
+
   private
 
   def campaign
@@ -69,7 +81,7 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
       scope.find_each(batch_size: 1000) do |delivery|
         rows << [
           delivery.phone_number,
-          delivery.contact&.name || delivery.phone_number,
+          delivery.contact&.name || delivery.contact_name || delivery.phone_number,
           delivery.status,
           delivery.sent_at,
           delivery.delivered_at,
@@ -89,7 +101,7 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
 
   def campaign_params
     params.require(:campaign).permit(:title, :description, :message, :enabled, :trigger_only_during_business_hours, :inbox_id, :sender_id,
-                                     :scheduled_at, :delay_min_seconds, :delay_max_seconds, :send_window_start, :send_window_end,
+                                     :scheduled_at, :delay_min_seconds, :delay_max_seconds, :send_window_start, :send_window_end, :timezone,
                                      :audience_type, :csv_audience,
                                      audience: [:type, :id], trigger_rules: {}, template_params: {})
   end

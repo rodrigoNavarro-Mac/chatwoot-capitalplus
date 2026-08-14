@@ -218,6 +218,10 @@
           "SEND_WINDOW_END": {
             "LABEL": "Send window end"
           },
+          "TIMEZONE": {
+            "LABEL": "Timezone",
+            "PLACEHOLDER": "Select a timezone"
+          },
           "DELAY_MIN": {
             "LABEL": "Min delay (seconds)"
           },
@@ -279,6 +283,20 @@
         "LABEL": "Response rate",
         "TOOLTIP": "Responded divided by sent, as a percentage."
       },
+      "PROGRESS": {
+        "REMAINING": {
+          "LABEL": "Remaining",
+          "TOOLTIP": "Contacts still waiting to be sent."
+        },
+        "NEXT_SEND": {
+          "LABEL": "Next send",
+          "TOOLTIP": "Estimated time of the next message, based on the send window and delay settings."
+        },
+        "ETA": {
+          "LABEL": "Estimated finish",
+          "TOOLTIP": "Approximate time the campaign will finish sending, based on the average delay between messages."
+        }
+      },
       "API": {
         "ERROR_MESSAGE": "There was an error loading the campaign metrics. Please try again."
       }
@@ -317,6 +335,16 @@
       "EXPORT": {
         "LABEL": "Export CSV",
         "ERROR_MESSAGE": "The CSV export could not be completed"
+      },
+      "PAUSE": {
+        "LABEL": "Pause",
+        "SUCCESS_MESSAGE": "Campaign paused. Pending sends were cancelled.",
+        "ERROR_MESSAGE": "Could not pause the campaign. Please try again."
+      },
+      "RESUME": {
+        "LABEL": "Resume",
+        "SUCCESS_MESSAGE": "Campaign resumed. Remaining contacts are being rescheduled.",
+        "ERROR_MESSAGE": "Could not resume the campaign. Please try again."
       },
       "API": {
         "ERROR_MESSAGE": "There was an error loading the campaign recipients. Please try again."

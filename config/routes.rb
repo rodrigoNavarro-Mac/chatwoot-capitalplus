@@ -130,6 +130,8 @@ Rails.application.routes.draw do
             member do
               get :metrics
               get :recipients
+              post :pause
+              post :resume
             end
             collection do
               get :csv_usage_report

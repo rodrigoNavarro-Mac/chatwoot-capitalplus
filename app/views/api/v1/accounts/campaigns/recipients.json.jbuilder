@@ -7,7 +7,7 @@ json.payload do
   json.array! @recipients do |delivery|
     json.id delivery.id
     json.phone_number delivery.phone_number
-    json.name delivery.contact&.name
+    json.name delivery.contact&.name || delivery.contact_name || delivery.phone_number
     json.audience_type delivery.audience_type
     json.status delivery.status
     json.sent_at delivery.sent_at
