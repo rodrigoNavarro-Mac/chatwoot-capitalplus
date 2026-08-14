@@ -11,6 +11,7 @@ class Campaigns::MessageDeliveryRecorder
       account_id: campaign.account_id,
       audience_type: 'labels',
       contact_id: contact.id,
+      contact_name: contact.name,
       message_id: message.id,
       phone_number: contact.phone_number,
       source_id: wa_message_id,
@@ -18,10 +19,11 @@ class Campaigns::MessageDeliveryRecorder
     )
   end
 
-  def record_csv_delivery(phone:, wa_message_id:, send_error:)
+  def record_csv_delivery(phone:, contact_name:, wa_message_id:, send_error:)
     campaign.campaign_message_deliveries.create!(
       account_id: campaign.account_id,
       audience_type: 'csv',
+      contact_name: contact_name,
       phone_number: phone,
       source_id: wa_message_id,
       **outcome_attrs(wa_message_id, send_error)

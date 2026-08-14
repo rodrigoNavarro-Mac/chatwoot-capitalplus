@@ -208,4 +208,53 @@ RSpec.describe Campaign do
       )
     end
   end
+
+  describe 'timezone validation' do
+    let(:campaign) { build(:campaign) }
+
+    it 'allows a known IANA timezone identifier' do
+      campaign.timezone = 'America/Mexico_City'
+      expect(campaign).to be_valid
+    end
+
+    it 'defaults to UTC' do
+      campaign.save!
+      expect(campaign.reload.timezone).to eq 'UTC'
+    end
+
+    it 'rejects an unknown timezone identifier' do
+      campaign.timezone = 'Not/A_Timezone'
+      expect(campaign).not_to be_valid
+      expect(campaign.errors[:timezone]).to be_present
+    end
+  end
+
+  describe '#pause! and #resume!' do
+    let(:campaign) { create(:campaign) }
+
+    it 'pauses a processing campaign' do
+      campaign.processing!
+      expect(campaign.pause!).to be true
+      expect(campaign.reload.paused?).to be true
+    end
+
+    it 'does not pause a campaign that is not processing' do
+      expect(campaign.active?).to be true
+      expect(campaign.pause!).to be false
+      expect(campaign.reload.active?).to be true
+    end
+
+    it 'resumes a paused campaign back to processing' do
+      campaign.processing!
+      campaign.pause!
+      expect(campaign.resume!).to be true
+      expect(campaign.reload.processing?).to be true
+    end
+
+    it 'does not resume a campaign that is not paused' do
+      campaign.processing!
+      expect(campaign.resume!).to be false
+      expect(campaign.reload.processing?).to be true
+    end
+  end
 end

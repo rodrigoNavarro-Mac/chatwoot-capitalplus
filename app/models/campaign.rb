@@ -17,6 +17,7 @@
 #  send_window_end                    :string           default("19:00"), not null
 #  send_window_start                  :string           default("09:00"), not null
 #  template_params                    :jsonb
+#  timezone                           :string           default("UTC")
 #  title                              :string           not null
 #  trigger_only_during_business_hours :boolean          default(FALSE)
 #  trigger_rules                      :jsonb
@@ -46,6 +47,7 @@ class Campaign < ApplicationRecord
   validate :prevent_completed_campaign_from_update, on: :update
   validate :sender_must_belong_to_account
   validate :inbox_must_belong_to_account
+  validates :timezone, inclusion: { in: TZInfo::Timezone.all_identifiers }
 
   belongs_to :account
   belongs_to :inbox
@@ -53,7 +55,7 @@ class Campaign < ApplicationRecord
 
   enum campaign_type: { ongoing: 0, one_off: 1 }
   # TODO : enabled attribute is unneccessary . lets move that to the campaign status with additional statuses like draft, disabled etc.
-  enum campaign_status: { active: 0, completed: 1, processing: 2 }
+  enum campaign_status: { active: 0, completed: 1, processing: 2, paused: 3 }
 
   has_many :conversations, dependent: :nullify, autosave: true
   has_many :campaign_message_deliveries, dependent: :destroy
@@ -70,6 +72,41 @@ class Campaign < ApplicationRecord
     execute_campaign
   end
 
+  # Flips processing -> paused so SendCampaignContactJob stops sending; the caller is
+  # responsible for also cancelling the jobs already sitting in Sidekiq's scheduled set
+  # (see Campaigns::CancelScheduledJobsJob), otherwise they'd all fire at once on resume.
+  def pause!
+    with_lock do
+      next false unless processing?
+
+      paused!
+      true
+    end
+  end
+
+  # Flips paused -> processing; the caller is responsible for re-triggering the send
+  # (see Campaigns::ResumeCampaignJob), which re-runs execute_campaign and safely skips
+  # contacts that already have a delivery with a source_id.
+  def resume!
+    with_lock do
+      next false unless paused?
+
+      processing!
+      true
+    end
+  end
+
+  def execute_campaign
+    case inbox.inbox_type
+    when 'Twilio SMS'
+      Twilio::OneoffSmsCampaignService.new(campaign: self).perform
+    when 'Sms'
+      Sms::OneoffSmsCampaignService.new(campaign: self).perform
+    when 'Whatsapp'
+      Whatsapp::OneoffCampaignService.new(campaign: self).perform
+    end
+  end
+
   private
 
   def feature_enabled?
@@ -82,17 +119,6 @@ class Campaign < ApplicationRecord
       next if completed? || processing?
 
       processing!
-    end
-  end
-
-  def execute_campaign
-    case inbox.inbox_type
-    when 'Twilio SMS'
-      Twilio::OneoffSmsCampaignService.new(campaign: self).perform
-    when 'Sms'
-      Sms::OneoffSmsCampaignService.new(campaign: self).perform
-    when 'Whatsapp'
-      Whatsapp::OneoffCampaignService.new(campaign: self).perform
     end
   end
 

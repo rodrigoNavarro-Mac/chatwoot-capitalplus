@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ReportMetricCard from 'dashboard/routes/dashboard/settings/reports/components/ReportMetricCard.vue';
+import { messageTimestamp } from 'shared/helpers/timeHelper';
 
 const props = defineProps({
   metrics: {
@@ -14,14 +15,39 @@ const { t } = useI18n();
 
 const formatCount = value => (value ?? 0).toLocaleString();
 const formatPercent = value => `${value ?? 0}%`;
+const formatEta = value =>
+  value ? messageTimestamp(value, 'MMM d, h:mm a') : '--';
 
 const failedReasons = computed(() =>
   Object.entries(props.metrics?.failed_reasons || {})
 );
+
+const progress = computed(() => props.metrics?.progress || {});
+const showProgress = computed(() => progress.value.status === 'processing');
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
+    <div v-if="showProgress" class="flex flex-wrap gap-4">
+      <ReportMetricCard
+        class="flex-1 min-w-[8rem]"
+        :label="t('CAMPAIGN.WHATSAPP_METRICS.PROGRESS.REMAINING.LABEL')"
+        :info-text="t('CAMPAIGN.WHATSAPP_METRICS.PROGRESS.REMAINING.TOOLTIP')"
+        :value="formatCount(progress.remaining)"
+      />
+      <ReportMetricCard
+        class="flex-1 min-w-[8rem]"
+        :label="t('CAMPAIGN.WHATSAPP_METRICS.PROGRESS.NEXT_SEND.LABEL')"
+        :info-text="t('CAMPAIGN.WHATSAPP_METRICS.PROGRESS.NEXT_SEND.TOOLTIP')"
+        :value="formatEta(progress.next_send_at)"
+      />
+      <ReportMetricCard
+        class="flex-1 min-w-[8rem]"
+        :label="t('CAMPAIGN.WHATSAPP_METRICS.PROGRESS.ETA.LABEL')"
+        :info-text="t('CAMPAIGN.WHATSAPP_METRICS.PROGRESS.ETA.TOOLTIP')"
+        :value="formatEta(progress.eta_completion_at)"
+      />
+    </div>
     <div class="flex flex-wrap gap-4">
       <ReportMetricCard
         class="flex-1 min-w-[8rem]"

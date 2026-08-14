@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { debounce } from '@chatwoot/utils';
@@ -18,6 +18,7 @@ import CampaignRecipientsTable from 'dashboard/components-next/Campaigns/Pages/C
 
 const DEBOUNCE_DELAY = 300;
 const ITEMS_PER_PAGE = 25;
+const PROGRESS_POLL_INTERVAL = 15000;
 
 const route = useRoute();
 const router = useRouter();
@@ -116,6 +117,34 @@ const onPageChange = page => {
   fetchRecipients();
 };
 
+const isPausing = ref(false);
+const isResuming = ref(false);
+
+const handlePause = async () => {
+  isPausing.value = true;
+  try {
+    await store.dispatch('campaigns/pause', campaignId.value);
+    useAlert(t('CAMPAIGN.WHATSAPP_RECIPIENTS.PAUSE.SUCCESS_MESSAGE'));
+  } catch (error) {
+    useAlert(t('CAMPAIGN.WHATSAPP_RECIPIENTS.PAUSE.ERROR_MESSAGE'));
+  } finally {
+    isPausing.value = false;
+  }
+};
+
+const handleResume = async () => {
+  isResuming.value = true;
+  try {
+    await store.dispatch('campaigns/resume', campaignId.value);
+    useAlert(t('CAMPAIGN.WHATSAPP_RECIPIENTS.RESUME.SUCCESS_MESSAGE'));
+    fetchMetrics();
+  } catch (error) {
+    useAlert(t('CAMPAIGN.WHATSAPP_RECIPIENTS.RESUME.ERROR_MESSAGE'));
+  } finally {
+    isResuming.value = false;
+  }
+};
+
 const handleExport = async () => {
   isExporting.value = true;
   try {
@@ -134,12 +163,29 @@ const handleExport = async () => {
   }
 };
 
+let progressInterval = null;
+
+const syncProgressPolling = () => {
+  clearInterval(progressInterval);
+  progressInterval = null;
+  if (campaign.value?.campaign_status === 'processing') {
+    progressInterval = setInterval(fetchMetrics, PROGRESS_POLL_INTERVAL);
+  }
+};
+
+watch(() => campaign.value?.campaign_status, syncProgressPolling);
+
 onMounted(async () => {
   if (!campaigns.value.length) {
     await store.dispatch('campaigns/get');
   }
   fetchMetrics();
   fetchRecipients();
+  syncProgressPolling();
+});
+
+onBeforeUnmount(() => {
+  clearInterval(progressInterval);
 });
 </script>
 
@@ -158,15 +204,37 @@ onMounted(async () => {
           <span class="text-heading-1 text-n-slate-12 line-clamp-1">
             {{ campaign?.title || t('CAMPAIGN.WHATSAPP_RECIPIENTS.TITLE') }}
           </span>
-          <Button
-            :label="t('CAMPAIGN.WHATSAPP_RECIPIENTS.EXPORT.LABEL')"
-            icon="i-lucide-download"
-            variant="faded"
-            color="slate"
-            size="sm"
-            :is-loading="isExporting"
-            @click="handleExport"
-          />
+          <div class="flex items-center gap-2">
+            <Button
+              v-if="campaign?.campaign_status === 'processing'"
+              :label="t('CAMPAIGN.WHATSAPP_RECIPIENTS.PAUSE.LABEL')"
+              icon="i-lucide-pause"
+              variant="faded"
+              color="amber"
+              size="sm"
+              :is-loading="isPausing"
+              @click="handlePause"
+            />
+            <Button
+              v-else-if="campaign?.campaign_status === 'paused'"
+              :label="t('CAMPAIGN.WHATSAPP_RECIPIENTS.RESUME.LABEL')"
+              icon="i-lucide-play"
+              variant="faded"
+              color="teal"
+              size="sm"
+              :is-loading="isResuming"
+              @click="handleResume"
+            />
+            <Button
+              :label="t('CAMPAIGN.WHATSAPP_RECIPIENTS.EXPORT.LABEL')"
+              icon="i-lucide-download"
+              variant="faded"
+              color="slate"
+              size="sm"
+              :is-loading="isExporting"
+              @click="handleExport"
+            />
+          </div>
         </div>
       </div>
     </header>

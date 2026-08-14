@@ -4,6 +4,7 @@ class Campaigns::SendCampaignContactJob < ApplicationJob
   def perform(campaign_id, contact_id, contact_data = nil)
     campaign = Campaign.find_by(id: campaign_id)
     return unless campaign
+    return unless campaign.processing?
 
     service = Whatsapp::OneoffCampaignService.new(campaign: campaign)
 
@@ -27,16 +28,17 @@ class Campaigns::SendCampaignContactJob < ApplicationJob
   def send_to_csv_contact(campaign, service, contact_data)
     return if contact_data.blank?
 
-    phone = contact_data['phone_number'].presence || contact_data['phone'].presence
-    return if phone.blank?
-    return if phone_wa_invalid?(campaign.account_id, phone)
+    raw_phone = contact_data['phone_number'].presence || contact_data['phone'].presence
+    return if raw_phone.blank?
+    return if phone_wa_invalid?(campaign, raw_phone)
 
     service.send_to_csv_contact(contact_data)
   end
 
-  def phone_wa_invalid?(account_id, phone)
-    key = format(Redis::RedisKeys::WA_INVALID_PHONES, account_id: account_id)
-    Redis::Alfred.with { |conn| conn.sismember(key, phone) }
+  def phone_wa_invalid?(campaign, raw_phone)
+    normalized = Whatsapp::CsvContactPhoneNormalizer.new(inbox: campaign.inbox).normalize(raw_phone)
+    key = format(Redis::RedisKeys::WA_INVALID_PHONES, account_id: campaign.account_id)
+    Redis::Alfred.with { |conn| conn.sismember(key, normalized) }
   rescue StandardError
     false
   end

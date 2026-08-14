@@ -34,4 +34,12 @@ class CampaignPolicy < ApplicationPolicy
   def csv_preview?
     @account_user.administrator?
   end
+
+  def pause?
+    @account_user.administrator?
+  end
+
+  def resume?
+    @account_user.administrator?
+  end
 end

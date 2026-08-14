@@ -210,6 +210,10 @@
             "PLACEHOLDER": "Por favor, seleccione la hora",
             "ERROR": "El tiempo programado es requerido"
           },
+          "TIMEZONE": {
+            "LABEL": "Zona horaria",
+            "PLACEHOLDER": "Selecciona una zona horaria"
+          },
           "BUTTONS": {
             "CREATE": "Crear",
             "CANCEL": "Cancelar"
@@ -252,6 +256,20 @@
         "LABEL": "Tasa de respuesta",
         "TOOLTIP": "Respondieron dividido entre enviados, como porcentaje."
       },
+      "PROGRESS": {
+        "REMAINING": {
+          "LABEL": "Faltan",
+          "TOOLTIP": "Contactos que todavía están esperando a ser enviados."
+        },
+        "NEXT_SEND": {
+          "LABEL": "Próximo envío",
+          "TOOLTIP": "Hora estimada del próximo mensaje, según la ventana de envío y el retraso configurado."
+        },
+        "ETA": {
+          "LABEL": "Finalización estimada",
+          "TOOLTIP": "Hora aproximada en la que la campaña terminará de enviarse, según el retraso promedio entre mensajes."
+        }
+      },
       "API": {
         "ERROR_MESSAGE": "Ocurrió un error al cargar las métricas de la campaña. Por favor intente nuevamente."
       }
@@ -290,6 +308,16 @@
       "EXPORT": {
         "LABEL": "Exportar CSV",
         "ERROR_MESSAGE": "No se pudo exportar el CSV"
+      },
+      "PAUSE": {
+        "LABEL": "Pausar",
+        "SUCCESS_MESSAGE": "Campaña pausada. Se cancelaron los envíos pendientes.",
+        "ERROR_MESSAGE": "No se pudo pausar la campaña. Por favor intente nuevamente."
+      },
+      "RESUME": {
+        "LABEL": "Reanudar",
+        "SUCCESS_MESSAGE": "Campaña reanudada. Se están reprogramando los contactos restantes.",
+        "ERROR_MESSAGE": "No se pudo reanudar la campaña. Por favor intente nuevamente."
       },
       "API": {
         "ERROR_MESSAGE": "No se pudieron cargar los destinatarios de la campaña. Por favor intente nuevamente."

@@ -29,6 +29,14 @@ class CampaignsAPI extends ApiClient {
   exportRecipients(campaignId, params) {
     return axios.get(`${this.url}/${campaignId}/recipients.csv`, { params });
   }
+
+  pause(campaignId) {
+    return axios.post(`${this.url}/${campaignId}/pause`);
+  }
+
+  resume(campaignId) {
+    return axios.post(`${this.url}/${campaignId}/resume`);
+  }
 }
 
 export default new CampaignsAPI();

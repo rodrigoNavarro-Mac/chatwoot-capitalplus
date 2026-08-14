@@ -101,6 +101,28 @@ export const actions = {
       commit(types.SET_CAMPAIGN_UI_FLAG, { isDeleting: false });
     }
   },
+  pause: async ({ commit }, id) => {
+    commit(types.SET_CAMPAIGN_UI_FLAG, { isPausing: true });
+    try {
+      const response = await CampaignsAPI.pause(id);
+      commit(types.EDIT_CAMPAIGN, response.data);
+    } catch (error) {
+      throw new Error(error);
+    } finally {
+      commit(types.SET_CAMPAIGN_UI_FLAG, { isPausing: false });
+    }
+  },
+  resume: async ({ commit }, id) => {
+    commit(types.SET_CAMPAIGN_UI_FLAG, { isResuming: true });
+    try {
+      const response = await CampaignsAPI.resume(id);
+      commit(types.EDIT_CAMPAIGN, response.data);
+    } catch (error) {
+      throw new Error(error);
+    } finally {
+      commit(types.SET_CAMPAIGN_UI_FLAG, { isResuming: false });
+    }
+  },
 };
 
 export const mutations = {

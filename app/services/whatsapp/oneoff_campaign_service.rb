@@ -198,19 +198,7 @@ class Whatsapp::OneoffCampaignService
   end
 
   def advance_to_window(time)
-    start_h, start_m = campaign.send_window_start.split(':').map(&:to_i)
-    end_h, end_m     = campaign.send_window_end.split(':').map(&:to_i)
-
-    window_start = time.beginning_of_day + start_h.hours + start_m.minutes
-    window_end   = time.beginning_of_day + end_h.hours   + end_m.minutes
-
-    if time < window_start
-      window_start
-    elsif time >= window_end
-      window_start + 1.day
-    else
-      time
-    end
+    Campaigns::SendWindow.advance_to_window(campaign, time)
   end
 
   def process_liquid_template_params(contact)

@@ -4,6 +4,7 @@
 #
 #  id                       :bigint           not null, primary key
 #  audience_type            :string           not null
+#  contact_name             :string
 #  delivered_at             :datetime
 #  failed_at                :datetime
 #  failed_reason            :text

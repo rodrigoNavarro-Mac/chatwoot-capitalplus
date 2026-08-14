@@ -17,7 +17,8 @@ class Campaigns::CampaignMetricsBuilder
       failed: deliveries.where(status: 'failed').count,
       failed_reasons: deliveries.where(status: 'failed').group(:failed_reason).count,
       responded: deliveries.where.not(responded_at: nil).count,
-      response_rate: response_rate(deliveries)
+      response_rate: response_rate(deliveries),
+      progress: Campaigns::CampaignProgressEstimator.new(campaign).build
     }
   end
 
