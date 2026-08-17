@@ -251,6 +251,27 @@ RSpec.describe HookJob do
       end
     end
 
+    context 'when processing message.created event' do
+      let(:event_name) { 'message.created' }
+      let(:message) { create(:message, account: account, conversation: conversation, message_type: :outgoing) }
+      let(:event_data) { { message: message } }
+
+      it 'uses a lock and calls handle_message_created' do
+        allow(processor_service).to receive(:handle_message_created).with(event_data)
+
+        job_instance = described_class.new
+        allow(job_instance).to receive(:with_lock).and_yield
+        allow(described_class).to receive(:new).and_return(job_instance)
+
+        expect(job_instance).to receive(:with_lock).with(
+          format(Redis::Alfred::CRM_PROCESS_MUTEX, hook_id: zoho_hook.id)
+        )
+        expect(processor_service).to receive(:handle_message_created).with(event_data)
+
+        job_instance.perform(zoho_hook, event_name, event_data)
+      end
+    end
+
     context 'when processing invalid event' do
       let(:event_name) { 'invalid.event' }
       let(:event_data) { { contact: contact } }

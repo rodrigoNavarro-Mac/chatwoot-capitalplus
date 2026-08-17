@@ -169,4 +169,99 @@ RSpec.describe Crm::Zoho::ProcessorService do
       end
     end
   end
+
+  describe '#handle_message_created' do
+    let(:agent) { create(:user, account: account) }
+    let(:agent_message) do
+      create(:message, account: account, conversation: conversation, message_type: :outgoing, sender: agent,
+                       created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
+    end
+    let(:event_data) { { message: agent_message } }
+
+    context 'when the message is a human agent reply' do
+      before do
+        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(leads_client).to receive(:update)
+      end
+
+      it 'updates Ultimo_conctacto on the Lead with the message timestamp' do
+        service.handle_message_created(event_data)
+        expect(leads_client).to have_received(:update).with('l1', { 'Ultimo_conctacto' => agent_message.created_at.iso8601 })
+      end
+    end
+
+    context 'when the linked record is a Contact instead of a Lead' do
+      before do
+        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'c1', zoho_module: 'Contacts')
+        allow(contacts_client).to receive(:update)
+      end
+
+      it 'updates Ultimo_conctacto on the Contact' do
+        service.handle_message_created(event_data)
+        expect(contacts_client).to have_received(:update).with('c1', { 'Ultimo_conctacto' => agent_message.created_at.iso8601 })
+      end
+    end
+
+    context 'when the message is a private note' do
+      before do
+        agent_message.update!(private: true)
+        allow(finder).to receive(:find_or_create)
+      end
+
+      it 'does not call Zoho' do
+        service.handle_message_created(event_data)
+        expect(finder).not_to have_received(:find_or_create)
+      end
+    end
+
+    context 'when the message is incoming from the contact' do
+      let(:agent_message) { create(:message, account: account, conversation: conversation, message_type: :incoming) }
+
+      before { allow(finder).to receive(:find_or_create) }
+
+      it 'does not call Zoho' do
+        service.handle_message_created(event_data)
+        expect(finder).not_to have_received(:find_or_create)
+      end
+    end
+
+    context 'when the message is a bot response' do
+      let(:agent_message) do
+        create(:message, account: account, conversation: conversation, message_type: :outgoing, sender: create(:agent_bot))
+      end
+
+      before { allow(finder).to receive(:find_or_create) }
+
+      it 'does not call Zoho' do
+        service.handle_message_created(event_data)
+        expect(finder).not_to have_received(:find_or_create)
+      end
+    end
+
+    context 'when contact is not identifiable' do
+      before do
+        contact.update!(email: nil, phone_number: nil)
+        allow(finder).to receive(:find_or_create)
+      end
+
+      it 'does not call Zoho' do
+        service.handle_message_created(event_data)
+        expect(finder).not_to have_received(:find_or_create)
+      end
+    end
+
+    context 'when the Zoho API raises an error' do
+      before do
+        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(leads_client).to receive(:update).and_raise(Crm::Zoho::Api::BaseClient::ApiError.new('API Error'))
+        allow(Rails.logger).to receive(:error)
+        allow(ChatwootExceptionTracker).to receive(:new).and_return(instance_double(ChatwootExceptionTracker, capture_exception: nil))
+      end
+
+      it 'logs the error without raising' do
+        expect { service.handle_message_created(event_data) }.not_to raise_error
+        expect(Rails.logger).to have_received(:error).with(/ZOHO CRM.*handle_message_created/)
+      end
+    end
+  end
 end
