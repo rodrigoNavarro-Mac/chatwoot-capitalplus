@@ -72,9 +72,19 @@ const isCreating = computed(() => formState.uiFlags.value.isCreating);
 const isUpdating = computed(() => formState.uiFlags.value.isUpdating);
 const isBusy = computed(() => isCreating.value || isUpdating.value);
 
+// In edit mode, the campaign may already have a CSV attached server-side (has_csv_audience)
+// — a <input type="file"> can never be pre-filled with it, so re-uploading must stay optional
+// or every edit (even just the send window) would be blocked on re-attaching the same file.
+const hasExistingCsvAudience = computed(
+  () => isEditMode.value && !!props.selectedCampaign?.has_csv_audience
+);
+
 const csvAudienceError = computed(
   () =>
-    hasAttemptedSubmit.value && state.audienceType === 'csv' && !csvFile.value
+    hasAttemptedSubmit.value &&
+    state.audienceType === 'csv' &&
+    !csvFile.value &&
+    !hasExistingCsvAudience.value
 );
 
 const currentDateTime = computed(() => {
@@ -144,7 +154,7 @@ const hasRequiredTemplateParams = computed(() => {
 const isSubmitDisabled = computed(() => {
   if (v$.value.$invalid) return true;
   if (state.audienceType === 'csv') {
-    if (!csvFile.value) return true;
+    if (!csvFile.value && !hasExistingCsvAudience.value) return true;
     if (isPreviewingCsv.value) return true;
     if (
       csvPreview.value &&
@@ -423,12 +433,22 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
         <span v-if="csvFile" class="text-n-slate-12 truncate">
           {{ csvFile.name }}
         </span>
+        <span
+          v-else-if="hasExistingCsvAudience"
+          class="text-n-slate-12 truncate"
+        >
+          {{ t('CAMPAIGN.WHATSAPP_EDIT.FORM.CSV_AUDIENCE.EXISTING_FILE') }}
+        </span>
         <span v-else class="text-n-slate-11">
           {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.PLACEHOLDER') }}
         </span>
       </label>
       <p class="mt-1 text-xs text-n-slate-11">
-        {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.INFO') }}
+        {{
+          hasExistingCsvAudience && !csvFile
+            ? t('CAMPAIGN.WHATSAPP_EDIT.FORM.CSV_AUDIENCE.REPLACE_INFO')
+            : t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.INFO')
+        }}
       </p>
       <p v-if="csvAudienceError" class="mt-1 text-xs text-n-red-9">
         {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.CSV_AUDIENCE.ERROR') }}

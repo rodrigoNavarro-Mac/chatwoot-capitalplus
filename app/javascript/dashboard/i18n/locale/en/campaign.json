@@ -249,6 +249,10 @@
         "BUTTONS": {
           "UPDATE": "Update",
           "CANCEL": "Cancel"
+        },
+        "CSV_AUDIENCE": {
+          "EXISTING_FILE": "CSV file already uploaded",
+          "REPLACE_INFO": "Keeping the file already on this campaign. Choose a new one only if you want to replace it."
         }
       }
     },
