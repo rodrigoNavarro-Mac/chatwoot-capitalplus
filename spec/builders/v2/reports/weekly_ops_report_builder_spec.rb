@@ -19,7 +19,7 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       expect(result[:volume][:new_conversations]).to eq(1)
     end
 
-    it 'averages first_response/reply_time (in minutes, using business hours) from reporting events within range' do
+    it 'takes the median first_response/reply_time (in minutes, using business hours) from reporting events within range' do
       create(:reporting_event, account: account, inbox: inbox, name: 'first_response',
                                value: 1200.0, value_in_business_hours: 600.0, created_at: 2.days.ago)
       create(:reporting_event, account: account, inbox: inbox, name: 'first_response',
@@ -30,13 +30,46 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       expect(result[:contact_time][:first_response]).to eq(10.0)
     end
 
-    it 'falls back to the raw value when value_in_business_hours is nil' do
+    it 'uses the median (not the mean) so a handful of outliers do not skew the metric' do
+      [600.0, 1200.0, 1800.0].each do |vbh|
+        create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
+                                 value: 1200.0, value_in_business_hours: vbh, created_at: 1.day.ago)
+      end
+
+      result = described_class.new(account: account, inbox: inbox, params: params).build
+
+      expect(result[:contact_time][:reply_time]).to eq(20.0)
+    end
+
+    it 'excludes events whose raw gap exceeds MAX_CONTACT_GAP (stale/backfilled contacts) from the metric' do
+      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
+                               value: 600.0, value_in_business_hours: 600.0, created_at: 1.day.ago)
+      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
+                               value: 8.days.to_i, value_in_business_hours: 8.days.to_i, created_at: 1.day.ago)
+
+      result = described_class.new(account: account, inbox: inbox, params: params).build
+
+      expect(result[:contact_time][:reply_time]).to eq(10.0)
+    end
+
+    it 'excludes events without value_in_business_hours instead of falling back to the raw value' do
+      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
+                               value: 300.0, value_in_business_hours: nil, created_at: 1.day.ago)
+      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
+                               value: 300.0, value_in_business_hours: 120.0, created_at: 1.day.ago)
+
+      result = described_class.new(account: account, inbox: inbox, params: params).build
+
+      expect(result[:contact_time][:reply_time]).to eq(2.0)
+    end
+
+    it 'returns nil when all events in range lack a value_in_business_hours' do
       create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
                                value: 300.0, value_in_business_hours: nil, created_at: 1.day.ago)
 
       result = described_class.new(account: account, inbox: inbox, params: params).build
 
-      expect(result[:contact_time][:reply_time]).to eq(5.0)
+      expect(result[:contact_time][:reply_time]).to be_nil
     end
 
     it 'returns nil contact time metrics when there are no reporting events in range' do

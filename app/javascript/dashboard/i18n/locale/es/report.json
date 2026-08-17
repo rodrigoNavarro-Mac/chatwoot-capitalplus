@@ -751,8 +751,8 @@
       "TITLE": "Tiempos de contacto",
       "FIRST_RESPONSE": "Tiempo hasta primer contacto",
       "FIRST_RESPONSE_INFO": "Tiempo que tarda el asesor en responder el primer mensaje de un lead nuevo — mide qué tan rápido se hace el contacto inicial.",
-      "REPLY_TIME": "Tiempo de respuesta promedio",
-      "REPLY_TIME_INFO": "Promedio de tiempo de respuesta del asesor en TODAS las respuestas de la conversación (no solo la primera) — mide qué tan rápido se mantiene la conversación una vez iniciada."
+      "REPLY_TIME": "Tiempo de respuesta (mediana)",
+      "REPLY_TIME_INFO": "Mediana de tiempo de respuesta del asesor en TODAS las respuestas de la conversación (no solo la primera) — mide qué tan rápido se mantiene la conversación una vez iniciada."
     },
     "VOLUME": {
       "NEW_CONVERSATIONS": "Conversaciones nuevas",

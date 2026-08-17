@@ -17,10 +17,24 @@
 # Ambas métricas usan `value_in_business_hours` (tiempo transcurrido contando solo minutos dentro
 # del horario laboral configurado en el inbox — ver WorkingHour/ReportingEventListener), no el
 # tiempo crudo, igual que el reporte semanal anterior en Python.
+#
+# Se reportan como MEDIANA, no promedio: el promedio se vio disparado por un puñado de
+# conversaciones viejas (de semanas atrás) cuyo primer contacto ocurrió recién esta semana —
+# probablemente por lotes de backfill (ver lib/tasks/backfill_first_reply.rake) que crean el
+# ReportingEvent con created_at de hoy pero un gap real de semanas. Detectado 2026-08-17: 5 de los
+# eventos de "Fuego" con mayor value_in_business_hours compartían event_end_time casi idéntico
+# (11 segundos de diferencia entre sí) pero event_start_time de mediados de julio — la firma de un
+# proceso por lotes, no de clientes respondiendo en el mismo segundo. La mediana es inmune a esos
+# outliers; además se descartan explícitamente (ver MAX_CONTACT_GAP) para que tampoco distorsionen
+# semanas con poco volumen donde hasta la mediana podría verse afectada.
 class V2::Reports::WeeklyOpsReportBuilder
   include DateRangeHelper
 
   CONTACT_TIME_METRICS = %w[first_response reply_time].freeze
+
+  # Un contacto con más de este gap (tiempo de reloj real, no horario laboral) casi seguro no
+  # refleja el ritmo de atención de la semana del reporte — se descarta del cálculo.
+  MAX_CONTACT_GAP = 7.days.freeze
 
   # Granularidad de la gráfica de leads por periodo, según el tipo de reporte — semana → día,
   # mes → semana, trimestre → mes (ver V2::Reports::LeadsTimelineMetrics).
@@ -82,24 +96,36 @@ class V2::Reports::WeeklyOpsReportBuilder
   end
 
   def contact_time_metrics
-    CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, average_minutes_for(metric)] }
+    CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, median_minutes_for(metric)] }
   end
 
   # Lun-Vie vs Sáb-Dom, igual que el reporte semanal anterior en Python — para detectar si el
   # tiempo de contacto se deteriora fuera de la operación entre semana.
   def contact_time_by_period_of_week
     {
-      weekday: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, average_minutes_for(m, weekday: true)] },
-      weekend: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, average_minutes_for(m, weekday: false)] }
+      weekday: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, median_minutes_for(m, weekday: true)] },
+      weekend: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, median_minutes_for(m, weekday: false)] }
     }
   end
 
-  def average_minutes_for(metric, user_id: nil, weekday: nil)
-    events = reporting_events_for(metric, user_id: user_id, weekday: weekday)
-    count = events.count
-    return nil if count.zero?
+  # Excluye eventos sin value_in_business_hours calculado en vez de caer al tiempo crudo (reloj
+  # real 24/7) — un fallback silencioso a tiempo crudo infla la métrica muy por encima del
+  # horario laboral real cuando el horario del inbox no cubre esos eventos.
+  def median_minutes_for(metric, user_id: nil, weekday: nil)
+    values = reporting_events_for(metric, user_id: user_id, weekday: weekday)
+             .where.not(value_in_business_hours: nil)
+             .where('value <= ?', MAX_CONTACT_GAP.to_i)
+             .order(:value_in_business_hours)
+             .pluck(:value_in_business_hours)
+    return nil if values.empty?
 
-    (events.sum(Arel.sql('COALESCE(value_in_business_hours, value)')) / count / 60.0).round(2)
+    (median(values) / 60.0).round(2)
+  end
+
+  def median(values)
+    count = values.size
+    middle = count / 2
+    count.odd? ? values[middle] : (values[middle - 1] + values[middle]) / 2.0
   end
 
   def reporting_events_for(metric, user_id: nil, weekday: nil)
@@ -145,7 +171,7 @@ class V2::Reports::WeeklyOpsReportBuilder
       user_id: user_id,
       name: advisor_name(user_id),
       conversations_count: advisor_conversations_scope.where(assignee_id: user_id).count,
-      contact_time: CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, average_minutes_for(metric, user_id: user_id)] },
+      contact_time: CONTACT_TIME_METRICS.to_h { |metric| [metric.to_sym, median_minutes_for(metric, user_id: user_id)] },
       by_period_of_week: advisor_period_of_week_stats(user_id)
     }
   end
@@ -154,7 +180,7 @@ class V2::Reports::WeeklyOpsReportBuilder
     [true, false].to_h do |weekday|
       key = weekday ? :weekday : :weekend
       [key, { conversations_count: advisor_conversations_scope(weekday: weekday).where(assignee_id: user_id).count,
-              contact_time: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, average_minutes_for(m, user_id: user_id, weekday: weekday)] } }]
+              contact_time: CONTACT_TIME_METRICS.to_h { |m| [m.to_sym, median_minutes_for(m, user_id: user_id, weekday: weekday)] } }]
     end
   end
 
