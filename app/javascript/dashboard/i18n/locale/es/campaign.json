@@ -225,6 +225,23 @@
         }
       }
     },
+    "WHATSAPP_EDIT": {
+      "TITLE": "Editar campaña de WhatsApp",
+      "FORM": {
+        "API": {
+          "SUCCESS_MESSAGE": "Campaña de WhatsApp actualizada correctamente",
+          "ERROR_MESSAGE": "Se presentó un error. Por favor intente nuevamente."
+        },
+        "BUTTONS": {
+          "UPDATE": "Actualizar",
+          "CANCEL": "Cancelar"
+        },
+        "CSV_AUDIENCE": {
+          "EXISTING_FILE": "Ya hay un archivo CSV cargado",
+          "REPLACE_INFO": "Se conserva el archivo ya cargado en esta campaña. Elige uno nuevo solo si quieres reemplazarlo."
+        }
+      }
+    },
     "WHATSAPP_METRICS": {
       "TITLE": "Métricas de la campaña",
       "CLOSE": "Cerrar",
