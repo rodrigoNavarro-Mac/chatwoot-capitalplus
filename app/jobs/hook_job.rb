@@ -87,7 +87,7 @@ class HookJob < MutexApplicationJob
   end
 
   def process_zoho_crm_integration_with_lock(hook, event_name, event_data)
-    valid_event_names = ['contact.updated', 'conversation.created', 'conversation.resolved', 'first.reply.created']
+    valid_event_names = ['contact.updated', 'conversation.created', 'conversation.resolved', 'first.reply.created', 'message.created']
     return unless valid_event_names.include?(event_name)
     return unless hook.feature_allowed?
 
@@ -109,6 +109,8 @@ class HookJob < MutexApplicationJob
       processor.handle_conversation_resolved(event_data)
     when 'first.reply.created'
       processor.handle_first_reply_created(event_data)
+    when 'message.created'
+      processor.handle_message_created(event_data)
     end
   end
 

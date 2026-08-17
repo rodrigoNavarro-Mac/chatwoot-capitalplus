@@ -223,6 +223,17 @@ class Message < ApplicationRecord
     content_attributes.dig(:email, :auto_reply) == true
   end
 
+  def human_response?
+    # if the sender is not a user, it's not a human response
+    # if automation rule id is present, it's not a human response
+    # if campaign id is present, it's not a human response
+    # external echo messages are responses sent from the native app (WhatsApp Business, Instagram)
+    outgoing? &&
+      content_attributes['automation_rule_id'].blank? &&
+      additional_attributes['campaign_id'].blank? &&
+      (sender.is_a?(User) || content_attributes['external_echo'].present?)
+  end
+
   def valid_first_reply?
     return false unless human_response? && !private?
     return false if conversation.first_reply_created_at.present?
@@ -372,17 +383,6 @@ class Message < ApplicationRecord
   def set_waiting_since_on_incoming_message
     # Set waiting_since when customer sends a message (if currently blank)
     conversation.update(waiting_since: created_at) if incoming? && conversation.waiting_since.blank?
-  end
-
-  def human_response?
-    # if the sender is not a user, it's not a human response
-    # if automation rule id is present, it's not a human response
-    # if campaign id is present, it's not a human response
-    # external echo messages are responses sent from the native app (WhatsApp Business, Instagram)
-    outgoing? &&
-      content_attributes['automation_rule_id'].blank? &&
-      additional_attributes['campaign_id'].blank? &&
-      (sender.is_a?(User) || content_attributes['external_echo'].present?)
   end
 
   def bot_response?

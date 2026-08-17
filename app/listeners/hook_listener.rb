@@ -69,7 +69,7 @@ class HookListener < BaseListener
       'dialogflow' => ['message.created', 'message.updated'],
       'google_translate' => ['message.created'],
       'leadsquared' => ['contact.updated', 'conversation.created', 'conversation.resolved'],
-      'zoho_crm' => ['contact.updated', 'conversation.created', 'conversation.resolved', 'first.reply.created'],
+      'zoho_crm' => ['contact.updated', 'conversation.created', 'conversation.resolved', 'first.reply.created', 'message.created'],
       'linear' => ['message.created']
     }
 

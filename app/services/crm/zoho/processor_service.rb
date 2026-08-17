@@ -111,7 +111,41 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     raise
   end
 
+  # Actualiza el campo "Último contacto" en Zoho cada vez que un agente le responde al
+  # cliente, para que el CRM refleje cuándo fue la última interacción humana real
+  # (excluye bots, automatizaciones, campañas y notas privadas).
+  def handle_message_created(event_data)
+    message = event_data[:message]
+    return unless message.human_response? && !message.private?
+
+    conversation = message.conversation
+    contact = conversation.contact
+    contact.reload
+
+    unless identifiable_contact?(contact)
+      Rails.logger.info("[ZOHO CRM] Message ##{message.id}: contact not identifiable, skipping")
+      return
+    end
+
+    result = @finder.find_or_create(contact)
+    update_last_contact(result, message.created_at)
+  rescue Crm::Zoho::Api::BaseClient::ApiError => e
+    log_api_error('handle_message_created', message.id, e)
+  rescue StandardError => e
+    log_error('handle_message_created', message.id, e)
+    raise
+  end
+
   private
+
+  def update_last_contact(result, timestamp)
+    data = { 'Ultimo_conctacto' => timestamp.iso8601 }
+    if result[:zoho_module] == 'Leads'
+      @leads_client.update(result[:zoho_id], data)
+    else
+      @contacts_client.update(result[:zoho_id], data)
+    end
+  end
 
   def sync_first_reply_fields(result, contact, conversation, timestamp)
     record = result[:record] || @finder.fetch_record(contact)
