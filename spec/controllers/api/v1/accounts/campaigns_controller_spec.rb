@@ -242,6 +242,22 @@ RSpec.describe 'Campaigns API', type: :request do
         expect(campaign.reload.paused?).to be true
       end
 
+      it 'pauses a completed campaign and cancels its pending sends' do
+        # OneoffCampaignService marks the campaign completed right after scheduling every
+        # delayed job, well before those jobs actually fire, so this is the state a
+        # campaign sits in for most of its real send window.
+        campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :completed)
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/pause",
+               headers: administrator.create_new_auth_token,
+               as: :json
+        end.to have_enqueued_job(Campaigns::CancelScheduledJobsJob).with(campaign.id)
+
+        expect(response).to have_http_status(:success)
+        expect(campaign.reload.paused?).to be true
+      end
+
       it 'returns unprocessable_entity when the campaign is not running' do
         campaign = create(:campaign, account: account, inbox: inbox, campaign_status: :active)
 

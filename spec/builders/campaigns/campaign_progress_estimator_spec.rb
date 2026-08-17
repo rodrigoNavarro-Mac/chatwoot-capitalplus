@@ -14,7 +14,7 @@ RSpec.describe Campaigns::CampaignProgressEstimator do
   end
 
   describe '#build' do
-    it 'returns no timing estimate when the campaign is not processing' do
+    it 'returns no timing estimate when the campaign is active' do
       campaign.update!(campaign_status: :active)
 
       result = described_class.new(campaign).build
@@ -22,6 +22,22 @@ RSpec.describe Campaigns::CampaignProgressEstimator do
       expect(result[:status]).to eq 'active'
       expect(result[:next_send_at]).to be_nil
       expect(result[:eta_completion_at]).to be_nil
+    end
+
+    it 'still computes a timing estimate once the campaign is completed' do
+      # OneoffCampaignService marks the campaign completed right after scheduling every
+      # delayed job, well before those jobs actually fire, so this is the state a campaign
+      # sits in for most of its real send window.
+      create_deliveries(4)
+      campaign.update!(campaign_status: :completed)
+
+      travel_to Time.utc(2026, 8, 14, 12, 0, 0) do
+        result = described_class.new(campaign).build
+
+        expect(result[:remaining]).to eq 6
+        expect(result[:next_send_at]).to eq Time.current.to_i
+        expect(result[:eta_completion_at]).to be > result[:next_send_at]
+      end
     end
 
     it 'returns no timing estimate once nothing is remaining' do

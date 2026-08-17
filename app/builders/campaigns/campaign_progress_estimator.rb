@@ -31,8 +31,12 @@ class Campaigns::CampaignProgressEstimator
 
   private
 
+  # Whatsapp::OneoffCampaignService#perform marks the campaign `completed!` synchronously,
+  # right after scheduling every delayed job — long before those jobs actually fire. So
+  # `completed` is the state a campaign sits in for most of its real send window; `processing`
+  # only lasts as long as the scheduling loop itself.
   def active_with_remaining?
-    campaign.processing? && remaining.positive?
+    (campaign.processing? || campaign.completed?) && remaining.positive?
   end
 
   def remaining

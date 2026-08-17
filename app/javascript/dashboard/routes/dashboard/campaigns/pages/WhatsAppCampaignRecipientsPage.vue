@@ -163,23 +163,38 @@ const handleExport = async () => {
   }
 };
 
+// OneoffCampaignService marks the campaign `completed!` right after scheduling every
+// delayed job, well before those jobs actually fire — so `completed` (not just
+// `processing`) is the state a campaign sits in for most of its real send window.
+// `progress.remaining` (from CampaignProgressEstimator) is what actually tells us whether
+// there's still something in flight.
+const isActivelySending = computed(() => {
+  const status = campaign.value?.campaign_status;
+  if (status === 'processing') return true;
+  if (status !== 'completed') return false;
+  return (metrics.value?.progress?.remaining ?? 0) > 0;
+});
+
 let progressInterval = null;
 
 const syncProgressPolling = () => {
   clearInterval(progressInterval);
   progressInterval = null;
-  if (campaign.value?.campaign_status === 'processing') {
+  if (isActivelySending.value) {
     progressInterval = setInterval(fetchMetrics, PROGRESS_POLL_INTERVAL);
   }
 };
 
-watch(() => campaign.value?.campaign_status, syncProgressPolling);
+watch(
+  () => [campaign.value?.campaign_status, metrics.value?.progress?.remaining],
+  syncProgressPolling
+);
 
 onMounted(async () => {
   if (!campaigns.value.length) {
     await store.dispatch('campaigns/get');
   }
-  fetchMetrics();
+  await fetchMetrics();
   fetchRecipients();
   syncProgressPolling();
 });
@@ -206,7 +221,7 @@ onBeforeUnmount(() => {
           </span>
           <div class="flex items-center gap-2">
             <Button
-              v-if="campaign?.campaign_status === 'processing'"
+              v-if="isActivelySending"
               :label="t('CAMPAIGN.WHATSAPP_RECIPIENTS.PAUSE.LABEL')"
               icon="i-lucide-pause"
               variant="faded"

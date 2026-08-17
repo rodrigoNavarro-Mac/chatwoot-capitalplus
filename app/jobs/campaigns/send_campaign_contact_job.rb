@@ -4,7 +4,7 @@ class Campaigns::SendCampaignContactJob < ApplicationJob
   def perform(campaign_id, contact_id, contact_data = nil)
     campaign = Campaign.find_by(id: campaign_id)
     return unless campaign
-    return unless campaign.processing?
+    return if campaign.paused?
 
     service = Whatsapp::OneoffCampaignService.new(campaign: campaign)
 

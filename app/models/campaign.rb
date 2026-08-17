@@ -72,12 +72,16 @@ class Campaign < ApplicationRecord
     execute_campaign
   end
 
-  # Flips processing -> paused so SendCampaignContactJob stops sending; the caller is
-  # responsible for also cancelling the jobs already sitting in Sidekiq's scheduled set
-  # (see Campaigns::CancelScheduledJobsJob), otherwise they'd all fire at once on resume.
+  # Flips processing/completed -> paused so SendCampaignContactJob stops sending. Note
+  # `completed` is the state a campaign sits in for most of its real send window --
+  # OneoffCampaignService marks it `completed!` right after scheduling, well before the
+  # delayed jobs actually fire -- so pausing has to work from there too, not just
+  # `processing`. The caller is responsible for also cancelling the jobs already sitting in
+  # Sidekiq's scheduled set (see Campaigns::CancelScheduledJobsJob), otherwise they'd all
+  # fire at once on resume.
   def pause!
     with_lock do
-      next false unless processing?
+      next false unless processing? || completed?
 
       paused!
       true

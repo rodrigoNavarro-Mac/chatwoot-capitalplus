@@ -238,7 +238,15 @@ RSpec.describe Campaign do
       expect(campaign.reload.paused?).to be true
     end
 
-    it 'does not pause a campaign that is not processing' do
+    it 'pauses a completed campaign' do
+      # OneoffCampaignService marks the campaign completed right after scheduling every
+      # delayed job, well before those jobs actually fire, so pausing has to work here too.
+      campaign.completed!
+      expect(campaign.pause!).to be true
+      expect(campaign.reload.paused?).to be true
+    end
+
+    it 'does not pause a campaign that is active' do
       expect(campaign.active?).to be true
       expect(campaign.pause!).to be false
       expect(campaign.reload.active?).to be true
