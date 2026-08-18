@@ -205,6 +205,33 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml).to include('Segunda línea.')
   end
 
+  it 'inserts the executive analysis before the summary table (moved to the top of the document)' do
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml.index('Primera línea del análisis.')).to be < document_xml.index('Conversaciones nuevas')
+  end
+
+  it 'inserts the per-card AI mini-analysis under its table' do
+    report.card_analyses = { 'by_advisor' => 'Elizabeth concentra casi todas las conversaciones.' }
+
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).to include('Elizabeth concentra casi todas las conversaciones.')
+  end
+
+  it 'inserts the per-card mini-analysis under a chart image using its key, not its title' do
+    report.card_analyses = { 'contact_time' => 'Se contesta rapido esta semana.' }
+    chart_images_with_key = [{ key: 'contact_time', title: 'Tiempos de contacto',
+                               data_url: "data:image/png;base64,#{chart_png_base64}" }]
+
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: chart_images_with_key).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).to include('Se contesta rapido esta semana.')
+  end
+
   it 'embeds chart images under word/media and links them via a relationship' do
     io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: chart_images).generate
 

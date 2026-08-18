@@ -8,8 +8,16 @@ module Reports::WeeklyOpsReportDocxImages
 
   def insert_charts(sect_pr, rels_xml, zip_file)
     chart_images.each do |chart|
+      title = chart[:title] || chart['title']
+      sect_pr.add_previous_sibling(paragraph_xml(title)) if title.present?
+
       image_xml = image_paragraph_xml(chart, rels_xml, zip_file)
       sect_pr.add_previous_sibling(image_xml) if image_xml
+
+      key = chart[:key] || chart['key']
+      next if Reports::ReportCardAnalyses::DUAL_REPRESENTATION_CARD_KEYS.include?(key.to_s)
+
+      insert_card_analysis_line(sect_pr, key)
     end
   end
 

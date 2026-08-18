@@ -18,6 +18,7 @@ module Reports::WeeklyOpsReportDocxTables
 
     insert_distribution_table(sect_pr, 'Fuentes de prospectos', DISTRIBUTION_TABLE_HEADERS[:lead_source], rows)
     insert_quality_leads_line(sect_pr)
+    insert_card_analysis_line(sect_pr, :zoho_source)
   end
 
   def insert_quality_leads_line(sect_pr)
@@ -35,6 +36,7 @@ module Reports::WeeklyOpsReportDocxTables
     sect_pr.add_previous_sibling(heading_xml('Llamadas por asesor (Aircall)', size: 24))
     sect_pr.add_previous_sibling(simple_table_xml(CALLS_ADVISOR_TABLE_HEADER, rows))
     insert_calls_summary_line(sect_pr)
+    insert_card_analysis_line(sect_pr, :aircall_calls)
   end
 
   def insert_calls_summary_line(sect_pr)
