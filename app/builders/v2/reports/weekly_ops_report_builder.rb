@@ -175,11 +175,18 @@ class V2::Reports::WeeklyOpsReportBuilder
   end
 
   # weekday: true → lunes-viernes, false → sábado-domingo, nil → sin filtro.
+  #
+  # El día de la semana se calcula en el timezone del inbox, no en UTC — `created_at` se guarda en
+  # UTC, y EXTRACT(DOW FROM created_at) a secas usaría el día UTC. Para un inbox en México
+  # (UTC-6), cualquier hora local entre las 18:00 y medianoche cae del lado de UTC del día
+  # siguiente: un domingo 18:30 hora de México es lunes 00:30 UTC, y sin esta conversión se
+  # contaba como "entre semana" en vez de "fin de semana". Bug real detectado 2026-08-18 en
+  # producción (9 eventos mal clasificados esa semana).
   def filter_by_weekday(scope, weekday)
     return scope if weekday.nil?
 
     days = weekday ? (1..5).to_a : [0, 6]
-    scope.where('EXTRACT(DOW FROM created_at) IN (?)', days)
+    scope.where('EXTRACT(DOW FROM created_at AT TIME ZONE \'UTC\' AT TIME ZONE ?) IN (?)', inbox.timezone, days)
   end
 
   def by_advisor_metrics

@@ -91,6 +91,25 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       expect(result[:contact_time][:reply_time]).to eq(10.0)
     end
 
+    it 'classifies weekday/weekend using the inbox local timezone, not the raw UTC day' do
+      inbox.update!(timezone: 'America/Mexico_City')
+      # 2026-08-17 00:30 UTC es domingo 2026-08-16 18:30 hora de Mexico (UTC-6) -- sin la
+      # conversion de timezone, EXTRACT(DOW FROM created_at) lo ve como lunes (entre semana) en
+      # vez de domingo (fin de semana). Bug real detectado en produccion 2026-08-18. Se fija el
+      # rango del reporte a esta fecha exacta en vez de usar el `params` relativo a "ahora", para
+      # que el test no dependa de en que dia de la semana corra la suite.
+      sunday_evening_in_utc = Time.utc(2026, 8, 17, 0, 30)
+      fixed_params = { since: (sunday_evening_in_utc - 1.day).to_i.to_s, until: (sunday_evening_in_utc + 1.day).to_i.to_s }
+      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time', value_in_business_hours: 60.0,
+                               event_start_time: sunday_evening_in_utc - 1.minute, event_end_time: sunday_evening_in_utc,
+                               created_at: sunday_evening_in_utc)
+
+      result = described_class.new(account: account, inbox: inbox, params: fixed_params).build
+
+      expect(result[:contact_time_by_period_of_week][:weekend][:reply_time]).to eq(1.0)
+      expect(result[:contact_time_by_period_of_week][:weekday][:reply_time]).to be_nil
+    end
+
     it 'excludes events without value_in_business_hours instead of falling back to the raw value' do
       create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
                                value: 300.0, value_in_business_hours: nil, created_at: 1.day.ago)
