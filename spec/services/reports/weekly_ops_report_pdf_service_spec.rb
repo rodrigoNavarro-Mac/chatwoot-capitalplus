@@ -109,6 +109,22 @@ describe Reports::WeeklyOpsReportPdfService do
     expect(io.read.byteslice(0, 4)).to eq('%PDF')
   end
 
+  it 'renders fine with per-card AI mini-analyses and chart images carrying a key' do
+    report.card_analyses = {
+      'pipeline' => 'El embudo se estrecha fuerte en visita efectiva.',
+      'by_advisor' => 'Elizabeth concentra casi todas las conversaciones.',
+      'conversion_totals' => 'La proporcion de descartados es alta esta semana.'
+    }
+    chart_images = [
+      { key: 'contact_time', title: 'Tiempos de contacto', data_url: nil },
+      { key: 'conversion_totals', title: 'Conversión y descarte', data_url: nil }
+    ]
+
+    io = described_class.new(weekly_ops_report: report, chart_images: chart_images).generate
+
+    expect(io.read.byteslice(0, 4)).to eq('%PDF')
+  end
+
   it 'uses the branding accent color when given' do
     branding = Reports::InboxBranding.new(account: account, inbox: inbox, accent_color: '#abcdef')
 

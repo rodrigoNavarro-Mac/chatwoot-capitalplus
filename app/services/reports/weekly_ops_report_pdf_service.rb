@@ -10,11 +10,13 @@ class Reports::WeeklyOpsReportPdfService
   include Reports::ReportSummaryRowsZoho
   include Reports::ReportSummaryRowsPeriodOfWeek
   include Reports::WeeklyOpsReportPdfTables
+  include Reports::ReportCardAnalyses
 
   MAX_IMAGE_WIDTH = 500
   MAX_IMAGE_HEIGHT = 260
 
-  # chart_images: Array<{ title: String, data_url: String }> — PNG en base64 (chart.toBase64Image()).
+  # chart_images: Array<{ key: String, title: String, data_url: String }> — PNG en base64
+  # (chart.toBase64Image()), en el mismo orden que las cards en pantalla (ver WeeklyOpsReport.vue).
   def initialize(weekly_ops_report:, branding: nil, chart_images: [])
     @report = weekly_ops_report
     @branding = branding
@@ -25,9 +27,11 @@ class Reports::WeeklyOpsReportPdfService
     pdf = Prawn::Document.new(page_size: 'A4', margin: [40, 50, 40, 50])
 
     render_header(pdf)
+    render_summary_table(pdf)
+    render_deals_created_line(pdf)
+    render_analysis(pdf)
     render_tables(pdf)
     render_charts(pdf)
-    render_analysis(pdf)
 
     io = StringIO.new(pdf.render)
     io.rewind
@@ -36,21 +40,21 @@ class Reports::WeeklyOpsReportPdfService
 
   private
 
+  # Mismo orden que las cards en WeeklyOpsReport.vue (ver comentario de clase ahí) — el resumen
+  # general, deals creados y el análisis ejecutivo ya se renderizaron antes de llamar a este método.
   def render_tables(pdf)
-    render_summary_table(pdf)
-    render_deals_created_line(pdf)
-    render_by_advisor_table(pdf)
-    render_advisor_period_of_week_table(pdf)
-    render_contact_time_by_period_table(pdf)
-    render_calls_table(pdf)
     render_funnel_table(pdf)
     render_pipeline_status_table(pdf)
+    render_contact_time_by_period_table(pdf)
+    render_advisor_period_of_week_table(pdf)
+    render_by_advisor_table(pdf)
+    render_conversion_totals_line(pdf)
     render_lead_source_table(pdf)
     render_quality_by_source_table(pdf)
     render_owner_table(pdf)
-    render_conversion_totals_line(pdf)
     render_discard_reasons_table(pdf)
     render_schedule_distribution_line(pdf)
+    render_calls_table(pdf)
   end
 
   attr_reader :report, :branding, :chart_images
@@ -115,6 +119,7 @@ class Reports::WeeklyOpsReportPdfService
       t.row(0).background_color = accent_color
     end
     pdf.move_down(15)
+    render_card_analysis_line(pdf, :by_advisor)
   end
 
   def render_calls_table(pdf)
@@ -131,6 +136,7 @@ class Reports::WeeklyOpsReportPdfService
     end
     pdf.move_down(15)
     render_calls_summary_line(pdf)
+    render_card_analysis_line(pdf, :aircall_calls)
   end
 
   def render_calls_summary_line(pdf)
@@ -142,11 +148,19 @@ class Reports::WeeklyOpsReportPdfService
   end
 
   def render_funnel_table(pdf)
-    render_distribution_table(pdf, 'Embudo de ventas', ['Etapa', 'Cantidad', '% real', '% meta', 'Diferencia'], funnel_rows(kpis))
+    rows = funnel_rows(kpis)
+    return if rows.blank?
+
+    render_distribution_table(pdf, 'Embudo de ventas', ['Etapa', 'Cantidad', '% real', '% meta', 'Diferencia'], rows)
+    render_card_analysis_line(pdf, :pipeline)
   end
 
   def render_pipeline_status_table(pdf)
-    render_distribution_table(pdf, 'Distribución del pipeline', %w[Estado Leads %], pipeline_status_rows(kpis))
+    rows = pipeline_status_rows(kpis)
+    return if rows.blank?
+
+    render_distribution_table(pdf, 'Distribución del pipeline', %w[Estado Leads %], rows)
+    render_card_analysis_line(pdf, :zoho_pipeline_status)
   end
 
   def render_lead_source_table(pdf)
@@ -155,6 +169,7 @@ class Reports::WeeklyOpsReportPdfService
 
     render_distribution_table(pdf, 'Fuentes de prospectos', %w[Fuente Leads %], rows)
     render_quality_leads_line(pdf)
+    render_card_analysis_line(pdf, :zoho_source)
   end
 
   def render_quality_leads_line(pdf)
@@ -167,7 +182,11 @@ class Reports::WeeklyOpsReportPdfService
   end
 
   def render_discard_reasons_table(pdf)
-    render_distribution_table(pdf, 'Motivos de descarte', %w[Motivo Leads %], discard_reason_rows(kpis))
+    rows = discard_reason_rows(kpis)
+    return if rows.blank?
+
+    render_distribution_table(pdf, 'Motivos de descarte', %w[Motivo Leads %], rows)
+    render_card_analysis_line(pdf, :discard_reasons)
   end
 
   def render_distribution_table(pdf, title, header, rows)
@@ -192,7 +211,9 @@ class Reports::WeeklyOpsReportPdfService
     chart_images.each do |chart|
       pdf.font_size(10) { pdf.text(chart[:title].to_s) } if chart[:title].present?
       add_chart_image(pdf, chart[:data_url])
-      pdf.move_down(10)
+      pdf.move_down(6)
+      render_card_analysis_line(pdf, chart[:key]) unless Reports::ReportCardAnalyses::DUAL_REPRESENTATION_CARD_KEYS.include?(chart[:key].to_s)
+      pdf.move_down(4)
     end
   end
 
@@ -213,5 +234,17 @@ class Reports::WeeklyOpsReportPdfService
     pdf.font_size(14) { pdf.text('Análisis', style: :bold) }
     pdf.move_down(6)
     pdf.font_size(11) { pdf.text(report.llm_analysis) }
+    pdf.move_down(15)
+  end
+
+  # Nota corta en cursiva bajo la tabla/gráfica de una card — ver Reports::ReportCardAnalyses.
+  def render_card_analysis_line(pdf, key)
+    text = card_analysis(key)
+    return if text.blank?
+
+    pdf.fill_color '555555'
+    pdf.font_size(9) { pdf.text(text, style: :italic) }
+    pdf.fill_color '000000'
+    pdf.move_down(8)
   end
 end

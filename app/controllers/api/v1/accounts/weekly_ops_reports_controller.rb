@@ -86,6 +86,6 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
   end
 
   def chart_images_params
-    Array(params[:chart_images]).map { |chart| { title: chart[:title], data_url: chart[:data_url] } }
+    Array(params[:chart_images]).map { |chart| { title: chart[:title], data_url: chart[:data_url], key: chart[:key] } }
   end
 end
