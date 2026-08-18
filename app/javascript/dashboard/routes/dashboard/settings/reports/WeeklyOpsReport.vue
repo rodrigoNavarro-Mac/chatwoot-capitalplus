@@ -9,6 +9,7 @@ import ReportHeader from './components/ReportHeader.vue';
 import FunnelStageMeter from './components/FunnelStageMeter.vue';
 import ReportMetricCard from './components/ReportMetricCard.vue';
 import ReportBrandingPanel from './components/ReportBrandingPanel.vue';
+import CardAnalysisNote from './components/CardAnalysisNote.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
 import LineChart from 'shared/components/charts/LineChart.vue';
 import Spinner from 'shared/components/Spinner.vue';
@@ -367,30 +368,39 @@ const downloadPdf = async () => {
   isDownloading.value = true;
   try {
     await nextTick();
+    // Mismo orden que las cards en pantalla — PDF/DOCX insertan cada gráfica en el orden que
+    // llega este array, y usan `key` (no el título, que está traducido) para encontrar el
+    // mini-análisis de IA correspondiente en report.card_analyses.
     const chartImages = [
-      contactTimeChartRef.value?.chart && {
-        title: t('WEEKLY_OPS_REPORTS.CONTACT_TIME.TITLE'),
-        data_url: contactTimeChartRef.value.chart.toBase64Image(),
-      },
-      cadenceChartRef.value?.chart && {
-        title: t('WEEKLY_OPS_REPORTS.CADENCES.BY_STATUS'),
-        data_url: cadenceChartRef.value.chart.toBase64Image(),
-      },
       leadsTimelineChartRef.value?.chart && {
+        key: 'leads_timeline',
         title: leadsTimelineTitle.value,
         data_url: leadsTimelineChartRef.value.chart.toBase64Image(),
       },
-      channelComparisonChartRef.value?.chart && {
-        title: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.CHANNEL_COMPARISON_TITLE'),
-        data_url: channelComparisonChartRef.value.chart.toBase64Image(),
+      contactTimeChartRef.value?.chart && {
+        key: 'contact_time',
+        title: t('WEEKLY_OPS_REPORTS.CONTACT_TIME.TITLE'),
+        data_url: contactTimeChartRef.value.chart.toBase64Image(),
+      },
+      conversionTotalsChartRef.value?.chart && {
+        key: 'conversion_totals',
+        title: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.TITLE'),
+        data_url: conversionTotalsChartRef.value.chart.toBase64Image(),
       },
       qualityBySourceChartRef.value?.chart && {
+        key: 'quality_by_source',
         title: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_BY_SOURCE_TITLE'),
         data_url: qualityBySourceChartRef.value.chart.toBase64Image(),
       },
-      conversionTotalsChartRef.value?.chart && {
-        title: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.TITLE'),
-        data_url: conversionTotalsChartRef.value.chart.toBase64Image(),
+      channelComparisonChartRef.value?.chart && {
+        key: 'channel_comparison',
+        title: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.CHANNEL_COMPARISON_TITLE'),
+        data_url: channelComparisonChartRef.value.chart.toBase64Image(),
+      },
+      cadenceChartRef.value?.chart && {
+        key: 'cadences',
+        title: t('WEEKLY_OPS_REPORTS.CADENCES.BY_STATUS'),
+        data_url: cadenceChartRef.value.chart.toBase64Image(),
       },
     ].filter(Boolean);
 
@@ -587,46 +597,107 @@ const downloadPdf = async () => {
         </div>
 
         <div
-          v-if="kpis.by_advisor && kpis.by_advisor.length"
+          v-if="report.llm_analysis"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ANALYSIS.TITLE') }}
+          </h3>
+          <p class="text-sm text-n-slate-11 whitespace-pre-line m-0">
+            {{ report.llm_analysis }}
+          </p>
+        </div>
+
+        <div
+          v-if="
+            kpis.zoho_leads_timeline && kpis.zoho_leads_timeline.labels.length
+          "
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ leadsTimelineTitle }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.leads_timeline" />
+          <div class="h-64">
+            <LineChart
+              ref="leadsTimelineChartRef"
+              :collection="leadsTimelineChartData"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="kpis.pipeline"
+          class="flex flex-col gap-5 mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 m-0">
+            {{ t('WEEKLY_OPS_REPORTS.PIPELINE.TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.pipeline" />
+          <FunnelStageMeter
+            v-for="stage in kpis.pipeline.stages"
+            :key="stage.stage"
+            :icon="STAGE_ICONS[stage.stage]"
+            :label="t(`SALES_FUNNEL_REPORTS.STAGES.${stage.stage}`)"
+            :count="stage.count"
+            :actual-percent="stage.actual_percent"
+            :target-percent="stage.target_percent"
+            :delta="stage.delta"
+            :taper-percent="STAGE_TAPER[stage.stage]"
+          />
+        </div>
+
+        <div
+          v-if="kpis.zoho_leads"
           class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
         >
           <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.TITLE') }}
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.PIPELINE_STATUS_TITLE') }}
           </h3>
+          <CardAnalysisNote
+            :text="report.card_analyses?.zoho_pipeline_status"
+          />
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-n-slate-11">
                 <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.ADVISOR') }}
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.STATUS') }}
                 </th>
                 <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.CONVERSATIONS') }}
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
                 </th>
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.FIRST_RESPONSE') }}
-                </th>
-                <th class="py-1 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.REPLY_TIME') }}
-                </th>
+                <th class="py-1 font-medium">%</th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="advisor in kpis.by_advisor"
-                :key="advisor.user_id"
+                v-for="(count, status) in kpis.zoho_leads.by_status"
+                :key="status"
                 class="border-t border-n-container text-n-slate-12"
               >
-                <td class="py-1.5 pr-3">{{ advisor.name }}</td>
-                <td class="py-1.5 pr-3">{{ advisor.conversations_count }}</td>
-                <td class="py-1.5 pr-3">
-                  {{ `${advisor.contact_time.first_response ?? '—'} min` }}
-                </td>
+                <td class="py-1.5 pr-3">{{ status }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
                 <td class="py-1.5">
-                  {{ `${advisor.contact_time.reply_time ?? '—'} min` }}
+                  {{ percentOf(count, kpis.zoho_leads.total) }}
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.contact_time" />
+          <div class="h-64">
+            <BarChart
+              ref="contactTimeChartRef"
+              :collection="contactTimeChartData"
+            />
+          </div>
         </div>
 
         <div
@@ -636,6 +707,9 @@ const downloadPdf = async () => {
           <h3 class="text-base font-semibold text-n-slate-12 mb-3">
             {{ t('WEEKLY_OPS_REPORTS.PERIOD_OF_WEEK.TITLE') }}
           </h3>
+          <CardAnalysisNote
+            :text="report.card_analyses?.contact_time_by_period"
+          />
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-n-slate-11">
@@ -743,12 +817,249 @@ const downloadPdf = async () => {
         </div>
 
         <div
+          v-if="kpis.by_advisor && kpis.by_advisor.length"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.by_advisor" />
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.ADVISOR') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.BY_ADVISOR.CONVERSATIONS') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.FIRST_RESPONSE') }}
+                </th>
+                <th class="py-1 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.REPLY_TIME') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="advisor in kpis.by_advisor"
+                :key="advisor.user_id"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ advisor.name }}</td>
+                <td class="py-1.5 pr-3">{{ advisor.conversations_count }}</td>
+                <td class="py-1.5 pr-3">
+                  {{ `${advisor.contact_time.first_response ?? '—'} min` }}
+                </td>
+                <td class="py-1.5">
+                  {{ `${advisor.contact_time.reply_time ?? '—'} min` }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          v-if="conversionTotalsChartData.labels.length"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.conversion_totals" />
+          <div class="h-64">
+            <BarChart
+              ref="conversionTotalsChartRef"
+              :collection="conversionTotalsChartData"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="kpis.zoho_leads"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.SOURCE_TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.zoho_source" />
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.SOURCE') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                </th>
+                <th class="py-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(count, source) in kpis.zoho_leads.by_source"
+                :key="source"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ source }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
+                <td class="py-1.5">
+                  {{ percentOf(count, kpis.zoho_leads.total) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="text-sm text-n-slate-11 mt-3 mb-0">
+            {{
+              t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_LEADS', {
+                count: kpis.zoho_leads.quality_leads_count,
+                percent: kpis.zoho_leads.quality_leads_percent,
+              })
+            }}
+          </p>
+        </div>
+
+        <div
+          v-if="qualityBySourceChartData.labels.length"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_BY_SOURCE_TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.quality_by_source" />
+          <div class="h-64">
+            <BarChart
+              ref="qualityBySourceChartRef"
+              :collection="qualityBySourceChartData"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="channelComparisonChartData.labels.length"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.CHANNEL_COMPARISON_TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.channel_comparison" />
+          <div class="h-64">
+            <BarChart
+              ref="channelComparisonChartRef"
+              :collection="channelComparisonChartData"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="
+            kpis.zoho_leads &&
+            kpis.zoho_leads.by_owner &&
+            Object.keys(kpis.zoho_leads.by_owner).length
+          "
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER_TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.zoho_owner" />
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                </th>
+                <th class="py-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(count, owner) in kpis.zoho_leads.by_owner"
+                :key="owner"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ owner }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
+                <td class="py-1.5">
+                  {{ percentOf(count, kpis.zoho_leads.total) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          v-if="discardReasonsTotal"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.DISCARD_TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.discard_reasons" />
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.REASON') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                </th>
+                <th class="py-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(count, reason) in kpis.zoho_leads.discard_reasons"
+                :key="reason"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ reason }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
+                <td class="py-1.5">
+                  {{ percentOf(count, discardReasonsTotal) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          v-if="kpis.schedule_distribution"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.TITLE') }}
+          </h3>
+          <CardAnalysisNote
+            :text="report.card_analyses?.schedule_distribution"
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.WITHIN')"
+              :value="String(kpis.schedule_distribution.within_business_hours)"
+              :info-text="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.WITHIN')"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.OUTSIDE')"
+              :value="String(kpis.schedule_distribution.outside_business_hours)"
+              :info-text="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.OUTSIDE')"
+            />
+          </div>
+        </div>
+
+        <div
           v-if="kpis.aircall_calls"
           class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
         >
           <h3 class="text-base font-semibold text-n-slate-12 mb-3">
             {{ t('WEEKLY_OPS_REPORTS.CALLS.TITLE') }}
           </h3>
+          <CardAnalysisNote :text="report.card_analyses?.aircall_calls" />
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
             <ReportMetricCard
               :label="t('WEEKLY_OPS_REPORTS.CALLS.TOTAL')"
@@ -812,20 +1123,6 @@ const downloadPdf = async () => {
         </div>
 
         <div
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.CONTACT_TIME.TITLE') }}
-          </h3>
-          <div class="h-64">
-            <BarChart
-              ref="contactTimeChartRef"
-              :collection="contactTimeChartData"
-            />
-          </div>
-        </div>
-
-        <div
           v-if="
             kpis.cadences.by_status &&
             Object.keys(kpis.cadences.by_status).length
@@ -835,276 +1132,10 @@ const downloadPdf = async () => {
           <h3 class="text-base font-semibold text-n-slate-12 mb-3">
             {{ t('WEEKLY_OPS_REPORTS.CADENCES.BY_STATUS') }}
           </h3>
+          <CardAnalysisNote :text="report.card_analyses?.cadences" />
           <div class="h-64">
             <BarChart ref="cadenceChartRef" :collection="cadenceChartData" />
           </div>
-        </div>
-
-        <div
-          v-if="
-            kpis.zoho_leads_timeline && kpis.zoho_leads_timeline.labels.length
-          "
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ leadsTimelineTitle }}
-          </h3>
-          <div class="h-64">
-            <LineChart
-              ref="leadsTimelineChartRef"
-              :collection="leadsTimelineChartData"
-            />
-          </div>
-        </div>
-
-        <div
-          v-if="channelComparisonChartData.labels.length"
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.CHANNEL_COMPARISON_TITLE') }}
-          </h3>
-          <div class="h-64">
-            <BarChart
-              ref="channelComparisonChartRef"
-              :collection="channelComparisonChartData"
-            />
-          </div>
-        </div>
-
-        <div
-          v-if="qualityBySourceChartData.labels.length"
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_BY_SOURCE_TITLE') }}
-          </h3>
-          <div class="h-64">
-            <BarChart
-              ref="qualityBySourceChartRef"
-              :collection="qualityBySourceChartData"
-            />
-          </div>
-        </div>
-
-        <div
-          v-if="conversionTotalsChartData.labels.length"
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.TITLE') }}
-          </h3>
-          <div class="h-64">
-            <BarChart
-              ref="conversionTotalsChartRef"
-              :collection="conversionTotalsChartData"
-            />
-          </div>
-        </div>
-
-        <div
-          v-if="kpis.pipeline"
-          class="flex flex-col gap-5 mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 m-0">
-            {{ t('WEEKLY_OPS_REPORTS.PIPELINE.TITLE') }}
-          </h3>
-          <FunnelStageMeter
-            v-for="stage in kpis.pipeline.stages"
-            :key="stage.stage"
-            :icon="STAGE_ICONS[stage.stage]"
-            :label="t(`SALES_FUNNEL_REPORTS.STAGES.${stage.stage}`)"
-            :count="stage.count"
-            :actual-percent="stage.actual_percent"
-            :target-percent="stage.target_percent"
-            :delta="stage.delta"
-            :taper-percent="STAGE_TAPER[stage.stage]"
-          />
-        </div>
-
-        <div
-          v-if="kpis.zoho_leads"
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.PIPELINE_STATUS_TITLE') }}
-          </h3>
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-n-slate-11">
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.STATUS') }}
-                </th>
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
-                </th>
-                <th class="py-1 font-medium">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(count, status) in kpis.zoho_leads.by_status"
-                :key="status"
-                class="border-t border-n-container text-n-slate-12"
-              >
-                <td class="py-1.5 pr-3">{{ status }}</td>
-                <td class="py-1.5 pr-3">{{ count }}</td>
-                <td class="py-1.5">
-                  {{ percentOf(count, kpis.zoho_leads.total) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div
-          v-if="kpis.zoho_leads"
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.SOURCE_TITLE') }}
-          </h3>
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-n-slate-11">
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.SOURCE') }}
-                </th>
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
-                </th>
-                <th class="py-1 font-medium">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(count, source) in kpis.zoho_leads.by_source"
-                :key="source"
-                class="border-t border-n-container text-n-slate-12"
-              >
-                <td class="py-1.5 pr-3">{{ source }}</td>
-                <td class="py-1.5 pr-3">{{ count }}</td>
-                <td class="py-1.5">
-                  {{ percentOf(count, kpis.zoho_leads.total) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p class="text-sm text-n-slate-11 mt-3 mb-0">
-            {{
-              t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_LEADS', {
-                count: kpis.zoho_leads.quality_leads_count,
-                percent: kpis.zoho_leads.quality_leads_percent,
-              })
-            }}
-          </p>
-        </div>
-
-        <div
-          v-if="
-            kpis.zoho_leads &&
-            kpis.zoho_leads.by_owner &&
-            Object.keys(kpis.zoho_leads.by_owner).length
-          "
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER_TITLE') }}
-          </h3>
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-n-slate-11">
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER') }}
-                </th>
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
-                </th>
-                <th class="py-1 font-medium">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(count, owner) in kpis.zoho_leads.by_owner"
-                :key="owner"
-                class="border-t border-n-container text-n-slate-12"
-              >
-                <td class="py-1.5 pr-3">{{ owner }}</td>
-                <td class="py-1.5 pr-3">{{ count }}</td>
-                <td class="py-1.5">
-                  {{ percentOf(count, kpis.zoho_leads.total) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div
-          v-if="discardReasonsTotal"
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.DISCARD_TITLE') }}
-          </h3>
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-n-slate-11">
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.REASON') }}
-                </th>
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
-                </th>
-                <th class="py-1 font-medium">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(count, reason) in kpis.zoho_leads.discard_reasons"
-                :key="reason"
-                class="border-t border-n-container text-n-slate-12"
-              >
-                <td class="py-1.5 pr-3">{{ reason }}</td>
-                <td class="py-1.5 pr-3">{{ count }}</td>
-                <td class="py-1.5">
-                  {{ percentOf(count, discardReasonsTotal) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div
-          v-if="kpis.schedule_distribution"
-          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.TITLE') }}
-          </h3>
-          <div class="grid grid-cols-2 gap-4">
-            <ReportMetricCard
-              :label="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.WITHIN')"
-              :value="String(kpis.schedule_distribution.within_business_hours)"
-              :info-text="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.WITHIN')"
-            />
-            <ReportMetricCard
-              :label="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.OUTSIDE')"
-              :value="String(kpis.schedule_distribution.outside_business_hours)"
-              :info-text="t('WEEKLY_OPS_REPORTS.SCHEDULE_DISTRIBUTION.OUTSIDE')"
-            />
-          </div>
-        </div>
-
-        <div
-          v-if="report.llm_analysis"
-          class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
-            {{ t('WEEKLY_OPS_REPORTS.ANALYSIS.TITLE') }}
-          </h3>
-          <p class="text-sm text-n-slate-11 whitespace-pre-line m-0">
-            {{ report.llm_analysis }}
-          </p>
         </div>
       </template>
     </div>
