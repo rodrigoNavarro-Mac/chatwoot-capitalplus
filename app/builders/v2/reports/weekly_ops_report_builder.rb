@@ -14,9 +14,10 @@
 #   - "reply_time": tiempo de respuesta promedio del agente a lo largo de la conversación (mapea a
 #     "Tiempo de respuesta inicial").
 #
-# Ambas métricas usan `value_in_business_hours` (tiempo transcurrido contando solo minutos dentro
-# del horario laboral configurado en el inbox — ver WorkingHour/ReportingEventListener), no el
-# tiempo crudo, igual que el reporte semanal anterior en Python.
+# Ambas métricas se reportan en minutos dentro del horario laboral configurado en el inbox (ver
+# WorkingHour/ReportingEventHelper#business_hours), no en tiempo crudo, igual que el reporte
+# semanal anterior en Python. "reply_time" usa el `value_in_business_hours` ya calculado por el
+# ReportingEventListener; "first_response" se recalcula en este builder (ver más abajo, por qué).
 #
 # Se reportan como MEDIANA, no promedio: el promedio se vio disparado por un puñado de
 # conversaciones viejas (de semanas atrás) cuyo primer contacto ocurrió recién esta semana —
@@ -27,8 +28,20 @@
 # proceso por lotes, no de clientes respondiendo en el mismo segundo. La mediana es inmune a esos
 # outliers; además se descartan explícitamente (ver MAX_CONTACT_GAP) para que tampoco distorsionen
 # semanas con poco volumen donde hasta la mediana podría verse afectada.
+#
+# "first_response" además se re-ancla al primer mensaje ENTRANTE real de la conversación en vez de
+# confiar en `event_start_time` del ReportingEvent. Detectado 2026-08-18 en producción:
+# conversaciones iniciadas por outreach saliente (agente escribe primero, sin mensaje previo del
+# cliente) tienen `event_start_time` == conversation.created_at, que puede ser DÍAS anterior al
+# primer mensaje real del cliente (ver ReportingEventHelper#last_non_human_activity, que cae a
+# conversation.created_at cuando no hay bot_handoff/reopen). Eso medía "tiempo desde que abrimos la
+# conversación" en vez de "tiempo desde que el cliente escribió, hasta que el asesor contestó" —
+# inflando el reporte con el tiempo que EL CLIENTE tardó en responder, no el asesor. "reply_time" no
+# tiene este problema porque siempre se ancla a `waiting_since`, que solo se setea con un mensaje
+# entrante real (ver Message#set_waiting_since_on_incoming_message).
 class V2::Reports::WeeklyOpsReportBuilder
   include DateRangeHelper
+  include ReportingEventHelper
 
   CONTACT_TIME_METRICS = %w[first_response reply_time].freeze
 
@@ -108,18 +121,39 @@ class V2::Reports::WeeklyOpsReportBuilder
     }
   end
 
-  # Excluye eventos sin value_in_business_hours calculado en vez de caer al tiempo crudo (reloj
-  # real 24/7) — un fallback silencioso a tiempo crudo infla la métrica muy por encima del
-  # horario laboral real cuando el horario del inbox no cubre esos eventos.
   def median_minutes_for(metric, user_id: nil, weekday: nil)
-    values = reporting_events_for(metric, user_id: user_id, weekday: weekday)
-             .where.not(value_in_business_hours: nil)
-             .where('value <= ?', MAX_CONTACT_GAP.to_i)
-             .order(:value_in_business_hours)
-             .pluck(:value_in_business_hours)
-    return nil if values.empty?
+    events = reporting_events_for(metric, user_id: user_id, weekday: weekday).includes(:conversation)
+    seconds = events.filter_map { |event| business_hours_seconds_for(metric, event) }
+    return nil if seconds.empty?
 
-    (median(values) / 60.0).round(2)
+    (median(seconds.sort) / 60.0).round(2)
+  end
+
+  # Para "first_response" ignora event_start_time/value_in_business_hours del ReportingEvent (ver
+  # comentario de clase) y recalcula contra el primer mensaje entrante real de la conversación.
+  # Para "reply_time" el evento ya está bien anclado (waiting_since): se usa tal cual, excluyendo
+  # los que no tienen value_in_business_hours calculado en vez de caer al tiempo crudo (reloj real
+  # 24/7) — un fallback silencioso a tiempo crudo infla la métrica muy por encima del horario
+  # laboral real cuando el horario del inbox no cubre esos eventos.
+  def business_hours_seconds_for(metric, event)
+    return nil if metric != 'first_response' && event.value_in_business_hours.nil?
+
+    start_time = contact_start_time(metric, event)
+    return nil if start_time.nil?
+
+    raw_gap = event.event_end_time.to_i - start_time.to_i
+    return nil if raw_gap.negative? || raw_gap > MAX_CONTACT_GAP.to_i
+
+    metric == 'first_response' ? business_hours(inbox, start_time, event.event_end_time) : event.value_in_business_hours
+  end
+
+  def contact_start_time(metric, event)
+    return event.event_start_time unless metric == 'first_response'
+
+    first_incoming = event.conversation&.messages&.where(message_type: :incoming)&.order(:created_at)&.first
+    return nil if first_incoming.nil? || first_incoming.created_at > event.event_end_time
+
+    first_incoming.created_at
   end
 
   def median(values)
