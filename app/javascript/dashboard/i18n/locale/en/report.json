@@ -813,7 +813,7 @@
     },
     "CONVERSION_BY_OWNER": {
       "TITLE": "Conversion and discard by advisor",
-      "CONTACTED": "Contacted",
+      "CONVERTED": "Converted",
       "LOST": "Discarded"
     },
     "SCHEDULE_DISTRIBUTION": {

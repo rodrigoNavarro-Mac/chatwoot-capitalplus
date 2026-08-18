@@ -813,7 +813,7 @@
     },
     "CONVERSION_BY_OWNER": {
       "TITLE": "Conversión y descarte por asesor",
-      "CONTACTED": "Contactados",
+      "CONVERTED": "Convertidos",
       "LOST": "Descartados"
     },
     "SCHEDULE_DISTRIBUTION": {

@@ -282,9 +282,9 @@ const conversionByOwnerChartData = computed(() => {
     labels: rows.map(row => row.owner),
     datasets: [
       {
-        label: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.CONTACTED'),
+        label: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.CONVERTED'),
         backgroundColor: '#2ca02c',
-        data: rows.map(row => row.contacted),
+        data: rows.map(row => row.converted),
       },
       {
         label: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.LOST'),
