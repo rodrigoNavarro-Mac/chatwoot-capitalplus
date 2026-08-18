@@ -76,7 +76,8 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
       account: Current.account,
       period_end: period[:until],
       kpis: kpis,
-      llm_analysis: analysis,
+      llm_analysis: analysis[:executive_summary],
+      card_analyses: analysis[:card_analyses],
       status: 'completed',
       generated_by: Current.user
     )

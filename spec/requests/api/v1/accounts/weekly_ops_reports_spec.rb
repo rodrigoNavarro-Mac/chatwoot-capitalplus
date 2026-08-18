@@ -9,7 +9,9 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
   let(:params) { { since: 7.days.ago.to_i.to_s, until: 1.minute.from_now.to_i.to_s } }
 
   before do
-    allow_any_instance_of(Reports::WeeklyOpsAnalysisLlmService).to receive(:generate).and_return('Análisis de prueba')
+    allow_any_instance_of(Reports::WeeklyOpsAnalysisLlmService).to receive(:generate).and_return(
+      executive_summary: 'Análisis de prueba', card_analyses: { 'contact_time' => 'Nota corta de prueba' }
+    )
   end
 
   describe 'POST /api/v1/accounts/{account.id}/inboxes/{inbox.id}/weekly_ops_reports' do
@@ -27,6 +29,7 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       expect(response).to have_http_status(:success)
       body = JSON.parse(response.body, symbolize_names: true)
       expect(body[:llm_analysis]).to eq('Análisis de prueba')
+      expect(body[:card_analyses]).to eq(contact_time: 'Nota corta de prueba')
       expect(WeeklyOpsReport.where(inbox: inbox).count).to eq(1)
     end
 
