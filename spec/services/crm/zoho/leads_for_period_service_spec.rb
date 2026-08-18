@@ -51,8 +51,8 @@ describe Crm::Zoho::LeadsForPeriodService do
         expect(WebMock).not_to have_requested(:get, /zohoapis\.com/)
       end
 
-      it 'searches by desarrollo and Created_Time between the range bounds' do
-        stub = stub_leads_search(criteria_includes: '(Desarrollo:equals:Fuego)and(Created_Time:between:',
+      it 'searches by desarrollo and Modified_Time between the range bounds' do
+        stub = stub_leads_search(criteria_includes: '(Desarrollo:equals:Fuego)and(Modified_Time:between:',
                                  data: [{ 'id' => 'lead-1', 'Lead_Status' => 'Contacted' }])
 
         result = described_class.new(account: account, development_key: 'Fuego', range: range).fetch

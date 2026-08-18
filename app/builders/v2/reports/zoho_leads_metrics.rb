@@ -72,7 +72,11 @@ class V2::Reports::ZohoLeadsMetrics
     rows.sort_by { |row| -(row[:contacted] + row[:lost]) }
   end
 
-  # Cuántos leads del periodo se crearon dentro/fuera del horario laboral configurado del inbox.
+  # De los leads con actividad en el periodo (ver Crm::Zoho::LeadsForPeriodService — filtra por
+  # Modified_Time, no por Created_Time), cuántos se CREARON dentro/fuera del horario laboral del
+  # inbox. Para un lead viejo que recién se tocó esta semana, la hora de creación puede caer fuera
+  # del periodo del reporte — sigue siendo la pregunta que esta sección responde ("¿a qué hora del
+  # día entran los leads que estamos trabajando?"), no "¿cuándo se tocaron esta semana?".
   def schedule_distribution
     return nil if leads.blank?
 
