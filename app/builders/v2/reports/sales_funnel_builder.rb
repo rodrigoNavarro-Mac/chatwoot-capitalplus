@@ -3,7 +3,12 @@
 #   deal cerrado ganado
 #
 # Cada etapa es subconjunto de la anterior (igual que un embudo real), y el % de cada etapa se
-# calcula sobre el total de leads de esa misma entrada. El "desarrollo" de una entrada es el que
+# calcula sobre la etapa INMEDIATA anterior, no sobre el total de leads (embudo clásico de
+# conversión escalonada) — "leads" es la excepción obvia (100% de sí misma), y "customer_replied"
+# coincide con "% del total" porque su etapa anterior ya es "leads". Antes del 2026-08-19 todas las
+# etapas usaban el total de leads como base, lo que hacía que "% Visita efectiva" se leyera como
+# "2 de 70 leads totales" en vez de "2 de 5 leads con deal" — la pregunta que en realidad responde
+# esa etapa del embudo. El "desarrollo" de una entrada es el que
 # ya usa el resto del sistema Zoho (agent_bot.bot_config['variables']['desarrollo'], ver
 # Api::V1::Accounts::Integrations::ZohoCrmController#bot_variables_for). El estado del deal
 # (existe / visita efectiva / cerrado ganado) se lee de additional_attributes['external'] en el
@@ -72,9 +77,9 @@ class V2::Reports::SalesFunnelBuilder
       stages: [
         stage_metric('leads', leads.size, leads.size, development_key),
         stage_metric('customer_replied', replied.size, leads.size, development_key),
-        stage_metric('has_deal', with_deal.size, leads.size, development_key),
-        stage_metric('visita_efectiva', visited.size, leads.size, development_key),
-        stage_metric('closed_won', won.size, leads.size, development_key)
+        stage_metric('has_deal', with_deal.size, replied.size, development_key),
+        stage_metric('visita_efectiva', visited.size, with_deal.size, development_key),
+        stage_metric('closed_won', won.size, visited.size, development_key)
       ],
       calls: calls_metric(inbox)
     }
@@ -167,9 +172,9 @@ class V2::Reports::SalesFunnelBuilder
     pairs.select { |(_conversation_id, contact_id)| matching_ids.include?(contact_id) }
   end
 
-  def stage_metric(stage, count, leads_count, development_key)
+  def stage_metric(stage, count, base_count, development_key)
     target = goal_for(development_key, stage)
-    actual_percent = safe_rate(count, leads_count)
+    actual_percent = safe_rate(count, base_count)
 
     {
       stage: stage,

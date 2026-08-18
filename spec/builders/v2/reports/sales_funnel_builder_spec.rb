@@ -132,6 +132,21 @@ describe V2::Reports::SalesFunnelBuilder do
       expect(stage(rows, 'closed_won')[:count]).to eq(1)
     end
 
+    it 'computes actual_percent relative to the immediately preceding stage, not to total leads' do
+      create_lead(replied: true, zoho_deal_id: 'deal-1', zoho_deal_stage: 'Qualification') # has_deal + visita_efectiva
+      create_lead(replied: true, zoho_deal_id: 'deal-2') # has_deal only, no visita
+      create_lead(replied: true) # replied only, no deal
+      create_lead(replied: false) # leads only
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:actual_percent]).to eq(100.0)
+      expect(stage(rows, 'customer_replied')[:actual_percent]).to eq(75.0) # 3 de 4 leads
+      expect(stage(rows, 'has_deal')[:actual_percent]).to eq(66.67) # 2 de 3 contestados
+      expect(stage(rows, 'visita_efectiva')[:actual_percent]).to eq(50.0) # 1 de 2 con deal
+      expect(stage(rows, 'closed_won')[:actual_percent]).to eq(0.0) # 0 de 1 visita efectiva
+    end
+
     it "only counts a contact under the inbox of their globally-earliest conversation (their true point of entry)" do
       other_channel = create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', validate_provider_config: false, sync_templates: false)
       other_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'torre-2' } })
