@@ -9,6 +9,15 @@ describe V2::Reports::WeeklyOpsReportBuilder do
   # truncamiento a segundos enteros de since/until (ver DateRangeHelper).
   let(:params) { { since: 7.days.ago.to_i.to_s, until: 1.minute.from_now.to_i.to_s } }
 
+  # "first_response" ahora recalcula contra el primer mensaje entrante real (ver comentario de
+  # clase del builder), llamando a ReportingEventHelper#business_hours de verdad — se habilita
+  # horario laboral 24/7 para que el resultado sea el gap crudo sin importar qué día/hora corra la
+  # suite. No afecta "reply_time", que sigue usando el value_in_business_hours ya guardado.
+  before do
+    inbox.update!(working_hours_enabled: true)
+    inbox.working_hours.update_all(open_all_day: true, closed_all_day: false)
+  end
+
   describe '#build' do
     it 'counts new conversations created within the range for this inbox' do
       create(:conversation, account: account, inbox: inbox).update_column(:created_at, 3.days.ago)
@@ -19,15 +28,45 @@ describe V2::Reports::WeeklyOpsReportBuilder do
       expect(result[:volume][:new_conversations]).to eq(1)
     end
 
-    it 'takes the median first_response/reply_time (in minutes, using business hours) from reporting events within range' do
-      create(:reporting_event, account: account, inbox: inbox, name: 'first_response',
-                               value: 1200.0, value_in_business_hours: 600.0, created_at: 2.days.ago)
+    it 'takes the median first_response (in minutes, using business hours) anchored to the first real incoming message' do
+      conversation = create(:conversation, account: account, inbox: inbox)
+      event_end_time = 2.days.ago
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming,
+                       created_at: event_end_time - 10.minutes)
+      create(:reporting_event, account: account, inbox: inbox, conversation: conversation, name: 'first_response',
+                               event_end_time: event_end_time, created_at: event_end_time)
+      # Fuera de rango (20 dias atras) — se descarta por fecha antes de tocar su conversacion/mensajes.
       create(:reporting_event, account: account, inbox: inbox, name: 'first_response',
                                value: 1200.0, value_in_business_hours: 6000.0, created_at: 20.days.ago)
 
       result = described_class.new(account: account, inbox: inbox, params: params).build
 
       expect(result[:contact_time][:first_response]).to eq(10.0)
+    end
+
+    it 'ignores first_response events where the reply predates the client\'s first incoming message (outbound-initiated conversations)' do
+      conversation = create(:conversation, account: account, inbox: inbox)
+      event_end_time = 2.days.ago
+      # El cliente escribe DESPUES del "primer contacto" registrado — conversacion iniciada por
+      # outreach saliente, no por el cliente. No debe contar para "tiempo hasta primer contacto".
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming,
+                       created_at: event_end_time + 3.days)
+      create(:reporting_event, account: account, inbox: inbox, conversation: conversation, name: 'first_response',
+                               event_end_time: event_end_time, created_at: event_end_time)
+
+      result = described_class.new(account: account, inbox: inbox, params: params).build
+
+      expect(result[:contact_time][:first_response]).to be_nil
+    end
+
+    it 'ignores first_response events for conversations with no incoming message at all' do
+      conversation = create(:conversation, account: account, inbox: inbox)
+      create(:reporting_event, account: account, inbox: inbox, conversation: conversation, name: 'first_response',
+                               event_end_time: 2.days.ago, created_at: 2.days.ago)
+
+      result = described_class.new(account: account, inbox: inbox, params: params).build
+
+      expect(result[:contact_time][:first_response]).to be_nil
     end
 
     it 'uses the median (not the mean) so a handful of outliers do not skew the metric' do
@@ -42,10 +81,10 @@ describe V2::Reports::WeeklyOpsReportBuilder do
     end
 
     it 'excludes events whose raw gap exceeds MAX_CONTACT_GAP (stale/backfilled contacts) from the metric' do
-      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
-                               value: 600.0, value_in_business_hours: 600.0, created_at: 1.day.ago)
-      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time',
-                               value: 8.days.to_i, value_in_business_hours: 8.days.to_i, created_at: 1.day.ago)
+      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time', value_in_business_hours: 600.0,
+                               event_start_time: 10.minutes.ago, event_end_time: Time.current, created_at: 1.day.ago)
+      create(:reporting_event, account: account, inbox: inbox, name: 'reply_time', value_in_business_hours: 8.days.to_i,
+                               event_start_time: 9.days.ago, event_end_time: 1.day.ago, created_at: 1.day.ago)
 
       result = described_class.new(account: account, inbox: inbox, params: params).build
 
@@ -84,14 +123,23 @@ describe V2::Reports::WeeklyOpsReportBuilder do
         agent_a = create(:user, account: account, name: 'Agent A')
         agent_b = create(:user, account: account, name: 'Agent B')
 
-        create(:conversation, account: account, inbox: inbox, assignee: agent_a).update_column(:created_at, 2.days.ago)
+        conversation_a1 = create(:conversation, account: account, inbox: inbox, assignee: agent_a)
+        conversation_a1.update_column(:created_at, 2.days.ago)
         create(:conversation, account: account, inbox: inbox, assignee: agent_a).update_column(:created_at, 3.days.ago)
-        create(:conversation, account: account, inbox: inbox, assignee: agent_b).update_column(:created_at, 2.days.ago)
+        conversation_b1 = create(:conversation, account: account, inbox: inbox, assignee: agent_b)
+        conversation_b1.update_column(:created_at, 2.days.ago)
 
-        create(:reporting_event, account: account, inbox: inbox, user: agent_a, name: 'first_response',
-                                 value_in_business_hours: 600.0, created_at: 2.days.ago)
-        create(:reporting_event, account: account, inbox: inbox, user: agent_b, name: 'first_response',
-                                 value_in_business_hours: 1200.0, created_at: 2.days.ago)
+        event_end_a = 2.days.ago
+        create(:message, account: account, inbox: inbox, conversation: conversation_a1, message_type: :incoming,
+                         created_at: event_end_a - 10.minutes)
+        create(:reporting_event, account: account, inbox: inbox, conversation: conversation_a1, user: agent_a,
+                                 name: 'first_response', event_end_time: event_end_a, created_at: event_end_a)
+
+        event_end_b = 2.days.ago
+        create(:message, account: account, inbox: inbox, conversation: conversation_b1, message_type: :incoming,
+                         created_at: event_end_b - 20.minutes)
+        create(:reporting_event, account: account, inbox: inbox, conversation: conversation_b1, user: agent_b,
+                                 name: 'first_response', event_end_time: event_end_b, created_at: event_end_b)
 
         result = described_class.new(account: account, inbox: inbox, params: params).build
 
