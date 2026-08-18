@@ -75,7 +75,7 @@ class V2::Reports::WeeklyOpsReportBuilder
       zoho_leads: zoho_leads_service.summary,
       zoho_leads_timeline: leads_timeline_metrics,
       deals_created: zoho_leads_service.deals_created,
-      conversion_totals: zoho_leads_service.conversion_totals,
+      conversion_totals: conversion_totals,
       schedule_distribution: zoho_leads_service.schedule_distribution,
       aircall_calls: aircall_calls_metrics,
       cadences: cadence_metrics,
@@ -230,7 +230,25 @@ class V2::Reports::WeeklyOpsReportBuilder
   end
 
   def pipeline_metrics
-    V2::Reports::SalesFunnelBuilder.new(account: account, params: params.merge(inbox_ids: [inbox.id])).build.first
+    @pipeline_metrics ||= V2::Reports::SalesFunnelBuilder.new(account: account, params: params.merge(inbox_ids: [inbox.id])).build.first
+  end
+
+  # "Convertidos" reusa el conteo de la etapa "has_deal" del embudo de ventas (misma fila, misma
+  # definición: contactos cuya primera conversación cae en el periodo y ya tienen un zoho_deal_id
+  # cacheado) en vez de una cuenta independiente contra el módulo Deals de Zoho por Created_Time —
+  # dos números del mismo reporte respondiendo "cuántos convirtieron" con criterios distintos
+  # generaba una discrepancia (ej. 6 vs 5) sin sentido para quien lee el reporte. Detectado
+  # 2026-08-18. "Descartados" sigue siendo Lead_Status "Cliente perdido/Descartado" en Zoho — el
+  # embudo no tiene ese concepto, no hay con qué alinearlo.
+  def conversion_totals
+    return nil if development_key.blank? || range.blank?
+
+    { converted: has_deal_count, lost: zoho_leads_service.lost_count }
+  end
+
+  def has_deal_count
+    stage = pipeline_metrics&.dig(:stages)&.find { |s| s[:stage] == 'has_deal' }
+    stage ? stage[:count] : 0
   end
 
   def zoho_leads_service

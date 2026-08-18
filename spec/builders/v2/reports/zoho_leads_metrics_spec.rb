@@ -30,13 +30,15 @@ describe V2::Reports::ZohoLeadsMetrics do
     end
 
     context 'with a mix of statuses, sources and owners' do
+      # Lead_Status llega de la API ya en español ("Contactado", no "Contacted") -- ver comentario
+      # de LOST_LEAD_STATUS/CONTACTED_STATUS. Fixtures con los valores reales, no los asumidos.
       subject(:summary) do
         stub_leads([
-                     { 'Lead_Status' => 'Contacted', 'Lead_Source' => 'Facebook Ads', 'Owner' => { 'name' => 'Eunice' } },
-                     { 'Lead_Status' => 'Contacted', 'Lead_Source' => 'Facebook Ads', 'Owner' => { 'name' => 'Eunice' } },
-                     { 'Lead_Status' => 'Attempted to Contact', 'Lead_Source' => 'Google Ads', 'Owner' => { 'name' => 'Carlos' } },
-                     { 'Lead_Status' => 'Lost Lead', 'Lead_Source' => 'Facebook Ads', 'Raz_n_de_descarte' => 'NO TUVO PRESUPUESTO',
-                       'Owner' => { 'name' => 'Eunice' } }
+                     { 'Lead_Status' => 'Contactado', 'Lead_Source' => 'Facebook Ads', 'Owner' => { 'name' => 'Eunice' } },
+                     { 'Lead_Status' => 'Contactado', 'Lead_Source' => 'Facebook Ads', 'Owner' => { 'name' => 'Eunice' } },
+                     { 'Lead_Status' => 'Intento de contacto', 'Lead_Source' => 'Google Ads', 'Owner' => { 'name' => 'Carlos' } },
+                     { 'Lead_Status' => 'Cliente perdido/Descartado', 'Lead_Source' => 'Facebook Ads',
+                       'Raz_n_de_descarte' => 'NO TUVO PRESUPUESTO', 'Owner' => { 'name' => 'Eunice' } }
                    ])
         metrics.summary
       end
@@ -71,8 +73,8 @@ describe V2::Reports::ZohoLeadsMetrics do
     end
 
     it 'reports total deals created and the conversion rate against total leads' do
-      stub_leads([{ 'Lead_Status' => 'Contacted' }, { 'Lead_Status' => 'Contacted' }, { 'Lead_Status' => 'Lost Lead' },
-                  { 'Lead_Status' => 'Lost Lead' }])
+      stub_leads([{ 'Lead_Status' => 'Contactado' }, { 'Lead_Status' => 'Contactado' },
+                  { 'Lead_Status' => 'Cliente perdido/Descartado' }, { 'Lead_Status' => 'Cliente perdido/Descartado' }])
       stub_deals([{ 'id' => 'deal-1' }])
 
       result = metrics.deals_created
@@ -81,30 +83,22 @@ describe V2::Reports::ZohoLeadsMetrics do
     end
   end
 
-  describe '#conversion_totals' do
-    it 'is nil when there are no leads or deals' do
+  describe '#lost_count' do
+    it 'is zero when there are no leads' do
       stub_leads([])
-      stub_deals([])
 
-      expect(metrics.conversion_totals).to be_nil
+      expect(metrics.lost_count).to eq(0)
     end
 
-    it 'counts converted (deals created) and lost (Lead_Status Lost Lead) for the whole desarrollo, not by owner' do
-      # Lead_Status "Contacted" NO cuenta como convertido -- solo si se le creo un Deal. El Owner
-      # de cada lead/deal no importa aqui -- es un total del desarrollo, no un desglose por asesor.
+    it 'counts leads with Lead_Status "Cliente perdido/Descartado" -- Contactado does not count' do
       stub_leads([
-                   { 'Lead_Status' => 'Contacted', 'Owner' => { 'name' => 'Eunice' } },
-                   { 'Lead_Status' => 'Lost Lead', 'Owner' => { 'name' => 'Eunice' } },
-                   { 'Lead_Status' => 'Attempted to Contact', 'Owner' => nil }
-                 ])
-      stub_deals([
-                   { 'id' => 'deal-1', 'Owner' => { 'name' => 'Eunice' } },
-                   { 'id' => 'deal-2', 'Owner' => { 'name' => 'Carlos' } }
+                   { 'Lead_Status' => 'Contactado' },
+                   { 'Lead_Status' => 'Cliente perdido/Descartado' },
+                   { 'Lead_Status' => 'Cliente perdido/Descartado' },
+                   { 'Lead_Status' => 'Intento de contacto' }
                  ])
 
-      result = metrics.conversion_totals
-
-      expect(result).to eq(converted: 2, lost: 1)
+      expect(metrics.lost_count).to eq(2)
     end
   end
 
