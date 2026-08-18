@@ -15,9 +15,12 @@ class Reports::WeeklyOpsReportDocxService
   include Reports::WeeklyOpsReportDocxTables
   include Reports::WeeklyOpsReportDocxTablesZoho
   include Reports::WeeklyOpsReportDocxImages
+  include Reports::ReportCardAnalyses
 
   W_XMLNS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'.freeze
 
+  # chart_images: Array<{ key: String, title: String, data_url: String }>, en el mismo orden que
+  # las cards en pantalla (ver WeeklyOpsReport.vue).
   def initialize(weekly_ops_report:, branding:, chart_images: [])
     @report = weekly_ops_report
     @branding = branding
@@ -31,9 +34,10 @@ class Reports::WeeklyOpsReportDocxService
     rels_xml = Nokogiri::XML(zip_file.read('word/_rels/document.xml.rels'))
 
     sect_pr = section_properties(document_xml)
+    insert_header(sect_pr)
+    insert_analysis(sect_pr)
     insert_summary(sect_pr)
     insert_charts(sect_pr, rels_xml, zip_file)
-    insert_analysis(sect_pr)
 
     zip_file.get_output_stream('word/document.xml') { |f| f.write(document_xml.to_xml) }
     zip_file.get_output_stream('word/_rels/document.xml.rels') { |f| f.write(rels_xml.to_xml) }
@@ -57,31 +61,42 @@ class Reports::WeeklyOpsReportDocxService
     body.at_xpath('w:sectPr', 'w' => W_XMLNS) || body.add_child('<w:sectPr/>')
   end
 
-  def insert_summary(sect_pr)
+  def insert_header(sect_pr)
     sect_pr.add_previous_sibling(heading_xml("Reporte semanal — #{kpis[:inbox_name]}"))
     sect_pr.add_previous_sibling(paragraph_xml("Periodo: #{format_period}"))
+  end
+
+  def insert_summary(sect_pr)
     sect_pr.add_previous_sibling(summary_table_xml)
     insert_deals_created_line(sect_pr)
-    insert_advisor_tables(sect_pr)
-    insert_distribution_tables(sect_pr)
-    insert_schedule_distribution_line(sect_pr)
+    insert_tables(sect_pr)
   end
 
-  def insert_advisor_tables(sect_pr)
-    insert_by_advisor_table(sect_pr)
-    insert_advisor_period_of_week_table(sect_pr)
+  # Mismo orden que las cards en WeeklyOpsReport.vue (ver comentario de clase ahí).
+  def insert_tables(sect_pr)
+    insert_distribution_table_with_analysis(sect_pr, 'Embudo de ventas', DISTRIBUTION_TABLE_HEADERS[:funnel], funnel_rows(kpis), :pipeline)
+    insert_distribution_table_with_analysis(
+      sect_pr, 'Distribución del pipeline', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], pipeline_status_rows(kpis), :zoho_pipeline_status
+    )
     insert_contact_time_by_period_table(sect_pr)
-    insert_calls_table(sect_pr)
-  end
-
-  def insert_distribution_tables(sect_pr)
-    insert_distribution_table(sect_pr, 'Embudo de ventas', DISTRIBUTION_TABLE_HEADERS[:funnel], funnel_rows(kpis))
-    insert_distribution_table(sect_pr, 'Distribución del pipeline', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], pipeline_status_rows(kpis))
+    insert_advisor_period_of_week_table(sect_pr)
+    insert_by_advisor_table(sect_pr)
+    insert_conversion_totals_line(sect_pr)
     insert_lead_source_table(sect_pr)
     insert_quality_by_source_table(sect_pr)
     insert_owner_table(sect_pr)
-    insert_conversion_totals_line(sect_pr)
-    insert_distribution_table(sect_pr, 'Motivos de descarte', DISTRIBUTION_TABLE_HEADERS[:discard_reason], discard_reason_rows(kpis))
+    insert_distribution_table_with_analysis(
+      sect_pr, 'Motivos de descarte', DISTRIBUTION_TABLE_HEADERS[:discard_reason], discard_reason_rows(kpis), :discard_reasons
+    )
+    insert_schedule_distribution_line(sect_pr)
+    insert_calls_table(sect_pr)
+  end
+
+  def insert_distribution_table_with_analysis(sect_pr, title, header, rows, key)
+    return if rows.blank?
+
+    insert_distribution_table(sect_pr, title, header, rows)
+    insert_card_analysis_line(sect_pr, key)
   end
 
   def insert_by_advisor_table(sect_pr)
@@ -90,6 +105,7 @@ class Reports::WeeklyOpsReportDocxService
 
     sect_pr.add_previous_sibling(heading_xml('Desglose por asesor', size: 24))
     sect_pr.add_previous_sibling(simple_table_xml(ADVISOR_TABLE_HEADER, rows))
+    insert_card_analysis_line(sect_pr, :by_advisor)
   end
 
   def insert_analysis(sect_pr)
@@ -99,6 +115,14 @@ class Reports::WeeklyOpsReportDocxService
     report.llm_analysis.to_s.split("\n").each do |line|
       sect_pr.add_previous_sibling(paragraph_xml(line))
     end
+  end
+
+  # Nota corta en cursiva bajo la tabla/gráfica de una card — ver Reports::ReportCardAnalyses.
+  def insert_card_analysis_line(sect_pr, key)
+    text = card_analysis(key)
+    return if text.blank?
+
+    sect_pr.add_previous_sibling(italic_paragraph_xml(text))
   end
 
   def format_period
@@ -120,6 +144,13 @@ class Reports::WeeklyOpsReportDocxService
   def paragraph_xml(text)
     <<~XML
       <w:p><w:r><w:t xml:space="preserve">#{escape(text)}</w:t></w:r></w:p>
+    XML
+  end
+
+  def italic_paragraph_xml(text)
+    <<~XML
+      <w:p><w:r><w:rPr><w:i/><w:color w:val="555555"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>
+        <w:t xml:space="preserve">#{escape(text)}</w:t></w:r></w:p>
     XML
   end
 

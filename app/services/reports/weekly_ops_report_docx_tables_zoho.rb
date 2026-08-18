@@ -29,6 +29,7 @@ module Reports::WeeklyOpsReportDocxTablesZoho
 
     sect_pr.add_previous_sibling(heading_xml('Tiempos de contacto: entre semana vs fin de semana', size: 24))
     sect_pr.add_previous_sibling(simple_table_xml(CONTACT_TIME_BY_PERIOD_TABLE_HEADER, rows))
+    insert_card_analysis_line(sect_pr, :contact_time_by_period)
   end
 
   def insert_quality_by_source_table(sect_pr)
@@ -37,11 +38,16 @@ module Reports::WeeklyOpsReportDocxTablesZoho
 
     sect_pr.add_previous_sibling(heading_xml('Calidad de leads por canal', size: 24))
     sect_pr.add_previous_sibling(simple_table_xml(QUALITY_BY_SOURCE_TABLE_HEADER, rows))
+    insert_card_analysis_line(sect_pr, :quality_by_source)
   end
 
   def insert_owner_table(sect_pr)
+    rows = owner_rows(kpis)
+    return if rows.blank?
+
     header = Reports::WeeklyOpsReportDocxTables::DISTRIBUTION_TABLE_HEADERS[:owner]
-    insert_distribution_table(sect_pr, 'Distribución por asesor (Zoho)', header, owner_rows(kpis))
+    insert_distribution_table(sect_pr, 'Distribución por asesor (Zoho)', header, rows)
+    insert_card_analysis_line(sect_pr, :zoho_owner)
   end
 
   def insert_conversion_totals_line(sect_pr)
@@ -49,6 +55,7 @@ module Reports::WeeklyOpsReportDocxTablesZoho
     return if text.blank?
 
     sect_pr.add_previous_sibling(paragraph_xml(text))
+    insert_card_analysis_line(sect_pr, :conversion_totals)
   end
 
   def insert_schedule_distribution_line(sect_pr)
@@ -56,5 +63,6 @@ module Reports::WeeklyOpsReportDocxTablesZoho
     return if text.blank?
 
     sect_pr.add_previous_sibling(paragraph_xml(text))
+    insert_card_analysis_line(sect_pr, :schedule_distribution)
   end
 end
