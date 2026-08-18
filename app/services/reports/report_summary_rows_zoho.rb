@@ -24,9 +24,12 @@ module Reports::ReportSummaryRowsZoho
     end
   end
 
-  # Filas [asesor, convertidos, descartados] — ver V2::Reports::ZohoLeadsMetrics#conversion_by_owner.
-  def conversion_by_owner_rows(kpis)
-    (kpis[:conversion_by_owner] || []).map { |row| [row[:owner], row[:converted].to_s, row[:lost].to_s] }
+  # Total del desarrollo, no por asesor — ver V2::Reports::ZohoLeadsMetrics#conversion_totals.
+  def conversion_totals_line_text(kpis)
+    totals = kpis[:conversion_totals]
+    return nil if totals.blank?
+
+    "Conversión y descarte: #{totals[:converted]} convertidos — #{totals[:lost]} descartados"
   end
 
   def deals_created_line_text(kpis)

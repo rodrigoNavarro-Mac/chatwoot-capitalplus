@@ -177,7 +177,7 @@ describe Reports::WeeklyOpsReportDocxService do
       'zoho_leads' => { 'by_owner' => { 'Elizabeth Sánchez' => 3, 'Carlos' => 1 },
                         'quality_by_source' => { 'Facebook Ads' => { 'total' => 3, 'quality' => 2 } } },
       'deals_created' => { 'total' => 1, 'conversion_rate' => 25.0 },
-      'conversion_by_owner' => [{ 'owner' => 'Elizabeth Sánchez', 'converted' => 2, 'lost' => 1 }],
+      'conversion_totals' => { 'converted' => 2, 'lost' => 1 },
       'schedule_distribution' => { 'within_business_hours' => 3, 'outside_business_hours' => 1, 'total' => 4 },
       'contact_time_by_period_of_week' => {
         'weekday' => { 'first_response' => 7.0, 'reply_time' => 3.5 },
@@ -193,7 +193,7 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml).to include('Tiempos de contacto: entre semana vs fin de semana')
     expect(document_xml).to include('Calidad de leads por canal')
     expect(document_xml).to include('Distribución por asesor (Zoho)')
-    expect(document_xml).to include('Conversión y descarte por asesor')
+    expect(document_xml).to include('Conversión y descarte: 2 convertidos — 1 descartados')
     expect(document_xml).to include('Leads en horario laboral: 3 — fuera de horario: 1 (de 4 totales)')
   end
 

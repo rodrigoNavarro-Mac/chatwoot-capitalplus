@@ -75,7 +75,7 @@ class V2::Reports::WeeklyOpsReportBuilder
       zoho_leads: zoho_leads_service.summary,
       zoho_leads_timeline: leads_timeline_metrics,
       deals_created: zoho_leads_service.deals_created,
-      conversion_by_owner: zoho_leads_service.conversion_by_owner,
+      conversion_totals: zoho_leads_service.conversion_totals,
       schedule_distribution: zoho_leads_service.schedule_distribution,
       aircall_calls: aircall_calls_metrics,
       cadences: cadence_metrics,

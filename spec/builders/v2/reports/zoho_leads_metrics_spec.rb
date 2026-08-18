@@ -81,16 +81,17 @@ describe V2::Reports::ZohoLeadsMetrics do
     end
   end
 
-  describe '#conversion_by_owner' do
-    it 'returns an empty array when there are no leads or deals' do
+  describe '#conversion_totals' do
+    it 'is nil when there are no leads or deals' do
       stub_leads([])
       stub_deals([])
 
-      expect(metrics.conversion_by_owner).to eq([])
+      expect(metrics.conversion_totals).to be_nil
     end
 
-    it 'counts converted (deal created) by deal owner and lost by lead owner, sorted by total volume desc' do
-      # Lead_Status "Contacted" NO cuenta como convertido -- solo si se le creo un Deal.
+    it 'counts converted (deals created) and lost (Lead_Status Lost Lead) for the whole desarrollo, not by owner' do
+      # Lead_Status "Contacted" NO cuenta como convertido -- solo si se le creo un Deal. El Owner
+      # de cada lead/deal no importa aqui -- es un total del desarrollo, no un desglose por asesor.
       stub_leads([
                    { 'Lead_Status' => 'Contacted', 'Owner' => { 'name' => 'Eunice' } },
                    { 'Lead_Status' => 'Lost Lead', 'Owner' => { 'name' => 'Eunice' } },
@@ -101,12 +102,9 @@ describe V2::Reports::ZohoLeadsMetrics do
                    { 'id' => 'deal-2', 'Owner' => { 'name' => 'Carlos' } }
                  ])
 
-      result = metrics.conversion_by_owner
+      result = metrics.conversion_totals
 
-      expect(result).to eq([
-                             { owner: 'Eunice', converted: 1, lost: 1 },
-                             { owner: 'Carlos', converted: 1, lost: 0 }
-                           ])
+      expect(result).to eq(converted: 2, lost: 1)
     end
   end
 

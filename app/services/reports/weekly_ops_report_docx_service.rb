@@ -80,7 +80,7 @@ class Reports::WeeklyOpsReportDocxService
     insert_lead_source_table(sect_pr)
     insert_quality_by_source_table(sect_pr)
     insert_owner_table(sect_pr)
-    insert_conversion_by_owner_table(sect_pr)
+    insert_conversion_totals_line(sect_pr)
     insert_distribution_table(sect_pr, 'Motivos de descarte', DISTRIBUTION_TABLE_HEADERS[:discard_reason], discard_reason_rows(kpis))
   end
 

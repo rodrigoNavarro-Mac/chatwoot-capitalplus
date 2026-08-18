@@ -7,7 +7,6 @@ module Reports::WeeklyOpsReportDocxTablesZoho
   ADVISOR_PERIOD_OF_WEEK_TABLE_HEADER = ['Asesor', '1er mensaje L-V (min)', '1er mensaje S-D (min)', 'Conversaciones L-V / S-D'].freeze
   CONTACT_TIME_BY_PERIOD_TABLE_HEADER = ['Periodo', 'Tiempo 1er mensaje (min)', 'Tiempo de respuesta (min)'].freeze
   QUALITY_BY_SOURCE_TABLE_HEADER = ['Fuente', 'Contactados', 'Total', '% Calidad'].freeze
-  CONVERSION_BY_OWNER_TABLE_HEADER = %w[Asesor Convertidos Descartados].freeze
 
   def insert_deals_created_line(sect_pr)
     text = deals_created_line_text(kpis)
@@ -45,12 +44,11 @@ module Reports::WeeklyOpsReportDocxTablesZoho
     insert_distribution_table(sect_pr, 'Distribución por asesor (Zoho)', header, owner_rows(kpis))
   end
 
-  def insert_conversion_by_owner_table(sect_pr)
-    rows = conversion_by_owner_rows(kpis)
-    return if rows.blank?
+  def insert_conversion_totals_line(sect_pr)
+    text = conversion_totals_line_text(kpis)
+    return if text.blank?
 
-    sect_pr.add_previous_sibling(heading_xml('Conversión y descarte por asesor', size: 24))
-    sect_pr.add_previous_sibling(simple_table_xml(CONVERSION_BY_OWNER_TABLE_HEADER, rows))
+    sect_pr.add_previous_sibling(paragraph_xml(text))
   end
 
   def insert_schedule_distribution_line(sect_pr)
