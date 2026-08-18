@@ -7,23 +7,17 @@
 # `leads` es público y memoizado — V2::Reports::LeadsTimelineMetrics lo reusa vía
 # WeeklyOpsReportBuilder para no duplicar la llamada a Zoho.
 class V2::Reports::ZohoLeadsMetrics
-  # Valores internos ("actual_value") del campo Lead_Status en Zoho de esta cuenta, confirmados
-  # contra la API real — no son los labels en español que se ven en la UI de Zoho (que están
-  # traducidos). Mismo criterio que V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES.
-  LEAD_STATUS_LABELS = {
-    'Nuevo contacto' => 'Nuevo contacto',
-    'Attempted to Contact' => 'Intento de contacto',
-    'Contact in Future' => 'Contactar en el futuro',
-    'Contacted' => 'Contactado',
-    'Calificado' => 'Calificado',
-    'Lost Lead' => 'Cliente perdido/Descartado',
-    'Pre-Qualified' => 'Previamente clasificado',
-    'Not Contacted' => 'Contacto no exitoso',
-    'Not Qualified' => 'No habilitado',
-    'Junk Lead' => 'Posible cliente no solicitado'
-  }.freeze
-  LOST_LEAD_STATUS = 'Lost Lead'.freeze
-  CONTACTED_STATUS = 'Contacted'.freeze
+  # El campo Lead_Status de Leads/search para esta cuenta devuelve el LABEL EN ESPAÑOL directo
+  # (ej. "Cliente perdido/Descartado", "Contactado", "Intento de contacto"), no un actual_value en
+  # inglés — a diferencia de Stage en el módulo Deals (ver
+  # V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES, que sí es inglés). Un comentario previo
+  # aquí afirmaba lo contrario ("confirmado contra la API real") y nunca lo fue: LOST_LEAD_STATUS/
+  # CONTACTED_STATUS comparaban contra 'Lost Lead'/'Contacted', que no aparecen jamás en datos
+  # reales, así que "descartados" y "leads de calidad" siempre salían en 0. Confirmado 2026-08-18
+  # contra la API en vivo: 23 leads con Lead_Status == "Cliente perdido/Descartado" en una sola
+  # semana, ninguno con el valor en inglés.
+  LOST_LEAD_STATUS = 'Cliente perdido/Descartado'.freeze
+  CONTACTED_STATUS = 'Contactado'.freeze
 
   def initialize(account:, development_key:, range:, inbox:)
     @account = account
@@ -42,7 +36,7 @@ class V2::Reports::ZohoLeadsMetrics
 
     {
       total: leads.size,
-      by_status: count_by(leads, 'Lead_Status', LEAD_STATUS_LABELS),
+      by_status: count_by(leads, 'Lead_Status'),
       by_source: count_by(leads, 'Lead_Source'),
       discard_reasons: count_by(lost_leads, 'Raz_n_de_descarte'),
       quality_leads_count: quality_count,
@@ -60,16 +54,13 @@ class V2::Reports::ZohoLeadsMetrics
     { total: deals.size, conversion_rate: safe_rate(deals.size, leads.size) }
   end
 
-  # Convertidos (deals nuevos, ver #deals_created) vs descartados (Lead_Status "Lost Lead") de TODO
-  # el desarrollo en el periodo — no desglosado por asesor. El "Owner" de un lead/deal en Zoho no
-  # necesariamente refleja qué asesor de Chatwoot atendió al cliente (ej. una sola persona cierra o
-  # descarta la mayoría de los leads en Zoho sin importar quién los trabajó primero por WhatsApp),
-  # así que desglosar por dueño da una lectura equivocada de qué asesor "convierte más". Detectado
-  # 2026-08-18: el desglose por asesor mostraba a un solo asesor con toda la conversión.
-  def conversion_totals
-    return nil if leads.blank? && deals.blank?
-
-    { converted: deals.size, lost: leads.count { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS } }
+  # Cuántos leads del desarrollo se marcaron como perdidos (Lead_Status "Cliente perdido/Descartado")
+  # en el periodo.
+  # Usado por V2::Reports::WeeklyOpsReportBuilder#conversion_totals junto con el conteo de
+  # "convertidos" del embudo de ventas — no vive aquí como un solo hash porque "convertidos" ya no
+  # sale de una cuenta independiente contra Deals de Zoho (ver builder para el porqué).
+  def lost_count
+    leads.count { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
   end
 
   # De los leads con actividad en el periodo (ver Crm::Zoho::LeadsForPeriodService — filtra por
@@ -104,10 +95,9 @@ class V2::Reports::ZohoLeadsMetrics
     end
   end
 
-  def count_by(leads, field = nil, labels = nil, &extractor)
+  def count_by(leads, field = nil, &extractor)
     extractor ||= ->(lead) { lead[field] }
-    values = leads.filter_map(&extractor)
-    values.tally.transform_keys { |value| labels ? labels.fetch(value, value) : value }
+    leads.filter_map(&extractor).tally
   end
 
   def safe_rate(numerator, denominator)

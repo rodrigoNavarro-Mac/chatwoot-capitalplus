@@ -197,10 +197,10 @@ describe V2::Reports::WeeklyOpsReportBuilder do
         agent_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } })
         create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
         leads = [
-          { 'Lead_Status' => 'Contacted', 'Lead_Source' => 'Facebook Ads' },
-          { 'Lead_Status' => 'Contacted', 'Lead_Source' => 'Facebook Ads' },
-          { 'Lead_Status' => 'Attempted to Contact', 'Lead_Source' => 'Google Ads' },
-          { 'Lead_Status' => 'Lost Lead', 'Lead_Source' => 'Facebook Ads', 'Raz_n_de_descarte' => 'NO TUVO PRESUPUESTO' }
+          { 'Lead_Status' => 'Contactado', 'Lead_Source' => 'Facebook Ads' },
+          { 'Lead_Status' => 'Contactado', 'Lead_Source' => 'Facebook Ads' },
+          { 'Lead_Status' => 'Intento de contacto', 'Lead_Source' => 'Google Ads' },
+          { 'Lead_Status' => 'Cliente perdido/Descartado', 'Lead_Source' => 'Facebook Ads', 'Raz_n_de_descarte' => 'NO TUVO PRESUPUESTO' }
         ]
         fake_service = instance_double(Crm::Zoho::LeadsForPeriodService, fetch: leads)
         allow(Crm::Zoho::LeadsForPeriodService).to receive(:new)
@@ -215,6 +215,34 @@ describe V2::Reports::WeeklyOpsReportBuilder do
         expect(result[:zoho_leads][:discard_reasons]).to eq('NO TUVO PRESUPUESTO' => 1)
         expect(result[:zoho_leads][:quality_leads_count]).to eq(2)
         expect(result[:zoho_leads][:quality_leads_percent]).to eq(50.0)
+      end
+    end
+
+    describe 'conversion_totals' do
+      it 'is nil when the inbox has no desarrollo configured' do
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:conversion_totals]).to be_nil
+      end
+
+      it 'reuses the sales funnel "has_deal" count as converted, and Lead_Status Lost Lead as lost -- not by advisor' do
+        agent_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } })
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
+        contact = create(:contact, account: account,
+                                   additional_attributes: { 'external' => { 'zoho_id' => 'lead-1', 'zoho_deal_id' => 'deal-1' } })
+        conversation = create(:conversation, account: account, inbox: inbox, contact: contact)
+        conversation.update_column(:created_at, 2.days.ago)
+        create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming)
+        leads = [{ 'Lead_Status' => 'Cliente perdido/Descartado' }, { 'Lead_Status' => 'Cliente perdido/Descartado' },
+                 { 'Lead_Status' => 'Contactado' }]
+        fake_service = instance_double(Crm::Zoho::LeadsForPeriodService, fetch: leads)
+        allow(Crm::Zoho::LeadsForPeriodService).to receive(:new)
+          .with(account: account, development_key: 'Fuego', range: anything)
+          .and_return(fake_service)
+
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:conversion_totals]).to eq(converted: 1, lost: 2)
       end
     end
 
