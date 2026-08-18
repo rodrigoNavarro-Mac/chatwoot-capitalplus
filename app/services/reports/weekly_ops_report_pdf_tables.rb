@@ -25,6 +25,7 @@ module Reports::WeeklyOpsReportPdfTables
 
     header = ['Periodo', 'Tiempo 1er mensaje (min)', 'Tiempo de respuesta (min)']
     render_pdf_table(pdf, 'Tiempos de contacto: entre semana vs fin de semana', header, rows)
+    render_card_analysis_line(pdf, :contact_time_by_period)
   end
 
   def render_quality_by_source_table(pdf)
@@ -32,10 +33,15 @@ module Reports::WeeklyOpsReportPdfTables
     return if rows.blank?
 
     render_pdf_table(pdf, 'Calidad de leads por canal', ['Fuente', 'Contactados', 'Total', '% Calidad'], rows)
+    render_card_analysis_line(pdf, :quality_by_source)
   end
 
   def render_owner_table(pdf)
-    render_distribution_table(pdf, 'Distribución por asesor (Zoho)', %w[Asesor Leads %], owner_rows(kpis))
+    rows = owner_rows(kpis)
+    return if rows.blank?
+
+    render_distribution_table(pdf, 'Distribución por asesor (Zoho)', %w[Asesor Leads %], rows)
+    render_card_analysis_line(pdf, :zoho_owner)
   end
 
   def render_conversion_totals_line(pdf)
@@ -44,6 +50,7 @@ module Reports::WeeklyOpsReportPdfTables
 
     pdf.font_size(10) { pdf.text(text) }
     pdf.move_down(10)
+    render_card_analysis_line(pdf, :conversion_totals)
   end
 
   def render_schedule_distribution_line(pdf)
@@ -52,6 +59,7 @@ module Reports::WeeklyOpsReportPdfTables
 
     pdf.font_size(10) { pdf.text(text) }
     pdf.move_down(15)
+    render_card_analysis_line(pdf, :schedule_distribution)
   end
 
   private
