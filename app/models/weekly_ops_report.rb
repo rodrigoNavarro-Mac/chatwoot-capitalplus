@@ -3,6 +3,7 @@
 # Table name: weekly_ops_reports
 #
 #  id              :bigint           not null, primary key
+#  card_analyses   :jsonb            not null
 #  kpis            :jsonb            not null
 #  llm_analysis    :text
 #  period_end      :date             not null

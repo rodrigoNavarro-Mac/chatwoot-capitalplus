@@ -6,5 +6,6 @@ json.period_type @weekly_ops_report.period_type
 json.status @weekly_ops_report.status
 json.kpis @weekly_ops_report.kpis
 json.llm_analysis @weekly_ops_report.llm_analysis
+json.card_analyses @weekly_ops_report.card_analyses
 json.generated_by_id @weekly_ops_report.generated_by_id
 json.created_at @weekly_ops_report.created_at
