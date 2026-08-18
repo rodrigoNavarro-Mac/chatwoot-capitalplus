@@ -42,7 +42,7 @@ module Reports::WeeklyOpsReportPdfTables
     rows = conversion_by_owner_rows(kpis)
     return if rows.blank?
 
-    render_pdf_table(pdf, 'Conversión y descarte por asesor', %w[Asesor Contactados Descartados], rows)
+    render_pdf_table(pdf, 'Conversión y descarte por asesor', %w[Asesor Convertidos Descartados], rows)
   end
 
   def render_schedule_distribution_line(pdf)

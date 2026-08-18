@@ -60,16 +60,23 @@ class V2::Reports::ZohoLeadsMetrics
     { total: deals.size, conversion_rate: safe_rate(deals.size, leads.size) }
   end
 
-  # Cuántos leads de cada dueño (Owner en Zoho) se contestaron vs se descartaron en el periodo,
-  # ordenado por volumen total descendente.
+  # Cuántos leads de cada dueño (Owner en Zoho) se CONVIRTIERON vs se descartaron en el periodo,
+  # ordenado por volumen total descendente. "Convertido" = se le creó un Deal nuevo en Zoho esta
+  # semana (ver Crm::Zoho::DealsForPeriodService, mismo criterio que #deals_created) — contactar a
+  # un lead (Lead_Status "Contacted") no es lo mismo que convertirlo, y usar ese status como si
+  # fuera conversión mostraba la métrica equivocada en la gráfica.
   def conversion_by_owner
-    return [] if leads.blank?
+    return [] if leads.blank? && deals.blank?
 
-    rows = leads.group_by { |lead| lead.dig('Owner', 'name') }.except(nil).map do |owner, owned|
-      { owner: owner, contacted: owned.count { |lead| lead['Lead_Status'] == CONTACTED_STATUS },
-        lost: owned.count { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS } }
+    converted_by_owner = count_by(deals) { |deal| deal.dig('Owner', 'name') }
+    lost_leads = leads.select { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
+    lost_by_owner = count_by(lost_leads) { |lead| lead.dig('Owner', 'name') }
+
+    owners = (converted_by_owner.keys + lost_by_owner.keys).uniq
+    rows = owners.map do |owner|
+      { owner: owner, converted: converted_by_owner.fetch(owner, 0), lost: lost_by_owner.fetch(owner, 0) }
     end
-    rows.sort_by { |row| -(row[:contacted] + row[:lost]) }
+    rows.sort_by { |row| -(row[:converted] + row[:lost]) }
   end
 
   # De los leads con actividad en el periodo (ver Crm::Zoho::LeadsForPeriodService — filtra por

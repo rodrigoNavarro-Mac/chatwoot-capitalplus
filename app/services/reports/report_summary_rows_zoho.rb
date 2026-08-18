@@ -24,9 +24,9 @@ module Reports::ReportSummaryRowsZoho
     end
   end
 
-  # Filas [asesor, contestados, descartados] — ver V2::Reports::ZohoLeadsMetrics#conversion_by_owner.
+  # Filas [asesor, convertidos, descartados] — ver V2::Reports::ZohoLeadsMetrics#conversion_by_owner.
   def conversion_by_owner_rows(kpis)
-    (kpis[:conversion_by_owner] || []).map { |row| [row[:owner], row[:contacted].to_s, row[:lost].to_s] }
+    (kpis[:conversion_by_owner] || []).map { |row| [row[:owner], row[:converted].to_s, row[:lost].to_s] }
   end
 
   def deals_created_line_text(kpis)

@@ -7,7 +7,7 @@ module Reports::WeeklyOpsReportDocxTablesZoho
   ADVISOR_PERIOD_OF_WEEK_TABLE_HEADER = ['Asesor', '1er mensaje L-V (min)', '1er mensaje S-D (min)', 'Conversaciones L-V / S-D'].freeze
   CONTACT_TIME_BY_PERIOD_TABLE_HEADER = ['Periodo', 'Tiempo 1er mensaje (min)', 'Tiempo de respuesta (min)'].freeze
   QUALITY_BY_SOURCE_TABLE_HEADER = ['Fuente', 'Contactados', 'Total', '% Calidad'].freeze
-  CONVERSION_BY_OWNER_TABLE_HEADER = %w[Asesor Contactados Descartados].freeze
+  CONVERSION_BY_OWNER_TABLE_HEADER = %w[Asesor Convertidos Descartados].freeze
 
   def insert_deals_created_line(sect_pr)
     text = deals_created_line_text(kpis)
