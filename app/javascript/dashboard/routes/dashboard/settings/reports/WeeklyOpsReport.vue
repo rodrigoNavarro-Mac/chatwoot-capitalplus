@@ -112,7 +112,7 @@ const cadenceChartRef = ref(null);
 const leadsTimelineChartRef = ref(null);
 const channelComparisonChartRef = ref(null);
 const qualityBySourceChartRef = ref(null);
-const conversionByOwnerChartRef = ref(null);
+const conversionTotalsChartRef = ref(null);
 
 const isCompleteDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const canGenerate = computed(
@@ -276,20 +276,22 @@ const qualityBySourceChartData = computed(() => {
   };
 });
 
-const conversionByOwnerChartData = computed(() => {
-  const rows = kpis.value?.conversion_by_owner || [];
+// Total del desarrollo, no por asesor — el "Owner" en Zoho no necesariamente refleja qué asesor
+// de Chatwoot atendió al cliente, así que desglosar por dueño daba una lectura equivocada de quién
+// "convierte más" (ver V2::Reports::ZohoLeadsMetrics#conversion_totals).
+const conversionTotalsChartData = computed(() => {
+  const totals = kpis.value?.conversion_totals;
+  if (!totals) return { labels: [], datasets: [] };
+
   return {
-    labels: rows.map(row => row.owner),
+    labels: [
+      t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.CONVERTED'),
+      t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.LOST'),
+    ],
     datasets: [
       {
-        label: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.CONVERTED'),
-        backgroundColor: '#2ca02c',
-        data: rows.map(row => row.converted),
-      },
-      {
-        label: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.LOST'),
-        backgroundColor: '#d62728',
-        data: rows.map(row => row.lost),
+        backgroundColor: ['#2ca02c', '#d62728'],
+        data: [totals.converted, totals.lost],
       },
     ],
   };
@@ -386,9 +388,9 @@ const downloadPdf = async () => {
         title: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.QUALITY_BY_SOURCE_TITLE'),
         data_url: qualityBySourceChartRef.value.chart.toBase64Image(),
       },
-      conversionByOwnerChartRef.value?.chart && {
+      conversionTotalsChartRef.value?.chart && {
         title: t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.TITLE'),
-        data_url: conversionByOwnerChartRef.value.chart.toBase64Image(),
+        data_url: conversionTotalsChartRef.value.chart.toBase64Image(),
       },
     ].filter(Boolean);
 
@@ -886,7 +888,7 @@ const downloadPdf = async () => {
         </div>
 
         <div
-          v-if="conversionByOwnerChartData.labels.length"
+          v-if="conversionTotalsChartData.labels.length"
           class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
         >
           <h3 class="text-base font-semibold text-n-slate-12 mb-3">
@@ -894,8 +896,8 @@ const downloadPdf = async () => {
           </h3>
           <div class="h-64">
             <BarChart
-              ref="conversionByOwnerChartRef"
-              :collection="conversionByOwnerChartData"
+              ref="conversionTotalsChartRef"
+              :collection="conversionTotalsChartData"
             />
           </div>
         </div>

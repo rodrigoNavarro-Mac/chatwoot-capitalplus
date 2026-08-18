@@ -60,23 +60,16 @@ class V2::Reports::ZohoLeadsMetrics
     { total: deals.size, conversion_rate: safe_rate(deals.size, leads.size) }
   end
 
-  # Cuántos leads de cada dueño (Owner en Zoho) se CONVIRTIERON vs se descartaron en el periodo,
-  # ordenado por volumen total descendente. "Convertido" = se le creó un Deal nuevo en Zoho esta
-  # semana (ver Crm::Zoho::DealsForPeriodService, mismo criterio que #deals_created) — contactar a
-  # un lead (Lead_Status "Contacted") no es lo mismo que convertirlo, y usar ese status como si
-  # fuera conversión mostraba la métrica equivocada en la gráfica.
-  def conversion_by_owner
-    return [] if leads.blank? && deals.blank?
+  # Convertidos (deals nuevos, ver #deals_created) vs descartados (Lead_Status "Lost Lead") de TODO
+  # el desarrollo en el periodo — no desglosado por asesor. El "Owner" de un lead/deal en Zoho no
+  # necesariamente refleja qué asesor de Chatwoot atendió al cliente (ej. una sola persona cierra o
+  # descarta la mayoría de los leads en Zoho sin importar quién los trabajó primero por WhatsApp),
+  # así que desglosar por dueño da una lectura equivocada de qué asesor "convierte más". Detectado
+  # 2026-08-18: el desglose por asesor mostraba a un solo asesor con toda la conversión.
+  def conversion_totals
+    return nil if leads.blank? && deals.blank?
 
-    converted_by_owner = count_by(deals) { |deal| deal.dig('Owner', 'name') }
-    lost_leads = leads.select { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
-    lost_by_owner = count_by(lost_leads) { |lead| lead.dig('Owner', 'name') }
-
-    owners = (converted_by_owner.keys + lost_by_owner.keys).uniq
-    rows = owners.map do |owner|
-      { owner: owner, converted: converted_by_owner.fetch(owner, 0), lost: lost_by_owner.fetch(owner, 0) }
-    end
-    rows.sort_by { |row| -(row[:converted] + row[:lost]) }
+    { converted: deals.size, lost: leads.count { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS } }
   end
 
   # De los leads con actividad en el periodo (ver Crm::Zoho::LeadsForPeriodService — filtra por

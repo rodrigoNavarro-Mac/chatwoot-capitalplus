@@ -48,7 +48,7 @@ class Reports::WeeklyOpsReportPdfService
     render_lead_source_table(pdf)
     render_quality_by_source_table(pdf)
     render_owner_table(pdf)
-    render_conversion_by_owner_table(pdf)
+    render_conversion_totals_line(pdf)
     render_discard_reasons_table(pdf)
     render_schedule_distribution_line(pdf)
   end

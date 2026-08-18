@@ -38,11 +38,12 @@ module Reports::WeeklyOpsReportPdfTables
     render_distribution_table(pdf, 'Distribución por asesor (Zoho)', %w[Asesor Leads %], owner_rows(kpis))
   end
 
-  def render_conversion_by_owner_table(pdf)
-    rows = conversion_by_owner_rows(kpis)
-    return if rows.blank?
+  def render_conversion_totals_line(pdf)
+    text = conversion_totals_line_text(kpis)
+    return if text.blank?
 
-    render_pdf_table(pdf, 'Conversión y descarte por asesor', %w[Asesor Convertidos Descartados], rows)
+    pdf.font_size(10) { pdf.text(text) }
+    pdf.move_down(10)
   end
 
   def render_schedule_distribution_line(pdf)
