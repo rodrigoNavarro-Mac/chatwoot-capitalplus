@@ -22,15 +22,45 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'generates and persists a report for administrators' do
-      post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
-           params: params, headers: administrator.create_new_auth_token, as: :json
+    # Arma los KPIs y le pide al LLM el analisis ejecutivo + mini-analisis de las 15 cards puede
+    # tardar mas de los 15s del timeout de Rack::Timeout en produccion (confirmado 2026-08-18) --
+    # el request deja el registro en "pending" y encola Reports::GenerateOnDemandWeeklyOpsReportJob
+    # en vez de generar todo de forma sincrona.
+    it 'immediately persists a pending report and enqueues the background job for administrators' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end.to have_enqueued_job(Reports::GenerateOnDemandWeeklyOpsReportJob)
 
       expect(response).to have_http_status(:success)
       body = JSON.parse(response.body, symbolize_names: true)
-      expect(body[:llm_analysis]).to eq('Análisis de prueba')
-      expect(body[:card_analyses]).to eq(contact_time: 'Nota corta de prueba')
+      expect(body[:status]).to eq('pending')
+      expect(body[:llm_analysis]).to be_nil
       expect(WeeklyOpsReport.where(inbox: inbox).count).to eq(1)
+    end
+
+    it 'completes with the executive summary and per-card analyses once the background job runs' do
+      perform_enqueued_jobs(only: Reports::GenerateOnDemandWeeklyOpsReportJob) do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end
+
+      report = WeeklyOpsReport.find_by(inbox: inbox)
+      expect(report.status).to eq('completed')
+      expect(report.llm_analysis).to eq('Análisis de prueba')
+      expect(report.card_analyses).to eq('contact_time' => 'Nota corta de prueba')
+    end
+
+    it 'marks the report as failed when the job raises' do
+      allow(V2::Reports::WeeklyOpsReportBuilder).to receive(:new).and_raise(StandardError, 'boom')
+      allow(ChatwootExceptionTracker).to receive(:new).and_return(instance_double(ChatwootExceptionTracker, capture_exception: nil))
+
+      perform_enqueued_jobs(only: Reports::GenerateOnDemandWeeklyOpsReportJob) do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end
+
+      expect(WeeklyOpsReport.find_by(inbox: inbox).status).to eq('failed')
     end
 
     it 'reuses the same record when generated again for the same period' do
@@ -79,8 +109,10 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
 
   describe 'POST /api/v1/accounts/{account.id}/inboxes/{inbox.id}/weekly_ops_reports/{id}/pdf' do
     it 'returns a PDF file built with Prawn when there is no letterhead template' do
-      post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
-           params: params, headers: administrator.create_new_auth_token, as: :json
+      perform_enqueued_jobs(only: Reports::GenerateOnDemandWeeklyOpsReportJob) do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end
       report_id = JSON.parse(response.body, symbolize_names: true)[:id]
 
       post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report_id}/pdf",
@@ -102,8 +134,10 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       stub_request(:post, "#{ENV.fetch('GOTENBERG_URL')}/forms/libreoffice/convert")
         .to_return(status: 200, body: '%PDF-1.4 fake', headers: { 'Content-Type' => 'application/pdf' })
 
-      post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
-           params: params, headers: administrator.create_new_auth_token, as: :json
+      perform_enqueued_jobs(only: Reports::GenerateOnDemandWeeklyOpsReportJob) do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end
       report_id = JSON.parse(response.body, symbolize_names: true)[:id]
 
       post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report_id}/pdf",
@@ -124,8 +158,10 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       branding.save!
       stub_request(:post, "#{ENV.fetch('GOTENBERG_URL')}/forms/libreoffice/convert").to_return(status: 500)
 
-      post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
-           params: params, headers: administrator.create_new_auth_token, as: :json
+      perform_enqueued_jobs(only: Reports::GenerateOnDemandWeeklyOpsReportJob) do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end
       report_id = JSON.parse(response.body, symbolize_names: true)[:id]
 
       post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report_id}/pdf",

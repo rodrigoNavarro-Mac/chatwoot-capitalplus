@@ -733,6 +733,7 @@
     "GENERATE": "Generar reporte",
     "DOWNLOAD_PDF": "Descargar PDF",
     "EMPTY": "Selecciona un desarrollo y un periodo, luego genera el reporte",
+    "GENERATING": "Generando el reporte con inteligencia artificial — puede tardar unos segundos…",
     "FILTERS": {
       "INBOX": "Desarrollo",
       "SELECT_INBOX": "Selecciona un desarrollo",
@@ -849,7 +850,8 @@
     },
     "ERRORS": {
       "GENERATE": "No se pudo generar el reporte",
-      "DOWNLOAD": "No se pudo descargar el PDF"
+      "DOWNLOAD": "No se pudo descargar el PDF",
+      "FAILED": "La generación del reporte falló — intenta de nuevo"
     }
   },
   "SUMMARY_REPORTS": {
