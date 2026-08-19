@@ -212,7 +212,7 @@ class Reports::WeeklyOpsReportPdfService
       pdf.font_size(10) { pdf.text(chart[:title].to_s) } if chart[:title].present?
       add_chart_image(pdf, chart[:data_url])
       pdf.move_down(6)
-      render_card_analysis_line(pdf, chart[:key]) unless Reports::ReportCardAnalyses::DUAL_REPRESENTATION_CARD_KEYS.include?(chart[:key].to_s)
+      render_card_analysis_line(pdf, chart[:key])
       pdf.move_down(4)
     end
   end

@@ -15,8 +15,6 @@ module Reports::WeeklyOpsReportDocxImages
       sect_pr.add_previous_sibling(image_xml) if image_xml
 
       key = chart[:key] || chart['key']
-      next if Reports::ReportCardAnalyses::DUAL_REPRESENTATION_CARD_KEYS.include?(key.to_s)
-
       insert_card_analysis_line(sect_pr, key)
     end
   end
