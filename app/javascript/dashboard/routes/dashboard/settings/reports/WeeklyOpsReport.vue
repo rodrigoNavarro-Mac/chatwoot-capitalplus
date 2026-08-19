@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue';
+import { ref, computed, nextTick, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -298,10 +298,51 @@ const conversionTotalsChartData = computed(() => {
   };
 });
 
+// El backend deja el reporte en "pending" y arma los KPIs + análisis de IA en segundo plano (ver
+// Reports::GenerateOnDemandWeeklyOpsReportJob) porque esa llamada al LLM ya no cabe de forma
+// confiable en los 15s del timeout de un request HTTP normal. Mientras esté "pending" se hace
+// polling a GET .../weekly_ops_reports/:id hasta que quede "completed" o "failed".
+const POLL_INTERVAL_MS = 3000;
+let pollTimeoutId = null;
+
+const stopPolling = () => {
+  if (pollTimeoutId) {
+    clearTimeout(pollTimeoutId);
+    pollTimeoutId = null;
+  }
+};
+
+const pollReport = async () => {
+  if (!report.value || report.value.status !== 'pending') return;
+
+  try {
+    const response = await WeeklyOpsReportsAPI.getReport(
+      filters.value.inboxId,
+      report.value.id
+    );
+    report.value = response.data;
+  } catch (error) {
+    // Silencioso: reintenta en el siguiente tick en vez de tumbar el polling por un fallo puntual.
+  }
+
+  if (report.value?.status === 'pending') {
+    pollTimeoutId = setTimeout(pollReport, POLL_INTERVAL_MS);
+    return;
+  }
+
+  isLoading.value = false;
+  if (report.value?.status === 'failed') {
+    useAlert(t('WEEKLY_OPS_REPORTS.ERRORS.GENERATE'));
+  }
+};
+
+onBeforeUnmount(stopPolling);
+
 // Si ya existe un reporte generado para el inbox, el rango de fechas y el tipo de periodo
 // seleccionados, lo precarga en vez de dejar la pantalla vacía esperando a que el usuario le dé
 // "Generar reporte" de nuevo.
 const loadExistingReport = async () => {
+  stopPolling();
   report.value = null;
   if (!canGenerate.value) return;
 
@@ -344,6 +385,7 @@ watch(
 const fetchOrGenerate = async () => {
   if (!canGenerate.value) return;
 
+  stopPolling();
   isLoading.value = true;
   try {
     const response = await WeeklyOpsReportsAPI.generateReport(
@@ -355,9 +397,13 @@ const fetchOrGenerate = async () => {
       }
     );
     report.value = response.data;
+    if (report.value.status === 'pending') {
+      pollTimeoutId = setTimeout(pollReport, POLL_INTERVAL_MS);
+    } else {
+      isLoading.value = false;
+    }
   } catch (error) {
     useAlert(t('WEEKLY_OPS_REPORTS.ERRORS.GENERATE'));
-  } finally {
     isLoading.value = false;
   }
 };
@@ -433,7 +479,7 @@ const downloadPdf = async () => {
           variant="outline"
           icon="i-lucide-download"
           :is-loading="isDownloading"
-          :disabled="!report"
+          :disabled="!report || report.status !== 'completed'"
           :label="t('WEEKLY_OPS_REPORTS.DOWNLOAD_PDF')"
           @click="downloadPdf"
         />
@@ -545,15 +591,25 @@ const downloadPdf = async () => {
 
       <ReportBrandingPanel v-if="filters.inboxId" :inbox-id="filters.inboxId" />
 
-      <div v-if="isLoading" class="flex justify-center py-8">
+      <div v-if="isLoading" class="flex flex-col items-center gap-3 py-8">
         <Spinner />
+        <p
+          v-if="report?.status === 'pending'"
+          class="text-sm text-n-slate-11 m-0"
+        >
+          {{ t('WEEKLY_OPS_REPORTS.GENERATING') }}
+        </p>
       </div>
 
       <div
-        v-else-if="!report"
+        v-else-if="!report || report.status !== 'completed'"
         class="text-sm text-n-slate-11 py-8 text-center rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 mb-6"
       >
-        {{ t('WEEKLY_OPS_REPORTS.EMPTY') }}
+        {{
+          report?.status === 'failed'
+            ? t('WEEKLY_OPS_REPORTS.ERRORS.FAILED')
+            : t('WEEKLY_OPS_REPORTS.EMPTY')
+        }}
       </div>
 
       <template v-else>

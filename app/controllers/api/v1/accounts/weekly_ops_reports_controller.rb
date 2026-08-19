@@ -1,4 +1,6 @@
 class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseController
+  include DateRangeHelper
+
   before_action :fetch_inbox
   before_action :check_authorization
   before_action :fetch_weekly_ops_report, only: [:show, :pdf]
@@ -9,10 +11,15 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
 
   def show; end
 
+  # Deja el registro en "pending" y encola la generación real (kpis + LLM) en segundo plano — ver
+  # Reports::GenerateOnDemandWeeklyOpsReportJob para el porqué: armar los KPIs y pedirle al LLM el
+  # análisis ejecutivo Y el mini-análisis de las 15 cards puede tardar más de los 15s del timeout
+  # de Rack::Timeout. El frontend hace polling a #show hasta que status deje de ser "pending".
   def create
-    @weekly_ops_report = generate_report!
+    @weekly_ops_report = pending_report!
+    Reports::GenerateOnDemandWeeklyOpsReportJob.perform_later(@weekly_ops_report.id, report_params)
     render :show
-  rescue ActiveRecord::RecordInvalid, RubyLLM::Error => e
+  rescue ActiveRecord::RecordInvalid => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
@@ -61,28 +68,23 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
     authorize(WeeklyOpsReport)
   end
 
-  def generate_report!
+  # period_start/period_end se calculan igual que V2::Reports::WeeklyOpsReportBuilder#date_bounds
+  # (mismo DateRangeHelper#range), pero sin construir los KPIs todavía — eso lo hace el job.
+  def pending_report!
     period_type = params[:period_type].presence || 'week'
-    kpis = V2::Reports::WeeklyOpsReportBuilder.new(
-      account: Current.account,
-      inbox: @inbox,
-      params: { since: params[:since], until: params[:until], period_type: period_type }
-    ).build
-    analysis = Reports::WeeklyOpsAnalysisLlmService.new(account: Current.account, kpis: kpis).generate
-
-    period = kpis[:period] || {}
-    record = @inbox.weekly_ops_reports.find_or_initialize_by(period_start: period[:since], period_type: period_type)
+    record = @inbox.weekly_ops_reports.find_or_initialize_by(period_start: range.begin.to_date, period_type: period_type)
     record.assign_attributes(
       account: Current.account,
-      period_end: period[:until],
-      kpis: kpis,
-      llm_analysis: analysis[:executive_summary],
-      card_analyses: analysis[:card_analyses],
-      status: 'completed',
+      period_end: (range.end - 1.second).to_date,
+      status: 'pending',
       generated_by: Current.user
     )
     record.save!
     record
+  end
+
+  def report_params
+    { since: params[:since], until: params[:until], period_type: params[:period_type].presence || 'week' }
   end
 
   def chart_images_params
