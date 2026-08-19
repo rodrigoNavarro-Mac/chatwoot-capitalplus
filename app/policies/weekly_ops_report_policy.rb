@@ -15,3 +15,5 @@ class WeeklyOpsReportPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 end
+
+WeeklyOpsReportPolicy.prepend_mod_with('WeeklyOpsReportPolicy')

@@ -180,13 +180,27 @@ export default {
         {
           path: 'sales_funnel',
           name: 'sales_funnel_reports',
-          meta,
+          meta: {
+            ...meta,
+            permissions: [
+              ...meta.permissions,
+              'sales_funnel_view',
+              'sales_funnel_manage',
+            ],
+          },
           component: SalesFunnelReport,
         },
         {
           path: 'weekly_ops',
           name: 'weekly_ops_reports',
-          meta,
+          meta: {
+            ...meta,
+            permissions: [
+              ...meta.permissions,
+              'weekly_ops_report_view',
+              'weekly_ops_report_manage',
+            ],
+          },
           component: WeeklyOpsReport,
         },
       ],

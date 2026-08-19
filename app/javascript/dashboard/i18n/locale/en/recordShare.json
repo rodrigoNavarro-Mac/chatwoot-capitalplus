@@ -1,0 +1,11 @@
+{
+  "RECORD_SHARE": {
+    "SHARE_BUTTON": "Share",
+    "REMOVE_BUTTON": "Remove access",
+    "NO_SHARES_TEXT": "Not shared with anyone else",
+    "TOTAL_SHARED_TEXT": "Shared with {count} agent or team | Shared with {count} agents or teams",
+    "API": {
+      "ERROR_MESSAGE": "Could not update sharing. Please try again."
+    }
+  }
+}

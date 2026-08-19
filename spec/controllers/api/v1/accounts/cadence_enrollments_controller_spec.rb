@@ -43,6 +43,29 @@ RSpec.describe 'Cadence Enrollments API', type: :request do
       expect(body.first[:cadence_definition][:name]).to eq(cadence_definition.name)
     end
 
+    context 'when the requester has a custom role with cadence_view' do
+      let(:custom_role) { create(:custom_role, account: account, permissions: ['cadence_view']) }
+      let(:other_agent) { create(:user, account: account, role: :agent) }
+
+      before { agent.account_users.find_by(account: account).update!(custom_role: custom_role) }
+
+      it 'only returns enrollments assigned to the agent' do
+        other_contact = create(:contact, account: account, phone_number: '+15557654321')
+        other_conversation = create(:conversation, account: account, inbox: whatsapp_inbox, contact: other_contact, assignee: other_agent,
+                                                   status: 'open')
+        CadenceEnrollment.create!(
+          account: account, conversation: other_conversation, contact: other_contact, inbox: whatsapp_inbox,
+          cadence_definition: cadence_definition, assignee_id: other_agent.id
+        )
+
+        get "/api/v1/accounts/#{account.id}/cadence_enrollments", headers: agent.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        body = JSON.parse(response.body, symbolize_names: true)
+        expect(body.pluck(:id)).to contain_exactly(enrollment.id)
+      end
+    end
+
     it 'filters by cadence_definition_id' do
       other_definition = create_cadence_definition!(whatsapp_inbox, is_default: false, name: 'Other variant')
       other_contact = create(:contact, account: account, phone_number: '+15557654321')

@@ -19,6 +19,8 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
     'presupuesto' => 'Amount',
     'desarrollo'  => 'Desarollo'
   }.freeze
+  before_action :authorize_crm_view!, only: [:contact_data]
+  before_action :authorize_crm_manage!, only: %i[create_lead create_deal push_to_crm update_stage create_crm_note sync_deals]
   before_action :fetch_hook
   before_action :load_contact, except: [:sync_deals]
   before_action :require_zoho_link, only: %i[contact_data update_stage create_crm_note create_deal push_to_crm]
@@ -156,6 +158,14 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
   end
 
   private
+
+  def authorize_crm_view!
+    authorize(:crm, :view?)
+  end
+
+  def authorize_crm_manage!
+    authorize(:crm, :manage?)
+  end
 
   def fetch_hook
     @hook = Integrations::Hook.find_by(account: Current.account, app_id: 'zoho_crm', status: 'enabled')

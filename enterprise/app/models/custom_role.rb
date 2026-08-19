@@ -19,9 +19,16 @@
 # - 'conversation_manage': Can manage all conversations.
 # - 'conversation_unassigned_manage': Can manage unassigned conversations and assign to self.
 # - 'conversation_participating_manage': Can manage conversations they are participating in (assigned to or a participant).
-# - 'contact_manage': Can manage contacts.
-# - 'report_manage': Can manage reports.
-# - 'knowledge_base_manage': Can manage knowledge base portals.
+# - 'contact_view' / 'contact_manage': Read-only vs full access to contacts.
+# - 'report_view' / 'report_manage': Read-only vs full access (export/download) to reports.
+# - 'knowledge_base_view' / 'knowledge_base_manage': Read-only vs full access to the knowledge base.
+# - 'cadence_view' / 'cadence_manage': Read-only vs full access to cadences (definitions, enrollments, call tasks, analytics).
+# - 'sales_funnel_view' / 'sales_funnel_manage': Read-only vs full access to sales funnel goals.
+# - 'weekly_ops_report_view' / 'weekly_ops_report_manage': Read-only vs full access to the weekly ops report.
+# - 'campaign_view' / 'campaign_manage': Read-only vs full access to campaigns.
+# - 'crm_view' / 'crm_manage': Read-only vs full access to the CRM integration panel (push/create/sync).
+#
+# For most modules 'manage' implies 'view' (enforced client-side when building the role).
 
 class CustomRole < ApplicationRecord
   belongs_to :account
@@ -31,9 +38,22 @@ class CustomRole < ApplicationRecord
     conversation_manage
     conversation_unassigned_manage
     conversation_participating_manage
+    contact_view
     contact_manage
+    report_view
     report_manage
+    knowledge_base_view
     knowledge_base_manage
+    cadence_view
+    cadence_manage
+    sales_funnel_view
+    sales_funnel_manage
+    weekly_ops_report_view
+    weekly_ops_report_manage
+    campaign_view
+    campaign_manage
+    crm_view
+    crm_manage
   ].freeze
 
   validates :name, presence: true

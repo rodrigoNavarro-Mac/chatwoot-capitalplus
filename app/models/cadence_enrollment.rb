@@ -67,6 +67,10 @@ class CadenceEnrollment < ApplicationRecord
   }
   scope :filter_by_status, ->(status) { where(status: status) if status.present? }
   scope :filter_by_step, ->(step) { where(current_step: step) if step.present? }
+  scope :own_or_team, lambda { |user|
+    team_conversation_ids = Conversation.where(team_id: user.teams.select(:id)).select(:id)
+    where(assignee_id: user.id).or(where(conversation_id: team_conversation_ids))
+  }
 
   def responded_since_last_template?
     last_lead_response_at.present? && last_template_sent_at.present? && last_lead_response_at > last_template_sent_at

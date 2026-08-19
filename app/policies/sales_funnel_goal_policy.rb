@@ -15,3 +15,5 @@ class SalesFunnelGoalPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 end
+
+SalesFunnelGoalPolicy.prepend_mod_with('SalesFunnelGoalPolicy')

@@ -36,9 +36,33 @@
       "CONVERSATION_MANAGE": "Manage all conversations",
       "CONVERSATION_UNASSIGNED_MANAGE": "Manage unassigned conversations and those assigned to them",
       "CONVERSATION_PARTICIPATING_MANAGE": "Manage participating conversations and those assigned to them",
+      "CONTACT_VIEW": "Ver contactos",
       "CONTACT_MANAGE": "Administrar contactos",
+      "REPORT_VIEW": "Ver informes",
       "REPORT_MANAGE": "Administrar informes",
-      "KNOWLEDGE_BASE_MANAGE": "Administrar base de conocimiento"
+      "KNOWLEDGE_BASE_VIEW": "Ver base de conocimiento",
+      "KNOWLEDGE_BASE_MANAGE": "Administrar base de conocimiento",
+      "CADENCE_VIEW": "Ver cadencias",
+      "CADENCE_MANAGE": "Administrar cadencias",
+      "SALES_FUNNEL_VIEW": "Ver metas de embudo de ventas",
+      "SALES_FUNNEL_MANAGE": "Administrar metas de embudo de ventas",
+      "WEEKLY_OPS_REPORT_VIEW": "Ver reporte semanal de operación",
+      "WEEKLY_OPS_REPORT_MANAGE": "Administrar reporte semanal de operación",
+      "CAMPAIGN_VIEW": "Ver campañas",
+      "CAMPAIGN_MANAGE": "Administrar campañas",
+      "CRM_VIEW": "Ver panel de CRM",
+      "CRM_MANAGE": "Administrar panel de CRM",
+      "MODULE_LABELS": {
+        "CONVERSATION": "Conversaciones",
+        "CONTACT": "Contactos",
+        "REPORT": "Reportes",
+        "KNOWLEDGE_BASE": "Base de conocimiento",
+        "CADENCE": "Cadencias",
+        "SALES_FUNNEL": "Embudo de ventas",
+        "WEEKLY_OPS_REPORT": "Reporte semanal de operación",
+        "CAMPAIGN": "Campañas",
+        "CRM": "Integración CRM"
+      }
     },
     "FORM": {
       "NAME": {
@@ -53,7 +77,12 @@
       },
       "PERMISSIONS": {
         "LABEL": "Permisos",
-        "ERROR": "Permisos requeridos."
+        "ERROR": "Permisos requeridos.",
+        "LEVELS": {
+          "NONE": "Sin acceso",
+          "VIEW": "Solo ver",
+          "MANAGE": "Administrar"
+        }
       },
       "CANCEL_BUTTON_TEXT": "Cancelar",
       "API": {

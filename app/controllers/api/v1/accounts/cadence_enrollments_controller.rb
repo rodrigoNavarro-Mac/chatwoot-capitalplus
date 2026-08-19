@@ -121,17 +121,23 @@ class Api::V1::Accounts::CadenceEnrollmentsController < Api::V1::Accounts::BaseC
   end
 
   def filtered_enrollments
-    Current.account.cadence_enrollments
-           .filter_by_date_range(range)
-           .filter_by_inbox_id(permitted_params[:inbox_id])
-           .filter_by_cadence_definition_id(permitted_params[:cadence_definition_id])
-           .filter_by_assignee_id(permitted_params[:assignee_id])
-           .filter_by_team_id(permitted_params[:team_id])
-           .filter_by_status(permitted_params[:status])
-           .filter_by_step(permitted_params[:step])
+    scope = Current.account.cadence_enrollments
+                   .filter_by_date_range(range)
+                   .filter_by_inbox_id(permitted_params[:inbox_id])
+                   .filter_by_cadence_definition_id(permitted_params[:cadence_definition_id])
+                   .filter_by_assignee_id(permitted_params[:assignee_id])
+                   .filter_by_team_id(permitted_params[:team_id])
+                   .filter_by_status(permitted_params[:status])
+                   .filter_by_step(permitted_params[:step])
+    scope = scope.own_or_team(Current.user) unless unrestricted_cadence_access?
+    scope
   end
 
   def permitted_params
     params.permit(:inbox_id, :cadence_definition_id, :assignee_id, :team_id, :status, :step)
+  end
+
+  def unrestricted_cadence_access?
+    Current.account_user.administrator? || Current.account_user.custom_role&.permissions&.include?('cadence_manage')
   end
 end

@@ -29,6 +29,47 @@ RSpec.describe 'Cadence Call Tasks API', type: :request do
       expect(response).to have_http_status(:success)
       expect(response.parsed_body).to be_empty
     end
+
+    context 'when the requester has a custom role with cadence_view' do
+      let(:custom_role) { create(:custom_role, account: account, permissions: ['cadence_view']) }
+      let(:team) { create(:team, account: account) }
+      let(:team_conversation) do
+        create(:conversation, :with_team, account: account, inbox: whatsapp_inbox, team: team, contact: contact)
+      end
+      let!(:teammate_task) do
+        CadenceCallTask.create!(
+          account: account, cadence_enrollment: CadenceEnrollment.create!(
+            account: account, conversation: team_conversation, contact: contact, inbox: whatsapp_inbox,
+            cadence_definition: cadence_definition
+          ), conversation: team_conversation, user: other_agent, step: 1
+        )
+      end
+
+      before do
+        other_agent.account_users.find_by(account: account).update!(custom_role: custom_role)
+        create(:team_member, team: team, user: other_agent)
+      end
+
+      it 'includes tasks from the agent\'s team even when they are assigned to someone else' do
+        get "/api/v1/accounts/#{account.id}/cadence_call_tasks", headers: other_agent.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body.pluck('id')).to contain_exactly(teammate_task.id)
+      end
+    end
+
+    context 'when the requester has a custom role with cadence_manage' do
+      let(:custom_role) { create(:custom_role, account: account, permissions: ['cadence_manage']) }
+
+      before { other_agent.account_users.find_by(account: account).update!(custom_role: custom_role) }
+
+      it 'returns every task in the account, not just their own' do
+        get "/api/v1/accounts/#{account.id}/cadence_call_tasks", headers: other_agent.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body.pluck('id')).to contain_exactly(call_task.id)
+      end
+    end
   end
 
   describe 'POST /api/v1/accounts/{account.id}/cadence_call_tasks/:id/complete' do

@@ -19,3 +19,5 @@ class CadenceAnalyticsPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 end
+
+CadenceAnalyticsPolicy.prepend_mod_with('CadenceAnalyticsPolicy')

@@ -41,6 +41,7 @@ import labels from './modules/labels';
 import macros from './modules/macros';
 import notifications from './modules/notifications';
 import portals from './modules/helpCenterPortals';
+import recordShares from './modules/recordShares';
 import reports from './modules/reports';
 import sla from './modules/sla';
 import slaReports from './modules/SLAReports';
@@ -105,6 +106,7 @@ export default createStore({
     macros,
     notifications,
     portals,
+    recordShares,
     reports,
     sla,
     slaReports,

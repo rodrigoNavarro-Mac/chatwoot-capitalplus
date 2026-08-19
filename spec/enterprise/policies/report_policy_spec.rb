@@ -18,9 +18,20 @@ RSpec.describe 'Enterprise::ReportPolicy', type: :policy do
     { user: agent_with_role, account: account, account_user: agent_with_role_account_user }
   end
 
+  let(:view_role) { create(:custom_role, account: account, permissions: ['report_view']) }
+  let(:agent_with_view) { create(:user) }
+  let(:agent_with_view_account_user) do
+    create(:account_user, user: agent_with_view, account: account, role: :agent, custom_role: view_role)
+  end
+  let(:agent_with_view_context) { { user: agent_with_view, account: account, account_user: agent_with_view_account_user } }
+
   permissions :view? do
     context 'when agent with report_manage permission' do
       it { expect(report_policy).to permit(agent_with_role_context, report) }
+    end
+
+    context 'when agent with report_view permission' do
+      it { expect(report_policy).to permit(agent_with_view_context, report) }
     end
   end
 end

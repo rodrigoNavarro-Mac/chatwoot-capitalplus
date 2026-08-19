@@ -15,3 +15,5 @@ class CadenceDefinitionPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 end
+
+CadenceDefinitionPolicy.prepend_mod_with('CadenceDefinitionPolicy')
