@@ -55,36 +55,75 @@ class Reports::WeeklyOpsAnalysisLlmService < Llm::BaseAiService
       inmobiliarios y atiende a sus leads por WhatsApp dentro de Chatwoot. Recibes los KPIs ya
       calculados de UN desarrollo para un periodo determinado, en JSON.
 
+      REGLA MÁS IMPORTANTE: quien lee esto ya está viendo la gráfica o la tabla junto a tu texto.
+      Nunca te limites a describir lo que ya es obvio a simple vista (que un número subió, que una
+      barra es la más alta, que el total es X) — eso no aporta nada. Cada frase debe hacer UNA de
+      estas dos cosas:
+      (a) cruzar ese dato con otra sección del JSON para revelar algo que no se ve mirando solo esa
+          card (causa probable, correlación, contradicción entre dos métricas), o
+      (b) señalar un detalle específico y no obvio dentro de esa misma sección (un valor atípico,
+          una proporción que no cuadra, algo que contradice la tendencia general).
+      Si después de intentar (a) y (b) el dato es demasiado plano para decir algo que no sea obvio,
+      omite esa clave — mejor omitir que rellenar con una obviedad.
+
       Responde ÚNICAMENTE con un objeto JSON con estas claves (usa exactamente estos nombres):
 
-      "executive_summary": análisis ejecutivo en prosa (sin listas ni viñetas), 2-3 hallazgos
-      accionables de la semana, comparando contra el periodo anterior cuando ese dato esté
-      disponible en el JSON. Máximo 180 palabras.
+      "executive_summary": análisis ejecutivo en prosa (sin listas ni viñetas), 2-3 hallazgos que
+      crucen información entre distintas secciones del JSON (no una lista de KPIs sueltos),
+      comparando contra el periodo anterior cuando ese dato esté disponible. Máximo 180 palabras.
 
       Por cada una de las claves siguientes, UNA sola frase corta (máximo 25 palabras), en tono
-      directo y ejecutivo, que interprete el número (no lo repita tal cual) y diga si es bueno,
-      malo o normal para la operación. Si la sección correspondiente del JSON de entrada está
-      vacía, nula, o no trae suficiente contexto para opinar con criterio, OMITE esa clave por
-      completo del JSON de salida — nunca escribas "sin datos" ni inventes una cifra que no esté
-      en el JSON de entrada:
+      directo y ejecutivo, aplicando la regla de arriba. Si la sección correspondiente del JSON de
+      entrada está vacía, nula, o no trae suficiente contexto para decir algo que no sea obvio,
+      OMITE esa clave por completo del JSON de salida — nunca escribas "sin datos" ni inventes una
+      cifra que no esté en el JSON de entrada:
 
-      - "leads_timeline": sobre kpis.zoho_leads_timeline — ¿el volumen de leads subió o bajó en el periodo?
-      - "pipeline": sobre kpis.pipeline.stages — ¿en qué etapa del embudo se están cayendo más leads?
-      - "zoho_pipeline_status": sobre kpis.zoho_leads.by_status — ¿dónde se está acumulando el pipeline?
-      - "contact_time": sobre kpis.contact_time (first_response, reply_time en minutos) — ¿se contesta rápido?
-      - "contact_time_by_period": sobre kpis.contact_time_by_period_of_week — ¿hay diferencia fuerte entre semana y fin de semana?
-      - "by_advisor": sobre kpis.by_advisor — ¿algún asesor destaca o está muy por debajo del resto?
-      - "conversion_totals": sobre kpis.conversion_totals (convertidos vs descartados) — ¿la proporción es sana?
-      - "zoho_source": sobre kpis.zoho_leads.by_source — ¿de dónde viene la mayoría de los leads?
-      - "quality_by_source": sobre kpis.zoho_leads.quality_by_source — ¿qué fuente trae leads de mejor calidad?
-      - "channel_comparison": compara kpis.zoho_leads.by_source contra kpis.comparison.zoho_leads.by_source — ¿qué fuente creció o cayó más semana a semana?
-      - "zoho_owner": sobre kpis.zoho_leads.by_owner — ¿un solo dueño concentra los leads en Zoho?
-      - "discard_reasons": sobre kpis.zoho_leads.discard_reasons — ¿cuál es el motivo de descarte más común?
-      - "schedule_distribution": sobre kpis.schedule_distribution — ¿los leads llegan dentro o fuera de horario laboral?
-      - "aircall_calls": sobre kpis.aircall_calls — ¿qué tan buena es la tasa de contestación de llamadas?
-      - "cadences": sobre kpis.cadences — ¿las cadencias de seguimiento están funcionando (response_rate)?
+      - "leads_timeline": kpis.zoho_leads_timeline — no describas si subió o bajó (ya se ve en la
+        gráfica); cruza el volumen con kpis.schedule_distribution o kpis.contact_time_by_period_of_week
+        (¿el patrón de llegada de leads presiona algún horario en particular?), o compáralo contra
+        kpis.comparison.zoho_leads_timeline si el patrón cambió de forma notable.
+      - "pipeline": kpis.pipeline.stages — no repitas cuál etapa cae más (ya se ve en el embudo);
+        relaciona esa caída con kpis.contact_time, kpis.by_advisor o kpis.schedule_distribution para
+        sugerir una causa probable.
+      - "zoho_pipeline_status": kpis.zoho_leads.by_status — cruza contra kpis.pipeline.stages: ¿el
+        estado en Zoho y la etapa del embudo interno cuentan la misma historia, o hay un desfase que
+        sugiere que el CRM no se está actualizando al mismo ritmo que la conversación?
+      - "contact_time": kpis.contact_time — cruza first_response/reply_time contra kpis.by_advisor
+        (¿un asesor específico arrastra la mediana?) o contra kpis.comparison.contact_time.
+      - "contact_time_by_period": kpis.contact_time_by_period_of_week — cruza la diferencia
+        semana/fin de semana contra kpis.schedule_distribution (¿cuántos leads llegan realmente en
+        ese horario débil?) en vez de solo reportar los minutos.
+      - "by_advisor": kpis.by_advisor — cruza conversations_count contra contact_time por asesor
+        (¿el que más atiende es también el más lento?) o contra kpis.zoho_leads.by_owner si un
+        asesor no aparece ahí pero sí en Chatwoot.
+      - "conversion_totals": kpis.conversion_totals — cruza la proporción convertidos/descartados
+        contra kpis.zoho_leads.discard_reasons (motivo principal) o contra kpis.contact_time
+        (¿el tiempo de respuesta explica parte del descarte?).
+      - "zoho_source": kpis.zoho_leads.by_source — cruza el volumen por fuente contra
+        kpis.zoho_leads.quality_by_source: ¿la fuente con más leads es también la de mejor calidad,
+        o hay una contradicción ahí?
+      - "quality_by_source": kpis.zoho_leads.quality_by_source — señala la fuente con mejor
+        proporción calidad/volumen aunque no sea la de más leads, cruzando contra by_source.
+      - "channel_comparison": compara kpis.zoho_leads.by_source contra
+        kpis.comparison.zoho_leads.by_source — no solo digas qué canal creció más; cruza ese cambio
+        de volumen contra kpis.zoho_leads.quality_by_source (¿el canal que más creció es de buena
+        calidad, o el crecimiento es "ruido"?).
+      - "zoho_owner": kpis.zoho_leads.by_owner — cruza la concentración de leads por dueño contra
+        kpis.by_advisor (¿la carga en Zoho coincide con quién realmente atiende en Chatwoot?).
+      - "discard_reasons": kpis.zoho_leads.discard_reasons — cruza el motivo principal contra
+        kpis.zoho_leads.by_source o kpis.schedule_distribution (¿ese motivo se concentra en una
+        fuente o en leads que llegan fuera de horario?).
+      - "schedule_distribution": kpis.schedule_distribution — cruza el % fuera de horario contra
+        kpis.contact_time_by_period_of_week (¿el fin de semana ya es lento Y además llega ahí buena
+        parte del volumen?) en vez de solo dar el porcentaje.
+      - "aircall_calls": kpis.aircall_calls — cruza la tasa de contestación contra kpis.contact_time
+        o kpis.by_advisor si hay desglose por asesor en esta sección.
+      - "cadences": kpis.cadences — cruza response_rate contra kpis.zoho_leads.discard_reasons o
+        kpis.conversion_totals (¿los leads que no responden a la cadencia terminan descartados?).
 
-      Nunca inventes cifras que no estén en el JSON de entrada.
+      Nunca inventes cifras que no estén en el JSON de entrada — si el cruce que quieres hacer
+      requiere un dato que no está en el JSON, usa otro cruce o, si no hay ninguno posible, omite
+      la clave.
     PROMPT
   end
 
