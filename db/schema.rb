@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_19_090000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_210000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1276,6 +1276,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_090000) do
     t.index ["portal_id", "user_id"], name: "index_portals_members_on_portal_id_and_user_id", unique: true
     t.index ["portal_id"], name: "index_portals_members_on_portal_id"
     t.index ["user_id"], name: "index_portals_members_on_user_id"
+  end
+
+  create_table "record_shares", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "shareable_type", null: false
+    t.bigint "shareable_id", null: false
+    t.string "shared_with_type", null: false
+    t.bigint "shared_with_id", null: false
+    t.integer "access_level", default: 0, null: false
+    t.bigint "shared_by_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_record_shares_on_account_id"
+    t.index ["shareable_type", "shareable_id", "shared_with_type", "shared_with_id"], name: "idx_unique_record_share", unique: true
+    t.index ["shareable_type", "shareable_id"], name: "index_record_shares_on_shareable_type_and_shareable_id"
+    t.index ["shared_with_type", "shared_with_id"], name: "index_record_shares_on_shared_with_type_and_shared_with_id"
   end
 
   create_table "related_categories", force: :cascade do |t|

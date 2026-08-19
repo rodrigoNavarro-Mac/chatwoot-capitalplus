@@ -1,29 +1,41 @@
 module Enterprise::CategoryPolicy
-  def index?
-    @account_user.custom_role&.permissions&.include?('knowledge_base_manage') || super
-  end
+  include Enterprise::Concerns::CustomRolePermissible
 
-  def update?
-    @account_user.custom_role&.permissions&.include?('knowledge_base_manage') || super
+  def index?
+    return super unless custom_role_present?
+
+    custom_role_permits?('knowledge_base_view') || custom_role_permits?('knowledge_base_manage')
   end
 
   def show?
-    @account_user.custom_role&.permissions&.include?('knowledge_base_manage') || super
+    return super unless custom_role_present?
+
+    custom_role_permits?('knowledge_base_view') || custom_role_permits?('knowledge_base_manage')
+  end
+
+  def update?
+    custom_role_permits?('knowledge_base_manage') || super
   end
 
   def edit?
-    @account_user.custom_role&.permissions&.include?('knowledge_base_manage') || super
+    custom_role_permits?('knowledge_base_manage') || super
   end
 
   def create?
-    @account_user.custom_role&.permissions&.include?('knowledge_base_manage') || super
+    custom_role_permits?('knowledge_base_manage') || super
   end
 
   def destroy?
-    @account_user.custom_role&.permissions&.include?('knowledge_base_manage') || super
+    custom_role_permits?('knowledge_base_manage') || super
   end
 
   def reorder?
-    @account_user.custom_role&.permissions&.include?('knowledge_base_manage') || super
+    custom_role_permits?('knowledge_base_manage') || super
+  end
+
+  private
+
+  def custom_role_present?
+    @account_user&.custom_role_id.present?
   end
 end

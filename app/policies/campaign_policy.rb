@@ -43,3 +43,5 @@ class CampaignPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 end
+
+CampaignPolicy.prepend_mod_with('CampaignPolicy')

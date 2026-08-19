@@ -13,6 +13,7 @@ import AccordionItem from 'dashboard/components/Accordion/AccordionItem.vue';
 import ContactConversations from './ContactConversations.vue';
 import ConversationAction from './ConversationAction.vue';
 import ConversationParticipant from './ConversationParticipant.vue';
+import RecordShareList from './RecordShareList.vue';
 import ContactInfo from './contact/ContactInfo.vue';
 import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
@@ -198,6 +199,12 @@ onMounted(() => {
                 :conversation-id="conversationId"
                 :inbox-id="inboxId"
               />
+              <div class="mt-3 pt-3 border-t border-n-weak">
+                <RecordShareList
+                  shareable-type="Conversation"
+                  :shareable-id="conversationId"
+                />
+              </div>
             </AccordionItem>
           </div>
           <div v-else-if="element.name === 'conversation_info'">

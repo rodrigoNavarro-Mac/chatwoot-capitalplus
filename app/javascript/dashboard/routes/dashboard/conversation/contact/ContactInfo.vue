@@ -17,6 +17,7 @@ import ComposeConversation from 'dashboard/components-next/NewConversation/Compo
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
+import RecordShareList from '../RecordShareList.vue';
 
 export default {
   components: {
@@ -30,6 +31,7 @@ export default {
     ContactDeleteModal,
     VoiceCallButton,
     InlineInput,
+    RecordShareList,
   },
   props: {
     contact: {
@@ -352,6 +354,9 @@ export default {
             />
           </template>
         </ContactDeleteModal>
+      </div>
+      <div v-if="contact.id" class="w-full mt-1">
+        <RecordShareList shareable-type="Contact" :shareable-id="contact.id" />
       </div>
       <EditContact
         :show="showEditModal"

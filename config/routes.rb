@@ -120,6 +120,7 @@ Rails.application.routes.draw do
           end
           resources :sla_policies, only: [:index, :create, :show, :update, :destroy]
           resources :custom_roles, only: [:index, :create, :show, :update, :destroy]
+          resources :record_shares, only: [:index, :create, :destroy]
           resources :agent_capacity_policies, only: [:index, :create, :show, :update, :destroy] do
             scope module: :agent_capacity_policies do
               resources :users, only: [:index, :create, :destroy]

@@ -35,3 +35,5 @@ class CadenceEnrollmentPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 end
+
+CadenceEnrollmentPolicy.prepend_mod_with('CadenceEnrollmentPolicy')

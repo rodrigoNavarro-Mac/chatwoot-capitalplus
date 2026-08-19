@@ -24,12 +24,16 @@ class Api::V1::Accounts::CadenceCallTasksController < Api::V1::Accounts::BaseCon
   def filtered_tasks
     scope = Current.account.cadence_call_tasks.filter_by_status(permitted_params[:status])
     scope = scope.filter_by_user_id(permitted_params[:user_id]) if permitted_params[:user_id].present?
-    scope = scope.where(user_id: Current.user.id) unless Current.account_user.administrator?
+    scope = scope.own_or_team(Current.user) unless unrestricted_cadence_access?
     scope
   end
 
   def permitted_params
     params.permit(:status, :user_id)
+  end
+
+  def unrestricted_cadence_access?
+    Current.account_user.administrator? || Current.account_user.custom_role&.permissions&.include?('cadence_manage')
   end
 
   def log_call_completed

@@ -36,9 +36,33 @@
       "CONVERSATION_MANAGE": "Manage all conversations",
       "CONVERSATION_UNASSIGNED_MANAGE": "Manage unassigned conversations and those assigned to them",
       "CONVERSATION_PARTICIPATING_MANAGE": "Manage participating conversations and those assigned to them",
+      "CONTACT_VIEW": "View contacts",
       "CONTACT_MANAGE": "Manage contacts",
+      "REPORT_VIEW": "View reports",
       "REPORT_MANAGE": "Manage reports",
-      "KNOWLEDGE_BASE_MANAGE": "Manage knowledge base"
+      "KNOWLEDGE_BASE_VIEW": "View knowledge base",
+      "KNOWLEDGE_BASE_MANAGE": "Manage knowledge base",
+      "CADENCE_VIEW": "View cadences",
+      "CADENCE_MANAGE": "Manage cadences",
+      "SALES_FUNNEL_VIEW": "View sales funnel goals",
+      "SALES_FUNNEL_MANAGE": "Manage sales funnel goals",
+      "WEEKLY_OPS_REPORT_VIEW": "View weekly ops report",
+      "WEEKLY_OPS_REPORT_MANAGE": "Manage weekly ops report",
+      "CAMPAIGN_VIEW": "View campaigns",
+      "CAMPAIGN_MANAGE": "Manage campaigns",
+      "CRM_VIEW": "View CRM panel",
+      "CRM_MANAGE": "Manage CRM panel",
+      "MODULE_LABELS": {
+        "CONVERSATION": "Conversations",
+        "CONTACT": "Contacts",
+        "REPORT": "Reports",
+        "KNOWLEDGE_BASE": "Knowledge base",
+        "CADENCE": "Cadences",
+        "SALES_FUNNEL": "Sales funnel",
+        "WEEKLY_OPS_REPORT": "Weekly ops report",
+        "CAMPAIGN": "Campaigns",
+        "CRM": "CRM integration"
+      }
     },
     "FORM": {
       "NAME": {
@@ -53,7 +77,12 @@
       },
       "PERMISSIONS": {
         "LABEL": "Permissions",
-        "ERROR": "Permissions are required."
+        "ERROR": "Permissions are required.",
+        "LEVELS": {
+          "NONE": "No access",
+          "VIEW": "View only",
+          "MANAGE": "Manage"
+        }
       },
       "CANCEL_BUTTON_TEXT": "Cancel",
       "API": {

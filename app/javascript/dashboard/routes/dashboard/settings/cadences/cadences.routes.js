@@ -8,7 +8,7 @@ export default {
       path: frontendURL('accounts/:accountId/cadences'),
       name: 'cadence_analytics',
       meta: {
-        permissions: ['administrator'],
+        permissions: ['administrator', 'cadence_view', 'cadence_manage'],
         featureFlag: FEATURE_FLAGS.WHATSAPP_CADENCES,
       },
       component: Index,

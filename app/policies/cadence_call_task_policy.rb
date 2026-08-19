@@ -7,3 +7,5 @@ class CadenceCallTaskPolicy < ApplicationPolicy
     @account_user.administrator? || record.user_id == @user.id
   end
 end
+
+CadenceCallTaskPolicy.prepend_mod_with('CadenceCallTaskPolicy')

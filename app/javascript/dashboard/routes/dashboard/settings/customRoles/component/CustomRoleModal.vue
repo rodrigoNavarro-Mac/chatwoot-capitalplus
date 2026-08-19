@@ -6,7 +6,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useAlert } from 'dashboard/composables';
 import {
-  AVAILABLE_CUSTOM_ROLE_PERMISSIONS,
+  PERMISSION_MODULES,
   MANAGE_ALL_CONVERSATION_PERMISSIONS,
   CONVERSATION_UNASSIGNED_PERMISSIONS,
   CONVERSATION_PARTICIPATING_PERMISSIONS,
@@ -113,6 +113,35 @@ const modalTitle = computed(() => t(getTranslationKey('TITLE')));
 const modalDescription = computed(() => t(getTranslationKey('DESC')));
 const submitButtonText = computed(() => t(getTranslationKey('SUBMIT')));
 
+// Sin acceso / Solo ver / Administrar por módulo. "Administrar" implica "Ver".
+const MODULE_LEVELS = { NONE: 'none', VIEW: 'view', MANAGE: 'manage' };
+
+const moduleLevel = permissionModule => {
+  if (selectedPermissions.value.includes(permissionModule.managePermission)) {
+    return MODULE_LEVELS.MANAGE;
+  }
+  if (selectedPermissions.value.includes(permissionModule.viewPermission)) {
+    return MODULE_LEVELS.VIEW;
+  }
+  return MODULE_LEVELS.NONE;
+};
+
+const setModuleLevel = (permissionModule, level) => {
+  const withoutModule = selectedPermissions.value.filter(
+    permission =>
+      permission !== permissionModule.viewPermission &&
+      permission !== permissionModule.managePermission
+  );
+
+  if (level === MODULE_LEVELS.VIEW) {
+    withoutModule.push(permissionModule.viewPermission);
+  } else if (level === MODULE_LEVELS.MANAGE) {
+    withoutModule.push(permissionModule.managePermission);
+  }
+
+  selectedPermissions.value = withoutModule;
+};
+
 const handleCustomRole = async () => {
   v$.value.$touch();
   if (v$.value.$invalid) return;
@@ -189,23 +218,66 @@ const isSubmitDisabled = computed(
         <label :class="{ 'text-n-ruby-9': v$.selectedPermissions.$error }">
           {{ $t('CUSTOM_ROLE.FORM.PERMISSIONS.LABEL') }}
         </label>
-        <div class="flex flex-col gap-2.5 mb-4 mt-2">
+        <div
+          class="flex flex-col gap-3 mb-4 mt-2 border border-n-weak rounded-lg p-3"
+        >
+          <!-- Conversaciones conserva su jerarquía especial de 3 niveles -->
+          <div class="flex flex-col gap-1.5 pb-3 border-b border-n-weak">
+            <span class="text-sm font-medium text-n-slate-12">
+              {{ $t('CUSTOM_ROLE.PERMISSIONS.MODULE_LABELS.CONVERSATION') }}
+            </span>
+            <div class="flex items-center gap-4 flex-wrap">
+              <label
+                v-for="permission in [
+                  'conversation_manage',
+                  'conversation_unassigned_manage',
+                  'conversation_participating_manage',
+                ]"
+                :key="permission"
+                class="flex items-center gap-1.5 text-sm font-normal"
+              >
+                <input
+                  v-model="selectedPermissions"
+                  type="checkbox"
+                  :value="permission"
+                />
+                {{ $t(`CUSTOM_ROLE.PERMISSIONS.${permission.toUpperCase()}`) }}
+              </label>
+            </div>
+          </div>
+
+          <!-- Matriz Sin acceso / Solo ver / Administrar para el resto de módulos -->
           <div
-            v-for="permission in AVAILABLE_CUSTOM_ROLE_PERMISSIONS"
-            :key="permission"
-            class="flex items-center"
+            v-for="permissionModule in PERMISSION_MODULES"
+            :key="permissionModule.key"
+            class="flex items-center justify-between flex-wrap gap-2"
           >
-            <input
-              :id="permission"
-              v-model="selectedPermissions"
-              type="checkbox"
-              :value="permission"
-              name="permissions"
-              class="ltr:mr-2 rtl:ml-2"
-            />
-            <label :for="permission" class="text-sm font-normal">
-              {{ $t(`CUSTOM_ROLE.PERMISSIONS.${permission.toUpperCase()}`) }}
-            </label>
+            <span class="text-sm font-medium text-n-slate-12">
+              {{
+                $t(
+                  `CUSTOM_ROLE.PERMISSIONS.MODULE_LABELS.${permissionModule.key.toUpperCase()}`
+                )
+              }}
+            </span>
+            <div class="flex items-center gap-4">
+              <label
+                v-for="level in ['none', 'view', 'manage']"
+                :key="level"
+                class="flex items-center gap-1.5 text-sm font-normal"
+              >
+                <input
+                  type="radio"
+                  :name="`module-${permissionModule.key}`"
+                  :checked="moduleLevel(permissionModule) === level"
+                  @change="setModuleLevel(permissionModule, level)"
+                />
+                {{
+                  $t(
+                    `CUSTOM_ROLE.FORM.PERMISSIONS.LEVELS.${level.toUpperCase()}`
+                  )
+                }}
+              </label>
+            </div>
           </div>
         </div>
       </div>

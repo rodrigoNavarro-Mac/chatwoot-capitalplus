@@ -36,6 +36,10 @@ class CadenceCallTask < ApplicationRecord
   scope :filter_by_date_range, ->(range) { where(created_at: range) if range.present? }
   scope :filter_by_user_id, ->(user_id) { where(user_id: user_id) if user_id.present? }
   scope :filter_by_status, ->(status) { where(status: status) if status.present? }
+  scope :own_or_team, lambda { |user|
+    team_conversation_ids = Conversation.where(team_id: user.teams.select(:id)).select(:id)
+    where(user_id: user.id).or(where(conversation_id: team_conversation_ids))
+  }
 
   def complete!(by_user)
     update!(status: :completed, completed_at: Time.current, completed_by: by_user)

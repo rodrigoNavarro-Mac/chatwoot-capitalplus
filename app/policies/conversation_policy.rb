@@ -8,13 +8,18 @@ class ConversationPolicy < ApplicationPolicy
   end
 
   def show?
-    administrator? || agent_bot? || agent_can_view_conversation?
+    administrator? || agent_bot? || agent_can_view_conversation? || shared_with_user?
   end
 
   private
 
   def agent_can_view_conversation?
     inbox_access? || team_access?
+  end
+
+  def shared_with_user?
+    record.record_shares.exists?(shared_with_type: 'User', shared_with_id: user.id) ||
+      record.record_shares.exists?(shared_with_type: 'Team', shared_with_id: user.team_ids)
   end
 
   def administrator?
