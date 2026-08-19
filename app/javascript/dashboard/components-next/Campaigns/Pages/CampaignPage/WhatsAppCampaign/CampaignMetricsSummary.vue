@@ -23,7 +23,12 @@ const failedReasons = computed(() =>
 );
 
 const progress = computed(() => props.metrics?.progress || {});
-const showProgress = computed(() => progress.value.status === 'processing');
+// Campaigns::CampaignProgressEstimator only fills next_send_at when there's still something
+// pending (processing, or completed-but-still-sending — the campaign sits `completed` for
+// most of its real send window, see Campaigns::CampaignProgressEstimator). Checking
+// `status === 'processing'` here missed that second case entirely, hiding the progress panel
+// (and its "next send" ETA) for the vast majority of a campaign's actual sending time.
+const showProgress = computed(() => progress.value.next_send_at != null);
 </script>
 
 <template>

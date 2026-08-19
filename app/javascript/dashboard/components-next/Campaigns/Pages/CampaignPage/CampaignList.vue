@@ -41,6 +41,7 @@ const canEditCampaign = campaign => {
       :sender="campaign.sender"
       :inbox="campaign.inbox"
       :scheduled-at="campaign.scheduled_at"
+      :remaining="campaign.remaining"
       :is-live-chat-type="isLiveChatType"
       :can-edit="canEditCampaign(campaign)"
       :can-view-metrics="isWhatsAppCampaign(campaign)"

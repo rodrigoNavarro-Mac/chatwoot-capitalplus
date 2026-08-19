@@ -50,6 +50,10 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  remaining: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const emit = defineEmits(['edit', 'delete', 'metrics']);
@@ -61,8 +65,17 @@ const STATUS_PROCESSING = 'processing';
 
 const { formatMessage } = useMessageFormatter();
 
+// `completed` only means the scheduling loop finished, not that every message actually went
+// out — see Campaigns::CampaignProgressEstimator. A campaign can sit `completed` for its
+// entire real send window, so treat it as still active while `remaining` is positive.
+const isStillSending = computed(
+  () => props.status === STATUS_COMPLETED && props.remaining > 0
+);
+
 const isActive = computed(() =>
-  props.isLiveChatType ? props.isEnabled : props.status !== STATUS_COMPLETED
+  props.isLiveChatType
+    ? props.isEnabled
+    : props.status !== STATUS_COMPLETED || isStillSending.value
 );
 
 const statusTextColor = computed(() => ({
@@ -75,6 +88,12 @@ const campaignStatus = computed(() => {
     return props.isEnabled
       ? t('CAMPAIGN.LIVE_CHAT.CARD.STATUS.ENABLED')
       : t('CAMPAIGN.LIVE_CHAT.CARD.STATUS.DISABLED');
+  }
+
+  if (isStillSending.value) {
+    return t('CAMPAIGN.SMS.CARD.STATUS.SENDING', {
+      remaining: props.remaining,
+    });
   }
 
   if (props.status === STATUS_COMPLETED) {

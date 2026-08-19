@@ -23,6 +23,12 @@ if resource.campaign_type == 'one_off'
   json.send_window_end resource.send_window_end
   json.timezone resource.timezone
   json.has_csv_audience resource.csv_audience.attached?
+  json.audience_count resource.audience_count
+  # `completed` only means the scheduling loop finished, not that every message went out —
+  # the campaign can sit `completed` for its entire real send window (see
+  # Campaigns::CampaignProgressEstimator). Expose how many are actually still pending so the
+  # campaign list can tell "done" apart from "still sending" without a per-card metrics call.
+  json.remaining [resource.audience_count.to_i - resource.campaign_message_deliveries.count, 0].max
 end
 json.trigger_rules resource.trigger_rules
 json.trigger_only_during_business_hours resource.trigger_only_during_business_hours
