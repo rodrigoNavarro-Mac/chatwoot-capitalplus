@@ -38,6 +38,13 @@ export default {
       const { private: isPrivate } = this.message;
       return isPrivate;
     },
+    isMessageFailed() {
+      return this.message.status === 'failed';
+    },
+    failureReason() {
+      const { content_attributes: contentAttributes } = this.message;
+      return contentAttributes?.external_error;
+    },
     parsedLastMessage() {
       const { content_attributes: contentAttributes } = this.message;
       const { email: { subject } = {} } = contentAttributes || {};
@@ -82,7 +89,19 @@ export default {
         icon="info"
       />
     </template>
-    <span v-if="message.content && isMessageSticker">
+    <span
+      v-if="isMessageFailed"
+      v-tooltip="failureReason"
+      class="text-n-ruby-11 inline-flex items-center gap-1"
+    >
+      <fluent-icon
+        size="16"
+        class="-mt-0.5 align-middle inline-block"
+        icon="warning"
+      />
+      {{ $t('CHAT_LIST.FAILED_TO_SEND') }}
+    </span>
+    <span v-else-if="message.content && isMessageSticker">
       <fluent-icon
         size="16"
         class="-mt-0.5 align-middle inline-block text-n-slate-11"

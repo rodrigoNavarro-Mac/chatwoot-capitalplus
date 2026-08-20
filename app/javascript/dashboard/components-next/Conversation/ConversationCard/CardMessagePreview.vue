@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
 
 const props = defineProps({
   conversation: {
@@ -15,6 +16,16 @@ const props = defineProps({
 const { t } = useI18n();
 
 const { getPlainText } = useMessageFormatter();
+
+const isLastMessageFailed = computed(() => {
+  const { lastNonActivityMessage = {} } = props.conversation;
+  return lastNonActivityMessage?.status === 'failed';
+});
+
+const lastMessageFailureReason = computed(() => {
+  const { lastNonActivityMessage = {} } = props.conversation;
+  return lastNonActivityMessage?.contentAttributes?.externalError;
+});
 
 const lastNonActivityMessageContent = computed(() => {
   const { lastNonActivityMessage = {}, customAttributes = {} } =
@@ -42,7 +53,18 @@ const unreadMessagesCount = computed(() => {
 
 <template>
   <div class="flex items-end w-full gap-2 pb-1">
-    <p class="w-full mb-0 text-sm leading-7 text-n-slate-12 line-clamp-2">
+    <p
+      v-if="isLastMessageFailed"
+      v-tooltip="lastMessageFailureReason"
+      class="w-full mb-0 text-sm leading-7 text-n-ruby-11 line-clamp-2 flex items-center gap-1"
+    >
+      <Icon icon="i-lucide-alert-triangle" class="flex-shrink-0 size-3.5" />
+      {{ t('CHAT_LIST.FAILED_TO_SEND') }}
+    </p>
+    <p
+      v-else
+      class="w-full mb-0 text-sm leading-7 text-n-slate-12 line-clamp-2"
+    >
       {{ lastNonActivityMessageContent }}
     </p>
     <div class="flex items-center flex-shrink-0 gap-2 pb-2">
