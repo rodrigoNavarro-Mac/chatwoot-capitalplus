@@ -6,6 +6,7 @@ import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import CardLabels from 'dashboard/components-next/Conversation/ConversationCard/CardLabels.vue';
 import SLACardLabel from 'dashboard/components-next/Conversation/ConversationCard/SLACardLabel.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
 
 const props = defineProps({
   conversation: {
@@ -31,6 +32,16 @@ const lastNonActivityMessageContent = computed(() => {
   return getPlainText(
     subject || lastNonActivityMessage?.content || t('CHAT_LIST.NO_CONTENT')
   );
+});
+
+const isLastMessageFailed = computed(() => {
+  const { lastNonActivityMessage = {} } = props.conversation;
+  return lastNonActivityMessage?.status === 'failed';
+});
+
+const lastMessageFailureReason = computed(() => {
+  const { lastNonActivityMessage = {} } = props.conversation;
+  return lastNonActivityMessage?.contentAttributes?.externalError;
 });
 
 const assignee = computed(() => {
@@ -61,7 +72,15 @@ defineExpose({
 <template>
   <div class="flex flex-col w-full gap-1">
     <div class="flex items-center justify-between w-full gap-2 py-1 h-7">
-      <p class="mb-0 text-sm leading-7 text-n-slate-12 line-clamp-1">
+      <p
+        v-if="isLastMessageFailed"
+        v-tooltip="lastMessageFailureReason"
+        class="mb-0 text-sm leading-7 text-n-ruby-11 line-clamp-1 flex items-center gap-1"
+      >
+        <Icon icon="i-lucide-alert-triangle" class="flex-shrink-0 size-3.5" />
+        {{ t('CHAT_LIST.FAILED_TO_SEND') }}
+      </p>
+      <p v-else class="mb-0 text-sm leading-7 text-n-slate-12 line-clamp-1">
         {{ lastNonActivityMessageContent }}
       </p>
 
