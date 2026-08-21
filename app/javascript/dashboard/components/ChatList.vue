@@ -53,6 +53,10 @@ import {
 import { matchesFilters } from '../store/modules/conversations/helpers/filterHelpers';
 import { CONVERSATION_EVENTS } from '../helper/AnalyticsHelper/events';
 import { ASSIGNEE_TYPE_TAB_PERMISSIONS } from 'dashboard/constants/permissions.js';
+import {
+  getPersistedConversationFilters,
+  clearPersistedConversationFilters,
+} from 'dashboard/helper/conversationFilterPersistence';
 
 const props = defineProps({
   conversationInbox: { type: [String, Number], default: 0 },
@@ -575,6 +579,54 @@ function resetAndFetchData() {
   fetchConversations();
 }
 
+function onResetFilters() {
+  clearPersistedConversationFilters(
+    currentAccountId.value,
+    currentUser.value?.id
+  );
+  resetAndFetchData();
+}
+
+// The advanced ("Filtrar") filters only live in Vuex memory, so a full page
+// reload used to silently wipe them via resetAndFetchData -> clearConversationFilters,
+// dumping the agent back into the default unfiltered list. Restore the last
+// applied filter for this account/agent on mount when we're on the plain
+// conversation view (no inbox/team/label/type/folder), instead of clearing it.
+function isOnPlainConversationView() {
+  return (
+    !props.conversationInbox &&
+    !props.teamId &&
+    !props.label &&
+    !props.conversationType &&
+    !props.foldersId
+  );
+}
+
+function restorePersistedFilters(persistedFilters) {
+  store.dispatch('setConversationFilters', persistedFilters);
+  resetBulkActions();
+  foldersQuery.value = filterQueryGenerator(persistedFilters);
+  store.dispatch('conversationPage/reset');
+  store.dispatch('emptyAllConversations');
+  fetchFilteredConversations(persistedFilters);
+}
+
+function initializeConversationList() {
+  const persistedFilters = isOnPlainConversationView()
+    ? getPersistedConversationFilters(
+        currentAccountId.value,
+        currentUser.value?.id
+      )
+    : null;
+
+  if (persistedFilters) {
+    restorePersistedFilters(persistedFilters);
+    return;
+  }
+
+  resetAndFetchData();
+}
+
 function loadMoreConversations() {
   if (hasCurrentPageEndReached.value || chatListLoading.value) {
     return;
@@ -799,7 +851,7 @@ onMounted(() => {
   setFiltersFromUISettings();
   store.dispatch('setChatStatusFilter', activeStatus.value);
   store.dispatch('setChatSortFilter', activeSortBy.value);
-  resetAndFetchData();
+  initializeConversationList();
   if (hasActiveFolders.value) {
     store.dispatch('campaigns/get');
   }
@@ -891,7 +943,7 @@ watch(conversationFilters, (newVal, oldVal) => {
       @add-folders="onClickOpenAddFoldersModal"
       @delete-folders="onClickOpenDeleteFoldersModal"
       @filters-modal="onToggleAdvanceFiltersModal"
-      @reset-filters="resetAndFetchData"
+      @reset-filters="onResetFilters"
       @basic-filter-change="onBasicFilterChange"
     />
 
