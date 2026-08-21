@@ -2,11 +2,13 @@
 import { useTemplateRef, onBeforeUnmount, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useTrack } from 'dashboard/composables';
-import { useStore } from 'dashboard/composables/store';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { useAccount } from 'dashboard/composables/useAccount';
 import { vOnClickOutside } from '@vueuse/components';
 import { CONVERSATION_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import { useConversationFilterContext } from './provider.js';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
+import { setPersistedConversationFilters } from 'dashboard/helper/conversationFilterPersistence';
 
 import Button from 'next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
@@ -41,6 +43,8 @@ const DEFAULT_FILTER = {
 
 const { t } = useI18n();
 const store = useStore();
+const { accountId } = useAccount();
+const currentUser = useMapGetter('getCurrentUser');
 
 const resetFilter = () => {
   filters.value = [{ ...DEFAULT_FILTER }];
@@ -75,9 +79,14 @@ function validateAndSubmit() {
     return;
   }
 
-  store.dispatch(
-    'setConversationFilters',
-    useSnakeCase(JSON.parse(JSON.stringify(filters.value)))
+  const snakeCasedFilters = useSnakeCase(
+    JSON.parse(JSON.stringify(filters.value))
+  );
+  store.dispatch('setConversationFilters', snakeCasedFilters);
+  setPersistedConversationFilters(
+    accountId.value,
+    currentUser.value?.id,
+    snakeCasedFilters
   );
   emit('applyFilter', filters.value);
   useTrack(CONVERSATION_EVENTS.APPLY_FILTER, {
