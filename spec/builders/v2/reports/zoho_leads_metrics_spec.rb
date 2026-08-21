@@ -32,13 +32,19 @@ describe V2::Reports::ZohoLeadsMetrics do
     context 'with a mix of statuses, sources and owners' do
       # Lead_Status llega de la API ya en español ("Contactado", no "Contacted") -- ver comentario
       # de LOST_LEAD_STATUS/CONTACTED_STATUS. Fixtures con los valores reales, no los asumidos.
+      # Created_Time dentro del range ('2026-08-03'..'2026-08-10') -> lead nuevo del periodo;
+      # anterior al range -> lead viejo en seguimiento (ver #new_count/#follow_up_count).
       subject(:summary) do
         stub_leads([
-                     { 'Lead_Status' => 'Contactado', 'Lead_Source' => 'Facebook Ads', 'Owner' => { 'name' => 'Eunice' } },
-                     { 'Lead_Status' => 'Contactado', 'Lead_Source' => 'Facebook Ads', 'Owner' => { 'name' => 'Eunice' } },
-                     { 'Lead_Status' => 'Intento de contacto', 'Lead_Source' => 'Google Ads', 'Owner' => { 'name' => 'Carlos' } },
+                     { 'Lead_Status' => 'Contactado', 'Lead_Source' => 'Facebook Ads', 'Owner' => { 'name' => 'Eunice' },
+                       'Created_Time' => '2026-08-04T10:00:00Z' },
+                     { 'Lead_Status' => 'Contactado', 'Lead_Source' => 'Facebook Ads', 'Owner' => { 'name' => 'Eunice' },
+                       'Created_Time' => '2026-08-05T10:00:00Z' },
+                     { 'Lead_Status' => 'Intento de contacto', 'Lead_Source' => 'Google Ads', 'Owner' => { 'name' => 'Carlos' },
+                       'Created_Time' => '2026-07-01T10:00:00Z' },
                      { 'Lead_Status' => 'Cliente perdido/Descartado', 'Lead_Source' => 'Facebook Ads',
-                       'Raz_n_de_descarte' => 'NO TUVO PRESUPUESTO', 'Owner' => { 'name' => 'Eunice' } }
+                       'Raz_n_de_descarte' => 'NO TUVO PRESUPUESTO', 'Owner' => { 'name' => 'Eunice' },
+                       'Created_Time' => '2026-07-01T10:00:00Z' }
                    ])
         metrics.summary
       end
@@ -52,6 +58,13 @@ describe V2::Reports::ZohoLeadsMetrics do
         expect(summary[:quality_leads_percent]).to eq(50.0)
       end
 
+      it 'splits by_status into new leads (Created_Time in range) vs follow-up (created before)' do
+        expect(summary[:new_count]).to eq(2)
+        expect(summary[:follow_up_count]).to eq(2)
+        expect(summary[:by_status_new]).to eq('Contactado' => 2)
+        expect(summary[:by_status_follow_up]).to eq('Intento de contacto' => 1, 'Cliente perdido/Descartado' => 1)
+      end
+
       it 'summarizes leads by owner' do
         expect(summary[:by_owner]).to eq('Eunice' => 3, 'Carlos' => 1)
       end
@@ -63,6 +76,15 @@ describe V2::Reports::ZohoLeadsMetrics do
         )
       end
     end
+
+    context 'when a lead has no Created_Time' do
+      it 'treats it as follow-up, not new' do
+        stub_leads([{ 'Lead_Status' => 'Contactado' }])
+
+        expect(metrics.summary[:new_count]).to eq(0)
+        expect(metrics.summary[:follow_up_count]).to eq(1)
+      end
+    end
   end
 
   describe '#deals_created' do
@@ -72,14 +94,18 @@ describe V2::Reports::ZohoLeadsMetrics do
       expect(metrics_without_key.deals_created).to be_nil
     end
 
-    it 'reports total deals created and the conversion rate against total leads' do
-      stub_leads([{ 'Lead_Status' => 'Contactado' }, { 'Lead_Status' => 'Contactado' },
-                  { 'Lead_Status' => 'Cliente perdido/Descartado' }, { 'Lead_Status' => 'Cliente perdido/Descartado' }])
+    it 'reports total deals created and the conversion rate against NEW leads (Created_Time in range)' do
+      stub_leads([
+                   { 'Lead_Status' => 'Contactado', 'Created_Time' => '2026-08-04T10:00:00Z' },
+                   { 'Lead_Status' => 'Contactado', 'Created_Time' => '2026-08-05T10:00:00Z' },
+                   { 'Lead_Status' => 'Cliente perdido/Descartado', 'Created_Time' => '2026-08-06T10:00:00Z' },
+                   { 'Lead_Status' => 'Cliente perdido/Descartado', 'Created_Time' => '2026-07-01T10:00:00Z' } # seguimiento, no cuenta
+                 ])
       stub_deals([{ 'id' => 'deal-1' }])
 
       result = metrics.deals_created
 
-      expect(result).to eq(total: 1, conversion_rate: 25.0)
+      expect(result).to eq(total: 1, conversion_rate: 33.33)
     end
   end
 
@@ -90,12 +116,14 @@ describe V2::Reports::ZohoLeadsMetrics do
       expect(metrics.lost_count).to eq(0)
     end
 
-    it 'counts leads with Lead_Status "Cliente perdido/Descartado" -- Contactado does not count' do
+    it 'counts NEW leads (Created_Time in range) with Lead_Status "Cliente perdido/Descartado" -- ' \
+       'Contactado does not count, and follow-up (created before the range) does not count either' do
       stub_leads([
-                   { 'Lead_Status' => 'Contactado' },
-                   { 'Lead_Status' => 'Cliente perdido/Descartado' },
-                   { 'Lead_Status' => 'Cliente perdido/Descartado' },
-                   { 'Lead_Status' => 'Intento de contacto' }
+                   { 'Lead_Status' => 'Contactado', 'Created_Time' => '2026-08-04T10:00:00Z' },
+                   { 'Lead_Status' => 'Cliente perdido/Descartado', 'Created_Time' => '2026-08-05T10:00:00Z' },
+                   { 'Lead_Status' => 'Cliente perdido/Descartado', 'Created_Time' => '2026-08-06T10:00:00Z' },
+                   { 'Lead_Status' => 'Cliente perdido/Descartado', 'Created_Time' => '2026-07-01T10:00:00Z' }, # seguimiento
+                   { 'Lead_Status' => 'Intento de contacto', 'Created_Time' => '2026-08-06T10:00:00Z' }
                  ])
 
       expect(metrics.lost_count).to eq(2)

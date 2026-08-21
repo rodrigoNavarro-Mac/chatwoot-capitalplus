@@ -233,8 +233,12 @@ describe V2::Reports::WeeklyOpsReportBuilder do
         conversation = create(:conversation, account: account, inbox: inbox, contact: contact)
         conversation.update_column(:created_at, 2.days.ago)
         create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming)
-        leads = [{ 'Lead_Status' => 'Cliente perdido/Descartado' }, { 'Lead_Status' => 'Cliente perdido/Descartado' },
-                 { 'Lead_Status' => 'Contactado' }]
+        # Created_Time dentro del range (7.days.ago..1.minute.from_now) -- lost_count ahora solo
+        # cuenta leads NUEVOS del periodo, para ser comparable 1:1 contra "converted" (ver
+        # V2::Reports::ZohoLeadsMetrics#lost_count).
+        leads = [{ 'Lead_Status' => 'Cliente perdido/Descartado', 'Created_Time' => 2.days.ago.iso8601 },
+                 { 'Lead_Status' => 'Cliente perdido/Descartado', 'Created_Time' => 2.days.ago.iso8601 },
+                 { 'Lead_Status' => 'Contactado', 'Created_Time' => 2.days.ago.iso8601 }]
         fake_service = instance_double(Crm::Zoho::LeadsForPeriodService, fetch: leads)
         allow(Crm::Zoho::LeadsForPeriodService).to receive(:new)
           .with(account: account, development_key: 'Fuego', range: anything)

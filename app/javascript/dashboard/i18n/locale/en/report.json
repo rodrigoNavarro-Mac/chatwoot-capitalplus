@@ -799,6 +799,8 @@
     },
     "ZOHO_LEADS": {
       "PIPELINE_STATUS_TITLE": "Pipeline distribution",
+      "PIPELINE_STATUS_NEW_TITLE": "New leads this period ({count})",
+      "PIPELINE_STATUS_FOLLOW_UP_TITLE": "Follow-up — older leads touched this period ({count})",
       "SOURCE_TITLE": "Lead sources",
       "DISCARD_TITLE": "Discard reasons",
       "OWNER_TITLE": "Breakdown by advisor",

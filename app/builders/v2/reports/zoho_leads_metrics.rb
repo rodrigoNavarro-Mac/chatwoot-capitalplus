@@ -28,39 +28,43 @@ class V2::Reports::ZohoLeadsMetrics
 
   # nil si el inbox no tiene "desarrollo" configurado, o Zoho no responde, o no hay leads en el
   # periodo — el frontend/PDF/docx simplemente omiten la sección.
+  #
+  # `leads` mezcla dos poblaciones (ver Crm::Zoho::LeadsForPeriodService: filtra por Modified_Time,
+  # no Created_Time) — un lead nuevo de esta semana y un lead de hace meses que apenas se tocó hoy
+  # cuentan igual. Comparar ese total directo contra "Leads totales" del embudo de ventas (que sí es
+  # solo leads nuevos, ver V2::Reports::SalesFunnelBuilder) generaba una lectura confusa: la
+  # distribución del pipeline salía ~5x más grande que el embudo para el mismo periodo nominal.
+  # `by_status` se separa en `by_status_new`/`by_status_follow_up` (mismo criterio de "nuevo" que el
+  # embudo: Created_Time dentro del rango) para que se pueda comparar 1:1 contra el embudo sin ese
+  # sesgo. El resto de los desgloses (fuente, dueño, motivo de descarte) se dejan sobre el total
+  # combinado a propósito: no tienen un equivalente en el embudo contra el cual generen la misma
+  # comparación engañosa.
   def summary
     return nil if leads.blank?
 
-    lost_leads = leads.select { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
-    quality_count = leads.count { |lead| lead['Lead_Status'] == CONTACTED_STATUS }
-
-    {
-      total: leads.size,
-      by_status: count_by(leads, 'Lead_Status'),
-      by_source: count_by(leads, 'Lead_Source'),
-      discard_reasons: count_by(lost_leads, 'Raz_n_de_descarte'),
-      quality_leads_count: quality_count,
-      quality_leads_percent: safe_rate(quality_count, leads.size),
-      by_owner: count_by(leads) { |lead| lead.dig('Owner', 'name') },
-      quality_by_source: quality_by_source
-    }
+    volume_counts.merge(status_breakdown).merge(source_and_owner_breakdown).merge(quality_breakdown)
   end
 
   # Deals de Zoho CREADOS en este periodo (no "tiene deal" acumulado, como el embudo de ventas) y
-  # qué % de los leads del periodo ya se tradujo en un deal nuevo.
+  # qué % de los leads NUEVOS del periodo ya se tradujo en un deal nuevo — el denominador usa
+  # `new_leads`, no el total mezclado de `leads`, para que el % no salga diluido por leads viejos
+  # que solo se tocaron esta semana y nunca podrían convertirse "en el periodo" en primer lugar.
   def deals_created
     return nil if development_key.blank? || range.blank?
 
-    { total: deals.size, conversion_rate: safe_rate(deals.size, leads.size) }
+    { total: deals.size, conversion_rate: safe_rate(deals.size, new_leads.size) }
   end
 
-  # Cuántos leads del desarrollo se marcaron como perdidos (Lead_Status "Cliente perdido/Descartado")
-  # en el periodo.
-  # Usado por V2::Reports::WeeklyOpsReportBuilder#conversion_totals junto con el conteo de
-  # "convertidos" del embudo de ventas — no vive aquí como un solo hash porque "convertidos" ya no
-  # sale de una cuenta independiente contra Deals de Zoho (ver builder para el porqué).
+  # Cuántos leads NUEVOS del periodo (mismo criterio que "convertidos" del embudo: Created_Time
+  # dentro del rango) se marcaron como perdidos (Lead_Status "Cliente perdido/Descartado").
+  # Restringido a nuevos (antes contaba TODOS los leads tocados, incluyendo seguimiento de leads
+  # viejos) para que sea comparable 1:1 contra "convertidos" en
+  # V2::Reports::WeeklyOpsReportBuilder#conversion_totals — antes esa línea comparaba un numerador
+  # "solo nuevos" contra un denominador implícito "nuevos + seguimiento", el mismo sesgo detectado
+  # en #summary. No vive aquí como un solo hash porque "convertidos" ya no sale de una cuenta
+  # independiente contra Deals de Zoho (ver builder para el porqué).
   def lost_count
-    leads.count { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
+    new_leads.count { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
   end
 
   # De los leads con actividad en el periodo (ver Crm::Zoho::LeadsForPeriodService — filtra por
@@ -84,6 +88,64 @@ class V2::Reports::ZohoLeadsMetrics
   private
 
   attr_reader :account, :development_key, :range, :inbox
+
+  # "Nuevo" = Created_Time cae dentro del rango del reporte, el mismo criterio con el que
+  # V2::Reports::SalesFunnelBuilder arma "Leads totales" del embudo (primera conversación del
+  # contacto creada en el periodo). El resto de `leads` (Created_Time anterior al rango, pero con
+  # Modified_Time dentro — ver Crm::Zoho::LeadsForPeriodService) es "seguimiento": leads viejos que
+  # un asesor tocó esta semana/mes sin que sean una llegada nueva.
+  def new_leads
+    partitioned_leads.first
+  end
+
+  def follow_up_leads
+    partitioned_leads.last
+  end
+
+  def partitioned_leads
+    @partitioned_leads ||= leads.partition { |lead| created_within_range?(lead) }
+  end
+
+  def created_within_range?(lead)
+    created_at = lead['Created_Time']
+    return false if created_at.blank?
+
+    range.cover?(Time.zone.parse(created_at))
+  end
+
+  def volume_counts
+    { total: leads.size, new_count: new_leads.size, follow_up_count: follow_up_leads.size }
+  end
+
+  def status_breakdown
+    {
+      by_status: count_by(leads, 'Lead_Status'),
+      by_status_new: count_by(new_leads, 'Lead_Status'),
+      by_status_follow_up: count_by(follow_up_leads, 'Lead_Status')
+    }
+  end
+
+  def source_and_owner_breakdown
+    {
+      by_source: count_by(leads, 'Lead_Source'),
+      discard_reasons: count_by(lost_leads, 'Raz_n_de_descarte'),
+      by_owner: count_by(leads) { |lead| lead.dig('Owner', 'name') }
+    }
+  end
+
+  def quality_breakdown
+    quality_count = leads.count { |lead| lead['Lead_Status'] == CONTACTED_STATUS }
+
+    {
+      quality_leads_count: quality_count,
+      quality_leads_percent: safe_rate(quality_count, leads.size),
+      quality_by_source: quality_by_source
+    }
+  end
+
+  def lost_leads
+    leads.select { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
+  end
 
   def deals
     @deals ||= Crm::Zoho::DealsForPeriodService.new(account: account, development_key: development_key, range: range).fetch

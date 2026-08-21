@@ -36,6 +36,18 @@ module Reports::WeeklyOpsReportPdfTables
     render_card_analysis_line(pdf, :quality_by_source)
   end
 
+  # Dos tablas (nuevos / seguimiento) bajo el mismo análisis de card — ver
+  # V2::Reports::ZohoLeadsMetrics#summary para el porqué de la separación.
+  def render_pipeline_status_tables(pdf)
+    new_rows = pipeline_status_new_rows(kpis)
+    follow_up_rows = pipeline_status_follow_up_rows(kpis)
+    return if new_rows.blank? && follow_up_rows.blank?
+
+    render_distribution_table(pdf, 'Distribución del pipeline — leads nuevos', %w[Estado Leads %], new_rows)
+    render_distribution_table(pdf, 'Distribución del pipeline — seguimiento', %w[Estado Leads %], follow_up_rows)
+    render_card_analysis_line(pdf, :zoho_pipeline_status)
+  end
+
   def render_owner_table(pdf)
     rows = owner_rows(kpis)
     return if rows.blank?

@@ -85,9 +85,13 @@ class Reports::WeeklyOpsAnalysisLlmService < Llm::BaseAiService
       - "pipeline": kpis.pipeline.stages — no repitas cuál etapa cae más (ya se ve en el embudo);
         relaciona esa caída con kpis.contact_time, kpis.by_advisor o kpis.schedule_distribution para
         sugerir una causa probable.
-      - "zoho_pipeline_status": kpis.zoho_leads.by_status — cruza contra kpis.pipeline.stages: ¿el
-        estado en Zoho y la etapa del embudo interno cuentan la misma historia, o hay un desfase que
-        sugiere que el CRM no se está actualizando al mismo ritmo que la conversación?
+      - "zoho_pipeline_status": kpis.zoho_leads.by_status_new (leads nuevos del periodo, comparable
+        contra kpis.pipeline.stages) y kpis.zoho_leads.by_status_follow_up (leads viejos que se
+        tocaron este periodo, sin equivalente en el embudo) — cruza by_status_new contra
+        kpis.pipeline.stages: ¿el estado en Zoho y la etapa del embudo interno cuentan la misma
+        historia, o hay un desfase que sugiere que el CRM no se está actualizando al mismo ritmo que
+        la conversación? Si by_status_follow_up muestra mucho volumen, puedes señalar cuánto trabajo
+        de seguimiento hay más allá de los leads nuevos.
       - "contact_time": kpis.contact_time — cruza first_response/reply_time contra kpis.by_advisor
         (¿un asesor específico arrastra la mediana?) o contra kpis.comparison.contact_time.
       - "contact_time_by_period": kpis.contact_time_by_period_of_week — cruza la diferencia
