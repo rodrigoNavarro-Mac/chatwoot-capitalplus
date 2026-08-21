@@ -713,6 +713,51 @@ const downloadPdf = async () => {
           <CardAnalysisNote
             :text="report.card_analyses?.zoho_pipeline_status"
           />
+
+          <h4 class="text-sm font-semibold text-n-slate-12 mb-2">
+            {{
+              t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.PIPELINE_STATUS_NEW_TITLE', {
+                count: kpis.zoho_leads.new_count,
+              })
+            }}
+          </h4>
+          <table class="w-full text-sm mb-5">
+            <thead>
+              <tr class="text-left text-n-slate-11">
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.STATUS') }}
+                </th>
+                <th class="py-1 pr-3 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                </th>
+                <th class="py-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(count, status) in kpis.zoho_leads.by_status_new"
+                :key="status"
+                class="border-t border-n-container text-n-slate-12"
+              >
+                <td class="py-1.5 pr-3">{{ status }}</td>
+                <td class="py-1.5 pr-3">{{ count }}</td>
+                <td class="py-1.5">
+                  {{ percentOf(count, kpis.zoho_leads.new_count) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h4 class="text-sm font-semibold text-n-slate-12 mb-2">
+            {{
+              t(
+                'WEEKLY_OPS_REPORTS.ZOHO_LEADS.PIPELINE_STATUS_FOLLOW_UP_TITLE',
+                {
+                  count: kpis.zoho_leads.follow_up_count,
+                }
+              )
+            }}
+          </h4>
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-n-slate-11">
@@ -727,14 +772,14 @@ const downloadPdf = async () => {
             </thead>
             <tbody>
               <tr
-                v-for="(count, status) in kpis.zoho_leads.by_status"
+                v-for="(count, status) in kpis.zoho_leads.by_status_follow_up"
                 :key="status"
                 class="border-t border-n-container text-n-slate-12"
               >
                 <td class="py-1.5 pr-3">{{ status }}</td>
                 <td class="py-1.5 pr-3">{{ count }}</td>
                 <td class="py-1.5">
-                  {{ percentOf(count, kpis.zoho_leads.total) }}
+                  {{ percentOf(count, kpis.zoho_leads.follow_up_count) }}
                 </td>
               </tr>
             </tbody>

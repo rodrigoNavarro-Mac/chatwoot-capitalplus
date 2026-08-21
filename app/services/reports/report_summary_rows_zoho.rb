@@ -25,11 +25,13 @@ module Reports::ReportSummaryRowsZoho
   end
 
   # Total del desarrollo, no por asesor — ver V2::Reports::ZohoLeadsMetrics#conversion_totals.
+  # Ambos lados son leads NUEVOS del periodo (ver ZohoLeadsMetrics#lost_count) — antes "descartados"
+  # incluía leads viejos en seguimiento, mezclando ese número contra "convertidos" (solo nuevos).
   def conversion_totals_line_text(kpis)
     totals = kpis[:conversion_totals]
     return nil if totals.blank?
 
-    "Conversión y descarte: #{totals[:converted]} convertidos — #{totals[:lost]} descartados"
+    "Conversión y descarte (leads nuevos del periodo): #{totals[:converted]} convertidos — #{totals[:lost]} descartados"
   end
 
   def deals_created_line_text(kpis)

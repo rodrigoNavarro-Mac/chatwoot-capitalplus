@@ -75,9 +75,7 @@ class Reports::WeeklyOpsReportDocxService
   # Mismo orden que las cards en WeeklyOpsReport.vue (ver comentario de clase ahí).
   def insert_tables(sect_pr)
     insert_distribution_table_with_analysis(sect_pr, 'Embudo de ventas', DISTRIBUTION_TABLE_HEADERS[:funnel], funnel_rows(kpis), :pipeline)
-    insert_distribution_table_with_analysis(
-      sect_pr, 'Distribución del pipeline', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], pipeline_status_rows(kpis), :zoho_pipeline_status
-    )
+    insert_pipeline_status_tables(sect_pr)
     insert_contact_time_by_period_table(sect_pr)
     insert_advisor_period_of_week_table(sect_pr)
     insert_by_advisor_table(sect_pr)
@@ -97,6 +95,18 @@ class Reports::WeeklyOpsReportDocxService
 
     insert_distribution_table(sect_pr, title, header, rows)
     insert_card_analysis_line(sect_pr, key)
+  end
+
+  # Dos tablas (nuevos / seguimiento) bajo la misma card de análisis — ver
+  # V2::Reports::ZohoLeadsMetrics#summary para el porqué de la separación.
+  def insert_pipeline_status_tables(sect_pr)
+    new_rows = pipeline_status_new_rows(kpis)
+    follow_up_rows = pipeline_status_follow_up_rows(kpis)
+    return if new_rows.blank? && follow_up_rows.blank?
+
+    insert_distribution_table(sect_pr, 'Distribución del pipeline — leads nuevos', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], new_rows)
+    insert_distribution_table(sect_pr, 'Distribución del pipeline — seguimiento', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], follow_up_rows)
+    insert_card_analysis_line(sect_pr, :zoho_pipeline_status)
   end
 
   def insert_by_advisor_table(sect_pr)

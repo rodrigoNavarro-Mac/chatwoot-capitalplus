@@ -131,11 +131,14 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml).not_to include('Llamadas por asesor')
   end
 
-  it 'inserts the zoho_leads distribution tables (pipeline status, source, discard reasons)' do
+  it 'inserts the zoho_leads distribution tables (pipeline status new/follow-up, source, discard reasons)' do
     report.kpis = report.kpis.merge(
       'zoho_leads' => {
         'total' => 3,
-        'by_status' => { 'Contactado' => 2, 'Cliente perdido/Descartado' => 1 },
+        'new_count' => 2,
+        'follow_up_count' => 1,
+        'by_status_new' => { 'Contactado' => 2 },
+        'by_status_follow_up' => { 'Cliente perdido/Descartado' => 1 },
         'by_source' => { 'Facebook Ads' => 3 },
         'discard_reasons' => { 'NO TUVO PRESUPUESTO' => 1 },
         'quality_leads_count' => 2,
@@ -146,13 +149,14 @@ describe Reports::WeeklyOpsReportDocxService do
     io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
 
     document_xml = unzip_entries(io)['word/document.xml']
-    expect(document_xml).to include('Distribución del pipeline')
+    expect(document_xml).to include('Distribución del pipeline — leads nuevos')
+    expect(document_xml).to include('Distribución del pipeline — seguimiento')
     expect(document_xml).to include('Fuentes de prospectos')
     expect(document_xml).to include('Motivos de descarte')
     expect(document_xml).to include('Leads de calidad: 2 (66.7%)')
     expect(document_xml).to include('NO TUVO PRESUPUESTO')
-    # tabla de resumen + desglose por asesor + 3 tablas de zoho_leads = 5
-    expect(document_xml.scan('<w:tbl>').size).to eq(5)
+    # tabla de resumen + desglose por asesor + 2 tablas de pipeline status + fuentes + descarte = 6
+    expect(document_xml.scan('<w:tbl>').size).to eq(6)
   end
 
   it 'omits the zoho_leads tables when there is no data' do
@@ -193,7 +197,7 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml).to include('Tiempos de contacto: entre semana vs fin de semana')
     expect(document_xml).to include('Calidad de leads por canal')
     expect(document_xml).to include('Distribución por asesor (Zoho)')
-    expect(document_xml).to include('Conversión y descarte: 2 convertidos — 1 descartados')
+    expect(document_xml).to include('Conversión y descarte (leads nuevos del periodo): 2 convertidos — 1 descartados')
     expect(document_xml).to include('Leads en horario laboral: 3 — fuera de horario: 1 (de 4 totales)')
   end
 

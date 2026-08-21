@@ -799,6 +799,8 @@
     },
     "ZOHO_LEADS": {
       "PIPELINE_STATUS_TITLE": "Distribución del pipeline",
+      "PIPELINE_STATUS_NEW_TITLE": "Leads nuevos del periodo ({count})",
+      "PIPELINE_STATUS_FOLLOW_UP_TITLE": "Seguimiento — leads de antes tocados este periodo ({count})",
       "SOURCE_TITLE": "Fuentes de prospectos",
       "DISCARD_TITLE": "Motivos de descarte",
       "OWNER_TITLE": "Distribución por asesor",

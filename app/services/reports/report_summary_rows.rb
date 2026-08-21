@@ -60,11 +60,19 @@ module Reports::ReportSummaryRows
     end
   end
 
-  # Filas [estado, cantidad, % del total de leads] de la distribución del pipeline de Zoho por
-  # Lead_Status (Contactado, Intento de contacto, etc.) — ver
-  # V2::Reports::WeeklyOpsReportBuilder#zoho_leads_metrics.
-  def pipeline_status_rows(kpis)
-    distribution_rows(kpis, :by_status)
+  # Filas [estado, cantidad, % del total] de la distribución del pipeline de Zoho por Lead_Status
+  # (Contactado, Intento de contacto, etc.), separadas en dos poblaciones — ver
+  # V2::Reports::ZohoLeadsMetrics#summary para el porqué: mezclar leads nuevos del periodo con
+  # leads viejos en seguimiento hacía que este total no cuadrara contra "Leads totales" del embudo
+  # de ventas para el mismo periodo nominal.
+  def pipeline_status_new_rows(kpis)
+    zoho_leads = kpis[:zoho_leads] || {}
+    rows_from_counts(zoho_leads[:by_status_new] || {}, zoho_leads[:new_count].to_i)
+  end
+
+  def pipeline_status_follow_up_rows(kpis)
+    zoho_leads = kpis[:zoho_leads] || {}
+    rows_from_counts(zoho_leads[:by_status_follow_up] || {}, zoho_leads[:follow_up_count].to_i)
   end
 
   # Filas [fuente, cantidad, % del total de leads] por Lead_Source (Facebook Ads, Google Ads, etc.)

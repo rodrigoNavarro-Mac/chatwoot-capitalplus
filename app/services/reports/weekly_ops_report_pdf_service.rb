@@ -44,7 +44,7 @@ class Reports::WeeklyOpsReportPdfService
   # general, deals creados y el análisis ejecutivo ya se renderizaron antes de llamar a este método.
   def render_tables(pdf)
     render_funnel_table(pdf)
-    render_pipeline_status_table(pdf)
+    render_pipeline_status_tables(pdf)
     render_contact_time_by_period_table(pdf)
     render_advisor_period_of_week_table(pdf)
     render_by_advisor_table(pdf)
@@ -153,14 +153,6 @@ class Reports::WeeklyOpsReportPdfService
 
     render_distribution_table(pdf, 'Embudo de ventas', ['Etapa', 'Cantidad', '% real', '% meta', 'Diferencia'], rows)
     render_card_analysis_line(pdf, :pipeline)
-  end
-
-  def render_pipeline_status_table(pdf)
-    rows = pipeline_status_rows(kpis)
-    return if rows.blank?
-
-    render_distribution_table(pdf, 'Distribución del pipeline', %w[Estado Leads %], rows)
-    render_card_analysis_line(pdf, :zoho_pipeline_status)
   end
 
   def render_lead_source_table(pdf)
