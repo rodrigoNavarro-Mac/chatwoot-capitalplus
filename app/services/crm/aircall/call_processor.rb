@@ -1,5 +1,6 @@
 # Refleja una sola llamada de Aircall como un Message real (content_type: 'voice_call') en la
-# conversación más antigua del contacto — reusa Voice::CallMessageBuilder/Call
+# conversación más antigua del contacto en el inbox correcto (ver #find_conversation) — reusa
+# Voice::CallMessageBuilder/Call
 # (enterprise/app/services/voice, enterprise/app/models/call.rb), la misma arquitectura ya usada
 # para llamadas de Twilio, así V2::Reports::SalesFunnelBuilder cuenta el lead como
 # "customer_replied" sin necesitar ningún cambio ahí — ya solo mira si existe un Message
@@ -16,6 +17,7 @@
 # cuente en el embudo de todas formas.
 class Crm::Aircall::CallProcessor
   ANONYMOUS_DIGITS = 'anonymous'.freeze
+  LOCAL_NUMBER_LENGTH = 10
 
   def initialize(account:, call_data:)
     @account = account
@@ -28,7 +30,7 @@ class Crm::Aircall::CallProcessor
     contact = find_contact
     return if contact.blank?
 
-    conversation = contact.conversations.order(:created_at).first
+    conversation = find_conversation(contact)
     return if conversation.blank?
 
     call = find_or_initialize_call(conversation, contact)
@@ -76,12 +78,61 @@ class Crm::Aircall::CallProcessor
     data[:id].to_s
   end
 
-  def find_contact
-    account.contacts.where(phone_number: phone_variants).first
+  # Una cuenta puede tener varias líneas de Aircall dadas de alta (una por número de
+  # WhatsApp/SMS — ver feature_whatsapp_multi_number), cada una mapeada 1:1 a un inbox distinto de
+  # Chatwoot. Antes se tomaba la conversación más antigua del contacto sin importar el inbox, así
+  # que un contacto con historial en varios números terminaba con las llamadas de un número
+  # colgadas de la conversación de otro — o de plano perdidas si esa conversación no existía en el
+  # inbox de la línea que sonó. Aircall manda en cada call object un `number` (la línea que
+  # participó, developers.aircall.io/api-references) que usamos para ubicar el inbox correcto.
+  def find_conversation(contact)
+    return contact.conversations.order(:created_at).first if matching_inbox.blank?
+
+    contact.conversations.where(inbox: matching_inbox).order(:created_at).first
   end
 
-  def phone_variants
-    digits = raw_digits
+  # nil cuando el payload no trae `number` (endpoints/tests viejos) o cuando ningún inbox de la
+  # cuenta tiene ese número dado de alta como canal — en ambos casos #find_conversation cae al
+  # comportamiento anterior (cualquier conversación del contacto), que sigue siendo correcto para
+  # cuentas con una sola línea.
+  def matching_inbox
+    return @matching_inbox if defined?(@matching_inbox)
+
+    @matching_inbox = find_matching_inbox
+  end
+
+  def find_matching_inbox
+    digits = line_digits
+    return if digits.blank?
+
+    variants = phone_variants(digits)
+    account.inboxes.includes(:channel).find { |inbox| variants.include?(inbox.channel.try(:phone_number)) }
+  end
+
+  def line_digits
+    number = data[:number]
+    return unless number.is_a?(Hash)
+
+    number[:digits].to_s.gsub(/\s+/, '').presence
+  end
+
+  def find_contact
+    account.contacts.where(phone_number: phone_variants).first || find_contact_by_local_number
+  end
+
+  # Some contacts get created with an incomplete phone_number missing the country code — e.g.
+  # Click-to-WhatsApp ad leads, where the identifier Meta sends occasionally comes without it.
+  # Aircall always sends the full number with country code, so falling back to a match on just
+  # the last 10 digits (the local Mexican number) catches those without needing the DB record
+  # fixed first — the call would otherwise be silently dropped (see #find_contact).
+  def find_contact_by_local_number
+    local_number = raw_digits.last(LOCAL_NUMBER_LENGTH)
+    return if local_number.length < LOCAL_NUMBER_LENGTH
+
+    account.contacts.where('phone_number LIKE ?', "%#{local_number}").first
+  end
+
+  def phone_variants(digits = raw_digits)
     with_plus = digits.start_with?('+') ? digits : "+#{digits}"
     [with_plus, digits.delete_prefix('+')].uniq
   end
