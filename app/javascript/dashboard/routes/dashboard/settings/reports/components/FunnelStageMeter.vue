@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { computed } from 'vue';
+
+const props = defineProps({
   icon: {
     type: String,
     required: true,
@@ -30,12 +32,11 @@ defineProps({
     type: Number,
     default: 100,
   },
-  // Cifra de actividad (V2::Reports::ZohoLeadsMetrics#deals_activity) para esta etapa: deals
-  // CREADOS en el periodo por su etapa actual, sin el filtro de cohorte de `count`/`actualPercent`
-  // (que solo cuenta leads cuya primera conversación cayó en el periodo). Se pinta como badge
-  // aparte, no como parte de la barra — mezclarlo en la misma barra de % sumaría dos preguntas
-  // distintas (cohorte vs actividad) bajo un solo número — el mismo sesgo que ya se corrigió en la
-  // distribución del pipeline (ver ZohoLeadsMetrics#summary).
+  // Cuánto de `count`/`actualPercent` viene de actividad fuera de la cohorte de "leads nuevos del
+  // periodo" -- deals CREADOS este periodo de leads que llegaron antes (ver
+  // V2::Reports::SalesFunnelBuilder#deal_activity_outside_cohort). Ya está SUMADO dentro de
+  // `count`/`actualPercent` (así cuenta para el % y la meta) — este prop solo dice cuánto de ese
+  // total pintar en otro color, no es un número aparte que haya que sumar.
   activityCount: {
     type: Number,
     default: null,
@@ -45,6 +46,24 @@ defineProps({
     default: '',
   },
 });
+
+// El track se pinta 0-100 aunque actualPercent pase de 100 (posible cuando la actividad fuera de
+// cohorte es grande) — el número real igual se muestra sin recortar, solo la barra se topa.
+const totalBarPercent = computed(() => Math.min(props.actualPercent, 100));
+// Mismo mínimo visible que antes (4%) para que una etapa con muy poco % no desaparezca del todo,
+// aplicado al total antes de partirlo en cohorte/actividad.
+const visibleTotalWidth = computed(() =>
+  totalBarPercent.value > 0 ? Math.max(totalBarPercent.value, 4) : 0
+);
+// División proporcional dentro del ancho visible: el backend solo manda el conteo de actividad, no
+// su % por separado, así que se reparte el ancho según qué fracción de `count` es actividad.
+const activityBarWidth = computed(() => {
+  if (!props.activityCount || !props.count) return 0;
+  return (props.activityCount / props.count) * visibleTotalWidth.value;
+});
+const cohortBarWidth = computed(() =>
+  Math.max(visibleTotalWidth.value - activityBarWidth.value, 0)
+);
 </script>
 
 <template>
@@ -54,8 +73,17 @@ defineProps({
         <span :class="icon" class="size-3.5 text-n-slate-9 flex-shrink-0" />
         {{ label }}
       </span>
-      <span class="flex items-baseline gap-1.5 flex-shrink-0 tabular-nums">
-        <span class="text-n-slate-10 text-xs">{{ count }}</span>
+      <span class="flex items-baseline gap-1 flex-shrink-0 tabular-nums">
+        <span class="text-n-slate-10 text-xs">
+          {{ count }}
+          <span
+            v-if="activityCount"
+            v-tooltip="activityTooltip"
+            class="text-n-amber-11 font-medium"
+          >
+            (+{{ activityCount }})
+          </span>
+        </span>
         <span class="text-n-slate-12 font-semibold">{{ actualPercent }}%</span>
         <span
           v-if="targetPercent !== null"
@@ -64,23 +92,20 @@ defineProps({
         >
           {{ delta >= 0 ? '+' : '' }}{{ delta }}%
         </span>
-        <span
-          v-if="activityCount"
-          v-tooltip="activityTooltip"
-          class="text-xs font-medium px-1.5 rounded-full bg-n-amber-3 text-n-amber-11"
-        >
-          +{{ activityCount }}
-        </span>
       </span>
     </div>
     <div
-      class="relative w-full h-1.5 rounded-full bg-n-slate-3 overflow-hidden"
+      class="relative w-full h-1.5 rounded-full bg-n-slate-3 overflow-hidden flex"
     >
       <div
-        class="h-full rounded-full bg-n-brand"
-        :style="{
-          width: `${actualPercent > 0 ? Math.max(actualPercent, 4) : 0}%`,
-        }"
+        class="h-full bg-n-brand flex-shrink-0"
+        :style="{ width: `${cohortBarWidth}%` }"
+      />
+      <div
+        v-if="activityBarWidth > 0"
+        v-tooltip="activityTooltip"
+        class="h-full bg-n-amber-10 flex-shrink-0"
+        :style="{ width: `${activityBarWidth}%` }"
       />
       <div
         v-if="targetPercent !== null"

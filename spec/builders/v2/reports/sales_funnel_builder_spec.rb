@@ -236,5 +236,65 @@ describe V2::Reports::SalesFunnelBuilder do
 
       expect(row_calls(rows)).to eq(total: 0, answered: 0, answered_percent: 0.0)
     end
+
+    describe 'deal activity outside the new-leads cohort' do
+      def stub_deals_for_period(deals)
+        fake_service = instance_double(Crm::Zoho::DealsForPeriodService, fetch: deals)
+        allow(Crm::Zoho::DealsForPeriodService).to receive(:new).and_return(fake_service)
+      end
+
+      # Contacto cuya conversacion cae FUERA del rango del reporte -- nunca cuenta como "lead" de
+      # esta cohorte, pero su deal (por zoho_deal_id) si puede coincidir con uno devuelto por
+      # Crm::Zoho::DealsForPeriodService (deals creados EN el periodo, sin importar la cohorte).
+      def create_old_contact_with_deal(zoho_deal_id:)
+        contact = create(:contact, account: account,
+                                    additional_attributes: { 'external' => { 'zoho_id' => SecureRandom.hex, 'zoho_deal_id' => zoho_deal_id } })
+        create(:conversation, account: account, inbox: inbox, contact: contact).update_column(:created_at, 60.days.ago)
+        contact
+      end
+
+      it 'adds a deal created this period from a lead outside the cohort to has_deal count/percent' do
+        create_lead(replied: true, zoho_deal_id: 'deal-1') # cohorte: 1 lead, 1 con deal
+        create_old_contact_with_deal(zoho_deal_id: 'deal-99')
+        stub_deals_for_period([{ 'id' => 'deal-99', 'Stage' => 'Negotiation/Review' }])
+
+        rows = described_class.new(account: account, params: params).build
+
+        expect(stage(rows, 'has_deal')[:count]).to eq(2)
+        expect(stage(rows, 'has_deal')[:activity_count]).to eq(1)
+        expect(stage(rows, 'has_deal')[:actual_percent]).to eq(200.0) # 2 de 1 contestado -- puede pasar de 100%
+      end
+
+      it 'does not double count a deal that already belongs to the cohort' do
+        create_lead(replied: true, zoho_deal_id: 'deal-1')
+        stub_deals_for_period([{ 'id' => 'deal-1', 'Stage' => 'Qualification' }])
+
+        rows = described_class.new(account: account, params: params).build
+
+        expect(stage(rows, 'has_deal')[:count]).to eq(1)
+        expect(stage(rows, 'has_deal')[:activity_count]).to eq(0)
+      end
+
+      it 'cascades activity into visita_efectiva and closed_won when the outside deal is already in a later stage' do
+        create_old_contact_with_deal(zoho_deal_id: 'deal-77')
+        stub_deals_for_period([{ 'id' => 'deal-77', 'Stage' => 'Closed Won' }])
+
+        rows = described_class.new(account: account, params: params).build
+
+        expect(stage(rows, 'has_deal')[:activity_count]).to eq(1)
+        expect(stage(rows, 'visita_efectiva')[:activity_count]).to eq(1)
+        expect(stage(rows, 'closed_won')[:activity_count]).to eq(1)
+      end
+
+      it 'has a nil activity_count for leads and customer_replied, which have no deal-activity equivalent' do
+        create_lead(replied: true, zoho_deal_id: 'deal-1')
+        stub_deals_for_period([])
+
+        rows = described_class.new(account: account, params: params).build
+
+        expect(stage(rows, 'leads')[:activity_count]).to be_nil
+        expect(stage(rows, 'customer_replied')[:activity_count]).to be_nil
+      end
+    end
   end
 end

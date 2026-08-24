@@ -21,13 +21,24 @@ module Reports::ReportSummaryRows
     stages.map do |stage|
       row = [
         STAGE_LABELS[stage[:stage]] || stage[:stage],
-        stage[:count],
+        funnel_count_text(stage),
         percent(stage[:actual_percent]),
         percent(stage[:target_percent]),
         percent(stage[:delta])
       ]
       row.map { |value| value.nil? ? '—' : value.to_s }
     end
+  end
+
+  # "5 (+2 actividad)" cuando parte del conteo viene de deals creados este periodo fuera de la
+  # cohorte de leads nuevos (ver V2::Reports::SalesFunnelBuilder#deal_activity_outside_cohort) — el
+  # PDF/DOCX no tiene una barra de dos colores como el frontend, así que la actividad se anota en la
+  # misma celda en vez de perderse.
+  def funnel_count_text(stage)
+    activity = stage[:activity_count].to_i
+    return stage[:count] if activity.zero?
+
+    "#{stage[:count]} (+#{activity} actividad)"
   end
 
   def summary_rows(kpis)
