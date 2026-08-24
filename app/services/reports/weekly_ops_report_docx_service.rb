@@ -69,6 +69,7 @@ class Reports::WeeklyOpsReportDocxService
   def insert_summary(sect_pr)
     sect_pr.add_previous_sibling(summary_table_xml)
     insert_deals_created_line(sect_pr)
+    insert_deals_activity_line(sect_pr)
     insert_tables(sect_pr)
   end
 

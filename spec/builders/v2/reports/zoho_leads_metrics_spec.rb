@@ -109,6 +109,33 @@ describe V2::Reports::ZohoLeadsMetrics do
     end
   end
 
+  describe '#deals_activity' do
+    it 'is nil when development_key or range is blank' do
+      metrics_without_key = described_class.new(account: account, development_key: nil, range: range, inbox: inbox)
+
+      expect(metrics_without_key.deals_activity).to be_nil
+    end
+
+    it 'is nil when there are no deals created in the period' do
+      stub_deals([])
+
+      expect(metrics.deals_activity).to be_nil
+    end
+
+    # Caso real detectado 2026-08-24: un lead que llego antes del periodo cerro su deal DENTRO del
+    # periodo, y el embudo de ventas (cohorte) lo excluia por completo -- ver comentario de clase de
+    # V2::Reports::ZohoLeadsMetrics#deals_activity.
+    it 'counts deals created in the period by their current stage, regardless of the lead cohort' do
+      stub_deals([
+                   { 'id' => 'deal-1', 'Stage' => 'Agendo cita - Videollamada' },
+                   { 'id' => 'deal-2', 'Stage' => 'Qualification' }, # visita efectiva
+                   { 'id' => 'deal-3', 'Stage' => 'Closed Won' } # cuenta en ambos -- VISITA_EFECTIVA_STAGES incluye 'Closed Won'
+                 ])
+
+      expect(metrics.deals_activity).to eq(total: 3, visita_efectiva: 2, closed_won: 1)
+    end
+  end
+
   describe '#lost_count' do
     it 'is zero when there are no leads' do
       stub_leads([])

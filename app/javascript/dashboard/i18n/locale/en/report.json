@@ -797,6 +797,15 @@
     "PIPELINE": {
       "TITLE": "Sales pipeline"
     },
+    "DEALS_ACTIVITY": {
+      "TITLE": "Deals that moved this week",
+      "TOTAL": "Deals created",
+      "TOTAL_INFO": "Zoho deals created in this period, regardless of when the lead first arrived — unlike the sales funnel, which only counts deals from leads whose first conversation fell in this period.",
+      "VISITA_EFECTIVA": "With effective visit",
+      "VISITA_EFECTIVA_INFO": "Of the deals created this period, how many are already in the effective-visit stage (as of today).",
+      "CLOSED_WON": "Closed won",
+      "CLOSED_WON_INFO": "Of the deals created this period, how many already closed won (as of today)."
+    },
     "ZOHO_LEADS": {
       "PIPELINE_STATUS_TITLE": "Pipeline distribution",
       "PIPELINE_STATUS_NEW_TITLE": "New leads this period ({count})",

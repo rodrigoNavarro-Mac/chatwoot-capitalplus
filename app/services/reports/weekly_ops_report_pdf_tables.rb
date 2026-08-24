@@ -11,6 +11,15 @@ module Reports::WeeklyOpsReportPdfTables
     pdf.move_down(10)
   end
 
+  def render_deals_activity_line(pdf)
+    text = deals_activity_line_text(kpis)
+    return if text.blank?
+
+    pdf.font_size(10) { pdf.text(text) }
+    pdf.move_down(10)
+    render_card_analysis_line(pdf, :deals_activity)
+  end
+
   def render_advisor_period_of_week_table(pdf)
     rows = advisor_period_of_week_rows(kpis)
     return if rows.blank?

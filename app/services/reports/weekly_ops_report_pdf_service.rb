@@ -29,6 +29,7 @@ class Reports::WeeklyOpsReportPdfService
     render_header(pdf)
     render_summary_table(pdf)
     render_deals_created_line(pdf)
+    render_deals_activity_line(pdf)
     render_analysis(pdf)
     render_tables(pdf)
     render_charts(pdf)
