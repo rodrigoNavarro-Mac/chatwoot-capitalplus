@@ -695,6 +695,7 @@
       "visita_efectiva": "Visita efectiva",
       "closed_won": "Deal cerrado ganado"
     },
+    "ACTIVITY_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals creados en este periodo cuyo lead llegó antes — no son parte de la cohorte de leads nuevos, pero sí cuentan aquí y para la meta.",
     "CALLS": {
       "SUMMARY": "Llamadas: {total} ({percent}% contestadas)"
     },
@@ -796,7 +797,7 @@
     },
     "PIPELINE": {
       "TITLE": "Embudo de ventas",
-      "ACTIVITY_BADGE_TOOLTIP": "Deals creados en este periodo por su etapa actual, sin importar cuándo llegó el lead — no está incluido en la barra ni el % de esta etapa (que solo cuenta leads nuevos del periodo). Ver bloque 'Deals que avanzaron esta semana'."
+      "ACTIVITY_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals creados en este periodo cuyo lead llegó antes — no son parte de la cohorte de leads nuevos, pero sí cuentan aquí y para la meta. Ver bloque 'Deals que avanzaron esta semana'."
     },
     "DEALS_ACTIVITY": {
       "TITLE": "Deals que avanzaron esta semana",

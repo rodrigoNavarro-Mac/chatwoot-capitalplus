@@ -14,6 +14,14 @@
 # (existe / visita efectiva / cerrado ganado) se lee de additional_attributes['external'] en el
 # contacto, cacheado por Crm::Zoho::DealsSyncJob (o por ZohoCrmController#create_deal al crearlo
 # desde Chatwoot).
+#
+# has_deal/visita_efectiva/closed_won le suman a `count` (y por lo tanto al % y al cumplimiento de
+# meta) la actividad de deals CREADOS en el periodo que no vienen de la cohorte de "leads nuevos"
+# (ver #deal_activity_outside_cohort) — sin esto, un deal real creado esta semana de un lead que
+# llegó antes nunca movía el % ni contaba para la meta, aunque existiera y se viera en Zoho (caso
+# real detectado 2026-08-24). Esa porción extra viaja aparte en `activity_count` de cada stage para
+# que el frontend la pinte en otro color dentro de la misma barra, en vez de mezclarse en un solo
+# número sin distinguir cohorte de actividad.
 class V2::Reports::SalesFunnelBuilder
   include DateRangeHelper
 
@@ -64,25 +72,98 @@ class V2::Reports::SalesFunnelBuilder
   def build_row(inbox)
     development_key = development_key_for(inbox)
 
+    {
+      inbox_id: inbox.id,
+      inbox_name: inbox.name,
+      development_key: development_key,
+      stages: funnel_stages(funnel_pairs(inbox), development_key),
+      calls: calls_metric(inbox)
+    }
+  end
+
+  def funnel_pairs(inbox)
     leads = leads_with_zoho_link(first_conversation_pairs(inbox))
     replied = customer_replied(leads)
     with_deal = pairs_with_deal(replied)
     visited = visita_efectiva(with_deal)
     won = closed_won(visited)
 
+    { leads: leads, replied: replied, with_deal: with_deal, visited: visited, won: won }
+  end
+
+  def funnel_stages(pairs, development_key)
+    extra = deal_activity_outside_cohort(development_key, pairs[:with_deal].to_set(&:last))
+    counts = combined_counts(pairs, extra)
+
+    stage_definitions(pairs, counts, extra).map do |stage, count, base_count, activity_count|
+      stage_metric(stage, count, base_count, development_key, activity_count: activity_count)
+    end
+  end
+
+  # `count` combinado (cohorte + actividad fuera de cohorte) por etapa — ver
+  # #deal_activity_outside_cohort para el porqué de sumarlos.
+  def combined_counts(pairs, extra)
     {
-      inbox_id: inbox.id,
-      inbox_name: inbox.name,
-      development_key: development_key,
-      stages: [
-        stage_metric('leads', leads.size, leads.size, development_key),
-        stage_metric('customer_replied', replied.size, leads.size, development_key),
-        stage_metric('has_deal', with_deal.size, replied.size, development_key),
-        stage_metric('visita_efectiva', visited.size, with_deal.size, development_key),
-        stage_metric('closed_won', won.size, visited.size, development_key)
-      ],
-      calls: calls_metric(inbox)
+      has_deal: pairs[:with_deal].size + extra[:has_deal],
+      visita_efectiva: pairs[:visited].size + extra[:visita_efectiva],
+      closed_won: pairs[:won].size + extra[:closed_won]
     }
+  end
+
+  # [stage, count, base_count, activity_count] por etapa — "leads"/"customer_replied" no tienen
+  # equivalente de actividad fuera de cohorte (nil), ver #deal_activity_outside_cohort.
+  def stage_definitions(pairs, counts, extra)
+    [
+      ['leads', pairs[:leads].size, pairs[:leads].size, nil],
+      ['customer_replied', pairs[:replied].size, pairs[:leads].size, nil],
+      ['has_deal', counts[:has_deal], pairs[:replied].size, extra[:has_deal]],
+      ['visita_efectiva', counts[:visita_efectiva], counts[:has_deal], extra[:visita_efectiva]],
+      ['closed_won', counts[:closed_won], counts[:visita_efectiva], extra[:closed_won]]
+    ]
+  end
+
+  # Deals de Zoho CREADOS en el periodo cuyo contacto de Chatwoot vinculado NO es parte de la
+  # cohorte de "leads nuevos del periodo" (`with_deal_contact_ids`) — un lead que llegó antes del
+  # periodo y cuyo deal se creó justo esta semana, caso real detectado 2026-08-24: el deal existía y
+  # se veía en el kanban de Zoho filtrado por "Created Time" de la semana, pero "Con deal en Zoho"
+  # salía en 0 porque el embudo solo mira la cohorte de leads nuevos. Se suma al `count`/`%`/meta de
+  # has_deal, visita_efectiva y closed_won (ver #build_row) para que un deal real de esta semana sí
+  # mueva la aguja, sin contar dos veces lo que la cohorte ya cuenta.
+  #
+  # visita_efectiva/closed_won no necesitan su propio chequeo de "ya contado": como `visited`/`won`
+  # ya son subconjuntos de `with_deal` (ver #visita_efectiva/#closed_won), cualquier contacto fuera
+  # de `with_deal_contact_ids` está automáticamente fuera de ambos también.
+  def deal_activity_outside_cohort(development_key, with_deal_contact_ids)
+    zero = { has_deal: 0, visita_efectiva: 0, closed_won: 0 }
+    return zero if development_key.blank?
+
+    stage_by_contact_id = deal_stage_by_contact_id(development_key)
+    extra = stage_by_contact_id.except(*with_deal_contact_ids)
+
+    {
+      has_deal: extra.size,
+      visita_efectiva: extra.count { |_id, stage| VISITA_EFECTIVA_STAGES.include?(stage) },
+      closed_won: extra.count { |_id, stage| CLOSED_WON_STAGES.include?(stage) }
+    }
+  end
+
+  # { chatwoot_contact_id => etapa actual del deal } para los deals de Zoho CREADOS en el periodo de
+  # este desarrollo (mismo criterio que V2::Reports::ZohoLeadsMetrics#deals_activity) — solo incluye
+  # deals cuyo contacto de Chatwoot ya está vinculado vía zoho_deal_id (cacheado por
+  # Crm::Zoho::DealsSyncJob). No captura un deal viejo que solo AVANZÓ de etapa esta semana sin
+  # haberse creado en ella — eso requeriría el historial de cambios de etapa de Zoho, que esta
+  # integración no consulta.
+  def deal_stage_by_contact_id(development_key)
+    deals = Crm::Zoho::DealsForPeriodService.new(account: account, development_key: development_key, range: range).fetch
+    return {} if deals.blank?
+
+    deal_ids = deals.pluck('id')
+    contact_id_by_deal_id = Contact.where(account_id: account.id)
+                                   .where("additional_attributes -> 'external' ->> 'zoho_deal_id' IN (?)", deal_ids)
+                                   .pluck(Arel.sql("additional_attributes -> 'external' ->> 'zoho_deal_id'"), :id)
+                                   .to_h
+
+    deals.filter_map { |deal| [contact_id_by_deal_id[deal['id']], deal['Stage']] if contact_id_by_deal_id[deal['id']] }.to_h
   end
 
   # Total de llamadas de Aircall del inbox en el periodo y % contestadas — "contestada" es
@@ -172,13 +253,14 @@ class V2::Reports::SalesFunnelBuilder
     pairs.select { |(_conversation_id, contact_id)| matching_ids.include?(contact_id) }
   end
 
-  def stage_metric(stage, count, base_count, development_key)
+  def stage_metric(stage, count, base_count, development_key, activity_count: nil)
     target = goal_for(development_key, stage)
     actual_percent = safe_rate(count, base_count)
 
     {
       stage: stage,
       count: count,
+      activity_count: activity_count,
       actual_percent: actual_percent,
       target_percent: target,
       delta: target.nil? ? nil : (actual_percent - target).round(2)

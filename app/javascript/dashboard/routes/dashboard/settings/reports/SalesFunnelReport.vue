@@ -197,6 +197,8 @@ const syncDeals = async () => {
             :target-percent="stage.target_percent"
             :delta="stage.delta"
             :taper-percent="STAGE_TAPER[stage.stage]"
+            :activity-count="stage.activity_count"
+            :activity-tooltip="t('SALES_FUNNEL_REPORTS.ACTIVITY_BADGE_TOOLTIP')"
           />
 
           <div

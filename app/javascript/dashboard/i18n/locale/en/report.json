@@ -695,6 +695,7 @@
       "visita_efectiva": "Effective visit",
       "closed_won": "Deal closed won"
     },
+    "ACTIVITY_BADGE_TOOLTIP": "Part of this number (and %) comes from deals created this period whose lead arrived earlier — not part of the new-leads cohort, but it does count here and toward the goal.",
     "CALLS": {
       "SUMMARY": "Calls: {total} ({percent}% answered)"
     },
@@ -796,7 +797,7 @@
     },
     "PIPELINE": {
       "TITLE": "Sales pipeline",
-      "ACTIVITY_BADGE_TOOLTIP": "Deals created in this period by their current stage, regardless of when the lead arrived — not included in this stage's bar or %, which only counts new leads from this period. See the 'Deals that moved this week' block."
+      "ACTIVITY_BADGE_TOOLTIP": "Part of this number (and %) comes from deals created this period whose lead arrived earlier — not part of the new-leads cohort, but it does count here and toward the goal. See the 'Deals that moved this week' block."
     },
     "DEALS_ACTIVITY": {
       "TITLE": "Deals that moved this week",
