@@ -12,7 +12,7 @@ class Reports::WeeklyOpsAnalysisLlmService < Llm::BaseAiService
   # aparecen en el reporte (ver WeeklyOpsReport.vue) — el LLM omite la clave cuando la sección
   # correspondiente de kpis no trae datos esa semana.
   CARD_KEYS = %w[
-    leads_timeline pipeline zoho_pipeline_status contact_time contact_time_by_period
+    leads_timeline pipeline zoho_pipeline_status deals_activity contact_time contact_time_by_period
     by_advisor conversion_totals zoho_source quality_by_source channel_comparison
     zoho_owner discard_reasons schedule_distribution aircall_calls cadences
   ].freeze
@@ -92,6 +92,11 @@ class Reports::WeeklyOpsAnalysisLlmService < Llm::BaseAiService
         historia, o hay un desfase que sugiere que el CRM no se está actualizando al mismo ritmo que
         la conversación? Si by_status_follow_up muestra mucho volumen, puedes señalar cuánto trabajo
         de seguimiento hay más allá de los leads nuevos.
+      - "deals_activity": kpis.deals_activity (deals CREADOS este periodo, sin importar cuándo llegó
+        el lead — a diferencia de kpis.pipeline, que solo cuenta deals de leads nuevos del periodo)
+        — cruza contra kpis.pipeline.stages: si deals_activity.total es notablemente mayor que la
+        etapa "has_deal" del embudo, señala que hay deals de leads viejos avanzando esta semana que
+        el embudo de cohorte no refleja.
       - "contact_time": kpis.contact_time — cruza first_response/reply_time contra kpis.by_advisor
         (¿un asesor específico arrastra la mediana?) o contra kpis.comparison.contact_time.
       - "contact_time_by_period": kpis.contact_time_by_period_of_week — cruza la diferencia

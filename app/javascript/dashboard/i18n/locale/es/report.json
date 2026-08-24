@@ -797,6 +797,15 @@
     "PIPELINE": {
       "TITLE": "Embudo de ventas"
     },
+    "DEALS_ACTIVITY": {
+      "TITLE": "Deals que avanzaron esta semana",
+      "TOTAL": "Deals creados",
+      "TOTAL_INFO": "Deals de Zoho creados en este periodo, sin importar cuándo llegó el lead — a diferencia del embudo de ventas, que solo cuenta deals de leads cuya primera conversación cayó en este periodo.",
+      "VISITA_EFECTIVA": "Con visita efectiva",
+      "VISITA_EFECTIVA_INFO": "De los deals creados este periodo, cuántos ya están en etapa de visita efectiva (a día de hoy).",
+      "CLOSED_WON": "Cerrados ganados",
+      "CLOSED_WON_INFO": "De los deals creados este periodo, cuántos ya cerraron ganados (a día de hoy)."
+    },
     "ZOHO_LEADS": {
       "PIPELINE_STATUS_TITLE": "Distribución del pipeline",
       "PIPELINE_STATUS_NEW_TITLE": "Leads nuevos del periodo ({count})",

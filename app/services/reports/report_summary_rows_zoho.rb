@@ -41,6 +41,17 @@ module Reports::ReportSummaryRowsZoho
     "Deals creados: #{deals[:total]} (% conversión: #{deals[:conversion_rate]}%)"
   end
 
+  # Deals creados en el periodo por su etapa ACTUAL — distinto del embudo de ventas, que solo
+  # cuenta deals de leads cuya primera conversación cayó en el periodo (ver
+  # V2::Reports::ZohoLeadsMetrics#deals_activity para el caso real que motivó esto).
+  def deals_activity_line_text(kpis)
+    activity = kpis[:deals_activity]
+    return nil if activity.blank?
+
+    "Deals que avanzaron esta semana: #{activity[:total]} creados — #{activity[:visita_efectiva]} con visita efectiva — " \
+      "#{activity[:closed_won]} cerrados ganados"
+  end
+
   def schedule_distribution_line_text(kpis)
     schedule = kpis[:schedule_distribution]
     return nil if schedule.blank?

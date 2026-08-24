@@ -55,6 +55,27 @@ class V2::Reports::ZohoLeadsMetrics
     { total: deals.size, conversion_rate: safe_rate(deals.size, new_leads.size) }
   end
 
+  # De los deals CREADOS en este periodo (misma colección que #deals_created), cuántos ya están en
+  # "Visita efectiva"/"Cerrado ganado" a día de hoy — a diferencia del embudo de ventas
+  # (V2::Reports::SalesFunnelBuilder), que solo cuenta deals de leads cuya PRIMERA conversación de
+  # Chatwoot cayó en este periodo. Un lead que llegó hace semanas y cuyo deal se creó esta semana
+  # (caso real detectado 2026-08-24: deal creado y visto en el kanban de Zoho la misma semana, pero
+  # "Con deal en Zoho" del embudo salía en 0 porque el lead había llegado antes del periodo) SÍ
+  # cuenta aquí, aunque el embudo lo excluya por diseño (cohorte, no actividad).
+  #
+  # OJO: no captura un deal VIEJO que solo avanzó de etapa esta semana sin haberse creado en el
+  # periodo — eso requeriría el historial de cambios de etapa de Zoho (Stage_History), que esta
+  # integración no consulta. Es "de lo nuevo, qué tan lejos llegó", no "todo lo que se movió".
+  def deals_activity
+    return nil if development_key.blank? || range.blank? || deals.blank?
+
+    {
+      total: deals.size,
+      visita_efectiva: deals.count { |deal| V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES.include?(deal['Stage']) },
+      closed_won: deals.count { |deal| V2::Reports::SalesFunnelBuilder::CLOSED_WON_STAGES.include?(deal['Stage']) }
+    }
+  end
+
   # Cuántos leads NUEVOS del periodo (mismo criterio que "convertidos" del embudo: Created_Time
   # dentro del rango) se marcaron como perdidos (Lead_Status "Cliente perdido/Descartado").
   # Restringido a nuevos (antes contaba TODOS los leads tocados, incluyendo seguimiento de leads

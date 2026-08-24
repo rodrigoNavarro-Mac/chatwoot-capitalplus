@@ -15,6 +15,14 @@ module Reports::WeeklyOpsReportDocxTablesZoho
     sect_pr.add_previous_sibling(paragraph_xml(text))
   end
 
+  def insert_deals_activity_line(sect_pr)
+    text = deals_activity_line_text(kpis)
+    return if text.blank?
+
+    sect_pr.add_previous_sibling(paragraph_xml(text))
+    insert_card_analysis_line(sect_pr, :deals_activity)
+  end
+
   def insert_advisor_period_of_week_table(sect_pr)
     rows = advisor_period_of_week_rows(kpis)
     return if rows.blank?

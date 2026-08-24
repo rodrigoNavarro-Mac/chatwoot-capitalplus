@@ -72,19 +72,27 @@ class V2::Reports::WeeklyOpsReportBuilder
       contact_time_by_period_of_week: contact_time_by_period_of_week,
       by_advisor: by_advisor_metrics,
       pipeline: pipeline_metrics,
-      zoho_leads: zoho_leads_service.summary,
-      zoho_leads_timeline: leads_timeline_metrics,
-      deals_created: zoho_leads_service.deals_created,
-      conversion_totals: conversion_totals,
-      schedule_distribution: zoho_leads_service.schedule_distribution,
       aircall_calls: aircall_calls_metrics,
       cadences: cadence_metrics,
       campaigns: campaign_metrics,
       comparison: include_comparison? ? comparison_metrics : nil
-    }
+    }.merge(zoho_metrics)
   end
 
   private
+
+  # Todo lo que sale de V2::Reports::ZohoLeadsMetrics, agrupado aparte para no pasar el límite de
+  # tamaño de #build.
+  def zoho_metrics
+    {
+      zoho_leads: zoho_leads_service.summary,
+      zoho_leads_timeline: leads_timeline_metrics,
+      deals_created: zoho_leads_service.deals_created,
+      deals_activity: zoho_leads_service.deals_activity,
+      conversion_totals: conversion_totals,
+      schedule_distribution: zoho_leads_service.schedule_distribution
+    }
+  end
 
   def include_comparison?
     @include_comparison

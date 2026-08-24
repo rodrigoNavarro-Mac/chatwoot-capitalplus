@@ -653,6 +653,37 @@ const downloadPdf = async () => {
         </div>
 
         <div
+          v-if="kpis.deals_activity"
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.DEALS_ACTIVITY.TITLE') }}
+          </h3>
+          <CardAnalysisNote :text="report.card_analyses?.deals_activity" />
+          <div class="grid grid-cols-3 gap-4">
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.DEALS_ACTIVITY.TOTAL')"
+              :value="String(kpis.deals_activity.total)"
+              :info-text="t('WEEKLY_OPS_REPORTS.DEALS_ACTIVITY.TOTAL_INFO')"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.DEALS_ACTIVITY.VISITA_EFECTIVA')"
+              :value="String(kpis.deals_activity.visita_efectiva)"
+              :info-text="
+                t('WEEKLY_OPS_REPORTS.DEALS_ACTIVITY.VISITA_EFECTIVA_INFO')
+              "
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.DEALS_ACTIVITY.CLOSED_WON')"
+              :value="String(kpis.deals_activity.closed_won)"
+              :info-text="
+                t('WEEKLY_OPS_REPORTS.DEALS_ACTIVITY.CLOSED_WON_INFO')
+              "
+            />
+          </div>
+        </div>
+
+        <div
           v-if="report.llm_analysis"
           class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
         >
