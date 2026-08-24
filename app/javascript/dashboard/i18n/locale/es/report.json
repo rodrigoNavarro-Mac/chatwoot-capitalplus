@@ -795,7 +795,8 @@
       "TOTAL_CALLS": "Llamadas"
     },
     "PIPELINE": {
-      "TITLE": "Embudo de ventas"
+      "TITLE": "Embudo de ventas",
+      "ACTIVITY_BADGE_TOOLTIP": "Deals creados en este periodo por su etapa actual, sin importar cuándo llegó el lead — no está incluido en la barra ni el % de esta etapa (que solo cuenta leads nuevos del periodo). Ver bloque 'Deals que avanzaron esta semana'."
     },
     "DEALS_ACTIVITY": {
       "TITLE": "Deals que avanzaron esta semana",

@@ -795,7 +795,8 @@
       "TOTAL_CALLS": "Calls"
     },
     "PIPELINE": {
-      "TITLE": "Sales pipeline"
+      "TITLE": "Sales pipeline",
+      "ACTIVITY_BADGE_TOOLTIP": "Deals created in this period by their current stage, regardless of when the lead arrived — not included in this stage's bar or %, which only counts new leads from this period. See the 'Deals that moved this week' block."
     },
     "DEALS_ACTIVITY": {
       "TITLE": "Deals that moved this week",
