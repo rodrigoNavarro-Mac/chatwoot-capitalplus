@@ -30,6 +30,20 @@ defineProps({
     type: Number,
     default: 100,
   },
+  // Cifra de actividad (V2::Reports::ZohoLeadsMetrics#deals_activity) para esta etapa: deals
+  // CREADOS en el periodo por su etapa actual, sin el filtro de cohorte de `count`/`actualPercent`
+  // (que solo cuenta leads cuya primera conversación cayó en el periodo). Se pinta como badge
+  // aparte, no como parte de la barra — mezclarlo en la misma barra de % sumaría dos preguntas
+  // distintas (cohorte vs actividad) bajo un solo número — el mismo sesgo que ya se corrigió en la
+  // distribución del pipeline (ver ZohoLeadsMetrics#summary).
+  activityCount: {
+    type: Number,
+    default: null,
+  },
+  activityTooltip: {
+    type: String,
+    default: '',
+  },
 });
 </script>
 
@@ -49,6 +63,13 @@ defineProps({
           :class="delta >= 0 ? 'text-n-teal-11' : 'text-n-ruby-11'"
         >
           {{ delta >= 0 ? '+' : '' }}{{ delta }}%
+        </span>
+        <span
+          v-if="activityCount"
+          v-tooltip="activityTooltip"
+          class="text-xs font-medium px-1.5 rounded-full bg-n-amber-3 text-n-amber-11"
+        >
+          +{{ activityCount }}
         </span>
       </span>
     </div>

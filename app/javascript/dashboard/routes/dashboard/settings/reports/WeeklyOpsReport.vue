@@ -33,6 +33,14 @@ const STAGE_TAPER = {
   visita_efectiva: 80,
   closed_won: 76,
 };
+// De qué llave de kpis.deals_activity sale el badge "+N" de cada etapa — solo las etapas que
+// tienen equivalente ahí (deals_activity no tiene "leads"/"customer_replied", ver
+// V2::Reports::ZohoLeadsMetrics#deals_activity).
+const STAGE_ACTIVITY_KEY = {
+  has_deal: 'total',
+  visita_efectiva: 'visita_efectiva',
+  closed_won: 'closed_won',
+};
 
 const toDateInputValue = date => date.toISOString().slice(0, 10);
 
@@ -164,6 +172,15 @@ const discardReasonsTotal = computed(() => {
 
 const percentOf = (count, total) =>
   total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0%';
+
+// Badge "+N" del embudo — deals CREADOS en el periodo por etapa actual, sin el filtro de cohorte
+// de las barras (ver STAGE_ACTIVITY_KEY y V2::Reports::ZohoLeadsMetrics#deals_activity). null
+// cuando la etapa no tiene equivalente o no hay datos, para que FunnelStageMeter no pinte el badge.
+const activityCountFor = stage => {
+  const key = STAGE_ACTIVITY_KEY[stage];
+  if (!key || !kpis.value?.deals_activity) return null;
+  return kpis.value.deals_activity[key];
+};
 
 const formatDuration = seconds => {
   if (seconds === null || seconds === undefined) return '—';
@@ -731,6 +748,10 @@ const downloadPdf = async () => {
             :target-percent="stage.target_percent"
             :delta="stage.delta"
             :taper-percent="STAGE_TAPER[stage.stage]"
+            :activity-count="activityCountFor(stage.stage)"
+            :activity-tooltip="
+              t('WEEKLY_OPS_REPORTS.PIPELINE.ACTIVITY_BADGE_TOOLTIP')
+            "
           />
         </div>
 
