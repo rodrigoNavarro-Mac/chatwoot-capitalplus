@@ -199,6 +199,8 @@ const syncDeals = async () => {
             :taper-percent="STAGE_TAPER[stage.stage]"
             :activity-count="stage.activity_count"
             :activity-tooltip="t('SALES_FUNNEL_REPORTS.ACTIVITY_BADGE_TOOLTIP')"
+            :external-count="stage.external_count"
+            :external-tooltip="t('SALES_FUNNEL_REPORTS.EXTERNAL_BADGE_TOOLTIP')"
           />
 
           <div

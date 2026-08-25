@@ -735,6 +735,10 @@ const downloadPdf = async () => {
             :activity-tooltip="
               t('WEEKLY_OPS_REPORTS.PIPELINE.ACTIVITY_BADGE_TOOLTIP')
             "
+            :external-count="stage.external_count"
+            :external-tooltip="
+              t('WEEKLY_OPS_REPORTS.PIPELINE.EXTERNAL_BADGE_TOOLTIP')
+            "
           />
         </div>
 

@@ -295,6 +295,39 @@ describe V2::Reports::SalesFunnelBuilder do
         expect(stage(rows, 'leads')[:activity_count]).to be_nil
         expect(stage(rows, 'customer_replied')[:activity_count]).to be_nil
       end
+
+      # Caso real detectado 2026-08-25: un lead creado en Zoho meses antes (via Meta Ads, nunca
+      # escribio por WhatsApp) que recien genero un deal -- Crm::Zoho::DealsSyncJob solo actualiza
+      # contactos que YA existen en Chatwoot, asi que ese deal no tiene con que vincularse.
+      it 'counts a deal with no Chatwoot contact at all as external, separate from activity' do
+        create_lead(replied: true, zoho_deal_id: 'deal-1') # cohorte: 1 lead, 1 con deal
+        stub_deals_for_period([{ 'id' => 'deal-no-contact', 'Stage' => 'Negotiation/Review' }])
+
+        rows = described_class.new(account: account, params: params).build
+
+        expect(stage(rows, 'has_deal')[:count]).to eq(2)
+        expect(stage(rows, 'has_deal')[:activity_count]).to eq(0)
+        expect(stage(rows, 'has_deal')[:external_count]).to eq(1)
+      end
+
+      it 'cascades external into visita_efectiva and closed_won when the unlinked deal is already in a later stage' do
+        stub_deals_for_period([{ 'id' => 'deal-no-contact', 'Stage' => 'Closed Won' }])
+
+        rows = described_class.new(account: account, params: params).build
+
+        expect(stage(rows, 'has_deal')[:external_count]).to eq(1)
+        expect(stage(rows, 'visita_efectiva')[:external_count]).to eq(1)
+        expect(stage(rows, 'closed_won')[:external_count]).to eq(1)
+      end
+
+      it 'has a nil external_count for leads and customer_replied' do
+        stub_deals_for_period([])
+
+        rows = described_class.new(account: account, params: params).build
+
+        expect(stage(rows, 'leads')[:external_count]).to be_nil
+        expect(stage(rows, 'customer_replied')[:external_count]).to be_nil
+      end
     end
   end
 end
