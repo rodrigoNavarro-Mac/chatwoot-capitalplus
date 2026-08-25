@@ -65,10 +65,10 @@ class Webhooks::WhatsappController < ActionController::API
     metadata = params.dig(:entry, 0, :changes, 0, :value, :metadata)
     return if metadata.blank?
 
-    phone_number_id = metadata[:phone_number_id]
-    return if phone_number_id.blank?
-
-    Channel::Whatsapp.find_by("provider_config ->> 'phone_number_id' = ?", phone_number_id)
+    Whatsapp::WebhookChannelFinderService.new(
+      display_phone_number: metadata[:display_phone_number],
+      phone_number_id: metadata[:phone_number_id]
+    ).perform
   end
 
   def inactive_whatsapp_number?
