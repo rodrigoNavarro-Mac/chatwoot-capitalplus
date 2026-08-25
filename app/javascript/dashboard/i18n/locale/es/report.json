@@ -696,6 +696,7 @@
       "closed_won": "Deal cerrado ganado"
     },
     "ACTIVITY_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals creados en este periodo cuyo lead llegó antes — no son parte de la cohorte de leads nuevos, pero sí cuentan aquí y para la meta.",
+    "EXTERNAL_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals sin ningún contacto en Chatwoot — leads que nunca escribieron por WhatsApp (ej. capturados directo en Zoho vía Meta Ads).",
     "CALLS": {
       "SUMMARY": "Llamadas: {total} ({percent}% contestadas)"
     },
@@ -797,7 +798,8 @@
     },
     "PIPELINE": {
       "TITLE": "Embudo de ventas",
-      "ACTIVITY_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals creados en este periodo cuyo lead llegó antes — no son parte de la cohorte de leads nuevos, pero sí cuentan aquí y para la meta. Ver bloque 'Deals que avanzaron esta semana'."
+      "ACTIVITY_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals creados en este periodo cuyo lead llegó antes — no son parte de la cohorte de leads nuevos, pero sí cuentan aquí y para la meta. Ver bloque 'Deals que avanzaron esta semana'.",
+      "EXTERNAL_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals sin ningún contacto en Chatwoot — leads que nunca escribieron por WhatsApp (ej. capturados directo en Zoho vía Meta Ads)."
     },
     "DEALS_ACTIVITY": {
       "TITLE": "Deals que avanzaron esta semana",

@@ -30,15 +30,17 @@ module Reports::ReportSummaryRows
     end
   end
 
-  # "5 (+2 actividad)" cuando parte del conteo viene de deals creados este periodo fuera de la
-  # cohorte de leads nuevos (ver V2::Reports::SalesFunnelBuilder#deal_activity_outside_cohort) — el
-  # PDF/DOCX no tiene una barra de dos colores como el frontend, así que la actividad se anota en la
-  # misma celda en vez de perderse.
+  # "5 (+2 actividad, +1 externo)" cuando parte del conteo viene de deals fuera de la cohorte de
+  # leads nuevos (ver V2::Reports::SalesFunnelDealActivity) — el PDF/DOCX no tiene una barra de
+  # colores como el frontend, así que esa porción se anota en la misma celda en vez de perderse.
   def funnel_count_text(stage)
-    activity = stage[:activity_count].to_i
-    return stage[:count] if activity.zero?
+    parts = [
+      ("+#{stage[:activity_count]} actividad" if stage[:activity_count].to_i.positive?),
+      ("+#{stage[:external_count]} externo" if stage[:external_count].to_i.positive?)
+    ].compact
+    return stage[:count] if parts.empty?
 
-    "#{stage[:count]} (+#{activity} actividad)"
+    "#{stage[:count]} (#{parts.join(', ')})"
   end
 
   def summary_rows(kpis)
