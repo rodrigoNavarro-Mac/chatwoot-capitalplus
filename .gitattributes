@@ -1,0 +1,5 @@
+# Los scripts de shell deben mantenerse en LF sin importar el core.autocrlf del cliente que los
+# checkoutea -- en Windows con autocrlf=true, docker/entrypoints/*.sh se revertía a CRLF en cada
+# checkout/stash, y el shebang con CRLF hace que el contenedor falle al arrancar ("no such file or
+# directory" al intentar exec del script). Incidente real 2026-08-25.
+*.sh text eol=lf
