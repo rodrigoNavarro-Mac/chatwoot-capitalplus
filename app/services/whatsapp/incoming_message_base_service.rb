@@ -105,7 +105,7 @@ class Whatsapp::IncomingMessageBaseService
   def create_contact_messages(message)
     message['contacts'].each do |contact|
       # Pass source_id from parent message since contact objects don't have :id
-      create_message(contact, source_id: message[:id])
+      create_message(contact, source_id: message[:id], content_attributes_source: message)
       attach_contact(contact)
       @message.save!
     end
@@ -127,25 +127,19 @@ class Whatsapp::IncomingMessageBaseService
   end
 
   def set_conversation
-    @conversation = scope_conversations(@contact_inbox.conversations).last
-    return if @conversation
-
-    # Some contacts reply with a different wa_id (e.g. MX.xxxxxxx) than the phone-based
-    # source_id used when the template was sent. In that case the contact_inbox lookup above
-    # finds nothing, but there is already a conversation for this contact in this inbox.
-    # Route the reply there to preserve the existing assignee, respecting
-    # lock_to_single_conversation the same way as the lookup above.
-    @conversation = scope_conversations(
-      Conversation.where(inbox_id: @inbox.id, contact_id: @contact.id, account_id: @inbox.account_id)
-    ).order(created_at: :desc).first
+    # Scope reuse to the contact across all its contact_inboxes in this inbox: WhatsApp coexistence
+    # gives one contact multiple source_ids (phone + BSUID), so reopen must not be limited to a single contact_inbox.
+    # (Cubre el mismo caso que nuestro fix anterior de wa_id MX.xxxxxxx vs phone-based source_id).
+    conversations = @contact.conversations.where(inbox_id: @inbox.id)
+    # if lock to single conversation is disabled, we will create a new conversation if previous conversation is resolved
+    @conversation = if @inbox.lock_to_single_conversation
+                      conversations.last
+                    else
+                      conversations.where.not(status: :resolved).last
+                    end
     return if @conversation
 
     @conversation = ::Conversation.create!(conversation_params)
-  end
-
-  # if lock to single conversation is disabled, we will create a new conversation if previous conversation is resolved
-  def scope_conversations(relation)
-    @inbox.lock_to_single_conversation ? relation : relation.where.not(status: :resolved)
   end
 
   def attach_files
@@ -170,7 +164,7 @@ class Whatsapp::IncomingMessageBaseService
 
   def attach_location
     location = messages_data.first['location']
-    location_name = location['name'] ? "#{location['name']}, #{location['address']}" : ''
+    location_name = (location['name'] ? "#{location['name']}, #{location['address']}" : '').first(255)
     @message.attachments.new(
       account_id: @message.account_id,
       file_type: file_content_type(message_type),
@@ -181,10 +175,7 @@ class Whatsapp::IncomingMessageBaseService
     )
   end
 
-  def create_message(message, source_id: nil)
-    content_attrs = outgoing_echo ? { external_echo: true } : {}
-    content_attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
-
+  def create_message(message, source_id: nil, content_attributes_source: message)
     @message = @conversation.messages.build(
       content: message_content(message),
       account_id: @inbox.account_id,
@@ -194,8 +185,16 @@ class Whatsapp::IncomingMessageBaseService
       status: outgoing_echo ? :delivered : :sent,
       sender: outgoing_echo ? nil : @contact,
       source_id: (source_id || message[:id]).to_s,
-      content_attributes: content_attrs
+      content_attributes: message_content_attributes(content_attributes_source)
     )
+  end
+
+  def message_content_attributes(message)
+    content_attrs = outgoing_echo ? { external_echo: true } : {}
+    content_attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
+    referral_content_attrs = referral_attributes(message)
+    content_attrs[:referral] = referral_content_attrs if referral_content_attrs.present?
+    content_attrs
   end
 
   def attach_contact(contact)

@@ -8,9 +8,14 @@ export const FEATURE_FLAGS = {
   CAMPAIGNS: 'campaigns',
   WHATSAPP_CAMPAIGNS: 'whatsapp_campaign',
   WHATSAPP_CADENCES: 'whatsapp_cadences',
+  WHATSAPP_EMBEDDED_SIGNUP_FLOW: 'whatsapp_embedded_signup_inbox_creation',
+  WHATSAPP_MANUAL_TRANSFER: 'whatsapp_manual_transfer',
+  WHATSAPP_RECONFIGURE: 'whatsapp_reconfigure',
   CANNED_RESPONSES: 'canned_responses',
   CRM: 'crm',
   CUSTOM_ATTRIBUTES: 'custom_attributes',
+  DATA_IMPORT: 'data_import',
+  API_AND_WEBHOOKS: 'api_and_webhooks',
   INBOX_MANAGEMENT: 'inbox_management',
   INTEGRATIONS: 'integrations',
   LABELS: 'labels',
@@ -48,6 +53,7 @@ export const FEATURE_FLAGS = {
   ADVANCED_SEARCH: 'advanced_search',
   CONVERSATION_REQUIRED_ATTRIBUTES: 'conversation_required_attributes',
   CONVERSATION_UNREAD_COUNTS: 'conversation_unread_counts',
+  UNREAD_COUNT_FOR_FILTERS: 'unread_count_for_filters',
 };
 
 export const PREMIUM_FEATURES = [
