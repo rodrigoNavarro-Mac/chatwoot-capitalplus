@@ -13,8 +13,11 @@ RSpec.describe '/api/v1/accounts/{account.id}/contacts/:id/conversations', type:
 
   before do
     create(:inbox_member, user: agent, inbox: inbox_1)
+    # Un agente regular solo ve lo que tiene asignado (Conversations::PermissionFilterService),
+    # asi que las conversaciones "visibles" para el agente son las asignadas a el, no las de
+    # inboxes de los que es miembro.
     2.times.each do
-      create(:conversation, account: account, inbox: inbox_1, contact: contact, contact_inbox: contact_inbox_1)
+      create(:conversation, account: account, inbox: inbox_1, contact: contact, contact_inbox: contact_inbox_1, assignee: agent)
       create(:conversation, account: account, inbox: inbox_2, contact: contact, contact_inbox: contact_inbox_2)
     end
   end
@@ -40,7 +43,7 @@ RSpec.describe '/api/v1/accounts/{account.id}/contacts/:id/conversations', type:
       end
 
       context 'with user as agent' do
-        it 'returns conversations from the inboxes which agent has access to' do
+        it 'returns only the conversations assigned to the agent' do
           get "/api/v1/accounts/#{account.id}/contacts/#{contact.id}/conversations", headers: agent.create_new_auth_token
 
           expect(response).to have_http_status(:success)

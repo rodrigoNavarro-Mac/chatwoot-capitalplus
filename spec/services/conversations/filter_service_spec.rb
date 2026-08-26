@@ -281,7 +281,10 @@ describe Conversations::FilterService do
       end
 
       it 'filter conversations by tags' do
-        user_2_assigned_conversation.update_labels('support')
+        # etiquetamos una conversacion de user_1: bajo la politica actual, un agente
+        # regular solo ve lo que tiene asignado, aun si el filtro de assignee_id
+        # permite un rango mas amplio.
+        en_conversation_1.update_labels('support')
         params[:payload] = [
           {
             attribute_key: 'assignee_id',
@@ -385,7 +388,7 @@ describe Conversations::FilterService do
             query_operator: nil
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, user_2, account).perform
         expect(result[:conversations].length).to be 1
         expect(result[:conversations][0][:id]).to be user_2_assigned_conversation.id
       end
@@ -413,7 +416,7 @@ describe Conversations::FilterService do
             query_operator: nil
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, user_2, account).perform
         expect(result[:conversations].length).to be 1
         expect(result[:conversations][0][:id]).to be user_2_assigned_conversation.id
       end
@@ -435,7 +438,7 @@ describe Conversations::FilterService do
             custom_attribute_type: ''
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, user_2, account).perform
         expect(result[:conversations].length).to be 1
       end
 
@@ -456,7 +459,7 @@ describe Conversations::FilterService do
             custom_attribute_type: nil
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, user_2, account).perform
         expect(result[:conversations].length).to be 1
       end
 
@@ -503,7 +506,8 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = account.conversations.where('created_at > ?', DateTime.parse('2022-01-20')).count
+        # user_1 solo ve sus propias conversaciones (Conversations::PermissionFilterService)
+        expected_count = user_1.conversations.where('created_at > ?', DateTime.parse('2022-01-20')).count
         expect(result[:conversations].length).to eq expected_count
       end
 
@@ -560,7 +564,7 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = account.conversations.where("created_at > ? AND custom_attributes->>'conversation_type' = ?",
+        expected_count = user_1.conversations.where("created_at > ? AND custom_attributes->>'conversation_type' = ?",
                                                      DateTime.parse('2022-01-20'), 'platinum').count
 
         expect(result[:conversations].length).to eq expected_count
@@ -638,7 +642,7 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = account.conversations.where('created_at > ?', DateTime.parse('2022-01-20')).count
+        expected_count = user_1.conversations.where('created_at > ?', DateTime.parse('2022-01-20')).count
 
         expect(Current.account).to be_nil
         expect(result[:conversations].length).to eq expected_count
@@ -671,10 +675,17 @@ describe Conversations::FilterService do
       expect(result[:conversations].count).to eq 2
     end
 
-    it 'filters conversations by inbox membership for non-administrators' do
+    it 'restricts non-administrators to conversations assigned to them, regardless of inbox membership' do
+      # La membresia de inbox ya no otorga visibilidad por si sola: solo lo asignado
+      # al agente es visible (Conversations::PermissionFilterService). Las 2
+      # conversaciones sin dueno creadas en el before (una en inbox_1, donde user_1
+      # es miembro) no deben aparecer.
+      assigned_conversation = create(:conversation, account: account, inbox: inbox_1, assignee: user_1)
+
       service = filter_service.new(params, user_1, account)
       result = service.perform
-      expect(result[:conversations].count).to eq 1
+
+      expect(result[:conversations].map(&:id)).to eq [assigned_conversation.id]
     end
   end
 end

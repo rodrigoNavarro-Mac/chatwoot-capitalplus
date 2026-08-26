@@ -497,7 +497,9 @@ RSpec.describe Conversations::UnreadCounts::FilteredCounter do
   end
 
   def create_visible_unread_conversation(status: :open, agent_last_seen_at: 1.hour.ago, unattended: false)
-    conversation = create_unread_conversation(account: account, inbox: visible_inbox)
+    # "visible" para un agente regular requiere que la conversacion este asignada a el
+    # (Conversations::PermissionFilterService ya no concede visibilidad por membresia de inbox).
+    conversation = create_unread_conversation(account: account, inbox: visible_inbox, assignee: agent)
     conversation.update!(
       status: status,
       agent_last_seen_at: agent_last_seen_at,

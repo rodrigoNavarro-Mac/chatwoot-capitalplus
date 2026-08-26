@@ -14,7 +14,7 @@ RSpec.describe 'Conversations API', type: :request do
 
     context 'when it is an authenticated user' do
       let(:agent) { create(:user, account: account, role: :agent) }
-      let(:conversation) { create(:conversation, account: account) }
+      let(:conversation) { create(:conversation, account: account, assignee: agent) }
 
       before do
         create(:inbox_member, user: agent, inbox: conversation.inbox)
@@ -47,16 +47,13 @@ RSpec.describe 'Conversations API', type: :request do
       end
 
       it 'returns unattended conversations' do
-        attended_conversation = create(:conversation, account: account, first_reply_created_at: Time.now.utc)
+        agent_1 = create(:user, account: account, role: :agent)
+
+        attended_conversation = create(:conversation, account: account, assignee: agent_1, first_reply_created_at: Time.now.utc)
         # to ensure that waiting since value is populated
         create(:message, message_type: :outgoing, conversation: attended_conversation, account: account)
-        unattended_conversation_no_first_reply = create(:conversation, account: account, first_reply_created_at: nil)
-        unattended_conversation_waiting_since = create(:conversation, account: account, first_reply_created_at: Time.now.utc)
-
-        agent_1 = create(:user, account: account, role: :agent)
-        create(:inbox_member, user: agent_1, inbox: attended_conversation.inbox)
-        create(:inbox_member, user: agent_1, inbox: unattended_conversation_no_first_reply.inbox)
-        create(:inbox_member, user: agent_1, inbox: unattended_conversation_waiting_since.inbox)
+        unattended_conversation_no_first_reply = create(:conversation, account: account, assignee: agent_1, first_reply_created_at: nil)
+        unattended_conversation_waiting_since = create(:conversation, account: account, assignee: agent_1, first_reply_created_at: Time.now.utc)
 
         get "/api/v1/accounts/#{account.id}/conversations",
             headers: agent_1.create_new_auth_token,
@@ -84,7 +81,7 @@ RSpec.describe 'Conversations API', type: :request do
       let(:agent) { create(:user, account: account, role: :agent) }
 
       before do
-        conversation = create(:conversation, account: account)
+        conversation = create(:conversation, account: account, assignee: agent)
         create(:inbox_member, user: agent, inbox: conversation.inbox)
       end
 
@@ -165,7 +162,9 @@ RSpec.describe 'Conversations API', type: :request do
           allow(Conversations::UnreadCounts::FilteredCountInstrumentation).to receive(:summarize_request) do |**_attributes, &block|
             block.call
           end
-          mentioned = create_unread_conversation(account: account, inbox: visible_inbox)
+          # el conteo filtrado usa Conversations::UnreadCounts::FilteredCounter, que aplica
+          # Conversations::PermissionFilterService: la conversacion debe estar asignada al agente.
+          mentioned = create_unread_conversation(account: account, inbox: visible_inbox, assignee: agent)
           create(:mention, account: account, conversation: mentioned, user: agent)
 
           get "/api/v1/accounts/#{account.id}/conversations/unread_counts",
@@ -207,7 +206,7 @@ RSpec.describe 'Conversations API', type: :request do
       let(:agent) { create(:user, account: account, role: :agent) }
 
       before do
-        conversation = create(:conversation, account: account)
+        conversation = create(:conversation, account: account, assignee: agent)
         create(:message, conversation: conversation, account: account, content: 'test1')
         create(:message, conversation: conversation, account: account, content: 'test2')
         create(:inbox_member, user: agent, inbox: conversation.inbox)

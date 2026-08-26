@@ -14,7 +14,8 @@ RSpec.describe '/api/v1/accounts/{account.id}/contacts/:id/attachments', type: :
   before do
     create(:inbox_member, user: agent, inbox: inbox_1)
 
-    conversation_1 = create(:conversation, account: account, inbox: inbox_1, contact: contact, contact_inbox: contact_inbox_1)
+    # Un agente regular solo ve lo que tiene asignado (Conversations::PermissionFilterService).
+    conversation_1 = create(:conversation, account: account, inbox: inbox_1, contact: contact, contact_inbox: contact_inbox_1, assignee: agent)
     conversation_2 = create(:conversation, account: account, inbox: inbox_2, contact: contact, contact_inbox: contact_inbox_2)
 
     create(:message, :with_attachment, conversation: conversation_1, account: account, inbox: inbox_1, message_type: 'incoming')
@@ -56,7 +57,7 @@ RSpec.describe '/api/v1/accounts/{account.id}/contacts/:id/attachments', type: :
       end
 
       context 'with user as agent' do
-        it 'returns attachments only from inboxes the agent has access to' do
+        it 'returns attachments only from conversations assigned to the agent' do
           get "/api/v1/accounts/#{account.id}/contacts/#{contact.id}/attachments",
               headers: agent.create_new_auth_token
 
