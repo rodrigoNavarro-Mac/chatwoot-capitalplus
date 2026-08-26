@@ -82,56 +82,56 @@ describe Whatsapp::OneoffCampaignService do
         expect(campaign.reload.completed?).to be true
       end
 
-      it 'marks the campaign completed after processing the audience' do
+      it 'marks the campaign completed after scheduling the audience' do
         contact = create(:contact, :with_phone_number, account: account)
         contact.update_labels([label1.title])
-
-        expect(whatsapp_channel).to receive(:send_template) do
-          expect(campaign.reload.completed?).to be false
-        end
 
         described_class.new(campaign: campaign).perform
 
         expect(campaign.reload.completed?).to be true
+        expect(enqueued_jobs.any? { |j| j[:job] == Campaigns::SendCampaignContactJob }).to be true
       end
 
-      it 'processes contacts with matching labels' do
+      it 'schedules one job per contact with matching labels' do
         contact_with_label1, contact_with_label2, contact_with_both_labels =
           create_list(:contact, 3, :with_phone_number, account: account)
         contact_with_label1.update_labels([label1.title])
         contact_with_label2.update_labels([label2.title])
         contact_with_both_labels.update_labels([label1.title, label2.title])
 
-        expect(whatsapp_channel).to receive(:send_template).exactly(3).times
-
         described_class.new(campaign: campaign).perform
+
+        scheduled_contact_ids = enqueued_jobs.select { |j| j[:job] == Campaigns::SendCampaignContactJob }.map { |j| j[:args][1] }
+        expect(scheduled_contact_ids).to contain_exactly(contact_with_label1.id, contact_with_label2.id, contact_with_both_labels.id)
       end
 
-      it 'skips contacts without phone numbers' do
+      it 'does not send to contacts without phone numbers when their job runs' do
         contact_without_phone = create(:contact, account: account, phone_number: nil)
         contact_without_phone.update_labels([label1.title])
 
-        expect(whatsapp_channel).not_to receive(:send_template)
+        expect_any_instance_of(Whatsapp::Providers::WhatsappCloudService).not_to receive(:send_template) # rubocop:disable RSpec/AnyInstance
 
-        described_class.new(campaign: campaign).perform
+        result = described_class.new(campaign: campaign).send_to_contact(contact_without_phone)
+
+        expect(result).to be_nil
       end
+    end
 
+    describe '#send_to_contact' do
       it 'uses template processor service to process templates' do
         contact = create(:contact, :with_phone_number, account: account)
-        contact.update_labels([label1.title])
 
         expect(Whatsapp::TemplateProcessorService).to receive(:new)
           .with(channel: whatsapp_channel, template_params: template_params)
           .and_call_original
 
-        described_class.new(campaign: campaign).perform
+        described_class.new(campaign: campaign).send_to_contact(contact)
       end
 
       it 'sends template message with correct parameters' do
         contact = create(:contact, :with_phone_number, account: account)
-        contact.update_labels([label1.title])
 
-        expect(whatsapp_channel).to receive(:send_template).with(
+        expect_any_instance_of(Whatsapp::Providers::WhatsappCloudService).to receive(:send_template).with( # rubocop:disable RSpec/AnyInstance
           contact.phone_number,
           hash_including(
             name: 'ticket_status_updated',
@@ -147,15 +147,14 @@ describe Whatsapp::OneoffCampaignService do
               )
             )
           ),
-          nil
+          an_instance_of(Message)
         )
 
-        described_class.new(campaign: campaign).perform
+        described_class.new(campaign: campaign).send_to_contact(contact)
       end
 
       it 'processes liquid variables in template parameters' do
         contact = create(:contact, :with_phone_number, account: account, name: 'Jane Smith', email: 'jane@example.com')
-        contact.update_labels([label1.title])
 
         campaign_with_liquid = create(:campaign, inbox: whatsapp_inbox, account: account,
                                                  audience: [{ type: 'Label', id: label1.id }],
@@ -174,7 +173,7 @@ describe Whatsapp::OneoffCampaignService do
 
         contact_drop_name = ContactDrop.new(contact).name
 
-        expect(whatsapp_channel).to receive(:send_template).with(
+        expect_any_instance_of(Whatsapp::Providers::WhatsappCloudService).to receive(:send_template).with( # rubocop:disable RSpec/AnyInstance
           contact.phone_number,
           hash_including(
             name: 'ticket_status_updated',
@@ -190,15 +189,14 @@ describe Whatsapp::OneoffCampaignService do
               )
             )
           ),
-          nil
+          an_instance_of(Message)
         )
 
-        described_class.new(campaign: campaign_with_liquid).perform
+        described_class.new(campaign: campaign_with_liquid).send_to_contact(contact)
       end
 
       it 'skips contacts when liquid variables resolve to blank values' do
         contact = create(:contact, :with_phone_number, account: account, name: 'Jane', email: nil)
-        contact.update_labels([label1.title])
 
         campaign_with_blank_liquid = create(:campaign, inbox: whatsapp_inbox, account: account,
                                                        audience: [{ type: 'Label', id: label1.id }],
@@ -213,47 +211,41 @@ describe Whatsapp::OneoffCampaignService do
                                                          }
                                                        })
 
-        expect(whatsapp_channel).not_to receive(:send_template)
-        expect(Rails.logger).to receive(:info).with("Skipping contact #{contact.name} - liquid variables resolved to blank values")
-        allow(Rails.logger).to receive(:info)
+        expect_any_instance_of(Whatsapp::Providers::WhatsappCloudService).not_to receive(:send_template) # rubocop:disable RSpec/AnyInstance
+        expect(Rails.logger).to receive(:info).with("Skipping #{contact.phone_number} — liquid variables resolved to blank")
 
-        described_class.new(campaign: campaign_with_blank_liquid).perform
+        described_class.new(campaign: campaign_with_blank_liquid).send_to_contact(contact)
       end
     end
 
     context 'when template_params is missing' do
       let(:template_params) { nil }
 
-      it 'skips contacts and logs error' do
+      it 'skips the contact without sending' do
         contact = create(:contact, :with_phone_number, account: account)
-        contact.update_labels([label1.title])
 
-        expect(Rails.logger).to receive(:error)
-          .with("Skipping contact #{contact.name} - no template_params found for WhatsApp campaign")
-        expect(whatsapp_channel).not_to receive(:send_template)
+        expect_any_instance_of(Whatsapp::Providers::WhatsappCloudService).not_to receive(:send_template) # rubocop:disable RSpec/AnyInstance
 
-        described_class.new(campaign: campaign).perform
+        result = described_class.new(campaign: campaign).send_to_contact(contact)
+
+        expect(result).to be_nil
       end
     end
 
     context 'when send_template raises an error' do
-      it 'logs error and continues processing remaining contacts' do
-        contact_error, contact_success = create_list(:contact, 2, :with_phone_number, account: account)
-        contact_error.update_labels([label1.title])
-        contact_success.update_labels([label1.title])
+      it 'logs the error and returns nil' do
+        contact = create(:contact, :with_phone_number, account: account)
         error_message = 'WhatsApp API error'
 
-        allow(whatsapp_channel).to receive(:send_template).and_return(nil)
+        allow_any_instance_of(Whatsapp::Providers::WhatsappCloudService).to receive(:send_template).and_raise(StandardError, error_message) # rubocop:disable RSpec/AnyInstance
 
-        expect(whatsapp_channel).to receive(:send_template).with(contact_error.phone_number, anything, nil).and_raise(StandardError, error_message)
-        expect(whatsapp_channel).to receive(:send_template).with(contact_success.phone_number, anything, nil).once
-
+        allow(Rails.logger).to receive(:error) # backtrace log, contenido no relevante aqui
         expect(Rails.logger).to receive(:error)
-          .with("Failed to send WhatsApp template message to #{contact_error.phone_number}: #{error_message}")
-        expect(Rails.logger).to receive(:error).with(/Backtrace:/)
+          .with("Failed to send WhatsApp template to #{contact.phone_number}: #{error_message}")
 
-        described_class.new(campaign: campaign).perform
-        expect(campaign.reload.completed?).to be true
+        result = described_class.new(campaign: campaign).send_to_contact(contact)
+
+        expect(result).to be_nil
       end
     end
 

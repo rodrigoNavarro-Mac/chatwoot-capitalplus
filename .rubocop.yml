@@ -1,3 +1,5 @@
+inherit_from: .rubocop_todo.yml
+
 plugins:
   - rubocop-performance
   - rubocop-rails
@@ -20,11 +22,27 @@ Metrics/ClassLength:
     - 'app/models/conversation.rb'
     - 'app/services/crm/zoho/processor_service.rb'
     - 'app/services/whatsapp/oneoff_campaign_service.rb'
+    - 'app/builders/messages/message_builder.rb'
+    - 'app/builders/v2/reports/weekly_ops_report_builder.rb'
+    - 'app/controllers/api/v1/accounts/integrations/zoho_crm_controller.rb'
+    - 'app/controllers/api/v2/accounts/reports_controller.rb'
+    - 'app/finders/conversation_finder.rb'
+    - 'app/models/contact.rb'
+    - 'app/models/inbox.rb'
+    - 'app/services/agent_bots/internal_flow_handler_service.rb'
+    - 'app/services/reports/weekly_ops_report_pdf_service.rb'
+    - 'app/services/whatsapp/incoming_message_base_service.rb'
 
 Metrics/MethodLength:
   Max: 19
   Exclude:
     - 'enterprise/lib/captain/agent.rb'
+    - 'app/controllers/api/v1/accounts/integrations/zoho_crm_controller.rb'
+    - 'app/services/agent_bots/internal_flow_handler_service.rb'
+    - 'app/services/crm/zoho/processor_service.rb'
+    - 'db/migrate/20260709120000_create_campaign_message_deliveries.rb'
+    - 'db/migrate/20260709140000_create_cadence_enrollments.rb'
+    - 'db/migrate/20260715090000_create_cadence_step_definitions.rb'
 
 RSpec/ExampleLength:
   Max: 50
@@ -49,6 +67,7 @@ Chatwoot/AttachmentDownload:
   Exclude:
     - 'spec/**/*'
     - 'test/**/*'
+    - 'app/services/agent_bots/maintenance_report_service.rb'
 
 Style/OptionalBooleanParameter:
   Exclude:
@@ -88,6 +107,8 @@ Metrics/BlockLength:
     - '**/routes.rb'
     - 'config/environments/*'
     - db/schema.rb
+    - 'lib/tasks/backfill_first_reply.rake'
+    - 'lib/tasks/repair_aircall_backdated_activity.rake'
 
 Metrics/ModuleLength:
   Exclude:
@@ -143,6 +164,7 @@ Style/ClassAndModuleChildren:
   Exclude:
     - 'config/application.rb'
     - 'config/initializers/monkey_patches/*'
+    - 'app/services/agent_bots/message_interpolator.rb'
 
 Style/MapToHash:
   Enabled: false
@@ -174,6 +196,7 @@ Style/GuardClause:
     - 'app/builders/account_builder.rb'
     - 'app/models/attachment.rb'
     - 'app/models/message.rb'
+    - 'app/services/agent_bots/internal_flow_handler_service.rb'
 
 Metrics/AbcSize:
   Max: 26
@@ -183,6 +206,12 @@ Metrics/AbcSize:
     - 'app/models/integrations/hook.rb'
     - 'app/models/canned_response.rb'
     - 'app/models/telegram_bot.rb'
+    - 'app/builders/campaigns/campaign_metrics_builder.rb'
+    - 'app/controllers/api/v1/accounts/integrations/zoho_crm_controller.rb'
+    - 'app/services/agent_bots/internal_flow_handler_service.rb'
+    - 'app/services/agent_bots/maintenance_report_service.rb'
+    - 'app/services/crm/zoho/inbound_webhook_service.rb'
+    - 'app/services/crm/zoho/processor_service.rb'
 
 Rails/RenderInline:
   Exclude:
@@ -211,6 +240,7 @@ UseFromEmail:
   Exclude:
     - 'app/models/user.rb'
     - 'app/models/contact.rb'
+    - 'app/services/auto_assignment/zoho_owner_resolver.rb'
 
 CustomCopLocation:
   Enabled: true

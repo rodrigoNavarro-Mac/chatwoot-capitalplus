@@ -10,6 +10,7 @@ RSpec.configure do |config|
 
     next if opensearch_url.blank?
 
+    # rubocop:disable Rails/Output -- diagnostico de consola para CI, no logging de app
     puts "\n==== OpenSearch Connectivity Check ===="
     puts "OPENSEARCH_URL: #{opensearch_url}"
 
@@ -36,5 +37,6 @@ RSpec.configure do |config|
       puts "========================================\n\n"
       raise "OpenSearch connectivity check failed: #{e.message}"
     end
+    # rubocop:enable Rails/Output
   end
 end
