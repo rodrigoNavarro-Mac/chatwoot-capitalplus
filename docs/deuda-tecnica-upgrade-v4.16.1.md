@@ -73,6 +73,21 @@ relevantes después de este upgrade.
    el assignee no es miembro del `team` que se le asigna a la conversación — si un fixture
    de test asigna `assignee:` y `team:` a la vez sin agregar al agente como `team_member`
    primero, el assignee desaparece sin error visible.
+10. **`InternalFlowHandlerService` con 13 fallos, investigado y confirmado como bug de
+    fixture del test, no de producción** (commit pendiente): el fixture nunca vinculaba el
+    `agent_bot` al `inbox` via `AgentBotInbox`. Sin ese vínculo, `Inbox#active_bot?` es
+    falso, y `Conversation#determine_conversation_status` (before_create,
+    `app/models/conversation.rb:304`) no pone la conversación en `pending` — nace `open`
+    por default de la columna. `InternalFlowHandlerService#processable?` bloquea
+    deliberadamente conversaciones `open` (asume que un agente humano ya la tomó), así que
+    el bot nunca respondía en los tests. **En producción cualquier bot real está vinculado a
+    su inbox por definición** (si no, ni siquiera se invoca — ver `AgentBotListener
+    #agent_bots_for`), así que este bug NO se manifiesta con una configuración real. Fix:
+    agregar `create(:agent_bot_inbox, agent_bot: agent_bot, inbox: inbox)` al `before` del
+    spec. Además 2 fallos sueltos adicionales de fixture: un test de mayúsculas sin el
+    `_bot_current_step` inicial seteado, y un número de teléfono placeholder inválido
+    (`+52155XXXXXXXX`, con X literales) que no pasaba la validación E.164 — reemplazado por
+    un número de formato válido.
 
 ## Pendientes — no arregladas, requieren decisión o acceso que no tuvimos
 
@@ -128,10 +143,6 @@ relevantes después de este upgrade.
    no deberían. Requiere investigación dedicada de la query generada — no arreglado, el test
    se dejó fallando intencionalmente para no enmascarar un bug real con un número ajustado a
    ciegas.
-7. **`InternalFlowHandlerService` roto** (`spec/services/agent_bots/internal_flow_handler_service_spec.rb`,
-   13 fallos): el bot de flujo interno (feature de agentBots) no está guardando/leyendo
-   `custom_attributes['_bot_current_step']` correctamente — probablemente afectado por el
-   merge. No investigado a fondo.
 8. **`GOTENBERG_URL` no configurado en el entorno de CI** (3 fallos: `weekly_ops_reports_spec.rb`
    x2, `docx_to_pdf_converter_service_spec.rb` x3): `ENV.fetch('GOTENBERG_URL')` truena con
    `KeyError` porque la variable no está seteada en `run_foss_spec.yml`. Falta agregar un

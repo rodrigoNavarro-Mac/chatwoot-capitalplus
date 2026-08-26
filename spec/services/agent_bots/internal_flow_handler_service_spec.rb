@@ -67,6 +67,13 @@ RSpec.describe AgentBots::InternalFlowHandlerService do
                           contact_inbox: contact_inbox)
   end
 
+  # Conversation#determine_conversation_status (before_create) solo pone la conversacion en
+  # `pending` si inbox.active_bot? es true. Sin este vinculo la conversacion nace `open`, y
+  # InternalFlowHandlerService#processable? bloquea el procesamiento de conversaciones open
+  # (asume que un agente humano ya la tomo). Cualquier bot real en produccion esta vinculado
+  # a su inbox por definicion, asi que este before replica esa condicion previa.
+  before { create(:agent_bot_inbox, agent_bot: agent_bot, inbox: inbox) }
+
   describe '#perform' do
     context 'cuando la conversación empieza sin paso guardado (primer mensaje)' do
       it 'envía el mensaje del initial_step sin importar el contenido' do
@@ -182,6 +189,8 @@ RSpec.describe AgentBots::InternalFlowHandlerService do
     end
 
     context 'comparación case-insensitive' do
+      before { conversation.update!(custom_attributes: { '_bot_current_step' => 'welcome' }) }
+
       it 'coincide independientemente de mayúsculas' do
         described_class.new(agent_bot, conversation, 'COMPRAR').perform
 
@@ -285,7 +294,7 @@ RSpec.describe AgentBots::InternalFlowHandlerService do
       let(:maintenance_config) do
         {
           'initial_step' => 'bienvenida',
-          'authorized_providers' => ['+52155XXXXXXXX'],
+          'authorized_providers' => ['+525512345678'],
           'steps' => {
             'bienvenida' => { 'message' => 'Bienvenido proveedor.' }
           }
@@ -306,7 +315,7 @@ RSpec.describe AgentBots::InternalFlowHandlerService do
       end
 
       it 'permite números autorizados' do
-        contact.update!(phone_number: '+52155XXXXXXXX')
+        contact.update!(phone_number: '+525512345678')
 
         described_class.new(maintenance_bot, conversation, 'hola').perform
 
