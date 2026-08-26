@@ -304,13 +304,22 @@ describe ConversationFinder do
       let(:params) { { status: 'open', assignee_type: 'me', conversation_type: 'unattended' } }
 
       it 'returns unattended conversations' do
-        create(:conversation, account: account, first_reply_created_at: Time.now.utc, assignee: user_1) # attended_conversation
+        # Conversation#ensure_waiting_since (before_create) siempre pone waiting_since a
+        # created_at al crear, sin importar el valor pasado. En produccion, waiting_since
+        # solo se limpia cuando llega una respuesta real (Message#set_first_reply_created_at
+        # hace conversation.update(first_reply_created_at:, waiting_since: nil) al mismo
+        # tiempo) — asi que replicamos eso con un update posterior en vez de pasarlo al create,
+        # que el callback ignoraria.
+        attended_conversation = create(:conversation, account: account, assignee: user_1)
+        attended_conversation.update!(first_reply_created_at: Time.now.utc, waiting_since: nil)
         create(:conversation, account: account, first_reply_created_at: nil, assignee: user_1) # unattended_conversation_no_first_reply
         create(:conversation, account: account, first_reply_created_at: Time.now.utc,
                               assignee: user_1, waiting_since: Time.now.utc) # unattended_conversation_waiting_since
 
         result = conversation_finder.perform
-        expect(result[:conversations].length).to be 2
+        # conv1 y conv2 del fixture compartido (arriba) tambien cuentan: nunca recibieron una
+        # primera respuesta real, asi que legitimamente siguen "sin atender".
+        expect(result[:conversations].length).to be 4
       end
     end
 

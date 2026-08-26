@@ -88,6 +88,25 @@ relevantes después de este upgrade.
     `_bot_current_step` inicial seteado, y un número de teléfono placeholder inválido
     (`+52155XXXXXXXX`, con X literales) que no pasaba la validación E.164 — reemplazado por
     un número de formato válido.
+11. **Bug de `unattended` en `conversation_finder_spec.rb`, investigado a fondo y confirmado
+    como fixture del test, no bug de producción** (commit pendiente): el scope
+    `Conversation.unattended` (`app/models/conversation.rb:94`,
+    `where(first_reply_created_at: nil).or(where.not(waiting_since: nil))`) funciona
+    correctamente. La causa real: `Conversation#ensure_waiting_since` (before_create,
+    `app/models/conversation.rb:284`) siempre pone `waiting_since = created_at` al crear,
+    **sin importar el valor pasado** — pasar `waiting_since: nil` en la factory no sirve, el
+    callback lo pisa. En producción, `waiting_since` solo se limpia cuando llega una
+    respuesta real: `Message#set_first_reply_created_at`
+    (`app/models/message.rb:397-399`) hace
+    `conversation.update(first_reply_created_at:, waiting_since: nil)` en el mismo update. El
+    fixture "attended_conversation" del test seteaba `first_reply_created_at` directamente
+    sin enviar un mensaje real, así que `waiting_since` nunca se limpiaba y la conversación
+    seguía contando como "sin atender" — comportamiento correcto del código dado ese fixture
+    irreal. Fix: crear la conversación y hacer `.update!(first_reply_created_at:,
+    waiting_since: nil)` después (replicando el update real de `Message`), y corregir el
+    conteo esperado de 2 a 4 (las 2 conversaciones del fixture compartido, sin
+    `first_reply_created_at`, también cuentan legítimamente como "sin atender").
+    24 examples, 0 failures.
 
 ## Pendientes — no arregladas, requieren decisión o acceso que no tuvimos
 
@@ -133,16 +152,6 @@ relevantes después de este upgrade.
    rojo. No se pudo hacer desde este entorno de trabajo (sin `gh` CLI ni acceso a la
    configuración del repo) — requiere que alguien con acceso de administrador en GitHub lo
    haga manualmente.
-6. **Bug real (no de specs) en el scope `unattended`** (`spec/finders/conversation_finder_spec.rb`,
-   test "with unattended"): el conteo da 5 en vez de 2 esperados. La causa NO es la política
-   de permisos (ya confirmada correcta) — parece un problema de composición de queries entre
-   el scope `Conversation.unattended` (`where(first_reply_created_at: nil).or(where.not(waiting_since: nil))`,
-   en `app/models/conversation.rb:94`) y el filtro de `status` que se aplica después en
-   `ConversationFinder#filter_by_assignee_type`/`#filter_by_status`. Las conversaciones base
-   del fixture compartido (sin `first_reply_created_at`) se cuelan como "unattended" cuando
-   no deberían. Requiere investigación dedicada de la query generada — no arreglado, el test
-   se dejó fallando intencionalmente para no enmascarar un bug real con un número ajustado a
-   ciegas.
 8. **`GOTENBERG_URL` no configurado en el entorno de CI** (3 fallos: `weekly_ops_reports_spec.rb`
    x2, `docx_to_pdf_converter_service_spec.rb` x3): `ENV.fetch('GOTENBERG_URL')` truena con
    `KeyError` porque la variable no está seteada en `run_foss_spec.yml`. Falta agregar un
