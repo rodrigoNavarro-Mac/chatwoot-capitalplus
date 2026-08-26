@@ -52,8 +52,8 @@ RSpec.describe 'Conversations API', type: :request do
         attended_conversation = create(:conversation, account: account, assignee: agent_1, first_reply_created_at: Time.now.utc)
         # to ensure that waiting since value is populated
         create(:message, message_type: :outgoing, conversation: attended_conversation, account: account)
-        unattended_conversation_no_first_reply = create(:conversation, account: account, assignee: agent_1, first_reply_created_at: nil)
-        unattended_conversation_waiting_since = create(:conversation, account: account, assignee: agent_1, first_reply_created_at: Time.now.utc)
+        create(:conversation, account: account, assignee: agent_1, first_reply_created_at: nil) # unattended, no first reply
+        create(:conversation, account: account, assignee: agent_1, first_reply_created_at: Time.now.utc) # unattended, waiting_since
 
         get "/api/v1/accounts/#{account.id}/conversations",
             headers: agent_1.create_new_auth_token,

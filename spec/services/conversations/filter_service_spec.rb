@@ -564,8 +564,9 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = user_1.conversations.where("created_at > ? AND custom_attributes->>'conversation_type' = ?",
-                                                     DateTime.parse('2022-01-20'), 'platinum').count
+        expected_count = user_1.conversations.where(
+          "created_at > ? AND custom_attributes->>'conversation_type' = ?", DateTime.parse('2022-01-20'), 'platinum'
+        ).count
 
         expect(result[:conversations].length).to eq expected_count
       end

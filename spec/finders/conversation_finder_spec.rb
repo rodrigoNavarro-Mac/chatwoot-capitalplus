@@ -215,9 +215,12 @@ describe ConversationFinder do
     end
 
     context 'with source_id' do
-      let!(:own_contact_inbox) { create(:contact_inbox, inbox: inbox, source_id: 'own_testing_source_id') }
-      let!(:own_conversation_with_source) { create(:conversation, account: account, inbox: inbox, assignee: user_1, contact_inbox: own_contact_inbox) }
+      let(:own_contact_inbox) { create(:contact_inbox, inbox: inbox, source_id: 'own_testing_source_id') }
       let(:params) { { source_id: 'own_testing_source_id' } }
+
+      before do
+        create(:conversation, account: account, inbox: inbox, assignee: user_1, contact_inbox: own_contact_inbox)
+      end
 
       it 'filter conversations by source id' do
         result = conversation_finder.perform
