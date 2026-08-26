@@ -8,6 +8,18 @@ import { useVuelidate } from '@vuelidate/core';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useToggle } from '@vueuse/core';
 
+const props = defineProps({
+  type: {
+    type: String,
+    default: 'create',
+    validator: value => ['create', 'edit'].includes(value),
+  },
+  selectedBot: {
+    type: Object,
+    default: () => ({}),
+  },
+});
+
 const BOT_TYPES = {
   WEBHOOK: 'webhook',
   INTERNAL_FLOW: 'internal_flow',
@@ -20,18 +32,6 @@ import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
 import FlowBuilderModal from './FlowBuilderModal.vue';
-
-const props = defineProps({
-  type: {
-    type: String,
-    default: 'create',
-    validator: value => ['create', 'edit'].includes(value),
-  },
-  selectedBot: {
-    type: Object,
-    default: () => ({}),
-  },
-});
 
 const MODAL_TYPES = {
   CREATE: 'create',
@@ -59,7 +59,9 @@ const accessToken = ref('');
 const botSecret = ref('');
 
 const isWebhookBot = computed(() => formState.botType === BOT_TYPES.WEBHOOK);
-const isInternalFlowBot = computed(() => formState.botType === BOT_TYPES.INTERNAL_FLOW);
+const isInternalFlowBot = computed(
+  () => formState.botType === BOT_TYPES.INTERNAL_FLOW
+);
 
 const flowSummary = computed(() => {
   if (!formState.botConfig) return null;
@@ -397,9 +399,7 @@ defineExpose({ dialogRef });
           </label>
           <div class="flex gap-2">
             <NextButton
-              :variant="
-                formState.botType === 'webhook' ? 'solid' : 'outline'
-              "
+              :variant="formState.botType === 'webhook' ? 'solid' : 'outline'"
               :label="$t('AGENT_BOTS.FORM.BOT_TYPE.WEBHOOK')"
               size="sm"
               type="button"
@@ -437,21 +437,40 @@ defineExpose({ dialogRef });
           @blur="v$.botUrl.$touch()"
         />
 
-        <div v-if="formState.botType === 'internal_flow'" class="flex flex-col gap-3">
+        <div
+          v-if="formState.botType === 'internal_flow'"
+          class="flex flex-col gap-3"
+        >
           <!-- Summary card (when flow is configured) -->
           <div
             v-if="flowSummary"
             class="flex items-start justify-between rounded-xl border border-n-blue-6 bg-n-blue-3 px-4 py-3"
           >
             <div class="flex flex-col gap-0.5">
-              <p class="text-sm font-semibold text-n-blue-12">Flujo configurado</p>
+              <p class="text-sm font-semibold text-n-blue-12">
+                {{ $t('AGENT_BOTS.FLOW_BUILDER.SUMMARY.CONFIGURED') }}
+              </p>
               <p class="text-xs text-n-blue-11">
-                <span class="font-medium">{{ flowSummary.steps }}</span> pasos ·
-                <span class="font-medium">{{ flowSummary.variables }}</span> variables ·
-                inicio: <code class="font-mono">{{ flowSummary.initialStep || '—' }}</code>
+                <span class="font-medium">{{
+                  $t('AGENT_BOTS.FLOW_BUILDER.SUMMARY.STEPS', {
+                    n: flowSummary.steps,
+                  })
+                }}</span>
+                ·
+                <span class="font-medium">{{
+                  $t('AGENT_BOTS.FLOW_BUILDER.SUMMARY.VARIABLES', {
+                    n: flowSummary.variables,
+                  })
+                }}</span>
+                · {{ $t('AGENT_BOTS.FLOW_BUILDER.SUMMARY.INITIAL') }}:
+                <code class="font-mono">{{
+                  flowSummary.initialStep || '—'
+                }}</code>
               </p>
             </div>
-            <span class="i-lucide-check-circle-2 mt-0.5 h-5 w-5 shrink-0 text-n-blue-10" />
+            <span
+              class="i-lucide-check-circle-2 mt-0.5 h-5 w-5 shrink-0 text-n-blue-10"
+            />
           </div>
 
           <!-- Empty state -->
@@ -461,14 +480,22 @@ defineExpose({ dialogRef });
           >
             <span class="i-lucide-git-branch h-5 w-5 shrink-0 text-n-slate-8" />
             <p class="text-sm text-n-slate-9">
-              Sin flujo configurado. Haz clic en <strong>Configurar flujo</strong> para comenzar.
+              {{
+                $t('AGENT_BOTS.FLOW_BUILDER.EMPTY_STATE', {
+                  button: $t('AGENT_BOTS.FLOW_BUILDER.CONFIGURE_BUTTON'),
+                })
+              }}
             </p>
           </div>
 
           <NextButton
             variant="outline"
             icon="i-lucide-git-branch"
-            :label="flowSummary ? 'Editar flujo' : 'Configurar flujo'"
+            :label="
+              flowSummary
+                ? $t('AGENT_BOTS.FLOW_BUILDER.EDIT_BUTTON')
+                : $t('AGENT_BOTS.FLOW_BUILDER.CONFIGURE_BUTTON')
+            "
             type="button"
             @click="flowBuilderRef.dialogRef.open()"
           />
@@ -551,8 +578,5 @@ defineExpose({ dialogRef });
     </form>
   </Dialog>
 
-  <FlowBuilderModal
-    ref="flowBuilderRef"
-    v-model="formState.botConfig"
-  />
+  <FlowBuilderModal ref="flowBuilderRef" v-model="formState.botConfig" />
 </template>

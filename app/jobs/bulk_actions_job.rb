@@ -63,6 +63,6 @@ class BulkActionsJob < ApplicationJob
     return unless MODEL_TYPE.include?(current_model)
 
     scope = current_model.constantize.where(account_id: @account.id, display_id: ids)
-    Conversations::PermissionFilterService.new(scope, @user, @account).perform
+    Conversations::PermissionFilterService.new(scope, @user, @account, include_unassigned: true).perform
   end
 end

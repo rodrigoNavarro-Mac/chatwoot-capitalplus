@@ -178,6 +178,7 @@
         "VARIABLES": "{n} variables",
         "INITIAL": "initial"
       },
+      "EMPTY_STATE": "No flow configured. Click \"{button}\" to get started.",
       "CONFIGURE_BUTTON": "Configure flow",
       "EDIT_BUTTON": "Edit flow",
       "SAVE": "Save flow",

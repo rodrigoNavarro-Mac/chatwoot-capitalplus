@@ -98,10 +98,22 @@
         "PLACEHOLDER": "https://example.com/webhook",
         "REQUIRED": "Dirección del webhook es requerida"
       },
+      "BOT_TYPE": {
+        "LABEL": "Tipo de bot",
+        "WEBHOOK": "Webhook",
+        "INTERNAL_FLOW": "Flujo interno"
+      },
+      "BOT_CONFIG": {
+        "LABEL": "Configuración del bot (JSON)",
+        "PLACEHOLDER": "{\n  \"variables\": {\n    \"development_name\": \"Mi Proyecto\"\n  },\n  \"initial_step\": \"welcome\",\n  \"steps\": {\n    \"welcome\": {\n      \"message\": \"¡Hola! ¿En qué puedo ayudarte?\",\n      \"transitions\": []\n    }\n  }\n}",
+        "DESCRIPTION": "Define el flujo de la conversación en JSON. Usa variables con la sintaxis {{variable_name}} en los mensajes."
+      },
       "ERRORS": {
         "NAME": "El nombre del bot es obligatorio",
         "URL": "Dirección del webhook es requerida",
-        "VALID_URL": "Por favor, introduzca una URL válida comenzando con http:// o https://"
+        "VALID_URL": "Por favor, introduzca una URL válida comenzando con http:// o https://",
+        "BOT_CONFIG": "La configuración del bot es obligatoria para bots de flujo interno",
+        "INVALID_JSON": "Por favor ingresa una configuración JSON válida"
       },
       "CANCEL": "Cancelar",
       "CREATE": "Crear Bot",
@@ -110,8 +122,71 @@
     "WEBHOOK": {
       "DESCRIPTION": "Configure el webhook del bot para integrarse con sus servicios personalizados. El bot recibirá y procesará eventos de conversaciones y podrá responder a ellos."
     },
+    "INTERNAL_FLOW": {
+      "DESCRIPTION": "Configura un bot basado en reglas que se ejecuta directamente dentro de Chatwoot. Define los pasos de la conversación visualmente y el bot guiará a los usuarios por el flujo automáticamente."
+    },
+    "FLOW_BUILDER": {
+      "TITLE": "Configurar flujo del bot",
+      "DESCRIPTION": "Define pasos, mensajes y transiciones. El JSON se genera automáticamente.",
+      "VARIABLES": {
+        "TITLE": "Variables",
+        "HINT": "Valores reutilizables que puedes insertar en los mensajes usando {{nombre}}",
+        "ADD": "Agregar variable",
+        "EMPTY": "Sin variables — agrégalas si quieres personalizar los mensajes.",
+        "KEY_PLACEHOLDER": "nombre_variable",
+        "VALUE_PLACEHOLDER": "Valor"
+      },
+      "STEPS": {
+        "TITLE": "Pasos del flujo",
+        "ADD": "Agregar paso",
+        "EMPTY": "Aún no hay pasos. Haz clic en Agregar paso para comenzar.",
+        "INITIAL_LABEL": "Paso inicial",
+        "STEP_NAME_PLACEHOLDER": "nombre_paso"
+      },
+      "STEP": {
+        "MESSAGE_LABEL": "Mensaje del bot",
+        "MESSAGE_PLACEHOLDER": "Escribe el mensaje que enviará el bot al cliente…",
+        "MESSAGE_HINT": "Usa {{nombre_variable}} para insertar variables.",
+        "ACTION_LABEL": "Acción al enviar",
+        "ACTIONS": {
+          "NONE": "Sin acción (continuar flujo)",
+          "OPEN": "Transferir a agente humano",
+          "RESOLVE": "Resolver y cerrar conversación"
+        },
+        "TRANSITIONS_LABEL": "Transiciones",
+        "TRANSITIONS_ADD": "Agregar",
+        "TRANSITIONS_EMPTY": "Sin transiciones — al responder, vuelve al paso inicial.",
+        "TERMINAL_NOTE": "Este paso termina la conversación — no necesita transiciones.",
+        "INITIAL_BUTTON": "↑ Marcar como inicial",
+        "SET_INITIAL_TITLE": "Marcar como paso inicial"
+      },
+      "TRANSITION": {
+        "CONDITIONS": {
+          "CONTAINS": "Contiene",
+          "EQUALS": "Es exactamente",
+          "STARTS_WITH": "Empieza con",
+          "DEFAULT": "Por defecto (alternativa)"
+        },
+        "CONTAINS_PLACEHOLDER": "si, sí, 1",
+        "EQUALS_PLACEHOLDER": "texto exacto",
+        "DEFAULT_LABEL": "cualquier respuesta",
+        "NEXT_STEP_PLACEHOLDER": "— paso destino —"
+      },
+      "SUMMARY": {
+        "CONFIGURED": "Flujo configurado",
+        "STEPS": "{n} pasos",
+        "VARIABLES": "{n} variables",
+        "INITIAL": "inicio"
+      },
+      "EMPTY_STATE": "Sin flujo configurado. Haz clic en \"{button}\" para comenzar.",
+      "CONFIGURE_BUTTON": "Configurar flujo",
+      "EDIT_BUTTON": "Editar flujo",
+      "SAVE": "Guardar flujo",
+      "CANCEL": "Cancelar"
+    },
     "TYPES": {
-      "WEBHOOK": "Webhook Bot"
+      "WEBHOOK": "Webhook Bot",
+      "INTERNAL_FLOW": "Bot de flujo interno"
     }
   }
 }

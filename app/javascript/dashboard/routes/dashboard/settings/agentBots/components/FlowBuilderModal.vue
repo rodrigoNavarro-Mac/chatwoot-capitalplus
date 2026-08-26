@@ -694,8 +694,9 @@ defineExpose({ dialogRef: { open, close: () => dialogRef.value.close() } });
               @click="handleSave"
             />
           </div>
-        </div> </template
-      ><!-- fin panel visual -->
+        </div>
+      </template>
+      <!-- fin panel visual -->
     </div>
   </Dialog>
 </template>

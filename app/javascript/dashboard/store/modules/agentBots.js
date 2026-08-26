@@ -97,9 +97,10 @@ export const actions = {
         description: bot.description || '',
         bot_type: bot.bot_type,
         outgoing_url: bot.outgoing_url || '',
-        bot_config: bot.bot_config && Object.keys(bot.bot_config).length
-          ? JSON.stringify(bot.bot_config)
-          : '',
+        bot_config:
+          bot.bot_config && Object.keys(bot.bot_config).length
+            ? JSON.stringify(bot.bot_config)
+            : '',
       });
       const response = await AgentBotsAPI.create(formData);
       commit(types.ADD_AGENT_BOT, response.data);

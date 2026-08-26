@@ -190,9 +190,15 @@ onMounted(() => {
                   v-if="bot.bot_type === 'internal_flow'"
                   class="text-body-main text-n-teal-11 truncate block italic"
                 >
-                  {{ $t('AGENT_BOTS.INTERNAL_FLOW.DESCRIPTION').slice(0, 60) + '…' }}
+                  {{
+                    $t('AGENT_BOTS.INTERNAL_FLOW.DESCRIPTION').slice(0, 60) +
+                    '…'
+                  }}
                 </span>
-                <span v-else class="text-body-main text-n-slate-11 truncate block">
+                <span
+                  v-else
+                  class="text-body-main text-n-slate-11 truncate block"
+                >
                   {{ bot.outgoing_url || bot.bot_config?.webhook_url }}
                 </span>
               </BaseTableCell>

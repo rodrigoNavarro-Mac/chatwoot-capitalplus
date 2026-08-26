@@ -83,17 +83,26 @@ export default {
   <woot-modal :show="show" :on-close="() => $emit('close')">
     <div class="flex flex-col h-auto overflow-auto">
       <woot-modal-header
-        :header-title="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_ADD_NUMBER_MODAL_TITLE')"
-        :header-content="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_ADD_NUMBER_MODAL_DESC')"
+        :header-title="
+          $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_ADD_NUMBER_MODAL_TITLE')
+        "
+        :header-content="
+          $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_ADD_NUMBER_MODAL_DESC')
+        "
       />
-      <form class="flex flex-wrap mx-0 px-8 pb-8" @submit.prevent="createNumber">
+      <form
+        class="flex flex-wrap mx-0 px-8 pb-8"
+        @submit.prevent="createNumber"
+      >
         <div class="w-full">
           <label :class="{ error: v$.inboxName.$error }">
             {{ $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.LABEL') }}
             <input
               v-model="inboxName"
               type="text"
-              :placeholder="$t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.PLACEHOLDER')"
+              :placeholder="
+                $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.PLACEHOLDER')
+              "
               @blur="v$.inboxName.$touch"
             />
             <span v-if="v$.inboxName.$error" class="message">
@@ -108,7 +117,9 @@ export default {
             <input
               v-model="phoneNumber"
               type="text"
-              :placeholder="$t('INBOX_MGMT.ADD.WHATSAPP.PHONE_NUMBER.PLACEHOLDER')"
+              :placeholder="
+                $t('INBOX_MGMT.ADD.WHATSAPP.PHONE_NUMBER.PLACEHOLDER')
+              "
               @blur="v$.phoneNumber.$touch"
             />
             <span v-if="v$.phoneNumber.$error" class="message">
@@ -123,7 +134,9 @@ export default {
             <input
               v-model="phoneNumberId"
               type="text"
-              :placeholder="$t('INBOX_MGMT.ADD.WHATSAPP.PHONE_NUMBER_ID.PLACEHOLDER')"
+              :placeholder="
+                $t('INBOX_MGMT.ADD.WHATSAPP.PHONE_NUMBER_ID.PLACEHOLDER')
+              "
               @blur="v$.phoneNumberId.$touch"
             />
             <span v-if="v$.phoneNumberId.$error" class="message">

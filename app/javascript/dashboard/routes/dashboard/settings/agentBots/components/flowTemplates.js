@@ -2,7 +2,8 @@ export const FLOW_TEMPLATES = [
   {
     id: 'inmobiliaria',
     name: 'Inmobiliaria — Desarrollo residencial',
-    description: 'Lead pre-calificado llega tras confirmar interés. Captura tipo de contacto, timeline y horario. Hace handover al asesor.',
+    description:
+      'Lead pre-calificado llega tras confirmar interés. Captura tipo de contacto, timeline y horario. Hace handover al asesor.',
     icon: 'i-lucide-building-2',
     config: {
       variables: {
@@ -18,9 +19,24 @@ export const FLOW_TEMPLATES = [
           message:
             '¡Excelente! 🙌 Nos da mucho gusto que quieras conocer más sobre *{{desarrollo}}* en {{ciudad}}.\n\nPrecios desde {{precio_desde}}.\n\n¿Cómo prefieres dar el siguiente paso?\n\n1️⃣ Visitar el desarrollo en persona\n2️⃣ Agendar una llamada con un asesor\n3️⃣ Agendar una videollamada',
           transitions: [
-            { when: { contains: ['1', 'visita', 'visitar', 'persona', 'presencial'] }, next_step: 'timeline' },
-            { when: { contains: ['2', 'llamada', 'llamen', 'telefono', 'teléfono'] }, next_step: 'timeline_llamada' },
-            { when: { contains: ['3', 'video', 'zoom', 'meet', 'videollamada'] }, next_step: 'timeline' },
+            {
+              when: {
+                contains: ['1', 'visita', 'visitar', 'persona', 'presencial'],
+              },
+              next_step: 'timeline',
+            },
+            {
+              when: {
+                contains: ['2', 'llamada', 'llamen', 'telefono', 'teléfono'],
+              },
+              next_step: 'timeline_llamada',
+            },
+            {
+              when: {
+                contains: ['3', 'video', 'zoom', 'meet', 'videollamada'],
+              },
+              next_step: 'timeline',
+            },
             { when: { default: true }, next_step: 'no_entendido' },
           ],
         },
@@ -28,9 +44,20 @@ export const FLOW_TEMPLATES = [
           message:
             'Una pregunta rápida para preparar mejor tu atención 👌\n\n¿En qué momento planeas tomar una decisión?\n\n1️⃣ Pronto — estoy listo para decidir\n2️⃣ En unos meses — estoy evaluando\n3️⃣ Aún estoy explorando opciones',
           transitions: [
-            { when: { contains: ['1', 'pronto', 'listo', 'ya', 'decidido', 'ahora'] }, next_step: 'solicitud_horario' },
-            { when: { contains: ['2', 'meses', 'evaluando', 'pensando'] }, next_step: 'solicitud_horario' },
-            { when: { contains: ['3', 'explorando', 'investigando', 'viendo'] }, next_step: 'solicitud_horario' },
+            {
+              when: {
+                contains: ['1', 'pronto', 'listo', 'ya', 'decidido', 'ahora'],
+              },
+              next_step: 'solicitud_horario',
+            },
+            {
+              when: { contains: ['2', 'meses', 'evaluando', 'pensando'] },
+              next_step: 'solicitud_horario',
+            },
+            {
+              when: { contains: ['3', 'explorando', 'investigando', 'viendo'] },
+              next_step: 'solicitud_horario',
+            },
             { when: { default: true }, next_step: 'solicitud_horario' },
           ],
         },
@@ -38,18 +65,25 @@ export const FLOW_TEMPLATES = [
           message:
             'Una pregunta rápida para preparar mejor tu atención 👌\n\n¿En qué momento planeas tomar una decisión?\n\n1️⃣ Pronto — estoy listo para decidir\n2️⃣ En unos meses — estoy evaluando\n3️⃣ Aún estoy explorando opciones',
           transitions: [
-            { when: { contains: ['1', 'pronto', 'listo', 'ya'] }, next_step: 'confirmar_llamada' },
-            { when: { contains: ['2', 'meses', 'evaluando'] }, next_step: 'confirmar_llamada' },
-            { when: { contains: ['3', 'explorando', 'investigando'] }, next_step: 'confirmar_llamada' },
+            {
+              when: { contains: ['1', 'pronto', 'listo', 'ya'] },
+              next_step: 'confirmar_llamada',
+            },
+            {
+              when: { contains: ['2', 'meses', 'evaluando'] },
+              next_step: 'confirmar_llamada',
+            },
+            {
+              when: { contains: ['3', 'explorando', 'investigando'] },
+              next_step: 'confirmar_llamada',
+            },
             { when: { default: true }, next_step: 'confirmar_llamada' },
           ],
         },
         solicitud_horario: {
           message:
             '¿Qué día y horario te viene mejor? 📅\n\nEstamos disponibles {{horario}}.\n\nEscríbenos tu preferencia (ej: "Martes en la tarde" o "Viernes a las 11am").',
-          transitions: [
-            { when: { default: true }, next_step: 'confirmado' },
-          ],
+          transitions: [{ when: { default: true }, next_step: 'confirmado' }],
         },
         confirmado: {
           message:
@@ -65,9 +99,18 @@ export const FLOW_TEMPLATES = [
           message:
             'No pude entender tu respuesta 😅\n\n¿Cómo prefieres dar el siguiente paso?\n\n1️⃣ Visitar el desarrollo\n2️⃣ Llamada con asesor\n3️⃣ Videollamada',
           transitions: [
-            { when: { contains: ['1', 'visita', 'visitar'] }, next_step: 'timeline' },
-            { when: { contains: ['2', 'llamada', 'llamen'] }, next_step: 'timeline_llamada' },
-            { when: { contains: ['3', 'video', 'zoom'] }, next_step: 'timeline' },
+            {
+              when: { contains: ['1', 'visita', 'visitar'] },
+              next_step: 'timeline',
+            },
+            {
+              when: { contains: ['2', 'llamada', 'llamen'] },
+              next_step: 'timeline_llamada',
+            },
+            {
+              when: { contains: ['3', 'video', 'zoom'] },
+              next_step: 'timeline',
+            },
             { when: { default: true }, next_step: 'confirmar_llamada' },
           ],
         },
@@ -82,7 +125,8 @@ export const FLOW_TEMPLATES = [
   {
     id: 'atencion_general',
     name: 'Atención general — Calificación y handover',
-    description: 'Flujo básico para cualquier negocio. Saluda, pregunta el motivo y transfiere al área correcta.',
+    description:
+      'Flujo básico para cualquier negocio. Saluda, pregunta el motivo y transfiere al área correcta.',
     icon: 'i-lucide-message-circle',
     config: {
       variables: {
@@ -96,9 +140,38 @@ export const FLOW_TEMPLATES = [
           message:
             '¡Hola! 👋 Bienvenido a *{{empresa}}*.\n\n¿En qué podemos ayudarte hoy?\n\n1️⃣ Información o cotización\n2️⃣ Soporte o problema\n3️⃣ Hablar con alguien del equipo',
           transitions: [
-            { when: { contains: ['1', 'informacion', 'información', 'cotiz', 'precio', 'costo'] }, next_step: 'info' },
-            { when: { contains: ['2', 'soporte', 'problema', 'ayuda', 'falla', 'error'] }, next_step: 'soporte' },
-            { when: { contains: ['3', 'hablar', 'asesor', 'persona', 'equipo'] }, next_step: 'handover' },
+            {
+              when: {
+                contains: [
+                  '1',
+                  'informacion',
+                  'información',
+                  'cotiz',
+                  'precio',
+                  'costo',
+                ],
+              },
+              next_step: 'info',
+            },
+            {
+              when: {
+                contains: [
+                  '2',
+                  'soporte',
+                  'problema',
+                  'ayuda',
+                  'falla',
+                  'error',
+                ],
+              },
+              next_step: 'soporte',
+            },
+            {
+              when: {
+                contains: ['3', 'hablar', 'asesor', 'persona', 'equipo'],
+              },
+              next_step: 'handover',
+            },
             { when: { default: true }, next_step: 'no_entendido' },
           ],
         },
@@ -121,9 +194,18 @@ export const FLOW_TEMPLATES = [
           message:
             'No pude entender tu respuesta 😅\n\n¿En qué podemos ayudarte?\n\n1️⃣ Información o cotización\n2️⃣ Soporte o problema\n3️⃣ Hablar con el equipo',
           transitions: [
-            { when: { contains: ['1', 'informacion', 'información', 'cotiz'] }, next_step: 'info' },
-            { when: { contains: ['2', 'soporte', 'problema'] }, next_step: 'soporte' },
-            { when: { contains: ['3', 'hablar', 'asesor'] }, next_step: 'handover' },
+            {
+              when: { contains: ['1', 'informacion', 'información', 'cotiz'] },
+              next_step: 'info',
+            },
+            {
+              when: { contains: ['2', 'soporte', 'problema'] },
+              next_step: 'soporte',
+            },
+            {
+              when: { contains: ['3', 'hablar', 'asesor'] },
+              next_step: 'handover',
+            },
             { when: { default: true }, next_step: 'handover' },
           ],
         },

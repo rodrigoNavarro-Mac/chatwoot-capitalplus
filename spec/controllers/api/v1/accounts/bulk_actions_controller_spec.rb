@@ -123,6 +123,10 @@ RSpec.describe 'Api::V1::Accounts::BulkActionsController', type: :request do
       end
 
       it 'Bulk remove assignee id from conversations' do
+        # Un agente regular no puede modificar conversaciones asignadas a otros agentes
+        # (ddfc7dd1d + BulkActionsJob#records_to_updated), asi que esta reasignacion masiva
+        # entre agentes la ejecuta un administrador.
+        admin = create(:user, account: account, role: :administrator)
         Conversation.first.update(assignee_id: agent_1.id)
         Conversation.second.update(assignee_id: agent_2.id)
         params = { type: 'Conversation', fields: { assignee_id: nil }, ids: Conversation.first(3).pluck(:display_id) }
@@ -133,7 +137,7 @@ RSpec.describe 'Api::V1::Accounts::BulkActionsController', type: :request do
 
         perform_enqueued_jobs do
           post "/api/v1/accounts/#{account.id}/bulk_actions",
-               headers: agent.create_new_auth_token,
+               headers: admin.create_new_auth_token,
                params: params
 
           expect(response).to have_http_status(:success)
@@ -145,6 +149,7 @@ RSpec.describe 'Api::V1::Accounts::BulkActionsController', type: :request do
       end
 
       it 'Do not bulk update status to nil' do
+        admin = create(:user, account: account, role: :administrator)
         Conversation.first.update(assignee_id: agent_1.id)
         Conversation.second.update(assignee_id: agent_2.id)
         params = { type: 'Conversation', fields: { status: nil }, ids: Conversation.first(3).pluck(:display_id) }
@@ -153,7 +158,7 @@ RSpec.describe 'Api::V1::Accounts::BulkActionsController', type: :request do
 
         perform_enqueued_jobs do
           post "/api/v1/accounts/#{account.id}/bulk_actions",
-               headers: agent.create_new_auth_token,
+               headers: admin.create_new_auth_token,
                params: params
 
           expect(response).to have_http_status(:success)

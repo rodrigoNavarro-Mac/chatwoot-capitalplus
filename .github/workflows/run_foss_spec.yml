@@ -103,7 +103,10 @@ jobs:
         # que renderiza una vista con vite_javascript_tag (super_admin, portals). Ese build en
         # caliente agota memoria en el runner estandar y muere con SIGABRT, tumbando cualquier
         # spec de controller que renderice HTML completo.
-        run: RAILS_ENV=test SECRET_KEY_BASE=precompile_placeholder bundle exec rake assets:precompile
+        # max-old-space-size explicito: el default de V8 en este runner se queda en ~2GB y el
+        # build de Vite (4881 modulos) truena por OOM ("Ineffective mark-compacts near heap
+        # limit") al correr en los 16 shards a la vez.
+        run: RAILS_ENV=test SECRET_KEY_BASE=precompile_placeholder NODE_OPTIONS=--max-old-space-size=4096 bundle exec rake assets:precompile
 
       - name: Create database
         run: bundle exec rake db:create
