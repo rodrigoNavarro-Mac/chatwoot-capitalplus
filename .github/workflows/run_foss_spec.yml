@@ -98,10 +98,12 @@ jobs:
       - name: Install pnpm dependencies
         run: pnpm i
 
-      - name: Strip enterprise code
-        run: |
-          rm -rf enterprise
-          rm -rf spec/enterprise
+      - name: Precompile assets
+        # Sin esto, Vite compila bajo demanda (vite build --mode test) en el primer request
+        # que renderiza una vista con vite_javascript_tag (super_admin, portals). Ese build en
+        # caliente agota memoria en el runner estandar y muere con SIGABRT, tumbando cualquier
+        # spec de controller que renderice HTML completo.
+        run: RAILS_ENV=test SECRET_KEY_BASE=precompile_placeholder bundle exec rake assets:precompile
 
       - name: Create database
         run: bundle exec rake db:create
