@@ -720,17 +720,17 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.REPORTS_SALES_FUNNEL'),
           to: accountScopedRoute('sales_funnel_reports'),
         },
+        {
+          name: 'Reports Weekly Ops',
+          label: t('SIDEBAR.REPORTS_WEEKLY_OPS'),
+          to: accountScopedRoute('weekly_ops_reports'),
+        },
         ...(hasCadences.value
           ? [
               {
                 name: 'Cadence Analytics',
                 label: t('SIDEBAR.CADENCES'),
                 to: accountScopedRoute('cadence_analytics'),
-              },
-              {
-                name: 'Reports Weekly Ops',
-                label: t('SIDEBAR.REPORTS_WEEKLY_OPS'),
-                to: accountScopedRoute('weekly_ops_reports'),
               },
             ]
           : []),
