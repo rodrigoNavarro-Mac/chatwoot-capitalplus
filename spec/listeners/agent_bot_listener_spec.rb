@@ -33,7 +33,10 @@ describe AgentBotListener do
       end
 
       it 'does not send message to agent bot if url is empty' do
-        agent_bot = create(:agent_bot, outgoing_url: '')
+        # :skip_validate porque outgoing_url ya es obligatorio para bots webhook
+        # (validates :outgoing_url, presence: true, if: :webhook?) — este test verifica que
+        # el listener sea defensivo ante datos inconsistentes, no que el modelo los permita crear.
+        agent_bot = create(:agent_bot, :skip_validate, outgoing_url: '')
         create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
         expect(AgentBots::WebhookJob).not_to receive(:perform_later)
         listener.message_created(event)

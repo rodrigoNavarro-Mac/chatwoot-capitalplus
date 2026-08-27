@@ -35,6 +35,8 @@ RSpec.describe 'Calls API', type: :request do
     end
 
     it 'scopes the list to calls the agent accepted' do
+      # el agente solo ve conversaciones asignadas a el mismo (Conversations::PermissionFilterService)
+      conversation.update!(assignee: agent)
       get "/api/v1/accounts/#{account.id}/calls", headers: agent.create_new_auth_token
 
       expect(response).to have_http_status(:ok)

@@ -5,22 +5,29 @@ RSpec.describe Campaigns::CancelScheduledJobsService do
   let(:campaign) { create(:campaign, account: account) }
   let(:other_campaign) { create(:campaign, account: account) }
 
-  # Campaigns::SendCampaignContactJob is normally scheduled through ActiveJob's in-memory
-  # TestAdapter (config.active_job.queue_adapter = :test in config/environments/test.rb),
-  # which never touches Redis - so Sidekiq::ScheduledSet would always look empty. Switch to
-  # the real Sidekiq adapter with Sidekiq::Testing.disable! for this spec so jobs actually
-  # land in Redis's schedule set, matching what this service reads in production.
-  around do |example|
-    original_adapter = ActiveJob::Base.queue_adapter
-    ActiveJob::Base.queue_adapter = :sidekiq
-    Sidekiq::Testing.disable!(&example)
-    ActiveJob::Base.queue_adapter = original_adapter
-  end
+  # Sidekiq::Testing.disable! hace que Sidekiq::Client.push realmente toque Redis en vez de
+  # acumularse en el array fake — necesario para que Sidekiq::ScheduledSet refleje los jobs.
+  #
+  # No usamos Campaigns::SendCampaignContactJob.set(wait_until:).perform_later aqui: bajo RSpec,
+  # ActiveJob::TestHelper (incluido globalmente en rails_helper.rb) resetea el adapter de la
+  # clase a TestAdapter en su propio hook before_setup, que corre DESPUES de que este around
+  # ya asigno :sidekiq pero ANTES del cuerpo del test — dejando el resultado inconsistente
+  # (algunos jobs llegan a Redis, otros no, dependiendo de orden de ejecucion). En vez de
+  # depender de esa resolucion de adapter, empujamos directo a Sidekiq simulando el mismo
+  # formato de JobWrapper que produce ActiveJob con el adapter real (ver Sidekiq::JobRecord
+  # #display_class/#display_args en la gema sidekiq, que es justo lo que este servicio usa).
+  around { |example| Sidekiq::Testing.disable!(&example) }
 
   after { Sidekiq::ScheduledSet.new.clear }
 
   def schedule_job(target_campaign, contact_id, at:)
-    Campaigns::SendCampaignContactJob.set(wait_until: at).perform_later(target_campaign.id, contact_id)
+    Sidekiq::Client.push(
+      'class' => 'ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper',
+      'wrapped' => 'Campaigns::SendCampaignContactJob',
+      'queue' => 'low',
+      'args' => [Campaigns::SendCampaignContactJob.new(target_campaign.id, contact_id).serialize],
+      'at' => at.to_f
+    )
   end
 
   it 'deletes only the scheduled jobs belonging to the given campaign' do

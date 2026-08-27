@@ -191,8 +191,16 @@ RSpec.describe 'Campaigns API', type: :request do
       end
 
       it 'accepts a timezone' do
-        patch "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}",
-              params: { inbox_id: inbox.id, title: 'test', message: 'test message', timezone: 'America/Mexico_City' },
+        # timezone solo se sirve en la respuesta para campanas one_off (ver
+        # app/views/api/v1/models/_campaign.json.jbuilder) — una ongoing no tiene ventana
+        # de envio, asi que el campo no aplica para ese tipo. campaign_type no se puede fijar
+        # a mano: Campaign#ensure_correct_campaign_attributes (before_validation) lo deriva
+        # del tipo de inbox en cada save/update (Whatsapp/Sms/Twilio SMS -> one_off, cualquier
+        # otro -> ongoing) — hace falta un inbox de whatsapp, tanto al crear como en el PATCH.
+        whatsapp_inbox = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+        one_off_campaign = create(:campaign, account: account, inbox: whatsapp_inbox)
+        patch "/api/v1/accounts/#{account.id}/campaigns/#{one_off_campaign.display_id}",
+              params: { inbox_id: whatsapp_inbox.id, title: 'test', message: 'test message', timezone: 'America/Mexico_City' },
               headers: administrator.create_new_auth_token,
               as: :json
 

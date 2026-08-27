@@ -111,7 +111,9 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
       let(:platform_app) { create(:platform_app) }
 
       it 'creates a new agent bot' do
-        post '/platform/api/v1/agent_bots/', params: { name: 'test' },
+        # outgoing_url es obligatorio para bots tipo webhook (default de bot_type) desde que
+        # se agrego soporte a bots de flujo interno.
+        post '/platform/api/v1/agent_bots/', params: { name: 'test', outgoing_url: 'https://example.com/webhook' },
                                              headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)

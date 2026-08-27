@@ -24,7 +24,10 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
       message.update!(
         content: I18n.t('conversations.messages.deleted'),
         content_type: :text,
-        content_attributes: message.content_attributes.merge(deleted: true, original_content: original_content)
+        # Reemplazo completo (no merge): el fix oficial #4184 limpiaba todo content_attributes
+        # al eliminar un mensaje (incluye datos sensibles como bcc_emails); .merge preservaria
+        # los content_attributes viejos sin querer.
+        content_attributes: { deleted: true, original_content: original_content }
       )
       message.attachments.destroy_all
     end

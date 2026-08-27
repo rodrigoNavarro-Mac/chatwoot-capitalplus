@@ -133,6 +133,9 @@ jobs:
           fi
         env:
           NODE_OPTIONS: --openssl-legacy-provider
+          # Placeholder: los specs de Gotenberg mockean la URL con stub_request, pero
+          # ENV.fetch('GOTENBERG_URL') truena con KeyError si la variable ni siquiera existe.
+          GOTENBERG_URL: http://localhost:3009
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

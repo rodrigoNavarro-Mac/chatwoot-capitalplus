@@ -15,7 +15,10 @@ describe V2::Reports::WeeklyOpsReportBuilder do
   # suite. No afecta "reply_time", que sigue usando el value_in_business_hours ya guardado.
   before do
     inbox.update!(working_hours_enabled: true)
-    inbox.working_hours.update_all(open_all_day: true, closed_all_day: false)
+    # update! (no update_all) para que corra before_validation :ensure_open_all_day_hours
+    # (WorkingHour#ensure_open_all_day_hours), que rellena open_hour/close_hour — update_all
+    # salta callbacks y los deja en nil, rompiendo ReportingEventHelper#format_time despues.
+    inbox.working_hours.find_each { |wh| wh.update!(open_all_day: true, closed_all_day: false) }
   end
 
   describe '#build' do

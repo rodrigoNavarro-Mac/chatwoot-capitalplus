@@ -39,6 +39,8 @@ describe CallFinder do
     end
 
     it 'limits a regular agent to calls they accepted in accessible conversations' do
+      # el agente solo ve conversaciones asignadas a el mismo (Conversations::PermissionFilterService)
+      conversation.update!(assignee: agent)
       result = perform(agent)
       expect(result[:calls].map(&:id)).to contain_exactly(agent_call.id)
     end
@@ -48,6 +50,7 @@ describe CallFinder do
       custom_role = create(:custom_role, account: account, permissions: ['conversation_manage'])
       account.account_users.find_by(user_id: scoped_agent.id).update!(custom_role: custom_role)
       create(:inbox_member, user: scoped_agent, inbox: inbox)
+      conversation.update!(assignee: scoped_agent)
       scoped_call = create(:call, account: account, inbox: inbox, conversation: conversation,
                                   contact: conversation.contact, accepted_by_agent: scoped_agent)
 

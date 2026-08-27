@@ -107,6 +107,62 @@ relevantes después de este upgrade.
     conteo esperado de 2 a 4 (las 2 conversaciones del fixture compartido, sin
     `first_reply_created_at`, también cuentan legítimamente como "sin atender").
     24 examples, 0 failures.
+12. **Los 9 shards restantes de `backend-tests` (deploy bloqueado por el gate de
+    `build_production_image.yml`)** — commit pendiente de esta sesión, todos investigados y
+    arreglados sin tocar lógica de negocio salvo un bug de seguridad real:
+    - **`GOTENBERG_URL` faltante en CI**: agregado `GOTENBERG_URL: http://localhost:3009`
+      como placeholder al step "Run backend tests" de `run_foss_spec.yml` (los specs mockean
+      la URL real con `stub_request`, solo hacía falta que la variable exista).
+    - **Bug de seguridad real en `MessagesController#destroy`**: el fix oficial de Chatwoot
+      (`4b748e2c8`, PR #4184, 2022) limpiaba TODO `content_attributes` al eliminar un mensaje
+      (reemplazo completo del hash) para no dejar datos sensibles como `bcc_emails`
+      expuestos. En algún merge posterior, al agregar el campo propio `original_content`
+      (para poder ver el contenido original de un mensaje eliminado), se cambió a
+      `.merge(deleted: true, original_content: ...)`, que preserva sin querer TODOS los
+      `content_attributes` viejos — incluyendo `bcc_emails`, que quedaba expuesto
+      permanentemente en un mensaje "eliminado". Arreglado volviendo al reemplazo completo
+      del hash, agregando solo las 2 claves necesarias.
+    - **Validación nueva de `AgentBot#outgoing_url` rompe fixtures oficiales**: la validación
+      `validates :outgoing_url, presence: true, if: :webhook?` (agregada para la feature de
+      bots de flujo interno) hace que los `valid_params` viejos de
+      `agent_bots_controller_spec.rb` (API y platform) ya no sean válidos — se les agregó
+      `outgoing_url`. En `agent_bot_listener_spec.rb`, un test que simula a propósito un bot
+      con `outgoing_url: ''` (para probar que el listener es defensivo) usa ahora el trait
+      `:skip_validate` de la factory, ya que el escenario que simula ya no es alcanzable por
+      el flujo normal de creación.
+    - **`campaign_type` no es asignable a mano**: `Campaign#ensure_correct_campaign_attributes`
+      (before_validation) lo deriva SIEMPRE del tipo de inbox asociado (Whatsapp/Sms/Twilio
+      SMS → `one_off`, cualquier otro → `ongoing`), re-evaluándose en cada save/update —
+      pasar `campaign_type: :one_off` explícito en un test no sirve de nada si el inbox no es
+      de un canal de mensajería. El campo `timezone` solo se sirve en la respuesta JSON para
+      campañas `one_off` (`_campaign.json.jbuilder`). Arreglado el test de
+      `campaigns_controller_spec.rb` usando un inbox de WhatsApp real.
+    - **`WeeklyOpsReportBuilder` — `update_all` salta callbacks**: el fixture de
+      `weekly_ops_report_builder_spec.rb` usaba
+      `inbox.working_hours.update_all(open_all_day: true, ...)`, que por diseño de Rails NO
+      dispara `before_validation`/`before_save`. `WorkingHour#ensure_open_all_day_hours` es
+      justo el callback que rellena `open_hour`/`close_hour` cuando `open_all_day: true` —
+      sin él, esos campos quedaban `nil` y `ReportingEventHelper#format_time` tronaba.
+      Arreglado iterando con `update!` en vez de `update_all`.
+    - **`CallFinder`/`CallsController` (Enterprise, adaptado por CapitalPlus)**: mismo patrón
+      que el punto 9 — `CallFinder#accessible_conversations` usa
+      `Conversations::PermissionFilterService` con el default estricto (solo lo asignado),
+      así que un agente miembro de un inbox pero sin la conversación asignada no veía sus
+      propias llamadas. Arreglados los fixtures de `call_finder_spec.rb` y
+      `calls_controller_spec.rb` asignando la conversación al agente correspondiente en cada
+      test.
+    - **`cancel_scheduled_jobs_service_spec.rb` — reescrito, no solo arreglado**: el patrón
+      original (`ActiveJob::Base.queue_adapter = :sidekiq` + `Sidekiq::Testing.disable!`)
+      producía resultados inconsistentes bajo RSpec real (1 de 3 jobs llegaba a Redis,
+      nunca los 3) porque `ActiveJob::TestHelper` (incluido globalmente en
+      `rails_helper.rb`) resetea el adapter de la clase a `TestAdapter` en su propio hook
+      `before_setup`, que corre DESPUÉS de que el `around` del spec ya asignó `:sidekiq` pero
+      ANTES del cuerpo del test — un script `rails runner` aislado (sin ese hook) reproducía
+      el comportamiento esperado sin problema, confirmando que la interferencia era
+      específica del entorno RSpec. Reescrito para que el helper `schedule_job` empuje
+      directo a Sidekiq con `Sidekiq::Client.push`, simulando el mismo formato de
+      `ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper` que produce el adapter real —
+      determinístico, sin depender de la resolución de adapter de ActiveJob en runtime.
 
 ## Pendientes — no arregladas, requieren decisión o acceso que no tuvimos
 
@@ -152,17 +208,8 @@ relevantes después de este upgrade.
    rojo. No se pudo hacer desde este entorno de trabajo (sin `gh` CLI ni acceso a la
    configuración del repo) — requiere que alguien con acceso de administrador en GitHub lo
    haga manualmente.
-8. **`GOTENBERG_URL` no configurado en el entorno de CI** (3 fallos: `weekly_ops_reports_spec.rb`
-   x2, `docx_to_pdf_converter_service_spec.rb` x3): `ENV.fetch('GOTENBERG_URL')` truena con
-   `KeyError` porque la variable no está seteada en `run_foss_spec.yml`. Falta agregar un
-   valor placeholder al workflow (similar a `SECRET_KEY_BASE`).
-9. **Fallos sueltos sin investigar**, uno cada uno, aparentemente no relacionados entre sí
-   ni con el trabajo de esta sesión: `agent_bots_controller_spec.rb` (API y platform,
-   `AgentBot.count` no cambia / HTTP 422 al crear), `agent_bot_listener_spec.rb`
-   ("Outgoing url can't be blank"), `conversation_spec.rb` (diff de
-   `whatsapp_window_expires_at` en `push_event_data`), `campaigns_controller_spec.rb`
-   (timezone no se guarda), `messages_controller_spec.rb` (`bcc_emails` no se limpia al
-   borrar mensaje), `cancel_scheduled_jobs_service_spec.rb`.
+6. **`docx_to_pdf_converter_service_spec.rb`** (3 fallos): mismo `GOTENBERG_URL`, ya cubierto
+   por el fix del punto 6 de "Corregidos" — no requiere cambio propio.
 
 ## Gotcha para quien edite `.rubocop.yml` en el futuro
 
@@ -201,6 +248,19 @@ primero** para confirmar que no exista ya más abajo en el archivo — si existe
   `core.autocrlf` en Windows; se revirtieron con `git checkout HEAD --` antes de comitear.
   Para lintear una ruta específica, invocar el binario directo:
   `./node_modules/.bin/eslint <ruta>` (sin pasar por el script de `pnpm run`).
+
+## Estado final verificado (commit pendiente de push, 2026-08-27)
+
+- Los 9 grupos de fallos restantes de `backend-tests` (punto 12 de "Corregidos"), todos
+  verificados localmente con `RAILS_ENV=test`: `agent_bots_controller_spec.rb` +
+  `platform/agent_bots_controller_spec.rb` + `agent_bot_listener_spec.rb` (63 ejemplos),
+  `messages_controller_spec.rb` (23), `campaigns_controller_spec.rb` (32),
+  `conversation_spec.rb` (1), `cancel_scheduled_jobs_service_spec.rb` (2),
+  `weekly_ops_report_builder_spec.rb` (28), `call_finder_spec.rb` +
+  `calls_controller_spec.rb` enterprise (13) — **0 fallos en los 162 ejemplos**.
+- `bundle exec rubocop` sobre los 10 archivos Ruby tocados en esta ronda: **0 offenses**.
+- Con esto, `run_foss_spec.yml` debería quedar completamente verde, desbloqueando
+  `build_production_image.yml` (gateado por `workflow_run` a que el primero pase).
 
 **Regla general para trabajo futuro en este repo:** antes de asumir que "los tests pasan",
 verificar que se corrió con `RAILS_ENV=test` explícito. Antes de asumir que rubocop está

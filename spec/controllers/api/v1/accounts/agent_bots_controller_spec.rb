@@ -124,7 +124,9 @@ RSpec.describe 'Agent Bot API', type: :request do
   end
 
   describe 'POST /api/v1/accounts/{account.id}/agent_bots' do
-    let(:valid_params) { { name: 'test' } }
+    # outgoing_url es obligatorio para bots tipo webhook (default de bot_type) desde que se
+    # agrego soporte a bots de flujo interno (validates :outgoing_url, presence: true, if: :webhook?)
+    let(:valid_params) { { name: 'test', outgoing_url: 'https://example.com/webhook' } }
 
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do
