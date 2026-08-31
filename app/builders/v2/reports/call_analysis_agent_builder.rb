@@ -34,15 +34,19 @@ class V2::Reports::CallAnalysisAgentBuilder
     scope.includes(:agent).group_by(&:agent_id).filter_map do |agent_id, records|
       next if agent_id.blank?
 
-      {
-        agent_id: agent_id,
-        agent_name: records.first.agent&.available_name,
-        calls_analyzed: records.size,
-        average_score: average(records),
-        conversation_type_distribution: records.group(&:conversation_type).transform_values(&:size),
-        role_distribution: records.group(&:role).transform_values(&:size)
-      }
+      agent_row(agent_id, records)
     end
+  end
+
+  def agent_row(agent_id, records)
+    {
+      agent_id: agent_id,
+      agent_name: records.first.agent&.available_name,
+      calls_analyzed: records.size,
+      average_score: average(records),
+      conversation_type_distribution: records.group_by(&:conversation_type).transform_values(&:size),
+      role_distribution: records.group_by(&:role).transform_values(&:size)
+    }
   end
 
   def average(records)
