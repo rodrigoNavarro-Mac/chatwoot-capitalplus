@@ -162,6 +162,18 @@ class ReportsAPI extends ApiClient {
       params: { since, until, inbox_ids: inboxIds },
     });
   }
+
+  getCallIntelligenceAgentsReport({ from: since, to: until, agentId } = {}) {
+    return axios.get(`${this.url}/call_intelligence_agents`, {
+      params: { since, until, agent_id: agentId },
+    });
+  }
+
+  getCallIntelligenceProjectReport({ from: since, to: until, inboxId } = {}) {
+    return axios.get(`${this.url}/call_intelligence_project`, {
+      params: { since, until, inbox_id: inboxId },
+    });
+  }
 }
 
 export default new ReportsAPI();

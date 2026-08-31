@@ -112,6 +112,13 @@ zoho_deals_sync_job:
   class: 'Crm::Zoho::DealsSyncJob'
   queue: scheduled_jobs
 
+# executed hourly
+# reencola CallAnalysis en failed con intentos disponibles (ver CallAnalysis::RetryFailedAnalysesJob)
+call_analysis_retry_failed_job:
+  cron: '30 * * * *'
+  class: 'CallAnalysis::RetryFailedAnalysesJob'
+  queue: scheduled_jobs
+
 # executed every monday at 0600 UTC
 # genera el reporte semanal operativo (KPIs + análisis LLM) de la semana recién cerrada, por
 # cada inbox con una cadencia activa

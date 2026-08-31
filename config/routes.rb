@@ -124,6 +124,9 @@ Rails.application.routes.draw do
             end
           end
           resources :assignable_agents, only: [:index]
+          resources :call_analyses, only: [:index] do
+            post :retry, on: :member
+          end
           resource :audit_logs, only: [:show]
           resources :callbacks, only: [] do
             collection do
@@ -614,6 +617,8 @@ Rails.application.routes.draw do
               get :templates
               get :templates_timeseries
               get :sales_funnel
+              get :call_intelligence_agents
+              get :call_intelligence_project
             end
           end
           resource :year_in_review, only: [:show]

@@ -284,3 +284,10 @@
   display_name: Delayed Automations
   enabled: false
   column: feature_flags_ext_1
+- name: call_intelligence
+  # Análisis de llamadas de Aircall con IA: transcripción diarizada, scorecard Setter/Asesor,
+  # nota resumen en Zoho. Consume créditos del medidor de Captain (ver CallAnalysis.available_for?),
+  # por eso queda detrás de su propio flag en vez de reusar captain_integration.
+  display_name: Análisis de Llamadas (IA)
+  enabled: false
+  column: feature_flags_ext_1

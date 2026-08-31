@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_08_27_130000) do
+ActiveRecord::Schema[7.2].define(version: 2026_08_31_120100) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -432,6 +432,48 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_27_130000) do
     t.index ["inbox_id", "template_key"], name: "idx_cadence_template_mappings_on_inbox_and_key", unique: true
   end
 
+  create_table "call_analyses", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "call_id", null: false
+    t.bigint "inbox_id", null: false
+    t.bigint "agent_id"
+    t.string "provider_call_id", null: false
+    t.string "status", default: "pending", null: false
+    t.string "error_step"
+    t.text "error_message"
+    t.integer "attempts", default: 0, null: false
+    t.datetime "last_attempted_at"
+    t.string "role"
+    t.string "conversation_type"
+    t.string "confidence"
+    t.string "outcome_type"
+    t.datetime "outcome_at"
+    t.string "intent_level"
+    t.jsonb "qualification_map", default: {}
+    t.jsonb "objections", default: []
+    t.jsonb "risks", default: []
+    t.jsonb "evidence", default: {}
+    t.jsonb "metrics", default: {}
+    t.jsonb "scorecard", default: {}
+    t.jsonb "llm_raw_response", default: {}
+    t.string "llm_model"
+    t.string "prompt_version"
+    t.string "scorecard_config_version"
+    t.datetime "analyzed_at"
+    t.string "zoho_note_status", default: "not_applicable", null: false
+    t.string "zoho_note_id"
+    t.text "zoho_note_error"
+    t.string "zoho_deal_id"
+    t.string "zoho_deal_stage"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "agent_id", "analyzed_at"], name: "index_call_analyses_on_account_id_and_agent_id_and_analyzed_at"
+    t.index ["account_id", "inbox_id", "analyzed_at"], name: "index_call_analyses_on_account_id_and_inbox_id_and_analyzed_at"
+    t.index ["account_id", "role", "conversation_type"], name: "idx_on_account_id_role_conversation_type_7c172e6256"
+    t.index ["account_id", "status"], name: "index_call_analyses_on_account_id_and_status"
+    t.index ["call_id"], name: "index_call_analyses_on_call_id", unique: true
+  end
+
   create_table "calls", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "inbox_id", null: false
@@ -450,6 +492,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_27_130000) do
     t.text "transcript"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "transcript_segments"
     t.index ["account_id", "contact_id"], name: "index_calls_on_account_id_and_contact_id"
     t.index ["account_id", "conversation_id"], name: "index_calls_on_account_id_and_conversation_id"
     t.index ["account_id", "created_at"], name: "index_calls_on_account_id_and_created_at"

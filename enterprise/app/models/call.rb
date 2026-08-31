@@ -11,6 +11,7 @@
 #  started_at           :datetime
 #  status               :string           default("ringing"), not null
 #  transcript           :text
+#  transcript_segments  :jsonb
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
 #  accepted_by_agent_id :bigint
@@ -34,7 +35,7 @@ class Call < ApplicationRecord
   TERMINAL_STATUSES = %w[completed no_answer failed rejected].freeze
 
   store_accessor :meta, :conference_sid, :twilio_conference_sid, :recording_sid, :parent_call_sid, :initiated_at, :ended_at,
-                 :accepted_broadcast_at
+                 :accepted_broadcast_at, :transcript_source
 
   # Frontend voice bubbles/stores expect inbound/outbound string values
   DISPLAY_DIRECTION = { 'incoming' => 'inbound', 'outgoing' => 'outbound' }.freeze
@@ -50,6 +51,7 @@ class Call < ApplicationRecord
   belongs_to :contact, optional: true
   belongs_to :message, optional: true, inverse_of: :call
   belongs_to :accepted_by_agent, class_name: 'User', optional: true
+  has_one :call_analysis, dependent: :destroy
 
   has_one_attached :recording
 
@@ -149,7 +151,23 @@ class Call < ApplicationRecord
       from_number: from_number,
       to_number: to_number,
       recording_url: recording_url,
-      transcript: transcript
+      transcript: transcript,
+      call_analysis_summary: call_analysis_summary
+    }
+  end
+
+  # Campos livianos del análisis de IA para la burbuja de llamada — nunca el JSON completo (evita
+  # inflar el payload de cada mensaje; el detalle completo se consulta aparte, ver CallAnalysis).
+  def call_analysis_summary
+    return nil if call_analysis.blank? || !call_analysis.completed?
+
+    {
+      role: call_analysis.role,
+      conversation_type: call_analysis.conversation_type,
+      outcome_type: call_analysis.outcome_type,
+      total_score: call_analysis.total_score,
+      score_reading: call_analysis.score_reading,
+      confidence: call_analysis.confidence
     }
   end
 end

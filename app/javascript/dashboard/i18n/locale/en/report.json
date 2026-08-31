@@ -698,6 +698,70 @@
       "FETCH": "Could not fetch the templates report"
     }
   },
+  "CALL_INTELLIGENCE_REPORTS": {
+    "HEADER": "Call intelligence",
+    "DESCRIPTION": "AI-scored analysis of Aircall calls — objections, risk flags, and scorecards by agent and development.",
+    "FILTERS": {
+      "SINCE": "Since",
+      "UNTIL": "Until",
+      "INBOX": "Development",
+      "ALL_INBOXES": "All developments",
+      "AGENT": "Agent",
+      "ALL_AGENTS": "All agents"
+    },
+    "SUMMARY": {
+      "CALLS_ANALYZED": "Calls analyzed",
+      "CALLS_ANALYZED_INFO": "Calls with a completed AI analysis in the selected period.",
+      "AVERAGE_SCORE": "Average score",
+      "AVERAGE_SCORE_INFO": "Average scorecard total across all analyzed calls in the selected period."
+    },
+    "AGENTS_TABLE": {
+      "TITLE": "By agent",
+      "AGENT": "Agent",
+      "CALLS": "Calls",
+      "AVERAGE_SCORE": "Avg. score",
+      "TOP_TYPE": "Most common type",
+      "EMPTY": "No analyzed calls in this period yet"
+    },
+    "OBJECTIONS_CHART": {
+      "TITLE": "Most common objections",
+      "EMPTY": "No objections detected in this period"
+    },
+    "RISKS_CHART": {
+      "TITLE": "Recurring domain risks",
+      "EMPTY": "No risks flagged in this period"
+    },
+    "SCORE_EVOLUTION_CHART": {
+      "TITLE": "Score evolution",
+      "EMPTY": "Not enough analyzed calls yet to chart an evolution"
+    },
+    "PROJECT": {
+      "TITLE": "Development detail",
+      "SELECT_INBOX_HINT": "Select a development above to see objections, loss reasons and CRM comparison for it specifically.",
+      "LOSS_REASONS_TITLE": "Stalled leads (no advance)",
+      "LOSS_REASONS_TOTAL": "{count} calls with no advance",
+      "CRM_MISMATCH_TITLE": "Zoho stage on calls that resulted in an appointment",
+      "CRM_MISMATCH_EMPTY": "No calls resulted in an appointment in this period"
+    },
+    "REVIEW_QUEUE": {
+      "TITLE": "Needs review",
+      "DESCRIPTION": "Failed analyses and low-confidence classifications — retry reuses the same call, it never duplicates the analysis.",
+      "EMPTY": "Nothing needs review right now",
+      "RETRY": "Retry",
+      "RETRY_SUCCESS": "Analysis queued for retry",
+      "RETRY_ERROR": "Could not queue the retry",
+      "COLUMNS": {
+        "CALL": "Call",
+        "STEP": "Failed step",
+        "ATTEMPTS": "Attempts",
+        "LAST_ATTEMPT": "Last attempt"
+      }
+    },
+    "ERRORS": {
+      "FETCH": "Could not fetch the call intelligence report",
+      "FETCH_QUEUE": "Could not fetch the review queue"
+    }
+  },
   "SALES_FUNNEL_REPORTS": {
     "HEADER": "Sales funnel",
     "DESCRIPTION": "Measure conversion from leads to closed-won deals, cross-referencing Chatwoot with Zoho CRM, split by inbox and development.",

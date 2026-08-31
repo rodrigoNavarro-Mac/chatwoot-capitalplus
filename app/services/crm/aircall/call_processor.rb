@@ -38,6 +38,7 @@ class Crm::Aircall::CallProcessor
     persist!(call)
 
     create_message_without_corrupting_conversation_activity!(call, conversation)
+    enqueue_call_intelligence!(call)
   end
 
   private
@@ -174,6 +175,18 @@ class Crm::Aircall::CallProcessor
 
   def duration
     data[:duration]&.to_i
+  end
+
+  # Dispara la grabación+transcripción+análisis (ver Crm::Aircall::RecordingAndTranscriptJob) solo
+  # para llamadas completadas — no tiene sentido transcribir un "no answer". Separado de este
+  # servicio (que también corre en cada backfill histórico) para no re-analizar meses de llamadas
+  # viejas cada vez que se corre Crm::Aircall::CallHistoryBackfillService; solo se dispara si la
+  # cuenta activó el feature flag de pago `call_intelligence`.
+  def enqueue_call_intelligence!(call)
+    return unless call.status == 'completed'
+    return unless CallAnalysis.available_for?(account)
+
+    Crm::Aircall::RecordingAndTranscriptJob.perform_later(call.id, recording_url: data[:recording])
   end
 
   # El agente de Aircall que atendió/hizo la llamada — se guarda en accepted_by_agent

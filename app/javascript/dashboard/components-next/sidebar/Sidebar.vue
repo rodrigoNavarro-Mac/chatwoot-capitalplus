@@ -90,6 +90,13 @@ const hasCadences = computed(() => {
   );
 });
 
+const hasCallIntelligence = computed(() => {
+  return isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.CALL_INTELLIGENCE
+  );
+});
+
 const hasFilteredUnreadCounts = computed(() => {
   return (
     hasConversationUnreadCounts.value &&
@@ -728,6 +735,15 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.REPORTS_WEEKLY_OPS'),
           to: accountScopedRoute('weekly_ops_reports'),
         },
+        ...(hasCallIntelligence.value
+          ? [
+              {
+                name: 'Reports Call Intelligence',
+                label: t('SIDEBAR.REPORTS_CALL_INTELLIGENCE'),
+                to: accountScopedRoute('call_intelligence_reports'),
+              },
+            ]
+          : []),
         ...(hasCadences.value
           ? [
               {
