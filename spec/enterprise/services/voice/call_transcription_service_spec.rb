@@ -67,6 +67,12 @@ RSpec.describe Voice::CallTranscriptionService, type: :service do
     it 'reindexes before broadcasting so a retry after a reindex failure does not resend the update event' do
       call.update!(transcript: 'Existing transcript')
       allow(ChatwootApp).to receive(:advanced_search_allowed?).and_return(true)
+      # Searchkick solo define #reindex cuando ChatwootApp.advanced_search_allowed? es
+      # true en el momento en que Message carga (config/environments no trae OPENSEARCH_URL
+      # en este entorno de test), asi que el metodo no existe todavia en este punto. Se
+      # define como no-op en esta instancia para poder stubearlo sin depender de tener un
+      # OpenSearch real corriendo.
+      message.define_singleton_method(:reindex) {} unless message.respond_to?(:reindex) # rubocop:disable Lint/EmptyBlock
       allow(message).to receive(:reindex).and_raise(StandardError, 'reindex boom')
 
       expect(message).not_to receive(:send_update_event)

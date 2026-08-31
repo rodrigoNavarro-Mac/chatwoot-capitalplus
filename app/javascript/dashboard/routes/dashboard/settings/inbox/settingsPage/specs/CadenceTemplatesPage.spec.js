@@ -1,8 +1,11 @@
 import { mount, flushPromises } from '@vue/test-utils';
+import { withFullI18n } from 'test-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import CadenceTemplatesPage from '../CadenceTemplatesPage.vue';
 import CadenceStepCard from '../CadenceStepCard.vue';
 import CadencesAPI from 'dashboard/api/cadences';
+
+withFullI18n();
 
 vi.mock('dashboard/api/cadences', () => ({
   default: {

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import format from 'date-fns/format';
 import parseISO from 'date-fns/parseISO';
-import BarChart from 'shared/components/charts/BarChart.vue';
+import { BarChart } from '@chatwoot/viz';
 
 const stats = ref(null);
 const failed = ref(false);

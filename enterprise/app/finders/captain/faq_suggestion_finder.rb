@@ -17,7 +17,9 @@ class Captain::FaqSuggestionFinder
   private
 
   def accessible_conversations
-    Conversations::PermissionFilterService.new(@current_account.conversations, @current_user, @current_account).perform
+    Conversations::PermissionFilterService.new(
+      @current_account.conversations, @current_user, @current_account, include_unassigned: true
+    ).perform
   end
 
   def account_user

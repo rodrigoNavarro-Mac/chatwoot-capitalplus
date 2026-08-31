@@ -241,4 +241,9 @@ class Whatsapp::OneoffCampaignService
   end
 end
 
-Whatsapp::OneoffCampaignService.prepend_mod_with('Whatsapp::OneoffCampaignService')
+# No se hace prepend_mod_with aqui a proposito: el modulo Enterprise
+# (enterprise/app/services/enterprise/whatsapp/oneoff_campaign_service.rb) de upstream
+# reemplaza por completo #perform con una version que no soporta campanas por CSV y que
+# envia todos los mensajes de inmediato, sin el delay/ventana horaria de negocio que este
+# servicio ya implementa. Queda pendiente integrar el tracking nuevo (CampaignRecipient)
+# sin perder CSV ni el pacing -- ver memoria del proyecto.

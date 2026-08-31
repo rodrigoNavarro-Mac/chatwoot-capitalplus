@@ -67,7 +67,9 @@ class Api::V1::Accounts::Captain::FaqSuggestionsController < Api::V1::Accounts::
   end
 
   def accessible_conversations
-    Conversations::PermissionFilterService.new(Current.account.conversations, Current.user, Current.account).perform
+    Conversations::PermissionFilterService.new(
+      Current.account.conversations, Current.user, Current.account, include_unassigned: true
+    ).perform
   end
 
   def permitted_params

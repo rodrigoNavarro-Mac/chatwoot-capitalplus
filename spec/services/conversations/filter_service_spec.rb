@@ -360,6 +360,11 @@ describe Conversations::FilterService do
       end
 
       it 'treats AgentBot-owned conversations as having an assignee' do
+        # Un agente regular solo ve lo suyo (ver "result counts" mas abajo), asi que la
+        # conversacion de un bot -no asignada a nadie en particular- nunca entraria a su
+        # alcance. Se prueba con un admin, que no tiene esa restriccion, para validar la
+        # logica del filtro (assignee_presence_filter) en si misma.
+        admin = create(:user, account: account, role: :administrator)
         account.conversations.destroy_all
         agent_bot = create(:agent_bot, account: account)
         bot_owned_conversation = create(:conversation, account: account, inbox: inbox, assignee_agent_bot: agent_bot)
@@ -374,13 +379,16 @@ describe Conversations::FilterService do
           custom_attribute_type: ''
         }.with_indifferent_access]
 
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, admin, account).perform
 
         expect(result[:conversations].pluck(:id)).to contain_exactly(bot_owned_conversation.id, human_owned_conversation.id)
         expect(result[:count]).to include(assigned_count: 2, unassigned_count: 0, all_count: 2)
       end
 
       it 'excludes AgentBot-owned conversations from assignee is not present' do
+        # Ver comentario del test anterior: se usa un admin para poder ejercitar la logica
+        # del filtro sin la restriccion de "solo lo mio" de los agentes regulares.
+        admin = create(:user, account: account, role: :administrator)
         account.conversations.destroy_all
         agent_bot = create(:agent_bot, account: account)
         create(:conversation, account: account, inbox: inbox, assignee_agent_bot: agent_bot)
@@ -394,7 +402,7 @@ describe Conversations::FilterService do
           custom_attribute_type: ''
         }.with_indifferent_access]
 
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, admin, account).perform
 
         expect(result[:conversations].pluck(:id)).to contain_exactly(unassigned_conversation.id)
         expect(result[:count]).to include(assigned_count: 0, unassigned_count: 1, all_count: 1)
@@ -822,18 +830,24 @@ describe Conversations::FilterService do
     end
 
     it 'returns mine, assigned, unassigned and all counts for the filtered set' do
+      # Un agente regular solo ve lo suyo (ver comentario en ddfc7dd1d), asi que para
+      # user_1 el set accesible ES su propio set: assigned/all coinciden con mine y
+      # unassigned siempre es 0, sin importar cuantas conversaciones de otros agentes,
+      # sin asignar o de bots existan en la cuenta.
       params[:payload] = payload
       result = filter_service.new(params, user_1, account).perform
 
       expect(result[:count]).to eq(
         mine_count: 3,
-        assigned_count: 4,
-        unassigned_count: 1,
-        all_count: 5
+        assigned_count: 3,
+        unassigned_count: 0,
+        all_count: 3
       )
     end
 
     it 'counts conversations owned by an agent bot as assigned' do
+      # La conversacion del bot no es de user_1, asi que queda fuera de su alcance
+      # (ver comentario del test anterior) y no cambia sus conteos.
       create(:conversation, account: account, inbox: inbox, assignee_agent_bot: create(:agent_bot, account: account))
       params[:payload] = payload
 
@@ -841,9 +855,9 @@ describe Conversations::FilterService do
 
       expect(result[:count]).to eq(
         mine_count: 3,
-        assigned_count: 5,
-        unassigned_count: 1,
-        all_count: 6
+        assigned_count: 3,
+        unassigned_count: 0,
+        all_count: 3
       )
     end
 

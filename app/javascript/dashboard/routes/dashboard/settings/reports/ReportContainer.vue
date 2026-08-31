@@ -6,8 +6,8 @@ import fromUnixTime from 'date-fns/fromUnixTime';
 import format from 'date-fns/format';
 import { formatTime } from '@chatwoot/utils';
 import { useAlert } from 'dashboard/composables';
+import { BarChart } from '@chatwoot/viz';
 import ChartStats from './components/ChartElements/ChartStats.vue';
-import BarChart from 'shared/components/charts/BarChart.vue';
 import ReportDrilldownDrawer from './components/ReportDrilldownDrawer.vue';
 
 const DURATION_UNITS_IN_SECONDS = [
