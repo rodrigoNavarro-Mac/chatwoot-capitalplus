@@ -114,8 +114,8 @@ const isNestedOverlay = event => {
   const overlay = event.target?.closest?.(clickOutsideIgnore.join(','));
   return Boolean(
     overlay &&
-    overlay !== popoverRef.value &&
-    overlay !== mobileContentRef.value
+      overlay !== popoverRef.value &&
+      overlay !== mobileContentRef.value
   );
 };
 
