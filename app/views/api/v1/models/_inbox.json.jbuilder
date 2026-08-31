@@ -132,7 +132,8 @@ json.bot_name resource.channel.try(:bot_name) if resource.telegram?
 
 ### WhatsApp Channel
 if resource.whatsapp?
-  json.message_templates resource.channel.try(:message_templates)
+  message_templates = resource.channel.try(:message_templates)
+  json.message_templates message_templates.is_a?(Array) ? message_templates : []
   json.template_inbox_assignment_names resource.whatsapp_template_inbox_assignments.pluck(:template_name)
   json.template_inbox_media_defaults(
     resource.whatsapp_template_inbox_assignments.where.not(media_url: [nil, '']).each_with_object({}) do |assignment, defaults|
@@ -140,6 +141,11 @@ if resource.whatsapp?
     end
   )
   json.provider_config resource.channel.try(:provider_config) if Current.account_user&.administrator?
+  if Current.account_user&.administrator? &&
+     ChatwootApp.chatwoot_cloud? &&
+     (resource.channel.try(:provider_config) || {}).to_h['source'] == 'embedded_signup'
+    json.business_management_token_configured resource.channel.try(:business_management_token).present?
+  end
   # Only show reauthorization for embedded signup; manual flow uses API keys, not OAuth
   json.reauthorization_required(
     (resource.channel.try(:provider_config) || {}).to_h['source'] == 'embedded_signup' &&

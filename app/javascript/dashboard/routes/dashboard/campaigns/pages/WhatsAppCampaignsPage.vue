@@ -50,6 +50,13 @@ const handleMetrics = campaign => {
     params: { campaignId: campaign.id },
   });
 };
+
+const handleAnalytics = campaign => {
+  router.push({
+    name: 'campaigns_whatsapp_analytics',
+    params: { campaignId: campaign.id },
+  });
+};
 </script>
 
 <template>
@@ -77,6 +84,7 @@ const handleMetrics = campaign => {
       @edit="handleEdit"
       @delete="handleDelete"
       @metrics="handleMetrics"
+      @analytics="handleAnalytics"
     />
     <WhatsAppCampaignEmptyState
       v-else

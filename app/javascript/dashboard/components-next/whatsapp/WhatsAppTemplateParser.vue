@@ -19,12 +19,12 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import {
   buildTemplateParameters,
   allKeysRequired,
-  replaceTemplateVariables,
   DEFAULT_LANGUAGE,
   DEFAULT_CATEGORY,
   COMPONENT_TYPES,
   MEDIA_FORMATS,
   findComponentByType,
+  renderTemplatePreview,
 } from 'dashboard/helper/templateHelper';
 import { getCadenceStepDefinitions } from 'dashboard/helper/cadenceStepDefaultsCache';
 
@@ -46,6 +46,10 @@ const props = defineProps({
   // Se precarga como expresión Liquid (el renderer de campañas la resuelve por
   // contacto al enviar) para no tener que escribirla a mano en cada campaña.
   autofillNameVariable: {
+    type: Boolean,
+    default: false,
+  },
+  sendRenderedContent: {
     type: Boolean,
     default: false,
   },
@@ -77,6 +81,12 @@ const bodyText = computed(() => {
   return bodyComponent.value?.text || '';
 });
 
+const headerText = computed(() => {
+  return headerComponent.value?.format === 'TEXT'
+    ? headerComponent.value?.text || ''
+    : '';
+});
+
 const hasMediaHeader = computed(() =>
   MEDIA_FORMATS.includes(headerComponent.value?.format)
 );
@@ -90,12 +100,30 @@ const isDocumentTemplate = computed(() => {
   return headerComponent.value?.format?.toLowerCase() === 'document';
 });
 
-const hasVariables = computed(() => {
+const hasBodyVariables = computed(() => {
   return bodyText.value?.match(/{{([^}]+)}}/g) !== null;
 });
 
+const hasTextHeaderVariables = computed(() => {
+  return headerText.value?.match(/{{([^}]+)}}/g) !== null;
+});
+
+const hasVariables = computed(
+  () => hasBodyVariables.value || hasTextHeaderVariables.value
+);
+
+const renderedHeader = computed(() => {
+  return renderTemplatePreview(
+    headerText.value,
+    processedParams.value.header || {}
+  );
+});
+
 const renderedTemplate = computed(() => {
-  return replaceTemplateVariables(bodyText.value, processedParams.value);
+  return renderTemplatePreview(
+    bodyText.value,
+    processedParams.value.body || {}
+  );
 });
 
 // Completeness validation is shared with the mobile app via @chatwoot/utils.
@@ -193,12 +221,16 @@ const sendMessage = () => {
   const { name, category, language, namespace } = props.template;
 
   const payload = {
-    message: renderedTemplate.value,
+    message: props.sendRenderedContent
+      ? renderedTemplate.value
+      : bodyText.value,
+    pendingMessageContent: renderedTemplate.value,
     templateParams: {
       name,
       category,
       language,
       namespace,
+      content_mode: props.sendRenderedContent ? 'rendered' : 'raw_template',
       processed_params: processedParams.value,
     },
   };
@@ -230,7 +262,9 @@ defineExpose({
   hasMediaHeader,
   isDocumentTemplate,
   headerComponent,
+  renderedHeader,
   renderedTemplate,
+  isFormInvalid,
   v$,
   updateMediaUrl,
   updateMediaName,
@@ -254,6 +288,12 @@ defineExpose({
 
       <div class="flex flex-col gap-2">
         <div class="rounded-md">
+          <div
+            v-if="renderedHeader"
+            class="mb-2 text-sm font-medium whitespace-pre-wrap text-n-slate-12"
+          >
+            {{ renderedHeader }}
+          </div>
           <div class="text-sm whitespace-pre-wrap text-n-slate-12">
             {{ renderedTemplate }}
           </div>
@@ -296,6 +336,29 @@ defineExpose({
               t('WHATSAPP_TEMPLATES.PARSER.DOCUMENT_NAME_PLACEHOLDER')
             "
             @update:model-value="updateMediaName"
+          />
+        </div>
+      </div>
+
+      <!-- Text Header Variables Section -->
+      <div v-if="hasTextHeaderVariables && processedParams.header">
+        <p class="mb-2.5 text-sm font-semibold">
+          {{ $t('WHATSAPP_TEMPLATES.PARSER.HEADER_VARIABLES_LABEL') }}
+        </p>
+        <div
+          v-for="(variable, key) in processedParams.header"
+          :key="`header-${key}`"
+          class="flex items-center mb-2.5"
+        >
+          <Input
+            v-model="processedParams.header[key]"
+            type="text"
+            class="flex-1"
+            :placeholder="
+              t('WHATSAPP_TEMPLATES.PARSER.VARIABLE_PLACEHOLDER', {
+                variable: key,
+              })
+            "
           />
         </div>
       </div>

@@ -27,7 +27,7 @@ class Account::ContactsExportJob < ApplicationJob
     preload_last_message_status(contacts_to_export) if headers.include?(LAST_MESSAGE_STATUS_COLUMN)
     preload_last_template_name(contacts_to_export) if headers.include?(LAST_TEMPLATE_NAME_COLUMN)
 
-    csv_data = CSV.generate do |csv|
+    csv_data = CSVSafe.generate do |csv|
       csv << headers
       contacts_to_export.each do |contact|
         csv << headers.map { |header| value_for_header(contact, header) }
