@@ -276,3 +276,11 @@
   display_name: WhatsApp Sales Cadences
   enabled: false
   column: feature_flags_ext_1
+- name: delayed_automations
+  # Agregada por el merge con Chatwoot v4.17.0. Va DESPUES de whatsapp_cadences a
+  # proposito: el bit se calcula por posicion dentro de la columna, e insertarla antes
+  # recorreria el bit de whatsapp_cadences para las cuentas que ya lo tienen activo
+  # (mismo problema que el traslado de bit del merge v4.16.1).
+  display_name: Delayed Automations
+  enabled: false
+  column: feature_flags_ext_1

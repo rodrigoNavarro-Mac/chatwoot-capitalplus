@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
+import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import MessagePreview from 'dashboard/components-next/Conversation/ConversationCard/MessagePreview.vue';
 import CardLabels from 'dashboard/components-next/Conversation/ConversationCard/CardLabels.vue';
 import SLACardLabel from 'dashboard/components-next/Conversation/ConversationCard/SLACardLabel.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -21,31 +22,28 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  hasLabels: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const { t } = useI18n();
 
 const slaCardLabelRef = ref(null);
 
-const { getPlainText } = useMessageFormatter();
-
-const lastNonActivityMessageContent = computed(() => {
-  const { lastNonActivityMessage = {}, customAttributes = {} } =
-    props.conversation;
-  const { email: { subject } = {} } = customAttributes;
-  return getPlainText(
-    subject || lastNonActivityMessage?.content || t('CHAT_LIST.NO_CONTENT')
-  );
-});
+const lastNonActivityMessage = computed(() =>
+  useSnakeCase(props.conversation.lastNonActivityMessage ?? {}, { deep: true })
+);
 
 const isLastMessageFailed = computed(() => {
-  const { lastNonActivityMessage = {} } = props.conversation;
-  return lastNonActivityMessage?.status === 'failed';
+  const { lastNonActivityMessage: rawLastMessage = {} } = props.conversation;
+  return rawLastMessage?.status === 'failed';
 });
 
 const lastMessageFailureReason = computed(() => {
-  const { lastNonActivityMessage = {} } = props.conversation;
-  return lastNonActivityMessage?.contentAttributes?.externalError;
+  const { lastNonActivityMessage: rawLastMessage = {} } = props.conversation;
+  return rawLastMessage?.contentAttributes?.externalError;
 });
 
 const assignee = computed(() => {
@@ -86,9 +84,12 @@ defineExpose({
         <Icon icon="i-lucide-alert-triangle" class="flex-shrink-0 size-3.5" />
         {{ t('CHAT_LIST.FAILED_TO_SEND') }}
       </p>
-      <p v-else class="mb-0 text-sm leading-7 text-n-slate-12 line-clamp-1">
-        {{ lastNonActivityMessageContent }}
-      </p>
+      <MessagePreview
+        v-else
+        :message="lastNonActivityMessage"
+        class="flex-1 min-w-0"
+        :class="unreadMessagesCount > 0 ? 'text-n-slate-12' : 'text-n-slate-11'"
+      />
 
       <div
         v-if="unreadMessagesCount > 0"
@@ -103,7 +104,7 @@ defineExpose({
     <div
       class="grid items-center gap-2.5 h-7"
       :class="
-        hasSlaThreshold
+        hasSlaThreshold && hasLabels
           ? 'grid-cols-[auto_auto_1fr_20px]'
           : 'grid-cols-[1fr_20px]'
       "
@@ -113,8 +114,8 @@ defineExpose({
         ref="slaCardLabelRef"
         :conversation="conversation"
       />
-      <div v-if="hasSlaThreshold" class="w-px h-3 bg-n-slate-4" />
-      <div class="overflow-hidden">
+      <div v-if="hasSlaThreshold && hasLabels" class="w-px h-3 bg-n-slate-4" />
+      <div v-if="hasLabels" class="overflow-hidden">
         <CardLabels
           :conversation-labels="conversation.labels"
           :account-labels="accountLabels"

@@ -22,6 +22,10 @@ describe Whatsapp::PhoneNormalizers::MexicoPhoneNormalizer do
       expect(normalizer.normalize('525512345678')).to eq('525512345678')
     end
 
+    it 'does not strip a legitimate leading "1" from a 12-digit national number' do
+      expect(normalizer.normalize('521512345678')).to eq('521512345678')
+    end
+
     it 'returns the number unchanged for a non-Mexico country code' do
       expect(normalizer.normalize('5511987654321')).to eq('5511987654321')
     end

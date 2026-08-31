@@ -240,3 +240,5 @@ class Whatsapp::OneoffCampaignService
     @delivery_recorder ||= Campaigns::MessageDeliveryRecorder.new(campaign: campaign)
   end
 end
+
+Whatsapp::OneoffCampaignService.prepend_mod_with('Whatsapp::OneoffCampaignService')

@@ -1,4 +1,5 @@
 /* global axios */
+
 import ApiClient from './ApiClient';
 
 class CampaignsAPI extends ApiClient {
@@ -36,6 +37,16 @@ class CampaignsAPI extends ApiClient {
 
   resume(campaignId) {
     return axios.post(`${this.url}/${campaignId}/resume`);
+  }
+
+  analyticsMetrics(id) {
+    return axios.get(`${this.url}/${id}/analytics/metrics`);
+  }
+
+  analyticsContacts(id, { status, page } = {}) {
+    return axios.get(`${this.url}/${id}/analytics/contacts`, {
+      params: { status, page },
+    });
   }
 }
 

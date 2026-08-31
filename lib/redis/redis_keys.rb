@@ -92,6 +92,7 @@ module Redis::RedisKeys
   CRM_PROCESS_MUTEX = 'CRM_PROCESS_MUTEX::%<hook_id>s'.freeze
   ZOHO_CRM_ACCESS_TOKEN = 'ZOHO_CRM_ACCESS_TOKEN::%<hook_id>s'.freeze
   CAPTAIN_DOCUMENT_SYNC_MUTEX = 'CAPTAIN_DOCUMENT_SYNC_LOCK::%<document_id>s'.freeze
+  CAPTAIN_CONVERSATION_FAQ_MUTEX = 'CAPTAIN_CONVERSATION_FAQ_LOCK::%<assistant_id>s::%<language>s'.freeze
 
   ## Auto Assignment Keys
   # Track conversation assignments to agents for rate limiting

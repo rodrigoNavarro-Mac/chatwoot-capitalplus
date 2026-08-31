@@ -50,7 +50,8 @@ module Enterprise::Conversations::PermissionFilterService
   end
 
   def filter_unassigned_and_mine
-    role_scoped_conversations.where(assignee_id: [nil, user.id])
+    scoped = role_scoped_conversations
+    scoped.unassigned.or(scoped.assigned_to(user))
   end
 
   # Un custom role sin permiso de conversaciones para todo el módulo igual puede ver

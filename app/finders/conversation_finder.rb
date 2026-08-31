@@ -114,11 +114,15 @@ class ConversationFinder
 
   def find_all_conversations
     find_conversation_by_inbox
-    # Apply permission-based filtering
+    # Apply permission-based filtering. `participating` conversations aren't necessarily
+    # assigned to the current user, so the default assignee-only scope (see
+    # Conversations::PermissionFilterService) would wrongly hide them; fall back to
+    # inbox-membership scoping for that case instead.
     @conversations = Conversations::PermissionFilterService.new(
       @conversations,
       current_user,
-      current_account
+      current_account,
+      include_unassigned: params[:conversation_type] == 'participating'
     ).perform
     filter_by_conversation_type if params[:conversation_type]
     @conversations
@@ -142,7 +146,8 @@ class ConversationFinder
       conversation_ids = current_account.mentions.where(user: current_user).pluck(:conversation_id)
       @conversations = @conversations.where(id: conversation_ids)
     when 'participating'
-      @conversations = current_user.participating_conversations.where(account_id: current_account.id)
+      participant_conversation_ids = ConversationParticipant.where(account_id: current_account.id, user_id: current_user.id).select(:conversation_id)
+      @conversations = @conversations.where(id: participant_conversation_ids)
     when 'unattended'
       @conversations = @conversations.unattended
     when 'whatsapp_window_open'
@@ -191,7 +196,7 @@ class ConversationFinder
 
     counts = @conversations.unscope(:order).pick(
       Arel.sql("COUNT(*) FILTER (WHERE assignee_id = #{current_user.id})"),
-      Arel.sql('COUNT(*) FILTER (WHERE assignee_id IS NULL)'),
+      Arel.sql('COUNT(*) FILTER (WHERE assignee_id IS NULL AND assignee_agent_bot_id IS NULL)'),
       Arel.sql('COUNT(*)')
     )
     counts || [0, 0, 0]

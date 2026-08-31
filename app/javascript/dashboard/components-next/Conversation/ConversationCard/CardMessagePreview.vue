@@ -1,10 +1,11 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
+import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import MessagePreview from './MessagePreview.vue';
 
 const props = defineProps({
   conversation: {
@@ -15,26 +16,19 @@ const props = defineProps({
 
 const { t } = useI18n();
 
-const { getPlainText } = useMessageFormatter();
-
 const isLastMessageFailed = computed(() => {
-  const { lastNonActivityMessage = {} } = props.conversation;
-  return lastNonActivityMessage?.status === 'failed';
+  const { lastNonActivityMessage: rawLastMessage = {} } = props.conversation;
+  return rawLastMessage?.status === 'failed';
 });
 
 const lastMessageFailureReason = computed(() => {
-  const { lastNonActivityMessage = {} } = props.conversation;
-  return lastNonActivityMessage?.contentAttributes?.externalError;
+  const { lastNonActivityMessage: rawLastMessage = {} } = props.conversation;
+  return rawLastMessage?.contentAttributes?.externalError;
 });
 
-const lastNonActivityMessageContent = computed(() => {
-  const { lastNonActivityMessage = {}, customAttributes = {} } =
-    props.conversation;
-  const { email: { subject } = {} } = customAttributes;
-  return getPlainText(
-    subject || lastNonActivityMessage?.content || t('CHAT_LIST.NO_CONTENT')
-  );
-});
+const lastNonActivityMessage = computed(() =>
+  useSnakeCase(props.conversation.lastNonActivityMessage ?? {}, { deep: true })
+);
 
 const assignee = computed(() => {
   const { meta: { assignee: agent = {} } = {} } = props.conversation;
@@ -61,12 +55,13 @@ const unreadMessagesCount = computed(() => {
       <Icon icon="i-lucide-alert-triangle" class="flex-shrink-0 size-3.5" />
       {{ t('CHAT_LIST.FAILED_TO_SEND') }}
     </p>
-    <p
+    <MessagePreview
       v-else
-      class="w-full mb-0 text-sm leading-7 text-n-slate-12 line-clamp-2"
-    >
-      {{ lastNonActivityMessageContent }}
-    </p>
+      :message="lastNonActivityMessage"
+      multi-line
+      class="w-full"
+      :class="unreadMessagesCount > 0 ? 'text-n-slate-12' : 'text-n-slate-11'"
+    />
     <div class="flex items-center flex-shrink-0 gap-2 pb-2">
       <Avatar
         v-if="assignee.name"
