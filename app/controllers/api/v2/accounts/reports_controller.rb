@@ -109,6 +109,19 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: builder.build
   end
 
+  def call_intelligence_agents
+    builder = V2::Reports::CallAnalysisAgentBuilder.new(account: Current.account, params: call_intelligence_params)
+    render json: builder.build
+  end
+
+  def call_intelligence_project
+    return head :unprocessable_entity if params[:inbox_id].blank?
+
+    inbox = Current.account.inboxes.find(params[:inbox_id])
+    builder = V2::Reports::CallAnalysisProjectBuilder.new(account: Current.account, inbox: inbox, params: call_intelligence_params)
+    render json: builder.build
+  end
+
   private
 
   def generate_csv(filename, template)
@@ -232,6 +245,14 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
       group_by: params[:group_by],
       since: params[:since],
       until: params[:until]
+    }
+  end
+
+  def call_intelligence_params
+    {
+      since: params[:since],
+      until: params[:until],
+      agent_id: params[:agent_id]
     }
   end
 end

@@ -26,6 +26,7 @@ import SLAReports from './SLAReports.vue';
 import TemplatesReports from './TemplatesReports.vue';
 import SalesFunnelReport from './SalesFunnelReport.vue';
 import WeeklyOpsReport from './WeeklyOpsReport.vue';
+import CallIntelligenceReport from './CallIntelligenceReport.vue';
 
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
@@ -186,6 +187,15 @@ export default {
             ],
           },
           component: WeeklyOpsReport,
+        },
+        {
+          path: 'call_intelligence',
+          name: 'call_intelligence_reports',
+          meta: {
+            ...meta,
+            featureFlag: FEATURE_FLAGS.CALL_INTELLIGENCE,
+          },
+          component: CallIntelligenceReport,
         },
       ],
     },

@@ -1,0 +1,31 @@
+# Pesos y umbrales del scorecard de análisis de llamadas (Setter/Asesor). Metodología de trabajo
+# provisional, sujeta a ajuste tras comparar el análisis automático contra revisión humana — ver
+# CallAnalysis::ScorecardCalculator y CallAnalysis::RescoreService. Versionado en git en vez de
+# tabla en BD a propósito, mientras se sigue ajustando a mano (diffable/revisable en PR).
+#
+# `scorecard_config_version` en cada call_analysis guarda un checksum de este archivo al momento
+# del análisis, así que editar los pesos aquí NO cambia silenciosamente la lectura de análisis ya
+# guardados — solo aplica a análisis nuevos hasta que se corra un recálculo explícito en lote.
+setter:
+  weights:
+    abre: 0.10
+    descubre: 0.20
+    califica: 0.25
+    conecta: 0.15
+    agenda: 0.25
+    limpieza: 0.05
+  thresholds:
+    solido: 80
+    coaching: 60
+
+asesor:
+  weights:
+    corrida_financiera: 0.25
+    dominio_producto: 0.15
+    plan_con_fecha: 0.20
+    limites_autorizacion: 0.15
+    propuesta_avance: 0.15
+    seguimiento_post_visita: 0.10
+  thresholds:
+    solido: 80
+    coaching: 60
