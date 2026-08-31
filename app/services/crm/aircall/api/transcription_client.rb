@@ -3,6 +3,16 @@
 # cuenta de Aircall; sin él, este endpoint devuelve 403). Mismo Basic Auth que
 # Crm::Aircall::Api::CallsClient (api_id/api_token en Integrations::Hook#settings).
 #
+# CONFIRMADO 2026-08-31 contra la cuenta real de producción (account_id 2), probado contra varias
+# llamadas reales de ese mismo día, incluida una con transcripción visible en el dashboard de
+# Aircall: siempre 403 con body `{"message":"Forbidden access: company is not verified."}` — no es
+# "aún procesando" ni "endpoint equivocado", es un paso de verificación de la empresa que exige
+# Aircall antes de dar acceso a esta API (aparte de si el add-on AI Assist está pagado), y el
+# cliente decidió no perseguirlo. Por eso el pipeline SIEMPRE cae al fallback de Whisper
+# (Crm::Aircall::WhisperTranscriptFallbackService) en este cliente — este intento se deja igual
+# (falla al instante, sin costo) para que, si algún día Aircall completa esa verificación sin
+# que haya que tocar código aquí, el pipeline empiece a usarlo automáticamente.
+#
 # Shape real confirmado contra la documentación oficial de Aircall (2026-08-31, ver Fase 0 del
 # plan de análisis de llamadas):
 #   { "transcription": { "id":, "call_id":, "content": { "language":, "utterances": [
