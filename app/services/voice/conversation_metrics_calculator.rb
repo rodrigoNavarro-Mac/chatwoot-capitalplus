@@ -1,9 +1,11 @@
 # Calcula, de forma determinística en Ruby (no LLM), las métricas de conversación que el spec de
 # análisis de llamadas pide como "verdad objetiva": talk ratio, monólogo más largo, número de
 # preguntas abiertas/cerradas, uso de CTA. Recibe `call.transcript_segments` ya normalizados
-# (speaker/start_seconds/end_seconds/text, ver Crm::Aircall::Api::TranscriptionClient) más los
-# labels de hablante que corresponden al agente (puede haber más de uno en una llamada
-# transferida), para poder separar "agente" de "externo" sin depender de que el LLM lo adivine.
+# (speaker/role_hint/start_seconds/end_seconds/text) — `role_hint` ("agent"/"external"/nil) viene
+# directo de `participant_type` de Aircall AI (ver Crm::Aircall::Api::TranscriptionClient) cuando
+# la fuente es diarizada; en el fallback de Whisper (un solo bloque sin hablante identificado)
+# viene nil en todos los segmentos, y las métricas que dependen de separar agente/externo
+# degradan a `nil` en vez de calcular un número engañoso.
 #
 # El resultado se guarda en call_analyses.metrics, separado de llm_raw_response, para que quede
 # auditable qué es cálculo exacto y qué es interpretación del modelo.
@@ -13,8 +15,7 @@ class Voice::ConversationMetricsCalculator
   CTA_KEYWORDS = ['te agendo', 'te mando', 'te comparto', 'te envío', 'firmamos', 'apartamos',
                   'agendamos', 'reservamos', 'confirmamos la cita', 'te paso'].freeze
 
-  def initialize(segments:, agent_speaker_labels:)
-    @agent_speaker_labels = Array(agent_speaker_labels).map(&:to_s)
+  def initialize(segments:)
     @segments = normalize(segments)
   end
 
@@ -32,7 +33,7 @@ class Voice::ConversationMetricsCalculator
 
   private
 
-  attr_reader :segments, :agent_speaker_labels
+  attr_reader :segments
 
   def empty_result
     { talk_ratio: nil, longest_monologue_seconds: 0, questions: { open: 0, closed: 0 }, cta_used: false, total_duration_seconds: 0 }
@@ -49,7 +50,7 @@ class Voice::ConversationMetricsCalculator
       end_seconds = segment[:end_seconds].presence || next_start || segment[:start_seconds].to_i
       {
         speaker: segment[:speaker].to_s,
-        agent: agent_speaker?(segment[:speaker].to_s),
+        role_hint: segment[:role_hint].presence,
         start_seconds: segment[:start_seconds].to_i,
         end_seconds: end_seconds.to_i,
         text: segment[:text].to_s
@@ -57,8 +58,14 @@ class Voice::ConversationMetricsCalculator
     end
   end
 
-  def agent_speaker?(speaker)
-    agent_speaker_labels.include?(speaker)
+  def agent?(segment)
+    segment[:role_hint] == 'agent'
+  end
+
+  # true solo si CADA segmento trae role_hint — evita mezclar un cálculo parcialmente ciego
+  # (ej. transcripción de Whisper sin diarización) con uno confiable.
+  def role_hints_available?
+    segments.all? { |s| s[:role_hint].present? }
   end
 
   def duration(segment)
@@ -72,10 +79,12 @@ class Voice::ConversationMetricsCalculator
   end
 
   def talk_ratio
+    return nil unless role_hints_available?
+
     total = total_duration_seconds
     return nil if total.zero?
 
-    agent_seconds = segments.select { |s| s[:agent] }.sum { |s| duration(s) }
+    agent_seconds = segments.select { |s| agent?(s) }.sum { |s| duration(s) }
     (agent_seconds.to_f / total).round(2)
   end
 
@@ -114,7 +123,8 @@ class Voice::ConversationMetricsCalculator
   end
 
   def cta_used?
-    full_text = segments.select { |s| s[:agent] }.map { |s| s[:text].downcase }.join(' ')
+    relevant_segments = role_hints_available? ? segments.select { |s| agent?(s) } : segments
+    full_text = relevant_segments.map { |s| s[:text].downcase }.join(' ')
     CTA_KEYWORDS.any? { |keyword| full_text.include?(keyword) }
   end
 end

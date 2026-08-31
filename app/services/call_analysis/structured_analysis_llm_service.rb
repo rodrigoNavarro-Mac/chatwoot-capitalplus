@@ -170,13 +170,25 @@ class CallAnalysis::StructuredAnalysisLlmService < Llm::BaseAiService
       Proyecto/desarrollo: #{project_name}
       role_hint: #{role_hint || 'sin señal clara — decide con la evidencia de la llamada'}
       Métricas objetivas ya calculadas (no las recalcules): #{metrics.to_json}
+      #{diarization_note}
 
-      Transcripción diarizada (speaker, start_seconds, text), en orden cronológico:
+      Transcripción (speaker, start_seconds, text), en orden cronológico:
       #{formatted_segments}
     PROMPT
   end
 
   def formatted_segments
     Array(call.transcript_segments).map { |seg| "#{seg['start_seconds']}s - #{seg['speaker']}: #{seg['text']}" }.join("\n")
+  end
+
+  # Sin Aircall AI (add-on no contratado) la transcripción cae a Whisper sin diarización — un solo
+  # bloque de texto sin separar agente/contacto (ver Crm::Aircall::WhisperTranscriptFallbackService).
+  # El LLM necesita saberlo explícitamente para no fingir certeza sobre quién dijo qué.
+  def diarization_note
+    return '' if Array(call.transcript_segments).size > 1
+
+    'NOTA: esta transcripción NO viene separada por hablante (un solo bloque de texto) — infiere ' \
+      'quién es el agente y quién el contacto por el contexto, y baja tu "confidence" si la ' \
+      'atribución de una cita clave es ambigua.'
   end
 end

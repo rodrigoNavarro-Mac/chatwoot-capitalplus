@@ -1,18 +1,24 @@
 # Cliente REST del endpoint de transcripción de Aircall AI (`GET /v1/calls/:id/transcription`,
 # developer.aircall.io/docs/log-transcriptions — requiere el add-on "AI Assist" contratado en la
-# cuenta de Aircall; sin él, este endpoint devuelve 403/404 según confirma la documentación de
-# soporte). Mismo Basic Auth que Crm::Aircall::Api::CallsClient (api_id/api_token en
-# Integrations::Hook#settings) — la documentación pública también admite OAuth, pero no hay
-# necesidad de un segundo mecanismo de credenciales mientras Basic Auth funcione.
+# cuenta de Aircall; sin él, este endpoint devuelve 403). Mismo Basic Auth que
+# Crm::Aircall::Api::CallsClient (api_id/api_token en Integrations::Hook#settings).
 #
-# El shape exacto del JSON de utterances no está publicado en la documentación pública de Aircall
-# al momento de escribir esto — #normalize_utterances es defensivo y acepta varias formas
-# plausibles (ver comentario ahí) en vez de asumir una sola. Ajustar esa normalización en cuanto
-# se valide contra una respuesta real de la cuenta del cliente (ver Fase 0 del plan).
+# Shape real confirmado contra la documentación oficial de Aircall (2026-08-31, ver Fase 0 del
+# plan de análisis de llamadas):
+#   { "transcription": { "id":, "call_id":, "content": { "language":, "utterances": [
+#       { "start_time": 12.54, "end_time": 13.8, "text": "...",
+#         "participant_type": "internal"|"external", "user_id": 123 | "phone_number": "+..." }
+#   ] } } }
+# `participant_type` da directo quién es el agente ("internal") y quién el contacto ("external")
+# — se usa como fuente de verdad para role_hint en vez de adivinar por nombre.
 class Crm::Aircall::Api::TranscriptionClient
   include HTTParty
 
   base_uri 'https://api.aircall.io/v1'
+
+  INTERNAL_PARTICIPANT = 'internal'.freeze
+  EXTERNAL_PARTICIPANT = 'external'.freeze
+  ROLE_HINT_BY_PARTICIPANT_TYPE = { INTERNAL_PARTICIPANT => 'agent', EXTERNAL_PARTICIPANT => 'external' }.freeze
 
   class ApiError < StandardError
     attr_reader :code, :response
@@ -24,16 +30,16 @@ class Crm::Aircall::Api::TranscriptionClient
     end
   end
 
-  # Aircall AI no está contratado / sin transcripción disponible para esta llamada — distinto de
-  # un error de red o de credenciales, para que TranscriptFetchService pueda decidir "no
-  # reintentar" en vez de "reintentar con backoff".
+  # Aircall AI no está contratado para esta cuenta — 403 permanente, distinto de "aún procesando"
+  # (202/404), para que TranscriptFetchService decida "cae al fallback de Whisper" en vez de
+  # "reintentar con backoff" (ver Crm::Aircall::WhisperTranscriptFallbackService).
   class NotAvailableError < ApiError; end
 
   def initialize(hook)
     @hook = hook
   end
 
-  # Devuelve un array de segmentos normalizados `{speaker:, start_seconds:, end_seconds:, text:}`,
+  # Devuelve un array de segmentos normalizados `{speaker:, role_hint:, start_seconds:, end_seconds:, text:}`,
   # ordenados por start_seconds, o [] si la transcripción aún no está lista (202/404 antes de que
   # Aircall AI termine de procesar).
   def fetch_segments(aircall_call_id)
@@ -75,46 +81,41 @@ class Crm::Aircall::Api::TranscriptionClient
     raise ApiError.new("Failed to parse Aircall transcription response: #{e.message}", response.code, response)
   end
 
-  # Acepta las formas más plausibles documentadas/observadas para "Conversation Intelligence" de
-  # Aircall: un array top-level de utterances, o un hash con `data`/`utterances`/`sentences`
-  # envolviendo ese array. Cada utterance puede traer el hablante bajo `speaker`, `participant`, o
-  # `participant.name`; el timestamp bajo `start_time`/`start`/`offset` en segundos.
   def normalize_utterances(payload)
     raw = extract_utterances_array(payload)
     raw.filter_map { |utterance| normalize_utterance(utterance) }.sort_by { |seg| seg[:start_seconds] }
   end
 
+  # `transcription.content.utterances` es el shape real confirmado; se conservan un par de
+  # fallbacks defensivos por si Aircall cambia el envoltorio en otro tipo de transcripción
+  # (`type` puede ser "call" o "voicemail" según la doc) sin romper en silencio.
   def extract_utterances_array(payload)
     return payload if payload.is_a?(Array)
     return [] unless payload.is_a?(Hash)
 
-    payload['data'] || payload['utterances'] || payload['sentences'] || payload.dig('data', 'utterances') || []
+    payload.dig('transcription', 'content', 'utterances') ||
+      payload.dig('content', 'utterances') ||
+      payload['utterances'] || []
   end
 
   def normalize_utterance(utterance)
     return nil unless utterance.is_a?(Hash)
 
-    text = utterance['text'] || utterance['content']
+    text = utterance['text']
     return nil if text.blank?
 
+    role_hint = ROLE_HINT_BY_PARTICIPANT_TYPE[utterance['participant_type']]
+
     {
-      speaker: speaker_label(utterance),
-      start_seconds: timestamp(utterance, %w[start_time start offset]),
-      end_seconds: timestamp(utterance, %w[end_time end]),
+      speaker: role_hint == 'agent' ? 'Agente' : 'Cliente',
+      role_hint: role_hint,
+      start_seconds: timestamp(utterance['start_time']),
+      end_seconds: timestamp(utterance['end_time']),
       text: text.to_s.strip
     }
   end
 
-  def speaker_label(utterance)
-    speaker = utterance['speaker'] || utterance['participant']
-    return speaker if speaker.is_a?(String)
-    return speaker['name'] || speaker['user_id'] || speaker['type'] if speaker.is_a?(Hash)
-
-    'unknown'
-  end
-
-  def timestamp(utterance, keys)
-    value = keys.filter_map { |key| utterance[key] }.first
+  def timestamp(value)
     value.present? ? value.to_f.round : nil
   end
 end

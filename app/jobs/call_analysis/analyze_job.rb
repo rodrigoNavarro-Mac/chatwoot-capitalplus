@@ -54,8 +54,7 @@ class CallAnalysis::AnalyzeJob < ApplicationJob
   end
 
   def analyze!(record, call)
-    agent_labels = agent_speaker_labels(call)
-    metrics = Voice::ConversationMetricsCalculator.new(segments: call.transcript_segments, agent_speaker_labels: agent_labels).calculate
+    metrics = Voice::ConversationMetricsCalculator.new(segments: call.transcript_segments).calculate
     role_hint = CallAnalysis::RoleHintResolver.new(call: call).resolve
 
     service = CallAnalysis::StructuredAnalysisLlmService.new(
@@ -66,14 +65,6 @@ class CallAnalysis::AnalyzeJob < ApplicationJob
     return fail_with!(record, result[:error]) if result[:error]
 
     persist_result!(record, metrics, result, service.model)
-  end
-
-  # El nombre del agente tal como aparece en la diarización de Aircall AI ("Agente principal:
-  # Eunice Vazquez" en el ejemplo real de exportación) — se compara por nombre disponible del
-  # usuario de Chatwoot en vez de un id, porque Aircall AI no expone un identificador interno
-  # estable por hablante en su respuesta pública.
-  def agent_speaker_labels(call)
-    [call.accepted_by_agent&.name, call.accepted_by_agent&.available_name].compact.uniq
   end
 
   def persist_result!(record, metrics, result, llm_model)

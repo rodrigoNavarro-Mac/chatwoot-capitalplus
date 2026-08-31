@@ -1,15 +1,15 @@
 require 'rails_helper'
 
 describe Voice::ConversationMetricsCalculator do
-  subject(:result) { described_class.new(segments: segments, agent_speaker_labels: ['Agent']).calculate }
+  subject(:result) { described_class.new(segments: segments).calculate }
 
   let(:segments) do
     [
-      { 'speaker' => 'Agent', 'start_seconds' => 0, 'text' => 'Hola buenas tardes' },
-      { 'speaker' => 'Contact', 'start_seconds' => 5, 'text' => 'Hola' },
-      { 'speaker' => 'Agent', 'start_seconds' => 8, 'text' => '¿Cómo estás? ¿Verdad que sí?' },
-      { 'speaker' => 'Contact', 'start_seconds' => 15, 'text' => 'Bien gracias' },
-      { 'speaker' => 'Agent', 'start_seconds' => 18, 'text' => 'Perfecto, te comparto la información por WhatsApp' }
+      { 'speaker' => 'Agente', 'role_hint' => 'agent', 'start_seconds' => 0, 'text' => 'Hola buenas tardes' },
+      { 'speaker' => 'Cliente', 'role_hint' => 'external', 'start_seconds' => 5, 'text' => 'Hola' },
+      { 'speaker' => 'Agente', 'role_hint' => 'agent', 'start_seconds' => 8, 'text' => '¿Cómo estás? ¿Verdad que sí?' },
+      { 'speaker' => 'Cliente', 'role_hint' => 'external', 'start_seconds' => 15, 'text' => 'Bien gracias' },
+      { 'speaker' => 'Agente', 'role_hint' => 'agent', 'start_seconds' => 18, 'text' => 'Perfecto, te comparto la información por WhatsApp' }
     ]
   end
 
@@ -30,8 +30,24 @@ describe Voice::ConversationMetricsCalculator do
     expect(result[:cta_used]).to be true
   end
 
+  context 'without role_hint (undiarized Whisper fallback transcript)' do
+    let(:segments) do
+      [{ 'speaker' => 'Transcripción', 'role_hint' => nil, 'start_seconds' => 0, 'end_seconds' => 20,
+         'text' => '¿Cómo estás? Perfecto, te comparto la info' }]
+    end
+
+    it 'degrades talk_ratio to nil instead of a misleading number' do
+      expect(result[:talk_ratio]).to be_nil
+    end
+
+    it 'still counts questions and CTA from the full text' do
+      expect(result[:questions]).to eq({ open: 1, closed: 0 })
+      expect(result[:cta_used]).to be true
+    end
+  end
+
   context 'without segments' do
-    subject(:result) { described_class.new(segments: [], agent_speaker_labels: ['Agent']).calculate }
+    subject(:result) { described_class.new(segments: []).calculate }
 
     it 'returns a safe empty result instead of raising' do
       expect(result).to eq(talk_ratio: nil, longest_monologue_seconds: 0, questions: { open: 0, closed: 0 }, cta_used: false,
