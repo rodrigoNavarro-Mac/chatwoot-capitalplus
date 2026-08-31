@@ -60,13 +60,18 @@ RSpec.describe CallAnalysis::AnalyzeJob, type: :job do
       }
     end
 
+    def stub_llm_response(response)
+      double = instance_double(CallAnalysis::StructuredAnalysisLlmService, generate: response, model: 'gpt-4.1-mini')
+      allow(CallAnalysis::StructuredAnalysisLlmService).to receive(:new).and_return(double)
+    end
+
     before do
       attach_recording!(call)
       call.update!(transcript_segments: [
                      { speaker: 'Agent', start_seconds: 0, end_seconds: 3, text: 'hola' },
                      { speaker: 'Contact', start_seconds: 3, end_seconds: 6, text: 'hola' }
                    ])
-      allow_any_instance_of(CallAnalysis::StructuredAnalysisLlmService).to receive(:generate).and_return(llm_response)
+      stub_llm_response(llm_response)
     end
 
     it 'completes the analysis, calculates the scorecard, and enqueues the Zoho note' do
@@ -84,7 +89,7 @@ RSpec.describe CallAnalysis::AnalyzeJob, type: :job do
       described_class.perform_now(call.id)
       expect(CallAnalysis.where(call: call).count).to eq(1)
 
-      expect_any_instance_of(CallAnalysis::StructuredAnalysisLlmService).not_to receive(:generate)
+      expect(CallAnalysis::StructuredAnalysisLlmService).not_to receive(:new)
       described_class.perform_now(call.id)
 
       expect(CallAnalysis.where(call: call).count).to eq(1)
@@ -103,7 +108,7 @@ RSpec.describe CallAnalysis::AnalyzeJob, type: :job do
     end
 
     context 'when the LLM service returns an error' do
-      before { allow_any_instance_of(CallAnalysis::StructuredAnalysisLlmService).to receive(:generate).and_return(error: 'model_error') }
+      before { stub_llm_response(error: 'model_error') }
 
       it 'marks the analysis as failed with that error step' do
         described_class.perform_now(call.id)
