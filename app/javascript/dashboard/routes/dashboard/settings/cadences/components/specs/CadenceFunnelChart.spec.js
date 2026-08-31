@@ -1,5 +1,8 @@
 import { mount } from '@vue/test-utils';
+import { withFullI18n } from 'test-i18n';
 import CadenceFunnelChart from '../CadenceFunnelChart.vue';
+
+withFullI18n();
 
 const steps = [
   { step: 1, template_key: 'wa_paso_1', sent: 100, drop_off_rate: 0.0 },

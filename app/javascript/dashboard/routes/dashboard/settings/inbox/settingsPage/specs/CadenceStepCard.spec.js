@@ -1,6 +1,9 @@
 import { mount } from '@vue/test-utils';
+import { withFullI18n } from 'test-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import CadenceStepCard from '../CadenceStepCard.vue';
+
+withFullI18n();
 
 vi.mock('dashboard/composables/store', () => ({
   useMapGetter: vi.fn(),

@@ -1,5 +1,8 @@
 import { shallowMount } from '@vue/test-utils';
+import { withFullI18n } from 'test-i18n';
 import CadenceStatusBadge from '../CadenceStatusBadge.vue';
+
+withFullI18n();
 
 describe('CadenceStatusBadge.vue', () => {
   it('renders the translated label for a known status', () => {

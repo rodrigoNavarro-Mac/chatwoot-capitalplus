@@ -99,6 +99,7 @@ describe ConversationFinder do
         # Los agentes no ven conversaciones sin dueno; solo lo que les esta asignado.
         result = conversation_finder.perform
         expect(result[:conversations].length).to be 0
+        expect(result[:conversations]).not_to include(agent_bot_conversation)
       end
     end
 
@@ -181,6 +182,7 @@ describe ConversationFinder do
       it 'filter conversations by assignee type assigned' do
         result = conversation_finder.perform
         expect(result[:conversations].length).to be 2
+        expect(result[:conversations]).not_to include(agent_bot_conversation)
       end
 
       it 'returns the correct meta, scoped to the agents own conversations' do

@@ -191,6 +191,9 @@ Rails/Blank:
 Rails/Exit:
   Exclude:
     - 'spec/rails_helper.rb'
+    - 'script/backfill_applied_sla_completed_at.rb'
+    - 'script/rails_upgrade/active_storage_smoke.rb'
+    - 'script/rails_upgrade/preflight.rb'
 
 # Offense count: 38
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -202,6 +205,8 @@ Rails/Output:
     - 'script/bulk_reindex_messages.rb'
     - 'script/monitor_reindex.rb'
     - 'script/reindex_single_account.rb'
+    - 'script/rails_upgrade/active_storage_smoke.rb'
+    - 'script/rails_upgrade/preflight.rb'
     - 'spec/rails_helper.rb'
 
 # Offense count: 2

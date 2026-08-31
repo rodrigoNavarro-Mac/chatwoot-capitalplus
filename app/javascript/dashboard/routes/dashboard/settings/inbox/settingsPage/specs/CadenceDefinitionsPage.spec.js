@@ -1,6 +1,9 @@
 import { mount, flushPromises } from '@vue/test-utils';
+import { withFullI18n } from 'test-i18n';
 import CadenceDefinitionsPage from '../CadenceDefinitionsPage.vue';
 import CadencesAPI from 'dashboard/api/cadences';
+
+withFullI18n();
 
 vi.mock('dashboard/api/cadences', () => ({
   default: {

@@ -1,5 +1,8 @@
 import { mount } from '@vue/test-utils';
+import { withFullI18n } from 'test-i18n';
 import CadenceVariantsTable from '../CadenceVariantsTable.vue';
+
+withFullI18n();
 
 const variants = [
   {
