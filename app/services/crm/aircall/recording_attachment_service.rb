@@ -1,8 +1,12 @@
-# Descarga y adjunta la grabación de una llamada de Aircall a `call.recording` — mismo patrón que
-# Voice::Provider::Twilio::RecordingAttachmentService, pero Aircall ya manda la URL de la
-# grabación directamente en el call object (`recording`, ver developer.aircall.io/api-references)
-# sin necesidad de un segundo request para resolverla, y sin auth_token por canal: se usa el mismo
-# Basic Auth (api_id/api_token) que el resto de la API de Aircall.
+# Descarga y adjunta la grabación de una llamada de Aircall a `call.recording`.
+#
+# CONFIRMADO 2026-08-31 contra una URL real de producción: `data[:recording]` que manda Aircall en
+# el call object NO es un endpoint de su API — es una URL de S3 pre-firmada
+# (`...amazonaws.com/...?X-Amz-Algorithm=...&X-Amz-Signature=...`) que ya trae su propia
+# autenticación en la query string. A diferencia de Twilio (Voice::Provider::Twilio::RecordingAttachmentService,
+# cuyas URLs sí requieren Basic Auth con las credenciales del canal), mandarle Basic Auth extra a
+# esta URL de S3 hace que S3 la rechace con 400 Bad Request — "solo un mecanismo de autenticación
+# permitido" — por eso aquí NO se manda ningún header de auth, solo se sigue la URL tal cual.
 class Crm::Aircall::RecordingAttachmentService
   ALLOWED_CONTENT_TYPE_PREFIXES = %w[audio/].freeze
   DEFAULT_FILENAME_EXTENSION = 'wav'.freeze
@@ -15,11 +19,7 @@ class Crm::Aircall::RecordingAttachmentService
   def perform
     return if recording_url.blank? || call.recording.attached?
 
-    SafeFetch.fetch(
-      recording_url,
-      http_basic_authentication: [api_id, api_token],
-      allowed_content_type_prefixes: ALLOWED_CONTENT_TYPE_PREFIXES
-    ) do |result|
+    SafeFetch.fetch(recording_url, allowed_content_type_prefixes: ALLOWED_CONTENT_TYPE_PREFIXES) do |result|
       call.recording.attach(io: result.tempfile, filename: recording_filename(result), content_type: recording_content_type(result))
     end
   end
@@ -27,18 +27,6 @@ class Crm::Aircall::RecordingAttachmentService
   private
 
   attr_reader :call, :recording_url
-
-  def hook
-    @hook ||= call.account.hooks.find_by(app_id: 'aircall', status: 'enabled')
-  end
-
-  def api_id
-    hook&.settings&.dig('api_id')
-  end
-
-  def api_token
-    hook&.settings&.dig('api_token')
-  end
 
   def recording_filename(result)
     return result.original_filename if result.original_filename.present?
