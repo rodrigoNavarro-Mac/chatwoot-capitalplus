@@ -15,9 +15,13 @@ describe Crm::Zoho::Api::NotesClient do
   end
 
   describe '#create' do
-    it 'sends Parent_Id as a lookup object ({id: ...}), not a bare string — Zoho rejects the bare string with INVALID_DATA' do
+    it 'sends Parent_Id as {id:, module: {api_name:}} — Zoho rejects a bare string (INVALID_DATA) ' \
+       'and {id: ...} alone (MANDATORY_NOT_FOUND on Parent_Id.module), confirmed live against Deals' do
       stub = stub_request(:post, %r{zohoapis\.com/crm/v7/Notes})
-             .with { |request| JSON.parse(request.body).dig('data', 0, 'Parent_Id') == { 'id' => 'deal-123' } }
+             .with do |request|
+               JSON.parse(request.body).dig('data', 0, 'Parent_Id') ==
+                 { 'id' => 'deal-123', 'module' => { 'api_name' => 'Deals' } }
+             end
              .to_return(status: 200, body: { data: [{ 'code' => 'SUCCESS', 'details' => { 'id' => 'note-1' } }] }.to_json,
                         headers: { 'Content-Type' => 'application/json' })
 
