@@ -5,10 +5,18 @@ class Cadences::Analytics::StepsBuilder < Cadences::Analytics::BaseBuilder
 
   private
 
+  # El drop-off se calcula contra el total del step anterior (sumando todos sus template_key),
+  # no contra la fila anterior de la lista: un step puede tener varias filas (una por
+  # template_key distinto usado historicamente en esa posicion) y comparar filas consecutivas
+  # calcularia el drop-off entre dos template_key del MISMO step en vez del step anterior real.
   def attach_drop_off(metrics)
-    metrics.each_with_index do |metric, index|
-      previous_sent = index.zero? ? metric[:sent] : metrics[index - 1][:sent]
-      metric[:drop_off_rate] = safe_rate(previous_sent - metric[:sent], previous_sent)
+    step_totals = metrics.each_with_object(Hash.new(0)) { |metric, totals| totals[metric[:step]] += metric[:sent] }
+    ordered_steps = step_totals.keys.sort
+
+    metrics.each do |metric|
+      step_index = ordered_steps.index(metric[:step])
+      previous_sent = step_index.zero? ? step_totals[metric[:step]] : step_totals[ordered_steps[step_index - 1]]
+      metric[:drop_off_rate] = safe_rate(previous_sent - step_totals[metric[:step]], previous_sent)
     end
     metrics
   end
@@ -21,7 +29,7 @@ class Cadences::Analytics::StepsBuilder < Cadences::Analytics::BaseBuilder
   end
 
   def step_metrics(step, template_key)
-    sent = event_scope.where(event_type: 'template_sent', step: step).count
+    sent = event_scope.where(event_type: 'template_sent', step: step, template_key: template_key).count
     responded = responded_count(step)
 
     {
