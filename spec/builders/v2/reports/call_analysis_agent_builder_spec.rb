@@ -48,6 +48,29 @@ describe V2::Reports::CallAnalysisAgentBuilder do
     expect(result[:score_evolution].keys).to eq([old_call.started_at.to_date.beginning_of_week])
   end
 
+  it 'tallies conversation_type, confidence and score_reading account-wide (all agents combined)' do
+    create(:call_analysis, call: call, agent: agent, conversation_type: 'prospeccion_inicial', confidence: 'high',
+                           scorecard: { 'total_score' => 90.0, 'reading' => 'solido' })
+    other_call = create(:call, account: account, conversation: conversation, accepted_by_agent: agent, provider: :aircall, status: 'completed')
+    create(:call_analysis, call: other_call, agent: agent, conversation_type: 'seguimiento_pre_cita', confidence: 'low')
+
+    expect(result[:conversation_type_tally]).to eq('prospeccion_inicial' => 1, 'seguimiento_pre_cita' => 1)
+    expect(result[:confidence_tally]).to eq('high' => 1, 'low' => 1)
+    expect(result[:score_reading_tally]).to eq('solido' => 1)
+  end
+
+  it 'filters by confidence and conversation_type when given' do
+    create(:call_analysis, call: call, agent: agent, conversation_type: 'prospeccion_inicial', confidence: 'high')
+    other_call = create(:call, account: account, conversation: conversation, accepted_by_agent: agent, provider: :aircall, status: 'completed')
+    create(:call_analysis, call: other_call, agent: agent, conversation_type: 'seguimiento_pre_cita', confidence: 'low')
+
+    filtered = described_class.new(account: account, params: { confidence: 'high' }).build
+    expect(filtered[:agents].first[:calls_analyzed]).to eq(1)
+
+    filtered_by_type = described_class.new(account: account, params: { conversation_type: 'seguimiento_pre_cita' }).build
+    expect(filtered_by_type[:agents].first[:calls_analyzed]).to eq(1)
+  end
+
   it 'excludes analyses without an agent from the agent rows' do
     create(:call_analysis, call: call, agent: nil)
 
@@ -55,6 +78,9 @@ describe V2::Reports::CallAnalysisAgentBuilder do
   end
 
   it 'returns an empty structure when there is nothing analyzed yet' do
-    expect(result).to eq(agents: [], objections_tally: {}, risks_tally: {}, score_evolution: {})
+    expect(result).to eq(
+      agents: [], objections_tally: {}, risks_tally: {}, score_evolution: {},
+      conversation_type_tally: {}, confidence_tally: {}, score_reading_tally: {}
+    )
   end
 end

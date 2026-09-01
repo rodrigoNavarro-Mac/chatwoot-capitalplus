@@ -252,7 +252,9 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     {
       since: params[:since],
       until: params[:until],
-      agent_id: params[:agent_id]
+      agent_id: params[:agent_id],
+      confidence: params[:confidence],
+      conversation_type: params[:conversation_type]
     }
   end
 end

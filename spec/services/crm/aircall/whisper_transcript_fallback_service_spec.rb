@@ -13,10 +13,12 @@ describe Crm::Aircall::WhisperTranscriptFallbackService do
     call.recording.attach(io: StringIO.new('AUDIO'), filename: 'call.wav', content_type: 'audio/wav')
   end
 
-  it 'wraps the plain Whisper transcript in a single undiarized segment' do
+  it 'wraps the plain Whisper transcript in a single undiarized segment when the speaker split fails' do
     attach_recording!
     allow(Llm::SpeechToTextService).to receive(:too_large?).and_return(false)
     allow(Llm::SpeechToTextService).to receive(:new).and_return(instance_double(Llm::SpeechToTextService, perform: 'Hola, buenas tardes'))
+    allow(CallAnalysis::TranscriptSpeakerSplitService).to receive(:new).and_return(instance_double(CallAnalysis::TranscriptSpeakerSplitService,
+                                                                                                   perform: false))
 
     result = described_class.new(call: call).perform
 
@@ -28,6 +30,17 @@ describe Crm::Aircall::WhisperTranscriptFallbackService do
                                              { 'speaker' => 'Transcripción', 'role_hint' => nil, 'start_seconds' => 0,
                                                'end_seconds' => 42, 'text' => 'Hola, buenas tardes' }
                                            ])
+  end
+
+  it 'attempts a best-effort speaker split after transcribing' do
+    attach_recording!
+    allow(Llm::SpeechToTextService).to receive(:too_large?).and_return(false)
+    allow(Llm::SpeechToTextService).to receive(:new).and_return(instance_double(Llm::SpeechToTextService, perform: 'Hola, buenas tardes'))
+    split_double = instance_double(CallAnalysis::TranscriptSpeakerSplitService)
+    expect(CallAnalysis::TranscriptSpeakerSplitService).to receive(:new).with(call: call).and_return(split_double)
+    expect(split_double).to receive(:perform)
+
+    described_class.new(call: call).perform
   end
 
   it 'is a no-op when segments are already present' do

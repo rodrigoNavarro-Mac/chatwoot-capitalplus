@@ -711,6 +711,8 @@
     "OBJECTION_RESPONSE": "Response",
     "RISKS": "Domain risks",
     "TRANSCRIPT": "Transcript",
+    "TRANSCRIPT_NOT_DIARIZED": "Aircall AI isn't licensed for this account, so this call was transcribed with Whisper as a single block — speakers aren't separated.",
+    "TRANSCRIPT_ESTIMATED_SPLIT": "Aircall AI isn't licensed and this account's recordings are mono, so the speaker labels below are an AI best guess from the plain text — not a real audio-based diarization.",
     "ERRORS": {
       "FETCH": "Could not fetch the call analysis"
     }
@@ -724,7 +726,11 @@
       "INBOX": "Development",
       "ALL_INBOXES": "All developments",
       "AGENT": "Agent",
-      "ALL_AGENTS": "All agents"
+      "ALL_AGENTS": "All agents",
+      "CONFIDENCE": "Confidence",
+      "ALL_CONFIDENCE": "All confidence levels",
+      "CONVERSATION_TYPE": "Conversation type",
+      "ALL_CONVERSATION_TYPES": "All types"
     },
     "SUMMARY": {
       "CALLS_ANALYZED": "Calls analyzed",
@@ -749,6 +755,18 @@
     "RISKS_CHART": {
       "TITLE": "Recurring domain risks",
       "EMPTY": "No risks flagged in this period"
+    },
+    "TYPE_CHART": {
+      "TITLE": "Calls by type",
+      "EMPTY": "No analyzed calls in this period"
+    },
+    "CONFIDENCE_CHART": {
+      "TITLE": "Calls by confidence",
+      "EMPTY": "No analyzed calls in this period"
+    },
+    "SCORE_READING_CHART": {
+      "TITLE": "Calls by score reading",
+      "EMPTY": "No real conversations with a score in this period"
     },
     "SCORE_EVOLUTION_CHART": {
       "TITLE": "Score evolution",

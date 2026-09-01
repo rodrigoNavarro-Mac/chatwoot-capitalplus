@@ -706,6 +706,8 @@
     "OBJECTION_RESPONSE": "Respuesta",
     "RISKS": "Riesgos de dominio",
     "TRANSCRIPT": "Transcripción",
+    "TRANSCRIPT_NOT_DIARIZED": "Esta cuenta no tiene licencia de Aircall AI, así que esta llamada se transcribió con Whisper como un solo bloque — no se separan los hablantes.",
+    "TRANSCRIPT_ESTIMATED_SPLIT": "Esta cuenta no tiene licencia de Aircall AI y sus grabaciones son mono, así que las etiquetas de hablante de abajo son una adivinanza de IA a partir del texto plano — no es diarización real de audio.",
     "ERRORS": {
       "FETCH": "No se pudo obtener el análisis de la llamada"
     }
@@ -719,7 +721,11 @@
       "INBOX": "Desarrollo",
       "ALL_INBOXES": "Todos los desarrollos",
       "AGENT": "Agente",
-      "ALL_AGENTS": "Todos los agentes"
+      "ALL_AGENTS": "Todos los agentes",
+      "CONFIDENCE": "Confianza",
+      "ALL_CONFIDENCE": "Todos los niveles de confianza",
+      "CONVERSATION_TYPE": "Tipo de conversación",
+      "ALL_CONVERSATION_TYPES": "Todos los tipos"
     },
     "SUMMARY": {
       "CALLS_ANALYZED": "Llamadas analizadas",
@@ -744,6 +750,18 @@
     "RISKS_CHART": {
       "TITLE": "Riesgos de dominio recurrentes",
       "EMPTY": "No se marcaron riesgos en este periodo"
+    },
+    "TYPE_CHART": {
+      "TITLE": "Llamadas por tipo",
+      "EMPTY": "No hay llamadas analizadas en este periodo"
+    },
+    "CONFIDENCE_CHART": {
+      "TITLE": "Llamadas por confianza",
+      "EMPTY": "No hay llamadas analizadas en este periodo"
+    },
+    "SCORE_READING_CHART": {
+      "TITLE": "Llamadas por lectura de score",
+      "EMPTY": "No hay conversaciones reales con score en este periodo"
     },
     "SCORE_EVOLUTION_CHART": {
       "TITLE": "Evolución del score",

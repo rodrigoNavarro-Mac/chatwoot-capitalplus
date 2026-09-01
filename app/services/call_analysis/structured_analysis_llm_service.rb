@@ -181,14 +181,22 @@ class CallAnalysis::StructuredAnalysisLlmService < Llm::BaseAiService
     Array(call.transcript_segments).map { |seg| "#{seg['start_seconds']}s - #{seg['speaker']}: #{seg['text']}" }.join("\n")
   end
 
-  # Sin Aircall AI (add-on no contratado) la transcripción cae a Whisper sin diarización — un solo
-  # bloque de texto sin separar agente/contacto (ver Crm::Aircall::WhisperTranscriptFallbackService).
-  # El LLM necesita saberlo explícitamente para no fingir certeza sobre quién dijo qué.
+  # Sin Aircall AI (add-on no contratado) la transcripción cae a Whisper, que no diariza — un solo
+  # bloque de texto (transcript_source: whisper_fallback), o un intento de dividirlo en turnos
+  # agente/contacto ADIVINADOS por otro LLM (whisper_fallback_llm_split, ver
+  # CallAnalysis::TranscriptSpeakerSplitService — no diarización real de audio). En ningún caso hay
+  # certeza real de quién dijo qué, así que el checkeo es por transcript_source, NO por cantidad de
+  # segmentos (con la división estimada, size > 1 ya no implica diarización real).
   def diarization_note
-    return '' if Array(call.transcript_segments).size > 1
+    return '' if call.transcript_source == 'aircall_ai'
 
-    'NOTA: esta transcripción NO viene separada por hablante (un solo bloque de texto) — infiere ' \
-      'quién es el agente y quién el contacto por el contexto, y baja tu "confidence" si la ' \
-      'atribución de una cita clave es ambigua.'
+    base = 'NOTA: esta transcripción NO viene diarizada por Aircall — '
+    base += if call.transcript_source == 'whisper_fallback_llm_split'
+              'los turnos agente/contacto son una ADIVINANZA de otro LLM a partir del texto plano, no una separación real de audio. '
+            else
+              'es un solo bloque de texto sin separar agente/contacto. '
+            end
+    "#{base}Infiere quién es el agente y quién el contacto por el contexto, y baja tu " \
+      '"confidence" si la atribución de una cita clave es ambigua.'
   end
 end

@@ -1,10 +1,15 @@
 # Fallback cuando Aircall AI no está disponible (add-on no contratado — confirmado 2026-08-31
 # contra la cuenta real del cliente, ver Fase 0 del plan) o todavía no está listo tras agotar el
 # poll: transcribe la grabación ya adjunta con el pipeline Whisper que este fork ya usa para
-# Twilio (Llm::SpeechToTextService), y la envuelve en UN solo segmento sin diarizar
-# (role_hint: nil) para que el resto del pipeline (Voice::ConversationMetricsCalculator,
-# CallAnalysis::StructuredAnalysisLlmService) siga funcionando sin cambios — solo que talk_ratio y
-# CTA degradan a "no calculable con precisión" en vez de tirar un número inventado.
+# Twilio (Llm::SpeechToTextService). Whisper solo devuelve texto plano (sin diarización, sin
+# timestamps por hablante) y las grabaciones de Aircall en esta cuenta son MONO (CONFIRMADO
+# 2026-09-01, no se puede diarizar por canal), así que después de transcribir se intenta un
+# best-effort de CallAnalysis::TranscriptSpeakerSplitService para dividir el bloque en turnos
+# agente/contacto ADIVINADOS por el LLM — si falla, se queda el bloque sin dividir
+# (role_hint: nil en ambos casos) para que el resto del pipeline
+# (Voice::ConversationMetricsCalculator, CallAnalysis::StructuredAnalysisLlmService) siga
+# funcionando sin cambios — talk_ratio y CTA degradan a "no calculable con precisión" en vez de
+# tirar un número inventado, con o sin la división de turnos.
 class Crm::Aircall::WhisperTranscriptFallbackService
   def initialize(call:)
     @call = call
@@ -23,6 +28,7 @@ class Crm::Aircall::WhisperTranscriptFallbackService
     return false if text.blank?
 
     persist!(text)
+    CallAnalysis::TranscriptSpeakerSplitService.new(call: call).perform
     true
   end
 

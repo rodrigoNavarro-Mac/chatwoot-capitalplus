@@ -2,11 +2,13 @@
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import { useMapGetter } from 'dashboard/composables/store';
 import CallAnalysesAPI from 'dashboard/api/callAnalyses';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Spinner from 'shared/components/Spinner.vue';
 
 const { t } = useI18n();
+const currentAccountId = useMapGetter('getCurrentAccountId');
 
 const dialogRef = ref(null);
 const isLoading = ref(false);
@@ -59,6 +61,20 @@ const qualificationEntries = computed(() => {
   }));
 });
 
+// transcript_source: 'aircall_ai' = real diarization; 'whisper_fallback_llm_split' = an LLM's
+// best-effort GUESS at turns from a flat Whisper transcript (no real audio speaker separation —
+// this account's Aircall recordings are mono, confirmed 2026-09-01); 'whisper_fallback' = the
+// raw undivided block. Speaker labels only make sense to show for the first two.
+const isDiarized = computed(
+  () => detail.value?.call?.transcript_source === 'aircall_ai'
+);
+const isEstimatedSplit = computed(
+  () => detail.value?.call?.transcript_source === 'whisper_fallback_llm_split'
+);
+const showSpeakerLabels = computed(
+  () => isDiarized.value || isEstimatedSplit.value
+);
+
 const formatDate = value => {
   if (!value) return '—';
   return new Date(value * 1000 || value).toLocaleString();
@@ -73,7 +89,7 @@ const openConversation = () => {
   const conversationId = detail.value?.call?.conversation_id;
   if (!conversationId) return;
   window.open(
-    `/app/accounts/${window.location.pathname.split('/')[2]}/conversations/${conversationId}`,
+    `/app/accounts/${currentAccountId.value}/conversations/${conversationId}`,
     '_blank'
   );
 };
@@ -225,12 +241,20 @@ defineExpose({ open });
         <summary class="cursor-pointer text-n-slate-12 font-medium">
           {{ t('CALL_ANALYSIS_DETAIL.TRANSCRIPT') }}
         </summary>
+        <p v-if="isEstimatedSplit" class="mt-2 text-xs text-n-amber-11">
+          {{ t('CALL_ANALYSIS_DETAIL.TRANSCRIPT_ESTIMATED_SPLIT') }}
+        </p>
+        <p v-else-if="!isDiarized" class="mt-2 text-xs text-n-amber-11">
+          {{ t('CALL_ANALYSIS_DETAIL.TRANSCRIPT_NOT_DIARIZED') }}
+        </p>
         <div class="mt-2 flex flex-col gap-1 text-n-slate-11">
           <p
             v-for="(segment, index) in detail.call.transcript_segments"
             :key="index"
           >
-            <span class="font-medium">{{ segment.speaker }}:</span>
+            <span v-if="showSpeakerLabels" class="font-medium">
+              {{ segment.speaker }}:
+            </span>
             {{ segment.text }}
           </p>
         </div>

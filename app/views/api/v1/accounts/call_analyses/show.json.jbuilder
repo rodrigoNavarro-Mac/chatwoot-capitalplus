@@ -33,4 +33,5 @@ json.set! :call do
   json.started_at call.started_at
   json.recording_url call.recording_url
   json.transcript_segments call.transcript_segments
+  json.transcript_source call.transcript_source
 end

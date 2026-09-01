@@ -25,7 +25,18 @@ const filters = ref({
   until: toDateInputValue(new Date()),
   inboxId: '',
   agentId: '',
+  confidence: '',
+  conversationType: '',
 });
+
+const CONVERSATION_TYPES = [
+  'prospeccion_inicial',
+  'seguimiento_pre_cita',
+  'confirmacion_cita',
+  'post_visita',
+  'reactivacion',
+];
+const CONFIDENCE_LEVELS = ['high', 'medium', 'low'];
 
 const isLoading = ref(false);
 const agentReport = ref(null);
@@ -63,6 +74,8 @@ const fetchReports = async () => {
         from,
         to,
         agentId: filters.value.agentId || undefined,
+        confidence: filters.value.confidence || undefined,
+        conversationType: filters.value.conversationType || undefined,
       }),
       filters.value.inboxId
         ? ReportsAPI.getCallIntelligenceProjectReport({
@@ -159,6 +172,15 @@ const objectionsChart = computed(() =>
 );
 const risksChart = computed(() =>
   chartFromTally(agentReport.value?.risks_tally)
+);
+const conversationTypeChart = computed(() =>
+  chartFromTally(agentReport.value?.conversation_type_tally)
+);
+const confidenceChart = computed(() =>
+  chartFromTally(agentReport.value?.confidence_tally)
+);
+const scoreReadingChart = computed(() =>
+  chartFromTally(agentReport.value?.score_reading_tally)
 );
 
 const scoreEvolutionChart = computed(() => {
@@ -262,6 +284,42 @@ const retryAnalysis = async record => {
             </option>
             <option v-for="agent in agents" :key="agent.id" :value="agent.id">
               {{ agent.name }}
+            </option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs text-n-slate-11">
+            {{ t('CALL_INTELLIGENCE_REPORTS.FILTERS.CONFIDENCE') }}
+          </label>
+          <select v-model="filters.confidence" class="!mb-0 !h-8 text-sm">
+            <option value="">
+              {{ t('CALL_INTELLIGENCE_REPORTS.FILTERS.ALL_CONFIDENCE') }}
+            </option>
+            <option
+              v-for="level in CONFIDENCE_LEVELS"
+              :key="level"
+              :value="level"
+            >
+              {{ level }}
+            </option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs text-n-slate-11">
+            {{ t('CALL_INTELLIGENCE_REPORTS.FILTERS.CONVERSATION_TYPE') }}
+          </label>
+          <select v-model="filters.conversationType" class="!mb-0 !h-8 text-sm">
+            <option value="">
+              {{
+                t('CALL_INTELLIGENCE_REPORTS.FILTERS.ALL_CONVERSATION_TYPES')
+              }}
+            </option>
+            <option
+              v-for="type in CONVERSATION_TYPES"
+              :key="type"
+              :value="type"
+            >
+              {{ type }}
             </option>
           </select>
         </div>
@@ -373,6 +431,59 @@ const retryAnalysis = async record => {
             </div>
             <div v-else class="h-56">
               <BarChart :collection="risksChart" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div
+            class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+          >
+            <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-4">
+              {{ t('CALL_INTELLIGENCE_REPORTS.TYPE_CHART.TITLE') }}
+            </h3>
+            <div
+              v-if="!conversationTypeChart.labels.length"
+              class="text-sm text-n-slate-11 py-4 text-center"
+            >
+              {{ t('CALL_INTELLIGENCE_REPORTS.TYPE_CHART.EMPTY') }}
+            </div>
+            <div v-else class="h-56">
+              <BarChart :collection="conversationTypeChart" />
+            </div>
+          </div>
+
+          <div
+            class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+          >
+            <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-4">
+              {{ t('CALL_INTELLIGENCE_REPORTS.CONFIDENCE_CHART.TITLE') }}
+            </h3>
+            <div
+              v-if="!confidenceChart.labels.length"
+              class="text-sm text-n-slate-11 py-4 text-center"
+            >
+              {{ t('CALL_INTELLIGENCE_REPORTS.CONFIDENCE_CHART.EMPTY') }}
+            </div>
+            <div v-else class="h-56">
+              <BarChart :collection="confidenceChart" />
+            </div>
+          </div>
+
+          <div
+            class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+          >
+            <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-4">
+              {{ t('CALL_INTELLIGENCE_REPORTS.SCORE_READING_CHART.TITLE') }}
+            </h3>
+            <div
+              v-if="!scoreReadingChart.labels.length"
+              class="text-sm text-n-slate-11 py-4 text-center"
+            >
+              {{ t('CALL_INTELLIGENCE_REPORTS.SCORE_READING_CHART.EMPTY') }}
+            </div>
+            <div v-else class="h-56">
+              <BarChart :collection="scoreReadingChart" />
             </div>
           </div>
         </div>

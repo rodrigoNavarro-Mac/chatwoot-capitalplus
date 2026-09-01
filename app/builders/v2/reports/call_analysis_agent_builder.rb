@@ -17,7 +17,10 @@ class V2::Reports::CallAnalysisAgentBuilder
       agents: agent_rows,
       objections_tally: tally(:objections, 'category'),
       risks_tally: tally(:risks, 'type'),
-      score_evolution: score_evolution
+      score_evolution: score_evolution,
+      conversation_type_tally: simple_tally(:conversation_type),
+      confidence_tally: simple_tally(:confidence),
+      score_reading_tally: score_reading_tally
     }
   end
 
@@ -26,6 +29,8 @@ class V2::Reports::CallAnalysisAgentBuilder
   def scope
     scope = account.call_analyses.completed_scope.includes(:call)
     scope = scope.where(agent_id: params[:agent_id]) if params[:agent_id].present?
+    scope = scope.where(confidence: params[:confidence]) if params[:confidence].present?
+    scope = scope.where(conversation_type: params[:conversation_type]) if params[:conversation_type].present?
     scope = scope.where(analyzed_at: range) if range
     scope
   end
@@ -80,6 +85,19 @@ class V2::Reports::CallAnalysisAgentBuilder
       Array(items).each { |item| counts[item[key]] += 1 if item.is_a?(Hash) && item[key].present? }
     end
     counts.sort_by { |_, count| -count }.first(10).to_h
+  end
+
+  # Distribución global (todos los agentes, todo el periodo filtrado) — a diferencia de
+  # `conversation_type_distribution` en #agent_row, que es por agente. Sirve para las gráficas de
+  # "cantidad por tipo" / "confianza" a nivel cuenta que pidió el cliente.
+  def simple_tally(column)
+    scope.group(column).count.compact_blank
+  end
+
+  # Buzón de voz (confidence: low) no tiene lectura real de scorecard — se excluye, mismo criterio
+  # que #average_score.
+  def score_reading_tally
+    scope.reject(&:low_confidence?).filter_map(&:score_reading).tally
   end
 
   # Agrupa por la semana en que ocurrió la llamada (call.started_at), no en la que se analizó
