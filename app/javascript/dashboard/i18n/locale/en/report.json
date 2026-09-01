@@ -719,7 +719,9 @@
       "TITLE": "By agent",
       "AGENT": "Agent",
       "CALLS": "Calls",
+      "VOICEMAIL": "Voicemail",
       "AVERAGE_SCORE": "Avg. score",
+      "NO_REAL_CALLS": "No real conversations",
       "TOP_TYPE": "Most common type",
       "EMPTY": "No analyzed calls in this period yet"
     },

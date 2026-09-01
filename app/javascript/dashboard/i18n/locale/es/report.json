@@ -693,6 +693,72 @@
       "FETCH": "No se pudo obtener el reporte de plantillas"
     }
   },
+  "CALL_INTELLIGENCE_REPORTS": {
+    "HEADER": "Inteligencia de llamadas",
+    "DESCRIPTION": "Análisis de llamadas de Aircall calificado por IA — objeciones, riesgos y scorecards por agente y desarrollo.",
+    "FILTERS": {
+      "SINCE": "Desde",
+      "UNTIL": "Hasta",
+      "INBOX": "Desarrollo",
+      "ALL_INBOXES": "Todos los desarrollos",
+      "AGENT": "Agente",
+      "ALL_AGENTS": "Todos los agentes"
+    },
+    "SUMMARY": {
+      "CALLS_ANALYZED": "Llamadas analizadas",
+      "CALLS_ANALYZED_INFO": "Llamadas con análisis de IA completado en el periodo seleccionado.",
+      "AVERAGE_SCORE": "Score promedio",
+      "AVERAGE_SCORE_INFO": "Promedio del scorecard total sobre las conversaciones reales analizadas en el periodo (no incluye buzón de voz)."
+    },
+    "AGENTS_TABLE": {
+      "TITLE": "Por agente",
+      "AGENT": "Agente",
+      "CALLS": "Llamadas",
+      "VOICEMAIL": "Buzón",
+      "AVERAGE_SCORE": "Score prom.",
+      "NO_REAL_CALLS": "Sin conversaciones reales",
+      "TOP_TYPE": "Tipo más común",
+      "EMPTY": "Todavía no hay llamadas analizadas en este periodo"
+    },
+    "OBJECTIONS_CHART": {
+      "TITLE": "Objeciones más comunes",
+      "EMPTY": "No se detectaron objeciones en este periodo"
+    },
+    "RISKS_CHART": {
+      "TITLE": "Riesgos de dominio recurrentes",
+      "EMPTY": "No se marcaron riesgos en este periodo"
+    },
+    "SCORE_EVOLUTION_CHART": {
+      "TITLE": "Evolución del score",
+      "EMPTY": "Todavía no hay suficientes llamadas analizadas para graficar una evolución"
+    },
+    "PROJECT": {
+      "TITLE": "Detalle por desarrollo",
+      "SELECT_INBOX_HINT": "Selecciona un desarrollo arriba para ver objeciones, motivos de no-avance y comparación con Zoho específicos de ese desarrollo.",
+      "LOSS_REASONS_TITLE": "Leads estancados (sin avance)",
+      "LOSS_REASONS_TOTAL": "{count} llamadas sin avance",
+      "CRM_MISMATCH_TITLE": "Etapa de Zoho en llamadas que resultaron en cita",
+      "CRM_MISMATCH_EMPTY": "Ninguna llamada resultó en cita en este periodo"
+    },
+    "REVIEW_QUEUE": {
+      "TITLE": "Necesita revisión",
+      "DESCRIPTION": "Análisis fallidos y clasificaciones de baja confianza — reintentar reusa la misma llamada, nunca duplica el análisis.",
+      "EMPTY": "No hay nada que revisar por ahora",
+      "RETRY": "Reintentar",
+      "RETRY_SUCCESS": "Análisis encolado para reintento",
+      "RETRY_ERROR": "No se pudo encolar el reintento",
+      "COLUMNS": {
+        "CALL": "Llamada",
+        "STEP": "Paso fallido",
+        "ATTEMPTS": "Intentos",
+        "LAST_ATTEMPT": "Último intento"
+      }
+    },
+    "ERRORS": {
+      "FETCH": "No se pudo obtener el reporte de inteligencia de llamadas",
+      "FETCH_QUEUE": "No se pudo obtener la cola de revisión"
+    }
+  },
   "SALES_FUNNEL_REPORTS": {
     "HEADER": "Embudo de ventas",
     "DESCRIPTION": "Mide la conversión de leads a deals cerrados ganados, cruzando datos de Chatwoot con Zoho CRM, separado por entrada y desarrollo.",

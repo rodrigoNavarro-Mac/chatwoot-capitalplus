@@ -285,6 +285,9 @@ const retryAnalysis = async record => {
                 <th>{{ t('CALL_INTELLIGENCE_REPORTS.AGENTS_TABLE.AGENT') }}</th>
                 <th>{{ t('CALL_INTELLIGENCE_REPORTS.AGENTS_TABLE.CALLS') }}</th>
                 <th>
+                  {{ t('CALL_INTELLIGENCE_REPORTS.AGENTS_TABLE.VOICEMAIL') }}
+                </th>
+                <th>
                   {{
                     t('CALL_INTELLIGENCE_REPORTS.AGENTS_TABLE.AVERAGE_SCORE')
                   }}
@@ -298,7 +301,18 @@ const retryAnalysis = async record => {
               <tr v-for="row in agentRows" :key="row.agent_id">
                 <td>{{ row.agent_name || agentName(row.agent_id) }}</td>
                 <td>{{ row.calls_analyzed }}</td>
-                <td>{{ row.average_score ?? '—' }}</td>
+                <td>
+                  {{ row.voicemail_count }} ({{ row.voicemail_percent }}%)
+                </td>
+                <td>
+                  {{
+                    row.average_score != null
+                      ? row.average_score
+                      : t(
+                          'CALL_INTELLIGENCE_REPORTS.AGENTS_TABLE.NO_REAL_CALLS'
+                        )
+                  }}
+                </td>
                 <td>{{ topConversationType(row) }}</td>
               </tr>
             </tbody>
