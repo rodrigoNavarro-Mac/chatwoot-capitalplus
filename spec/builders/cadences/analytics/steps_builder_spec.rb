@@ -70,5 +70,41 @@ describe Cadences::Analytics::StepsBuilder do
       expect(step_2[:sent]).to eq(1)
       expect(step_2[:drop_off_rate]).to eq(50.0)
     end
+
+    it 'splits sent per template_key when the same step position used different templates over time, ' \
+       'and computes drop_off against the previous step total (not the previous row)' do
+      # Paso 1: enviado con una sola plantilla, a 2 leads.
+      contact_2 = create(:contact, account: account, phone_number: '+15557654321')
+      conversation_2 = create(:conversation, account: account, inbox: whatsapp_inbox, contact: contact_2, assignee: agent, status: 'open')
+      enrollment_2 = CadenceEnrollment.create!(
+        account: account, conversation: conversation_2, contact: contact_2, inbox: whatsapp_inbox,
+        cadence_definition: cadence_definition, assignee_id: agent.id,
+        status: :waiting_response, current_step: 2, last_template_sent_at: 2.hours.ago
+      )
+      [enrollment, enrollment_2].each do |enr|
+        CadenceEvent.create!(
+          account: account, cadence_enrollment: enr, conversation: enr.conversation, contact: enr.contact,
+          event_type: 'template_sent', step: 1, template_key: 'wa_paso_1', occurred_at: Time.current
+        )
+      end
+
+      # Paso 2: la plantilla cambio de key en algun momento (misma posicion, distinto template_key).
+      CadenceEvent.create!(
+        account: account, cadence_enrollment: enrollment, conversation: conversation, contact: contact,
+        event_type: 'template_sent', step: 2, template_key: 'wa_paso_2_v1', occurred_at: Time.current
+      )
+      CadenceEvent.create!(
+        account: account, cadence_enrollment: enrollment_2, conversation: conversation_2, contact: contact_2,
+        event_type: 'template_sent', step: 2, template_key: 'wa_paso_2_v2', occurred_at: Time.current
+      )
+
+      result = described_class.new(account: account).build
+      step_2_rows = result.select { |row| row[:step] == 2 }
+
+      expect(step_2_rows.map { |row| row[:template_key] }).to contain_exactly('wa_paso_2_v1', 'wa_paso_2_v2')
+      expect(step_2_rows.map { |row| row[:sent] }).to all(eq(1))
+      # Total real del step 2 (1 + 1 = 2) contra el total del step 1 (2): sin drop-off real.
+      expect(step_2_rows.map { |row| row[:drop_off_rate] }).to all(eq(0.0))
+    end
   end
 end
