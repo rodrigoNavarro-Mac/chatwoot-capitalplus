@@ -48,6 +48,8 @@ const retryingId = ref(null);
 
 const isRecentLoading = ref(false);
 const recentCalls = ref([]);
+const recentCallsMeta = ref({ currentPage: 1, totalPages: 1, totalCount: 0 });
+const recentCallsPage = ref(1);
 const detailModalRef = ref(null);
 
 const toUnixSeconds = (dateValue, endOfDay = false) => {
@@ -108,15 +110,34 @@ const fetchReviewQueue = async () => {
 };
 
 const fetchRecentCalls = async () => {
+  if (!hasValidDateRange.value) return;
+
   isRecentLoading.value = true;
   try {
-    const response = await CallAnalysesAPI.getRecent();
-    recentCalls.value = response.data;
+    const response = await CallAnalysesAPI.getRecent({
+      since: toUnixSeconds(filters.value.since),
+      until: toUnixSeconds(filters.value.until, true),
+      agentId: filters.value.agentId || undefined,
+      inboxId: filters.value.inboxId || undefined,
+      confidence: filters.value.confidence || undefined,
+      conversationType: filters.value.conversationType || undefined,
+      page: recentCallsPage.value,
+    });
+    recentCalls.value = response.data.payload;
+    recentCallsMeta.value = {
+      currentPage: response.data.meta.current_page,
+      totalPages: response.data.meta.total_pages,
+      totalCount: response.data.meta.total_count,
+    };
   } catch (error) {
     useAlert(t('CALL_INTELLIGENCE_REPORTS.ERRORS.FETCH_RECENT'));
   } finally {
     isRecentLoading.value = false;
   }
+};
+
+const goToRecentCallsPage = page => {
+  recentCallsPage.value = page;
 };
 
 const openDetail = callAnalysisId => {
@@ -129,6 +150,18 @@ onMounted(() => {
   fetchRecentCalls();
 });
 watch(filters, fetchReports, { deep: true });
+watch(
+  filters,
+  () => {
+    if (recentCallsPage.value === 1) {
+      fetchRecentCalls();
+    } else {
+      recentCallsPage.value = 1;
+    }
+  },
+  { deep: true }
+);
+watch(recentCallsPage, fetchRecentCalls);
 
 const agentRows = computed(() => agentReport.value?.agents ?? []);
 
@@ -605,6 +638,45 @@ const retryAnalysis = async record => {
               </tr>
             </tbody>
           </table>
+
+          <div
+            v-if="recentCalls.length"
+            class="flex items-center justify-between mt-3 text-sm text-n-slate-11"
+          >
+            <span>
+              {{
+                t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.TOTAL_COUNT', {
+                  count: recentCallsMeta.totalCount,
+                })
+              }}
+            </span>
+            <div class="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                :disabled="recentCallsMeta.currentPage <= 1"
+                :label="t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.PREVIOUS')"
+                @click="goToRecentCallsPage(recentCallsMeta.currentPage - 1)"
+              />
+              <span>
+                {{
+                  t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.PAGE_OF', {
+                    current: recentCallsMeta.currentPage,
+                    total: recentCallsMeta.totalPages,
+                  })
+                }}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                :disabled="
+                  recentCallsMeta.currentPage >= recentCallsMeta.totalPages
+                "
+                :label="t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.NEXT')"
+                @click="goToRecentCallsPage(recentCallsMeta.currentPage + 1)"
+              />
+            </div>
+          </div>
         </div>
 
         <div

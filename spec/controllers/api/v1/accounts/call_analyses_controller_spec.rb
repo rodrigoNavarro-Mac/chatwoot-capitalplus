@@ -27,15 +27,43 @@ RSpec.describe 'Call Analyses API', type: :request do
   end
 
   describe 'GET /api/v1/accounts/{account.id}/call_analyses/recent' do
-    it 'returns the most recently analyzed completed calls, including the agent name' do
+    it 'returns the most recently analyzed completed calls (paginated), including the agent name' do
       analysis = create(:call_analysis, call: call, agent: agent, confidence: 'high')
 
       get "/api/v1/accounts/#{account.id}/call_analyses/recent", headers: administrator.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:success)
       body = JSON.parse(response.body, symbolize_names: true)
-      expect(body.first[:id]).to eq(analysis.id)
-      expect(body.first[:agent_name]).to eq(agent.available_name)
+      expect(body[:payload].first[:id]).to eq(analysis.id)
+      expect(body[:payload].first[:agent_name]).to eq(agent.available_name)
+      expect(body[:meta]).to eq(current_page: 1, total_pages: 1, total_count: 1)
+    end
+
+    it 'filters by confidence and conversation_type' do
+      create(:call_analysis, call: call, agent: agent, confidence: 'high', conversation_type: 'prospeccion_inicial')
+      other_call = create(:call, account: account, conversation: conversation, accepted_by_agent: agent, provider: :aircall, status: 'completed')
+      create(:call_analysis, call: other_call, agent: agent, confidence: 'low', conversation_type: 'seguimiento_pre_cita')
+
+      get "/api/v1/accounts/#{account.id}/call_analyses/recent", params: { confidence: 'high' },
+                                                                 headers: administrator.create_new_auth_token, as: :json
+
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:payload].size).to eq(1)
+      expect(body[:payload].first[:confidence]).to eq('high')
+    end
+
+    it 'paginates results' do
+      30.times do
+        other_call = create(:call, account: account, conversation: conversation, accepted_by_agent: agent, provider: :aircall, status: 'completed')
+        create(:call_analysis, call: other_call, agent: agent)
+      end
+
+      get "/api/v1/accounts/#{account.id}/call_analyses/recent", params: { page: 2 },
+                                                                 headers: administrator.create_new_auth_token, as: :json
+
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:meta]).to eq(current_page: 2, total_pages: 2, total_count: 30)
+      expect(body[:payload].size).to eq(5)
     end
   end
 

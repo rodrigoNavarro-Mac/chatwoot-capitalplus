@@ -781,14 +781,18 @@
       "CRM_MISMATCH_EMPTY": "No calls resulted in an appointment in this period"
     },
     "RECENT_CALLS": {
-      "TITLE": "Recent analyzed calls",
-      "DESCRIPTION": "Click a call to see its full analysis — qualification map, objections, scorecard by stage.",
+      "TITLE": "Analyzed calls",
+      "DESCRIPTION": "Filtered by the same criteria above. Click a call to see its full analysis — qualification map, objections, scorecard by stage.",
       "EMPTY": "No analyzed calls yet",
       "CALL": "Call",
       "AGENT": "Agent",
       "TYPE": "Type",
       "CONFIDENCE": "Confidence",
-      "SCORE": "Score"
+      "SCORE": "Score",
+      "TOTAL_COUNT": "{count} calls match the current filters",
+      "PREVIOUS": "Previous",
+      "NEXT": "Next",
+      "PAGE_OF": "Page {current} of {total}"
     },
     "REVIEW_QUEUE": {
       "TITLE": "Needs review",

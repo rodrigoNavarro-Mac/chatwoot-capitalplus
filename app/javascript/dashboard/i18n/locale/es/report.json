@@ -776,14 +776,18 @@
       "CRM_MISMATCH_EMPTY": "Ninguna llamada resultó en cita en este periodo"
     },
     "RECENT_CALLS": {
-      "TITLE": "Llamadas analizadas recientemente",
-      "DESCRIPTION": "Haz clic en una llamada para ver su análisis completo — mapa de calificación, objeciones, scorecard por etapa.",
+      "TITLE": "Llamadas analizadas",
+      "DESCRIPTION": "Filtradas con los mismos criterios de arriba. Haz clic en una llamada para ver su análisis completo — mapa de calificación, objeciones, scorecard por etapa.",
       "EMPTY": "Todavía no hay llamadas analizadas",
       "CALL": "Llamada",
       "AGENT": "Agente",
       "TYPE": "Tipo",
       "CONFIDENCE": "Confianza",
-      "SCORE": "Score"
+      "SCORE": "Score",
+      "TOTAL_COUNT": "{count} llamadas coinciden con los filtros actuales",
+      "PREVIOUS": "Anterior",
+      "NEXT": "Siguiente",
+      "PAGE_OF": "Página {current} de {total}"
     },
     "REVIEW_QUEUE": {
       "TITLE": "Necesita revisión",
