@@ -55,4 +55,24 @@ describe Crm::Aircall::Api::CallsClient do
         .to raise_error(Crm::Aircall::Api::CallsClient::ApiError, /401/)
     end
   end
+
+  describe '#show' do
+    it 'requests the single call by id and unwraps the "call" key' do
+      stub_request(:get, 'https://api.aircall.io/v1/calls/999')
+        .with(basic_auth: %w[my-api-id my-api-token])
+        .to_return(status: 200, body: { call: { 'id' => 999, 'recording' => 'https://s3.example/rec.mp3' } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+
+      result = described_class.new(hook).show(999)
+
+      expect(result).to eq('id' => 999, 'recording' => 'https://s3.example/rec.mp3')
+    end
+
+    it 'returns an empty hash when the response has no "call" key' do
+      stub_request(:get, 'https://api.aircall.io/v1/calls/999')
+        .to_return(status: 200, body: {}.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      expect(described_class.new(hook).show(999)).to eq({})
+    end
+  end
 end

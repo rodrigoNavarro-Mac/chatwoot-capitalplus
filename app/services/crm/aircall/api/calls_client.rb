@@ -35,6 +35,19 @@ class Crm::Aircall::Api::CallsClient
     handle_response(response)
   end
 
+  # GET /v1/calls/:id — la llamada individual, envuelta en {"call": {...}}. Usado para re-pedir la
+  # URL de grabación cuando el webhook `call.ended` llegó antes de que Aircall terminara de subirla
+  # (ver Crm::Aircall::RecordingRefetchService) — la URL que Aircall regresa aquí es una S3
+  # pre-firmada válida solo ~1 hora, así que hay que adjuntarla en la misma ejecución, no guardarla.
+  def show(call_id)
+    response = self.class.get(
+      "/calls/#{call_id}",
+      basic_auth: { username: api_id, password: api_token }
+    )
+
+    handle_response(response)['call'] || {}
+  end
+
   private
 
   attr_reader :hook

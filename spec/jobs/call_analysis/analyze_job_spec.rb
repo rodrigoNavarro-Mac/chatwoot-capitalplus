@@ -37,6 +37,35 @@ RSpec.describe CallAnalysis::AnalyzeJob, type: :job do
     expect(record.error_step).to eq('transcript_unavailable')
   end
 
+  context 'when the recording is missing but Aircall now has it (call.ended arrived early)' do
+    let(:call) do
+      create(:call, account: account, conversation: conversation, provider: :aircall, accepted_by_agent: agent,
+                    status: 'completed', provider_call_id: '999')
+    end
+    let(:recording_url) { 'https://production-fra-example.s3.eu-central-1.amazonaws.com/recording.mp3?X-Amz-Signature=abc123' }
+
+    before do
+      create(:integrations_hook, account: account, app_id: 'aircall', status: 'enabled',
+                                 settings: { webhook_secret: 'x', api_id: 'my-api-id', api_token: 'my-api-token' })
+      call.update!(transcript_segments: [{ speaker: 'Agent', start_seconds: 0, text: 'hola' }])
+      stub_request(:get, 'https://api.aircall.io/v1/calls/999')
+        .to_return(status: 200, body: { call: { 'id' => 999, 'recording' => recording_url } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, recording_url).to_return(status: 200, body: 'AUDIO', headers: { 'Content-Type' => 'audio/mpeg' })
+    end
+
+    it 're-fetches the recording via the Aircall API before giving up, and the analysis proceeds' do
+      double = instance_double(CallAnalysis::StructuredAnalysisLlmService, generate: { error: 'model_error' }, model: 'gpt-4.1-mini')
+      allow(CallAnalysis::StructuredAnalysisLlmService).to receive(:new).and_return(double)
+
+      described_class.perform_now(call.id)
+
+      expect(call.reload.recording).to be_attached
+      record = CallAnalysis.find_by(call: call)
+      expect(record.error_step).to eq('model_error')
+    end
+  end
+
   it 'marks agent_unidentified when the call has no accepted_by_agent' do
     call.update!(accepted_by_agent: nil, transcript_segments: [{ speaker: 'Agent', start_seconds: 0, text: 'hola' }])
     attach_recording!(call)

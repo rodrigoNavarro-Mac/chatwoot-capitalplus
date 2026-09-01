@@ -39,13 +39,25 @@ class CallAnalysis::AnalyzeJob < ApplicationJob
 
   # Devuelve true (y ya dejó el registro en failed) si alguna precondición mínima no se cumple —
   # ver la lista de errores mínimos del spec: grabación no disponible, transcripción fallida,
-  # usuario no identificado.
+  # usuario no identificado. Antes de fallar por grabación/transcripción reintenta el fetch una vez
+  # (idempotente en ambos servicios) — CONFIRMADO 2026-09-01: `call.ended` a veces llega antes de
+  # que Aircall termine de subir la grabación, y sin este reintento el fallo quedaba permanente
+  # aunque el cron de CallAnalysis::RetryFailedAnalysesJob reencolara este job cada hora.
   def fail_unless_ready!(record, call)
+    Crm::Aircall::RecordingRefetchService.new(call: call).perform unless call.recording.attached?
     return fail_with!(record, 'recording_missing') unless call.recording.attached?
+
+    refetch_transcript!(call) if call.transcript_segments.blank?
     return fail_with!(record, 'transcript_unavailable') if call.transcript_segments.blank?
+
     return fail_with!(record, 'agent_unidentified') if call.accepted_by_agent.blank?
 
     false
+  end
+
+  def refetch_transcript!(call)
+    status = Crm::Aircall::TranscriptFetchService.new(call: call).perform
+    Crm::Aircall::WhisperTranscriptFallbackService.new(call: call).perform if status == :unavailable
   end
 
   def fail_with!(record, step)
