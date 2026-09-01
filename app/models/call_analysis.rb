@@ -95,11 +95,13 @@ class CallAnalysis < ApplicationRecord
     confidence == 'low'
   end
 
-  # Solo se envía nota a Zoho para análisis con confianza suficiente (política default,
-  # configurable a futuro) — una clasificación de baja confianza queda auditable en Chatwoot pero
-  # no debe llegarle al asesor/gerencia dentro del CRM todavía.
+  # Se manda nota a Zoho para TODO análisis completado, incluida baja confianza — un buzón de voz o
+  # llamada sin respuesta también es contactabilidad que el equipo quiere ver en el CRM, no solo en
+  # Chatwoot (feedback directo del cliente: "los buzones o contestadoras nos dan métricas que hay
+  # que medir"). CallAnalysis::ZohoNoteBuilder marca con una advertencia visible cuando la confianza
+  # es baja, para que quede claro que no es un análisis completo de conversación.
   def should_publish_zoho_note?
-    completed? && !low_confidence?
+    completed?
   end
 
   def total_score

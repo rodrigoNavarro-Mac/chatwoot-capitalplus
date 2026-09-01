@@ -98,8 +98,8 @@ RSpec.describe CallAnalysis::AnalyzeJob, type: :job do
     context 'when the model reports low confidence' do
       let(:llm_response) { super().merge('confidence' => 'low') }
 
-      it 'completes but flags it for review and does not publish a Zoho note' do
-        expect { described_class.perform_now(call.id) }.not_to have_enqueued_job(CallAnalysis::PublishZohoNoteJob)
+      it 'completes, flags it for review, and still publishes a Zoho note (contactability matters even without a real conversation)' do
+        expect { described_class.perform_now(call.id) }.to have_enqueued_job(CallAnalysis::PublishZohoNoteJob)
 
         record = CallAnalysis.find_by(call: call)
         expect(record.status).to eq('completed')

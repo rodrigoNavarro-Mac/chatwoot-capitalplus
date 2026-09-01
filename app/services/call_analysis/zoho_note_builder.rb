@@ -16,6 +16,7 @@ class CallAnalysis::ZohoNoteBuilder
 
   def content
     [
+      confidence_caveat_line,
       header_line,
       outcome_line,
       intent_and_score_line,
@@ -29,6 +30,15 @@ class CallAnalysis::ZohoNoteBuilder
   private
 
   attr_reader :analysis, :call
+
+  # Un buzón de voz o llamada sin respuesta también cuenta como contactabilidad, pero no es un
+  # análisis de conversación real — esta línea deja claro que el resto de la nota (rol, score,
+  # etc.) es de baja certeza en vez de mezclarla sin aviso con análisis de conversaciones reales.
+  def confidence_caveat_line
+    return nil unless analysis.low_confidence?
+
+    '⚠️ Confianza baja — probable buzón de voz o llamada sin interacción real, no un análisis completo de conversación.'
+  end
 
   def header_line
     "Llamada #{analysis.role} · #{analysis.conversation_type} · #{call.started_at&.strftime('%d/%m/%Y %H:%M')} " \
