@@ -1,11 +1,15 @@
 class Crm::Zoho::Api::NotesClient < Crm::Zoho::Api::BaseClient
+  # CONFIRMADO en producción 2026-09-01: Zoho rechaza Parent_Id como string plano con
+  # "INVALID_DATA — expected_data_type: jsonobject" — en esta org/versión de la API, el campo
+  # espera un objeto de lookup ({"id": "..."}) igual que cualquier otro campo de relación, no el ID
+  # crudo. Confirmado con notas reales fallando contra el módulo Deals.
   def create(zoho_id:, zoho_module:, title:, content:)
     post('Notes', {
            data: [{
              Note_Title: title,
              Note_Content: content,
              '$se_module': zoho_module,
-             Parent_Id: zoho_id
+             Parent_Id: { id: zoho_id }
            }]
          })
   end
