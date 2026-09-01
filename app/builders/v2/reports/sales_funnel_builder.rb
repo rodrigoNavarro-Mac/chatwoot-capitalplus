@@ -186,9 +186,23 @@ class V2::Reports::SalesFunnelBuilder
     conversation_ids = pairs.map(&:first)
     replied_ids = Message.where(conversation_id: conversation_ids, message_type: :incoming)
                          .pluck(:conversation_id).to_set
-    replied_ids.merge(Call.where(conversation_id: conversation_ids, status: 'completed').pluck(:conversation_id))
+    replied_ids.merge(answered_call_conversation_ids(conversation_ids))
 
     pairs.select { |(conversation_id, _contact_id)| replied_ids.include?(conversation_id) }
+  end
+
+  # Call#status == 'completed' NO distingue "contestó una persona" de "contestó el buzón de voz o
+  # una contestadora" — Aircall marca answered_at en ambos casos (hallazgo real 2026-09-01: 4
+  # llamadas cuya transcripción es un mensaje de buzón de voz, las 4 con status completed). Cuando
+  # ya existe un CallAnalysis para la llamada, se usa su lectura de confianza — "low" es justo la
+  # señal que ya calcula CallAnalysis::StructuredAnalysisLlmService para "no hubo suficiente
+  # interacción real para clasificar con certeza", que es exactamente el caso de un buzón de voz.
+  # Si todavía no se analizó, se mantiene el proxy viejo (status completed) para no regresar el
+  # hueco que este mismo método arregló el 2026-08-19 (ver comentario de clase).
+  def answered_call_conversation_ids(conversation_ids)
+    calls = Call.where(conversation_id: conversation_ids, status: 'completed').includes(:call_analysis)
+
+    calls.reject { |call| call.call_analysis&.confidence == 'low' }.to_set(&:conversation_id)
   end
 
   def pairs_with_deal(pairs)

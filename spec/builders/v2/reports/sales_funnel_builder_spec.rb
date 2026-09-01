@@ -85,6 +85,28 @@ describe V2::Reports::SalesFunnelBuilder do
       expect(stage(rows, 'customer_replied')[:count]).to eq(0)
     end
 
+    it 'does not count customer_replied for a completed call that CallAnalysis flagged as low confidence (voicemail/no real interaction)' do
+      contact = create_lead(replied: false)
+      conversation = contact.conversations.first
+      call = create(:call, conversation: conversation, provider: :aircall, direction: :outgoing, status: 'completed')
+      create(:call_analysis, call: call, confidence: 'low')
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'customer_replied')[:count]).to eq(0)
+    end
+
+    it 'still counts customer_replied for a completed call whose CallAnalysis confirms real interaction' do
+      contact = create_lead(replied: false)
+      conversation = contact.conversations.first
+      call = create(:call, conversation: conversation, provider: :aircall, direction: :outgoing, status: 'completed')
+      create(:call_analysis, call: call, confidence: 'high')
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'customer_replied')[:count]).to eq(1)
+    end
+
     it 'counts has_deal only for contacts with a cached zoho_deal_id' do
       create_lead(replied: true, zoho_deal_id: 'deal-1')
       create_lead(replied: true)
