@@ -882,7 +882,15 @@
       "DIRECTION_INFO": "Calls the customer made to the advisor vs. calls the advisor made to the customer.",
       "BY_ADVISOR_TITLE": "Calls by advisor",
       "ADVISOR": "Advisor",
-      "TOTAL_CALLS": "Calls"
+      "TOTAL_CALLS": "Calls",
+      "VOICEMAIL_PERCENT": "% voicemail",
+      "VOICEMAIL_PERCENT_INFO": "Of the answered calls, the percentage that were actually voicemail/answering machine (not a real conversation), based on AI call analysis.",
+      "VOICEMAIL_RECOVERED_PERCENT": "% voicemail recovered",
+      "VOICEMAIL_RECOVERED_PERCENT_INFO": "Of the voicemail calls, the percentage where the same lead was later reached with a real conversation.",
+      "VOICEMAIL_RECOVERY_TIME": "Avg. recovery time",
+      "VOICEMAIL_RECOVERY_TIME_INFO": "Average time between the voicemail call and the next real conversation with the same lead, for calls that were recovered.",
+      "VOICEMAIL_NOT_YET_ANALYZED": "Pending analysis",
+      "VOICEMAIL_NOT_YET_ANALYZED_INFO": "Answered calls in this period that don't have an AI analysis yet — voicemail metrics above are based only on already-analyzed calls."
     },
     "PIPELINE": {
       "TITLE": "Sales pipeline",

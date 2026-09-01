@@ -353,6 +353,58 @@ describe V2::Reports::WeeklyOpsReportBuilder do
         expect(by_advisor[1][:total]).to eq(1)
         expect(by_advisor[1][:avg_duration_seconds]).to eq(200)
       end
+
+      describe 'voicemail' do
+        it 'is nil when no answered call in range has a CallAnalysis yet' do
+          conversation = create(:conversation, account: account, inbox: inbox)
+          create(:call, conversation: conversation, provider: :aircall, status: 'completed', started_at: 2.days.ago)
+
+          result = described_class.new(account: account, inbox: inbox, params: params).build
+
+          expect(result[:aircall_calls][:voicemail]).to be_nil
+        end
+
+        it 'reports how many answered calls were actually voicemail (low confidence), and how many still lack analysis' do
+          conversation = create(:conversation, account: account, inbox: inbox)
+          voicemail_call = create(:call, conversation: conversation, provider: :aircall, status: 'completed', started_at: 2.days.ago)
+          create(:call_analysis, call: voicemail_call, confidence: 'low')
+          real_call = create(:call, conversation: conversation, provider: :aircall, status: 'completed', started_at: 1.day.ago)
+          create(:call_analysis, call: real_call, confidence: 'high')
+          create(:call, conversation: conversation, provider: :aircall, status: 'completed', started_at: 1.day.ago) # sin analizar todavia
+
+          voicemail = described_class.new(account: account, inbox: inbox, params: params).build[:aircall_calls][:voicemail]
+
+          expect(voicemail[:count]).to eq(1)
+          expect(voicemail[:percent_of_answered]).to eq(33.33)
+          expect(voicemail[:not_yet_analyzed]).to eq(1)
+        end
+
+        it 'counts a voicemail as recovered when the same conversation later has a real answered call, with the hours between them' do
+          conversation = create(:conversation, account: account, inbox: inbox)
+          voicemail_call = create(:call, conversation: conversation, provider: :aircall, status: 'completed', started_at: 2.days.ago)
+          create(:call_analysis, call: voicemail_call, confidence: 'low')
+          real_call = create(:call, conversation: conversation, provider: :aircall, status: 'completed',
+                                    started_at: voicemail_call.started_at + 5.hours)
+          create(:call_analysis, call: real_call, confidence: 'high')
+
+          voicemail = described_class.new(account: account, inbox: inbox, params: params).build[:aircall_calls][:voicemail]
+
+          expect(voicemail[:recovered_count]).to eq(1)
+          expect(voicemail[:recovered_percent]).to eq(100.0)
+          expect(voicemail[:avg_recovery_hours]).to eq(5.0)
+        end
+
+        it 'does not count a voicemail as recovered when no later real call exists in the conversation' do
+          conversation = create(:conversation, account: account, inbox: inbox)
+          voicemail_call = create(:call, conversation: conversation, provider: :aircall, status: 'completed', started_at: 2.days.ago)
+          create(:call_analysis, call: voicemail_call, confidence: 'low')
+
+          voicemail = described_class.new(account: account, inbox: inbox, params: params).build[:aircall_calls][:voicemail]
+
+          expect(voicemail[:recovered_count]).to eq(0)
+          expect(voicemail[:avg_recovery_hours]).to be_nil
+        end
+      end
     end
 
     it 'summarizes cadence enrollments and call tasks for the inbox' do

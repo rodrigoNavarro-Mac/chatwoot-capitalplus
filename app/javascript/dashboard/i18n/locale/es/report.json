@@ -813,7 +813,15 @@
       "DIRECTION_INFO": "Llamadas que el cliente hizo al asesor vs. llamadas que el asesor hizo al cliente.",
       "BY_ADVISOR_TITLE": "Llamadas por asesor",
       "ADVISOR": "Asesor",
-      "TOTAL_CALLS": "Llamadas"
+      "TOTAL_CALLS": "Llamadas",
+      "VOICEMAIL_PERCENT": "% buzón de voz",
+      "VOICEMAIL_PERCENT_INFO": "De las llamadas contestadas, el porcentaje que en realidad fueron buzón de voz/contestadora (no una conversación real), según el análisis de IA de la llamada.",
+      "VOICEMAIL_RECOVERED_PERCENT": "% buzón recuperado",
+      "VOICEMAIL_RECOVERED_PERCENT_INFO": "De las llamadas que fueron a buzón, el porcentaje en que después se logró contactar al mismo lead con una conversación real.",
+      "VOICEMAIL_RECOVERY_TIME": "Tiempo prom. de recuperación",
+      "VOICEMAIL_RECOVERY_TIME_INFO": "Tiempo promedio entre la llamada que fue a buzón y la siguiente conversación real con el mismo lead, para las llamadas que sí se recuperaron.",
+      "VOICEMAIL_NOT_YET_ANALYZED": "Pendientes de analizar",
+      "VOICEMAIL_NOT_YET_ANALYZED_INFO": "Llamadas contestadas de este periodo que todavía no tienen análisis de IA — las métricas de buzón de arriba solo consideran las llamadas ya analizadas."
     },
     "PIPELINE": {
       "TITLE": "Embudo de ventas",

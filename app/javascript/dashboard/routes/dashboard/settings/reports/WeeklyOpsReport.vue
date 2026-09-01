@@ -170,6 +170,12 @@ const formatDuration = seconds => {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 };
 
+const formatRecoveryHours = hours => {
+  if (hours === null || hours === undefined) return '—';
+  if (hours < 24) return `${hours}h`;
+  return `${Math.round((hours / 24) * 10) / 10}d`;
+};
+
 const cadenceChartData = computed(() => {
   const byStatus = kpis.value?.cadences?.by_status || {};
   const labels = Object.keys(byStatus);
@@ -1220,6 +1226,45 @@ const downloadPdf = async () => {
               :label="t('WEEKLY_OPS_REPORTS.CALLS.DIRECTION')"
               :value="`${kpis.aircall_calls.incoming} / ${kpis.aircall_calls.outgoing}`"
               :info-text="t('WEEKLY_OPS_REPORTS.CALLS.DIRECTION_INFO')"
+            />
+          </div>
+
+          <div
+            v-if="kpis.aircall_calls.voicemail"
+            class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5"
+          >
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.CALLS.VOICEMAIL_PERCENT')"
+              :value="`${kpis.aircall_calls.voicemail.percent_of_answered}%`"
+              :info-text="t('WEEKLY_OPS_REPORTS.CALLS.VOICEMAIL_PERCENT_INFO')"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.CALLS.VOICEMAIL_RECOVERED_PERCENT')"
+              :value="`${kpis.aircall_calls.voicemail.recovered_percent}%`"
+              :info-text="
+                t('WEEKLY_OPS_REPORTS.CALLS.VOICEMAIL_RECOVERED_PERCENT_INFO')
+              "
+              :disabled="kpis.aircall_calls.voicemail.count === 0"
+            />
+            <ReportMetricCard
+              :label="t('WEEKLY_OPS_REPORTS.CALLS.VOICEMAIL_RECOVERY_TIME')"
+              :value="
+                formatRecoveryHours(
+                  kpis.aircall_calls.voicemail.avg_recovery_hours
+                )
+              "
+              :info-text="
+                t('WEEKLY_OPS_REPORTS.CALLS.VOICEMAIL_RECOVERY_TIME_INFO')
+              "
+              :disabled="kpis.aircall_calls.voicemail.recovered_count === 0"
+            />
+            <ReportMetricCard
+              v-if="kpis.aircall_calls.voicemail.not_yet_analyzed"
+              :label="t('WEEKLY_OPS_REPORTS.CALLS.VOICEMAIL_NOT_YET_ANALYZED')"
+              :value="String(kpis.aircall_calls.voicemail.not_yet_analyzed)"
+              :info-text="
+                t('WEEKLY_OPS_REPORTS.CALLS.VOICEMAIL_NOT_YET_ANALYZED_INFO')
+              "
             />
           </div>
 
