@@ -124,8 +124,9 @@ Rails.application.routes.draw do
             end
           end
           resources :assignable_agents, only: [:index]
-          resources :call_analyses, only: [:index] do
+          resources :call_analyses, only: [:index, :show] do
             post :retry, on: :member
+            get :recent, on: :collection
           end
           resource :audit_logs, only: [:show]
           resources :callbacks, only: [] do

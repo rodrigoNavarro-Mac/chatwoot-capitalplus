@@ -116,7 +116,8 @@
       "JOIN_CALL": "Unirse a la llamada",
       "CALL_BACK": "Llamar de vuelta",
       "TRANSCRIPT_SHOW_MORE": "Mostrar más",
-      "TRANSCRIPT_SHOW_LESS": "Mostrar menos"
+      "TRANSCRIPT_SHOW_LESS": "Mostrar menos",
+      "VIEW_ANALYSIS": "Ver análisis de IA"
     },
     "MERGE": {
       "TITLE": "Fusionar conversación",

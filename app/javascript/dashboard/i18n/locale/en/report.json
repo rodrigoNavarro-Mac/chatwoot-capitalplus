@@ -698,6 +698,23 @@
       "FETCH": "Could not fetch the templates report"
     }
   },
+  "CALL_ANALYSIS_DETAIL": {
+    "TITLE": "Call analysis",
+    "CONFIDENCE": "Confidence",
+    "OPEN_CONVERSATION": "Open conversation",
+    "SCORECARD": {
+      "TOTAL": "Total score"
+    },
+    "QUALIFICATION_MAP": "Qualification map",
+    "OBJECTIONS": "Objections",
+    "QUOTE": "“{text}”",
+    "OBJECTION_RESPONSE": "Response",
+    "RISKS": "Domain risks",
+    "TRANSCRIPT": "Transcript",
+    "ERRORS": {
+      "FETCH": "Could not fetch the call analysis"
+    }
+  },
   "CALL_INTELLIGENCE_REPORTS": {
     "HEADER": "Call intelligence",
     "DESCRIPTION": "AI-scored analysis of Aircall calls — objections, risk flags, and scorecards by agent and development.",
@@ -745,6 +762,16 @@
       "CRM_MISMATCH_TITLE": "Zoho stage on calls that resulted in an appointment",
       "CRM_MISMATCH_EMPTY": "No calls resulted in an appointment in this period"
     },
+    "RECENT_CALLS": {
+      "TITLE": "Recent analyzed calls",
+      "DESCRIPTION": "Click a call to see its full analysis — qualification map, objections, scorecard by stage.",
+      "EMPTY": "No analyzed calls yet",
+      "CALL": "Call",
+      "AGENT": "Agent",
+      "TYPE": "Type",
+      "CONFIDENCE": "Confidence",
+      "SCORE": "Score"
+    },
     "REVIEW_QUEUE": {
       "TITLE": "Needs review",
       "DESCRIPTION": "Failed analyses and low-confidence classifications — retry reuses the same call, it never duplicates the analysis.",
@@ -761,7 +788,8 @@
     },
     "ERRORS": {
       "FETCH": "Could not fetch the call intelligence report",
-      "FETCH_QUEUE": "Could not fetch the review queue"
+      "FETCH_QUEUE": "Could not fetch the review queue",
+      "FETCH_RECENT": "Could not fetch the recent calls"
     }
   },
   "SALES_FUNNEL_REPORTS": {

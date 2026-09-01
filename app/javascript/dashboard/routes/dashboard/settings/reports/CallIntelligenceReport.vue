@@ -11,6 +11,7 @@ import Spinner from 'shared/components/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
 import LineChart from 'shared/components/charts/LineChart.vue';
+import CallAnalysisDetailModal from './components/CallAnalysisDetailModal.vue';
 
 const { t } = useI18n();
 
@@ -33,6 +34,10 @@ const projectReport = ref(null);
 const isQueueLoading = ref(false);
 const reviewQueue = ref([]);
 const retryingId = ref(null);
+
+const isRecentLoading = ref(false);
+const recentCalls = ref([]);
+const detailModalRef = ref(null);
 
 const toUnixSeconds = (dateValue, endOfDay = false) => {
   const date = new Date(`${dateValue}T${endOfDay ? '23:59:59' : '00:00:00'}`);
@@ -89,9 +94,26 @@ const fetchReviewQueue = async () => {
   }
 };
 
+const fetchRecentCalls = async () => {
+  isRecentLoading.value = true;
+  try {
+    const response = await CallAnalysesAPI.getRecent();
+    recentCalls.value = response.data;
+  } catch (error) {
+    useAlert(t('CALL_INTELLIGENCE_REPORTS.ERRORS.FETCH_RECENT'));
+  } finally {
+    isRecentLoading.value = false;
+  }
+};
+
+const openDetail = callAnalysisId => {
+  detailModalRef.value?.open(callAnalysisId);
+};
+
 onMounted(() => {
   fetchReports();
   fetchReviewQueue();
+  fetchRecentCalls();
 });
 watch(filters, fetchReports, { deep: true });
 
@@ -425,6 +447,56 @@ const retryAnalysis = async record => {
         </div>
 
         <div
+          class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 mb-6"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
+            {{ t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.TITLE') }}
+          </h3>
+          <p class="text-sm text-n-slate-11 mb-4">
+            {{ t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.DESCRIPTION') }}
+          </p>
+
+          <div v-if="isRecentLoading" class="flex justify-center py-4">
+            <Spinner />
+          </div>
+          <div
+            v-else-if="!recentCalls.length"
+            class="text-sm text-n-slate-11 py-4 text-center"
+          >
+            {{ t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.EMPTY') }}
+          </div>
+          <table v-else class="woot-table w-full">
+            <thead>
+              <tr>
+                <th>{{ t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.CALL') }}</th>
+                <th>{{ t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.AGENT') }}</th>
+                <th>{{ t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.TYPE') }}</th>
+                <th>
+                  {{ t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.CONFIDENCE') }}
+                </th>
+                <th>{{ t('CALL_INTELLIGENCE_REPORTS.RECENT_CALLS.SCORE') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="record in recentCalls"
+                :key="record.id"
+                class="cursor-pointer hover:bg-n-alpha-1"
+                @click="openDetail(record.id)"
+              >
+                <td>
+                  #{{ record.call_id }} — {{ inboxName(record.inbox_id) }}
+                </td>
+                <td>{{ record.agent_name || agentName(record.agent_id) }}</td>
+                <td>{{ record.conversation_type }}</td>
+                <td>{{ record.confidence }}</td>
+                <td>{{ record.total_score ?? '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
           class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
         >
           <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
@@ -490,5 +562,7 @@ const retryAnalysis = async record => {
         </div>
       </template>
     </div>
+
+    <CallAnalysisDetailModal ref="detailModalRef" />
   </div>
 </template>

@@ -162,6 +162,7 @@ class Call < ApplicationRecord
     return nil if call_analysis.blank? || !call_analysis.completed?
 
     {
+      id: call_analysis.id,
       role: call_analysis.role,
       conversation_type: call_analysis.conversation_type,
       outcome_type: call_analysis.outcome_type,

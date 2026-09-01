@@ -693,6 +693,23 @@
       "FETCH": "No se pudo obtener el reporte de plantillas"
     }
   },
+  "CALL_ANALYSIS_DETAIL": {
+    "TITLE": "Análisis de la llamada",
+    "CONFIDENCE": "Confianza",
+    "OPEN_CONVERSATION": "Abrir conversación",
+    "SCORECARD": {
+      "TOTAL": "Score total"
+    },
+    "QUALIFICATION_MAP": "Mapa de calificación",
+    "OBJECTIONS": "Objeciones",
+    "QUOTE": "“{text}”",
+    "OBJECTION_RESPONSE": "Respuesta",
+    "RISKS": "Riesgos de dominio",
+    "TRANSCRIPT": "Transcripción",
+    "ERRORS": {
+      "FETCH": "No se pudo obtener el análisis de la llamada"
+    }
+  },
   "CALL_INTELLIGENCE_REPORTS": {
     "HEADER": "Inteligencia de llamadas",
     "DESCRIPTION": "Análisis de llamadas de Aircall calificado por IA — objeciones, riesgos y scorecards por agente y desarrollo.",
@@ -740,6 +757,16 @@
       "CRM_MISMATCH_TITLE": "Etapa de Zoho en llamadas que resultaron en cita",
       "CRM_MISMATCH_EMPTY": "Ninguna llamada resultó en cita en este periodo"
     },
+    "RECENT_CALLS": {
+      "TITLE": "Llamadas analizadas recientemente",
+      "DESCRIPTION": "Haz clic en una llamada para ver su análisis completo — mapa de calificación, objeciones, scorecard por etapa.",
+      "EMPTY": "Todavía no hay llamadas analizadas",
+      "CALL": "Llamada",
+      "AGENT": "Agente",
+      "TYPE": "Tipo",
+      "CONFIDENCE": "Confianza",
+      "SCORE": "Score"
+    },
     "REVIEW_QUEUE": {
       "TITLE": "Necesita revisión",
       "DESCRIPTION": "Análisis fallidos y clasificaciones de baja confianza — reintentar reusa la misma llamada, nunca duplica el análisis.",
@@ -756,7 +783,8 @@
     },
     "ERRORS": {
       "FETCH": "No se pudo obtener el reporte de inteligencia de llamadas",
-      "FETCH_QUEUE": "No se pudo obtener la cola de revisión"
+      "FETCH_QUEUE": "No se pudo obtener la cola de revisión",
+      "FETCH_RECENT": "No se pudo obtener las llamadas recientes"
     }
   },
   "SALES_FUNNEL_REPORTS": {

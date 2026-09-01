@@ -126,7 +126,8 @@
       "JOIN_CALL": "Join call",
       "CALL_BACK": "Call back",
       "TRANSCRIPT_SHOW_MORE": "Show more",
-      "TRANSCRIPT_SHOW_LESS": "Show less"
+      "TRANSCRIPT_SHOW_LESS": "Show less",
+      "VIEW_ANALYSIS": "View AI analysis"
     },
     "MERGE": {
       "TITLE": "Merge conversation",

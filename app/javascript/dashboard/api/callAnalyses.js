@@ -10,6 +10,14 @@ class CallAnalysesAPI extends ApiClient {
     return axios.get(this.url);
   }
 
+  getRecent() {
+    return axios.get(`${this.url}/recent`);
+  }
+
+  getDetail(id) {
+    return axios.get(`${this.url}/${id}`);
+  }
+
   retry(id) {
     return axios.post(`${this.url}/${id}/retry`);
   }

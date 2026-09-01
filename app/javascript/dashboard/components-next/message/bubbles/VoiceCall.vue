@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -23,6 +23,7 @@ import Icon from 'dashboard/components-next/icon/Icon.vue';
 import BaseBubble from 'next/message/bubbles/Base.vue';
 import AudioChip from 'next/message/chips/Audio.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import CallAnalysisDetailModal from 'dashboard/routes/dashboard/settings/reports/components/CallAnalysisDetailModal.vue';
 
 const LABEL_MAP = {
   [VOICE_CALL_STATUS.IN_PROGRESS]: 'CONVERSATION.VOICE_CALL.CALL_IN_PROGRESS',
@@ -115,6 +116,18 @@ const displayAgentName = computed(() => {
 const audioAttachment = computed(() =>
   (attachments?.value || []).find(a => a.fileType === ATTACHMENT_TYPES.AUDIO)
 );
+
+// `call` can arrive camelCased (Pinia store) or snake_case verbatim from
+// `Call#push_event_data` (ActionCable) — same defensive dual-check already used
+// below for `durationSeconds`/`duration_seconds`.
+const analysisModalRef = ref(null);
+const callAnalysisSummary = computed(
+  () => call.value?.callAnalysisSummary || call.value?.call_analysis_summary
+);
+const openAnalysisDetail = () => {
+  const id = callAnalysisSummary.value?.id;
+  if (id) analysisModalRef.value?.open(id);
+};
 
 const durationSeconds = computed(() => {
   const fromCall = call.value?.durationSeconds || call.value?.duration_seconds;
@@ -337,6 +350,20 @@ const handleCallBack = async () => {
         show-transcribed-text
       />
 
+      <!-- AI call analysis (when the pipeline finished analyzing this call) -->
+      <button
+        v-if="callAnalysisSummary"
+        type="button"
+        class="flex items-center gap-1.5 text-sm text-n-blue-11 underline w-fit"
+        @click="openAnalysisDetail"
+      >
+        <Icon class="size-3.5" icon="i-ph-sparkle-bold" />
+        {{ $t('CONVERSATION.VOICE_CALL.VIEW_ANALYSIS') }}
+        <span v-if="callAnalysisSummary.total_score != null">
+          ({{ callAnalysisSummary.total_score }})
+        </span>
+      </button>
+
       <!-- Call back button (missed inbound) -->
       <NextButton
         v-if="canCallBack"
@@ -361,5 +388,7 @@ const handleCallBack = async () => {
         @click="handleJoinCall"
       />
     </div>
+
+    <CallAnalysisDetailModal ref="analysisModalRef" />
   </BaseBubble>
 </template>
