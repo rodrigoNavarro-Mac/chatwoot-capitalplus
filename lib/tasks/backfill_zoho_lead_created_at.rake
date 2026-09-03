@@ -33,8 +33,9 @@ def backfill_zoho_lead_created_at_for(account, dry_run:)
   return if dry_run
 
   stats = service.perform
-  puts "Cuenta #{account.id}: #{stats[:updated]} actualizados, #{stats[:not_found]} sin registro " \
-       "en Zoho, #{stats[:errored]} con error de API (reintentables corriendo de nuevo)."
+  puts "Cuenta #{account.id}: #{stats[:updated]} actualizados (#{stats[:relinked]} re-vinculados a " \
+       "un zoho_id vigente), #{stats[:not_found]} sin registro en Zoho, #{stats[:errored]} con " \
+       'error de API (reintentables corriendo de nuevo).'
 rescue StandardError => e
   puts "Error en cuenta #{account.id}: #{e.message}"
 end
