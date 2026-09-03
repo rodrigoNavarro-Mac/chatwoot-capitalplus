@@ -14,8 +14,13 @@ class Crm::Zoho::Api::LeadsClient < Crm::Zoho::Api::BaseClient
   # Búsqueda por criteria arbitrario (a diferencia de #search, que arma su propio criteria de
   # email/teléfono) — usado por Crm::Zoho::LeadsForPeriodService para traer todos los leads de un
   # desarrollo en un rango de fechas, paginando (Zoho devuelve máx. 200 registros por página).
-  def search_by_criteria(criteria, page: 1, per_page: 200)
-    response = get('Leads/search', criteria: criteria, page: page, per_page: per_page)
+  #
+  # `converted` se deja en 'false' por default (mismo comportamiento de siempre) — Zoho excluye los
+  # leads ya convertidos a Deal tanto de /search sin este parámetro como de GET Leads/{id} (#find),
+  # así que cualquier caller que necesite resolver un lead que pudo haberse convertido (ej. el
+  # backfill de zoho_created_at, ver #find_any) debe pasar 'both' explícitamente.
+  def search_by_criteria(criteria, page: 1, per_page: 200, converted: 'false')
+    response = get('Leads/search', criteria: criteria, page: page, per_page: per_page, converted: converted)
     data = response.is_a?(Hash) ? Array(response['data']) : []
     more_records = response.is_a?(Hash) ? response.dig('info', 'more_records') || false : false
 
@@ -40,5 +45,15 @@ class Crm::Zoho::Api::LeadsClient < Crm::Zoho::Api::BaseClient
     response.is_a?(Hash) ? response.dig('data', 0) : nil
   rescue Crm::Zoho::Api::BaseClient::ApiError
     nil
+  end
+
+  # Igual que #find, pero también resuelve leads ya CONVERTIDOS a Deal — #find (GET Leads/{id}) los
+  # devuelve vacío en cuanto se convierten (confirmado 2026-09-03 contra la API real: un lead
+  # convertido deja de existir para ese endpoint), así que hay que ir por /search con
+  # converted: 'both'. Usado por el backfill de zoho_created_at (lib/tasks/backfill_zoho_lead_created_at.rake)
+  # para no tratar como "borrado" un lead que en realidad solo avanzó a Deal.
+  def find_any(zoho_id)
+    result = search_by_criteria("(id:equals:#{zoho_id})", per_page: 1, converted: 'both')
+    result[:data].first
   end
 end

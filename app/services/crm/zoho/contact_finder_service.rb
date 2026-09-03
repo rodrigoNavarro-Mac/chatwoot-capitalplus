@@ -1,6 +1,7 @@
 class Crm::Zoho::ContactFinderService
   ZOHO_ID_KEY = 'zoho_id'.freeze
   ZOHO_MODULE_KEY = 'zoho_module'.freeze
+  ZOHO_CREATED_AT_KEY = 'zoho_created_at'.freeze
 
   def initialize(hook)
     @hook = hook
@@ -8,7 +9,7 @@ class Crm::Zoho::ContactFinderService
     @contacts_client = Crm::Zoho::Api::ContactsClient.new(hook)
   end
 
-  # Returns { zoho_id:, zoho_module:, record: } or raises on failure.
+  # Returns { zoho_id:, zoho_module:, created_at:, record: } or raises on failure.
   def find_or_create(contact)
     stored = stored_zoho_data(contact)
     return stored if stored.present?
@@ -16,7 +17,7 @@ class Crm::Zoho::ContactFinderService
     result = find_in_zoho(contact)
     result ||= create_lead(contact)
 
-    store_zoho_data(contact, result[:zoho_id], result[:zoho_module])
+    store_zoho_data(contact, result)
     result
   end
 
@@ -39,7 +40,7 @@ class Crm::Zoho::ContactFinderService
     zoho_module = ext[ZOHO_MODULE_KEY].presence || 'Leads'
     return nil if zoho_id.blank?
 
-    { zoho_id: zoho_id, zoho_module: zoho_module }
+    { zoho_id: zoho_id, zoho_module: zoho_module, created_at: ext[ZOHO_CREATED_AT_KEY] }
   end
 
   def find_in_zoho(contact)
@@ -52,14 +53,14 @@ class Crm::Zoho::ContactFinderService
     records = @leads_client.search(email: contact.email, phone: contact.phone_number)
     return nil if records.empty?
 
-    { zoho_id: records.first['id'], zoho_module: 'Leads', record: records.first }
+    { zoho_id: records.first['id'], zoho_module: 'Leads', created_at: records.first['Created_Time'], record: records.first }
   end
 
   def search_contacts(contact)
     records = @contacts_client.search(email: contact.email, phone: contact.phone_number)
     return nil if records.empty?
 
-    { zoho_id: records.first['id'], zoho_module: 'Contacts', record: records.first }
+    { zoho_id: records.first['id'], zoho_module: 'Contacts', created_at: records.first['Created_Time'], record: records.first }
   end
 
   def create_lead(contact)
@@ -68,13 +69,16 @@ class Crm::Zoho::ContactFinderService
     zoho_id = @leads_client.create(data)
     raise 'Zoho CRM: create Lead returned no ID' if zoho_id.blank?
 
-    { zoho_id: zoho_id, zoho_module: 'Leads' }
+    { zoho_id: zoho_id, zoho_module: 'Leads', created_at: Time.current.iso8601 }
   rescue Crm::Zoho::Api::BaseClient::ApiError => e
     duplicate_id = extract_duplicate_id(e)
     raise unless duplicate_id.present?
 
     Rails.logger.info("[ZOHO CRM] Lead already exists (DUPLICATE_DATA), reusing id=#{duplicate_id} for contact ##{contact.id}")
-    { zoho_id: duplicate_id, zoho_module: 'Leads' }
+    # El lead duplicado ya existía en Zoho antes de este intento de creación — no es nuevo, así que
+    # se busca su Created_Time real (incluyendo convertidos, ver LeadsClient#find_any) en vez de
+    # usar Time.current como en el caso de creación real arriba.
+    { zoho_id: duplicate_id, zoho_module: 'Leads', created_at: @leads_client.find_any(duplicate_id)&.dig('Created_Time') }
   end
 
   def extract_duplicate_id(error)
@@ -83,11 +87,12 @@ class Crm::Zoho::ContactFinderService
     nil
   end
 
-  def store_zoho_data(contact, zoho_id, zoho_module)
+  def store_zoho_data(contact, result)
     contact.additional_attributes = {} if contact.additional_attributes.nil?
     contact.additional_attributes['external'] ||= {}
-    contact.additional_attributes['external'][ZOHO_ID_KEY] = zoho_id
-    contact.additional_attributes['external'][ZOHO_MODULE_KEY] = zoho_module
+    contact.additional_attributes['external'][ZOHO_ID_KEY] = result[:zoho_id]
+    contact.additional_attributes['external'][ZOHO_MODULE_KEY] = result[:zoho_module]
+    contact.additional_attributes['external'][ZOHO_CREATED_AT_KEY] = result[:created_at] if result[:created_at].present?
     contact.save!
   end
 end
