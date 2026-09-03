@@ -82,13 +82,14 @@ class V2::Reports::SalesFunnelBuilder
   end
 
   def funnel_pairs(inbox)
-    leads = leads_with_zoho_link(first_conversation_pairs(inbox))
+    zoho_linked = leads_with_zoho_link(first_conversation_pairs(inbox))
+    leads, reactivated = partition_new_vs_reactivated(zoho_linked)
     replied = customer_replied(leads)
     with_deal = pairs_with_deal(replied)
     visited = visita_efectiva(with_deal)
     won = closed_won(visited)
 
-    { leads: leads, replied: replied, with_deal: with_deal, visited: visited, won: won }
+    { leads: leads, reactivated: reactivated, replied: replied, with_deal: with_deal, visited: visited, won: won }
   end
 
   def funnel_stages(pairs, development_key)
@@ -110,11 +111,12 @@ class V2::Reports::SalesFunnelBuilder
     }
   end
 
-  # [stage, count, base_count, breakdown] por etapa — "leads"/"customer_replied" no tienen
-  # equivalente de actividad/externos (breakdown vacío), ver #deal_activity_outside_cohort.
+  # [stage, count, base_count, breakdown] por etapa — "leads" lleva `reactivated_count` (ver
+  # #partition_new_vs_reactivated); "customer_replied" no tiene equivalente de actividad/externos/
+  # reactivados (breakdown vacío), ver #deal_activity_outside_cohort.
   def stage_definitions(pairs, counts, extra)
     [
-      ['leads', pairs[:leads].size, pairs[:leads].size, {}],
+      ['leads', pairs[:leads].size, pairs[:leads].size, { reactivated_count: pairs[:reactivated].size }],
       ['customer_replied', pairs[:replied].size, pairs[:leads].size, {}],
       ['has_deal', counts[:has_deal], pairs[:replied].size, { activity_count: extra[:has_deal], external_count: extra[:external] }],
       ['visita_efectiva', counts[:visita_efectiva], counts[:has_deal],
@@ -169,8 +171,16 @@ class V2::Reports::SalesFunnelBuilder
     )
   end
 
+  ZOHO_LINK_SQL = "additional_attributes -> 'external' ->> 'zoho_id' IS NOT NULL".freeze
+
   def leads_with_zoho_link(pairs)
-    filter_pairs_by_contact(pairs, "additional_attributes -> 'external' ->> 'zoho_id' IS NOT NULL")
+    filter_pairs_by_contact(pairs, ZOHO_LINK_SQL)
+  end
+
+  # [nuevos, reactivados] — ver V2::Reports::SalesFunnelReactivatedLeads (separada de esta clase solo
+  # por tamaño, mismo criterio que SalesFunnelDealActivity).
+  def partition_new_vs_reactivated(pairs)
+    V2::Reports::SalesFunnelReactivatedLeads.new(range: range).partition(pairs)
   end
 
   # "Contestó" no es solo un mensaje incoming (WhatsApp, o una llamada que el cliente hizo) — una
@@ -231,10 +241,10 @@ class V2::Reports::SalesFunnelBuilder
     pairs.select { |(_conversation_id, contact_id)| won_ids.include?(contact_id) }
   end
 
-  def filter_pairs_by_contact(pairs, sql_condition)
+  def filter_pairs_by_contact(pairs, sql_condition, binds = [])
     return [] if pairs.empty?
 
-    matching_ids = Contact.where(id: pairs.map(&:last)).where(sql_condition).pluck(:id).to_set
+    matching_ids = Contact.where(id: pairs.map(&:last)).where(sql_condition, *binds).pluck(:id).to_set
     pairs.select { |(_conversation_id, contact_id)| matching_ids.include?(contact_id) }
   end
 
@@ -247,6 +257,7 @@ class V2::Reports::SalesFunnelBuilder
       count: count,
       activity_count: breakdown[:activity_count],
       external_count: breakdown[:external_count],
+      reactivated_count: breakdown[:reactivated_count],
       actual_percent: actual_percent,
       target_percent: target,
       delta: target.nil? ? nil : (actual_percent - target).round(2)

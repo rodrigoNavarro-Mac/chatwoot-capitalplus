@@ -837,6 +837,7 @@
     },
     "ACTIVITY_BADGE_TOOLTIP": "Part of this number (and %) comes from deals created this period whose lead arrived earlier — not part of the new-leads cohort, but it does count here and toward the goal.",
     "EXTERNAL_BADGE_TOOLTIP": "Part of this number (and %) comes from deals with no Chatwoot contact at all — leads who never wrote in via WhatsApp (e.g. captured directly in Zoho via Meta Ads).",
+    "REACTIVATED_BADGE_TOOLTIP": "This many contacts were excluded from the leads count: their first conversation fell in this period, but their Zoho lead was created earlier (e.g. a re-engagement campaign to old leads) — not counted as new, and not part of the % or the goal.",
     "CALLS": {
       "SUMMARY": "Calls: {total} ({percent}% answered)"
     },
@@ -947,7 +948,8 @@
     "PIPELINE": {
       "TITLE": "Sales pipeline",
       "ACTIVITY_BADGE_TOOLTIP": "Part of this number (and %) comes from deals created this period whose lead arrived earlier — not part of the new-leads cohort, but it does count here and toward the goal. See the 'Deals that moved this week' block.",
-      "EXTERNAL_BADGE_TOOLTIP": "Part of this number (and %) comes from deals with no Chatwoot contact at all — leads who never wrote in via WhatsApp (e.g. captured directly in Zoho via Meta Ads)."
+      "EXTERNAL_BADGE_TOOLTIP": "Part of this number (and %) comes from deals with no Chatwoot contact at all — leads who never wrote in via WhatsApp (e.g. captured directly in Zoho via Meta Ads).",
+      "REACTIVATED_BADGE_TOOLTIP": "This many contacts were excluded from the leads count: their first conversation fell in this period, but their Zoho lead was created earlier (e.g. a re-engagement campaign to old leads) — not counted as new, and not part of the % or the goal."
     },
     "DEALS_ACTIVITY": {
       "TITLE": "Deals that moved this week",

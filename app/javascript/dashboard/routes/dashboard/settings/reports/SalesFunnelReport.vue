@@ -201,6 +201,10 @@ const syncDeals = async () => {
             :activity-tooltip="t('SALES_FUNNEL_REPORTS.ACTIVITY_BADGE_TOOLTIP')"
             :external-count="stage.external_count"
             :external-tooltip="t('SALES_FUNNEL_REPORTS.EXTERNAL_BADGE_TOOLTIP')"
+            :reactivated-count="stage.reactivated_count"
+            :reactivated-tooltip="
+              t('SALES_FUNNEL_REPORTS.REACTIVATED_BADGE_TOOLTIP')
+            "
           />
 
           <div

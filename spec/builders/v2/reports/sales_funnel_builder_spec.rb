@@ -13,10 +13,12 @@ describe V2::Reports::SalesFunnelBuilder do
     create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
   end
 
-  def create_lead(zoho_id: SecureRandom.hex, zoho_deal_id: nil, zoho_deal_stage: nil, replied: false, created_at: 10.days.ago, target_inbox: inbox)
+  def create_lead(zoho_id: SecureRandom.hex, zoho_deal_id: nil, zoho_deal_stage: nil, zoho_created_at: nil, replied: false, created_at: 10.days.ago,
+                  target_inbox: inbox)
     external = { 'zoho_id' => zoho_id, 'zoho_module' => 'Contacts' }
     external['zoho_deal_id'] = zoho_deal_id if zoho_deal_id
     external['zoho_deal_stage'] = zoho_deal_stage if zoho_deal_stage
+    external['zoho_created_at'] = zoho_created_at.iso8601 if zoho_created_at
 
     contact = create(:contact, account: account, additional_attributes: { 'external' => external })
     conversation = create(:conversation, account: account, inbox: target_inbox, contact: contact)
@@ -42,6 +44,34 @@ describe V2::Reports::SalesFunnelBuilder do
       rows = described_class.new(account: account, params: params).build
 
       expect(stage(rows, 'leads')[:count]).to eq(1)
+    end
+
+    it 'excludes a reactivated lead (zoho_created_at before the period) from the leads count and reports it as reactivated_count' do
+      create_lead(zoho_created_at: 6.months.ago)
+      create_lead(zoho_created_at: 5.days.ago)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:count]).to eq(1)
+      expect(stage(rows, 'leads')[:reactivated_count]).to eq(1)
+    end
+
+    it 'still counts a lead as new when zoho_created_at is not cached yet (not backfilled)' do
+      create_lead(zoho_created_at: nil)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:count]).to eq(1)
+      expect(stage(rows, 'leads')[:reactivated_count]).to eq(0)
+    end
+
+    it 'excludes a reactivated lead and its replies from downstream funnel stages' do
+      create_lead(zoho_created_at: 6.months.ago, replied: true)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:count]).to eq(0)
+      expect(stage(rows, 'customer_replied')[:count]).to eq(0)
     end
 
     it 'counts customer_replied only for leads whose conversation has an incoming message' do

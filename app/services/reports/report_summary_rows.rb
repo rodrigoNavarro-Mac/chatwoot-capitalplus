@@ -30,13 +30,15 @@ module Reports::ReportSummaryRows
     end
   end
 
-  # "5 (+2 actividad, +1 externo)" cuando parte del conteo viene de deals fuera de la cohorte de
-  # leads nuevos (ver V2::Reports::SalesFunnelDealActivity) — el PDF/DOCX no tiene una barra de
+  # "5 (+2 actividad, +1 externo, -3 reactivados)" cuando parte del conteo viene de deals fuera de
+  # la cohorte de leads nuevos (ver V2::Reports::SalesFunnelDealActivity) o se excluyeron leads
+  # reactivados (ver V2::Reports::SalesFunnelReactivatedLeads) — el PDF/DOCX no tiene una barra de
   # colores como el frontend, así que esa porción se anota en la misma celda en vez de perderse.
   def funnel_count_text(stage)
     parts = [
       ("+#{stage[:activity_count]} actividad" if stage[:activity_count].to_i.positive?),
-      ("+#{stage[:external_count]} externo" if stage[:external_count].to_i.positive?)
+      ("+#{stage[:external_count]} externo" if stage[:external_count].to_i.positive?),
+      ("-#{stage[:reactivated_count]} reactivados" if stage[:reactivated_count].to_i.positive?)
     ].compact
     return stage[:count] if parts.empty?
 

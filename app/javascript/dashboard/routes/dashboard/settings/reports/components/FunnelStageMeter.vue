@@ -57,6 +57,20 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  // Solo para la etapa "leads": cuántos de los contactos con zoho_id vinculado quedaron FUERA de
+  // `count` por ser reactivaciones de un lead que ya existía en Zoho antes de este periodo (ver
+  // V2::Reports::SalesFunnelBuilder#partition_new_vs_reactivated). A diferencia de
+  // activityCount/externalCount, este NO está sumado dentro de `count`/`actualPercent` — es
+  // informativo, se pinta como una barra aparte a continuación del track, no como una porción del
+  // mismo track.
+  reactivatedCount: {
+    type: Number,
+    default: null,
+  },
+  reactivatedTooltip: {
+    type: String,
+    default: '',
+  },
 });
 
 // El track se pinta 0-100 aunque actualPercent pase de 100 (posible cuando la actividad/externos
@@ -82,6 +96,16 @@ const cohortBarWidth = computed(() =>
     0
   )
 );
+
+// reactivatedCount NO es un subconjunto de `count` (al contrario de activity/external, que ya
+// están sumados ahí) — es la porción que se EXCLUYÓ del conteo por ser una reactivación, así que se
+// dibuja en una barra propia, proporcional a count + reactivatedCount, no como parte del track de
+// arriba.
+const reactivatedBarWidth = computed(() => {
+  const total = props.count + (props.reactivatedCount || 0);
+  if (!props.reactivatedCount || !total) return 0;
+  return Math.max((props.reactivatedCount / total) * 100, 4);
+});
 </script>
 
 <template>
@@ -107,6 +131,13 @@ const cohortBarWidth = computed(() =>
             class="text-n-violet-11 font-medium"
           >
             (+{{ externalCount }})
+          </span>
+          <span
+            v-if="reactivatedCount"
+            v-tooltip="reactivatedTooltip"
+            class="text-n-slate-9 font-medium"
+          >
+            (-{{ reactivatedCount }})
           </span>
         </span>
         <span class="text-n-slate-12 font-semibold">{{ actualPercent }}%</span>
@@ -143,6 +174,16 @@ const cohortBarWidth = computed(() =>
         v-tooltip="`Meta: ${targetPercent}%`"
         class="absolute top-1/2 -translate-y-1/2 h-2.5 w-px bg-n-slate-12"
         :style="{ left: `${Math.min(Math.max(targetPercent, 0), 100)}%` }"
+      />
+    </div>
+    <div
+      v-if="reactivatedBarWidth > 0"
+      v-tooltip="reactivatedTooltip"
+      class="w-full h-1 rounded-full bg-n-slate-3 overflow-hidden flex mt-1"
+    >
+      <div
+        class="h-full bg-n-slate-6 flex-shrink-0"
+        :style="{ width: `${reactivatedBarWidth}%` }"
       />
     </div>
   </div>
