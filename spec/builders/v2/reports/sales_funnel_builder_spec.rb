@@ -65,6 +65,18 @@ describe V2::Reports::SalesFunnelBuilder do
       expect(stage(rows, 'leads')[:reactivated_count]).to eq(0)
     end
 
+    it 'counts a zoho_id shared by two different Chatwoot contacts only once, keeping the earliest conversation' do
+      create_lead(zoho_id: 'shared-zoho-id', created_at: 8.days.ago, replied: true)
+      create_lead(zoho_id: 'shared-zoho-id', created_at: 3.days.ago, replied: false)
+
+      rows = described_class.new(account: account, params: params).build
+
+      expect(stage(rows, 'leads')[:count]).to eq(1)
+      # The kept pair is the earliest conversation, which is the one marked replied: true above —
+      # if the dedupe kept the later duplicate instead, this would read 0.
+      expect(stage(rows, 'customer_replied')[:count]).to eq(1)
+    end
+
     it 'excludes a reactivated lead and its replies from downstream funnel stages' do
       create_lead(zoho_created_at: 6.months.ago, replied: true)
 

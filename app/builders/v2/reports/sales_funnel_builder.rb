@@ -173,8 +173,10 @@ class V2::Reports::SalesFunnelBuilder
 
   ZOHO_LINK_SQL = "additional_attributes -> 'external' ->> 'zoho_id' IS NOT NULL".freeze
 
+  # Ver V2::Reports::SalesFunnelZohoIdDedupe (separada de esta clase solo por tamaño) — dos
+  # contactos de Chatwoot pueden compartir el mismo zoho_id, y sin el dedupe se contaba dos veces.
   def leads_with_zoho_link(pairs)
-    filter_pairs_by_contact(pairs, ZOHO_LINK_SQL)
+    V2::Reports::SalesFunnelZohoIdDedupe.new.dedupe(filter_pairs_by_contact(pairs, ZOHO_LINK_SQL))
   end
 
   # [nuevos, reactivados] — ver V2::Reports::SalesFunnelReactivatedLeads (separada de esta clase solo
