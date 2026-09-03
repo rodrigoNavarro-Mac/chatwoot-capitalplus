@@ -354,6 +354,21 @@ describe V2::Reports::WeeklyOpsReportBuilder do
         expect(by_advisor[1][:avg_duration_seconds]).to eq(200)
       end
 
+      it 'excludes calls already flagged as voicemail (low confidence) from avg_duration_seconds, but keeps unanalyzed ones' do
+        agent = create(:user, account: account, name: 'Agent A')
+        conversation = create(:conversation, account: account, inbox: inbox)
+        voicemail_call = create(:call, conversation: conversation, provider: :aircall, status: 'completed',
+                                       duration_seconds: 12, accepted_by_agent: agent, started_at: 2.days.ago)
+        create(:call_analysis, call: voicemail_call, confidence: 'low')
+        create(:call, conversation: conversation, provider: :aircall, status: 'completed',
+                      duration_seconds: 400, accepted_by_agent: agent, started_at: 1.day.ago) # llamada real, sin analizar todavía
+
+        result = described_class.new(account: account, inbox: inbox, params: params).build
+
+        expect(result[:aircall_calls][:avg_duration_seconds]).to eq(400)
+        expect(result[:aircall_calls][:by_advisor].first[:avg_duration_seconds]).to eq(400)
+      end
+
       describe 'voicemail' do
         it 'is nil when no answered call in range has a CallAnalysis yet' do
           conversation = create(:conversation, account: account, inbox: inbox)
