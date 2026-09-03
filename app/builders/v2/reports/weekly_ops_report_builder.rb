@@ -105,8 +105,13 @@ class V2::Reports::WeeklyOpsReportBuilder
   end
 
   # Último día incluido en el rango (el rango es exclusivo por la derecha, ver DateRangeHelper).
+  # Se convierte a la zona horaria del inbox antes de extraer la fecha — un boundary alineado a
+  # medianoche LOCAL (ej. domingo 23:59:59 en México) cae en un día UTC distinto (lunes de
+  # madrugada), y sin esta conversión el reporte mostraba "hasta el lunes" para una semana que en
+  # realidad terminaba el domingo (caso real detectado 2026-09-03, ver
+  # Reports::GenerateWeeklyOpsReportJob#local_epoch).
   def date_bounds
-    @date_bounds ||= [range.begin.to_date, (range.end - 1.second).to_date]
+    @date_bounds ||= [range.begin.in_time_zone(inbox.timezone).to_date, (range.end - 1.second).in_time_zone(inbox.timezone).to_date]
   end
 
   def volume_metrics
