@@ -18,7 +18,7 @@ class V2::Reports::WeeklyOpsReportCallsMetrics
       total: scope.count,
       answered: answered_scope.count,
       answered_percent: safe_rate(answered_scope.count, scope.count),
-      avg_duration_seconds: answered_scope.average(:duration_seconds)&.round,
+      avg_duration_seconds: average_duration_excluding_voicemail(answered_scope),
       incoming: scope.incoming.count,
       outgoing: scope.outgoing.count,
       by_advisor: by_advisor,
@@ -54,8 +54,21 @@ class V2::Reports::WeeklyOpsReportCallsMetrics
       total: agent_scope.count,
       answered: answered.count,
       answered_percent: safe_rate(answered.count, agent_scope.count),
-      avg_duration_seconds: answered.average(:duration_seconds)&.round
+      avg_duration_seconds: average_duration_excluding_voicemail(answered)
     }
+  end
+
+  # La duración promedio de "contestadas" (status == 'completed') se ve arrastrada por buzones de
+  # voz — Aircall marca answered_at igual en ambos casos (ver #voicemail_metrics), y un buzón dura
+  # lo que tarda el mensaje grabado (~10-20s), mucho menos que una conversación real, así que
+  # mezclarlos hunde el promedio sin decir nada útil sobre cuánto duran las llamadas reales (mismo
+  # criterio que V2::Reports::CallAnalysisAgentBuilder#average_score, CONFIRMADO 2026-09-03: el
+  # promedio general bajaba a 1m12s con buzones mezclados). Se excluyen las que ya se analizaron y
+  # salieron con confidence == 'low'; las que todavía no se analizan se dejan (no se puede saber
+  # todavía) — mismo fallback que #answered_call_conversation_ids en SalesFunnelBuilder.
+  def average_duration_excluding_voicemail(scope)
+    voicemail_call_ids = CallAnalysis.completed_scope.where(call_id: scope.select(:id), confidence: 'low').select(:call_id)
+    scope.where.not(id: voicemail_call_ids).average(:duration_seconds)&.round
   end
 
   def advisor_name(user_id)
