@@ -82,7 +82,7 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', desarrollo: 'Fuego')
       account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, desarrollo: 'OtroDesarrollo')
       add_event('call_answered', Time.current, agent_id: agent.id, zoho_lead_id: lead.zoho_lead_id, zoho_deal_id: 'deal-1',
-                                                revenue_contact_id: revenue_contact.id)
+                                               revenue_contact_id: revenue_contact.id)
 
       described_class.new.perform
 

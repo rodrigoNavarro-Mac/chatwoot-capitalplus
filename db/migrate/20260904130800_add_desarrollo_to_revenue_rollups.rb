@@ -9,8 +9,9 @@ class AddDesarrolloToRevenueRollups < ActiveRecord::Migration[7.1]
   def change
     add_column :revenue_rollups, :desarrollo, :string, null: false, default: '_all'
 
-    remove_index :revenue_rollups, name: 'idx_revenue_rollups_dedup'
-    add_index :revenue_rollups, [:account_id, :date, :dimension_type, :dimension_id, :metric, :desarrollo], unique: true,
-                                                                                                              name: 'idx_revenue_rollups_dedup'
+    remove_index :revenue_rollups, column: %i[account_id date dimension_type dimension_id metric],
+                                   name: 'idx_revenue_rollups_dedup'
+    add_index :revenue_rollups, %i[account_id date dimension_type dimension_id metric desarrollo], unique: true,
+                                                                                                   name: 'idx_revenue_rollups_dedup'
   end
 end
