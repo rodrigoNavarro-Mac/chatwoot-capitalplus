@@ -374,6 +374,8 @@
     "REPORTS_BOT": "Bot",
     "REPORTS_TEMPLATES": "Plantillas",
     "REPORTS_SALES_FUNNEL": "Embudo de ventas",
+    "REPORTS_CALL_INTELLIGENCE": "Inteligencia de llamadas",
+    "REPORTS_REVENUE_INTELLIGENCE": "Inteligencia de ingresos",
     "REPORTS_AGENT": "Agentes",
     "REPORTS_LABEL": "Etiquetas",
     "REPORTS_INBOX": "Bandeja de entrada",

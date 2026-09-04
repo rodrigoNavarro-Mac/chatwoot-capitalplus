@@ -186,6 +186,12 @@ class ReportsAPI extends ApiClient {
       params: { since, until, inbox_id: inboxId },
     });
   }
+
+  getRevenueIntelligenceReport({ from: since, to: until } = {}) {
+    return axios.get(`${this.url}/revenue_intelligence`, {
+      params: { since, until },
+    });
+  }
 }
 
 export default new ReportsAPI();

@@ -814,6 +814,173 @@
       "FETCH_RECENT": "Could not fetch the recent calls"
     }
   },
+  "REVENUE_INTELLIGENCE_REPORTS": {
+    "HEADER": "Revenue intelligence",
+    "DESCRIPTION": "Lead-to-deal revenue journey — funnel, marketing attribution, sales team performance, and open risk/data-quality signals, built from what's already synced from Zoho CRM.",
+    "FILTERS": {
+      "SINCE": "Since",
+      "UNTIL": "Until"
+    },
+    "TABS": {
+      "OVERVIEW": "Overview",
+      "FUNNEL": "Funnel",
+      "MARKETING": "Marketing",
+      "SALES_TEAM": "Sales team",
+      "CALLS": "Calls",
+      "OBJECTIONS": "Objections",
+      "PIPELINE": "Pipeline",
+      "DATA_QUALITY": "Data quality"
+    },
+    "OVERVIEW": {
+      "KPI": {
+        "LEADS": "Leads",
+        "APPOINTMENTS": "Appointments",
+        "VISITS": "Visits",
+        "RESERVED": "Reserved",
+        "WON": "Sales"
+      },
+      "CONVERSION": {
+        "LEAD_TO_APPOINTMENT": "Lead → appointment",
+        "APPOINTMENT_TO_VISIT": "Appointment → visit",
+        "VISIT_TO_RESERVED": "Visit → reserved",
+        "WIN_RATE": "Win rate",
+        "WIN_RATE_INFO": "Sales / (sales + lost) in the selected period."
+      },
+      "VS_PREVIOUS_PERIOD": "vs. previous period",
+      "FUNNEL_TITLE": "Funnel",
+      "TREND_TITLE": "Trend",
+      "TREND_EMPTY": "Not enough data yet to chart a trend",
+      "TIME_TO_TITLE": "Average time to",
+      "AVG_TIME_TO_FIRST_RESPONSE": "First response",
+      "AVG_TIME_TO_QUALIFICATION": "Qualification",
+      "AVG_TIME_TO_APPOINTMENT": "Appointment",
+      "AVG_TIME_TO_CLOSE": "Close",
+      "NO_DATA": "Not enough data yet",
+      "RISKS_TITLE": "Needs attention",
+      "RISKS_DESCRIPTION": "Open risk signals, regardless of the date filter above — these reflect the current state, not the selected period.",
+      "RISKS_EMPTY": "No open risk signals right now",
+      "INSIGHTS_TITLE": "Insights",
+      "INSIGHTS_EMPTY": "Not enough data yet for insights this period",
+      "INSIGHTS": {
+        "CTA_CONVERSION": "Using a CTA on the call: {used_rate}% convert to an appointment vs {not_used_rate}% without one.",
+        "INTENT_LEVEL_CONVERSION": "Leads with \"{level}\" intent convert to an appointment {rate}% of the time.",
+        "WORST_OBJECTION": "The \"{category}\" objection converts {diff_points} points below average ({rate}%).",
+        "RESPONSE_TIME_CONVERSION": "Responding within 15 minutes: {fast_rate}% reach an appointment vs {slow_rate}% when it takes longer.",
+        "LEADS_NO_CONTACT": "{count} leads have gone more than 24 hours without contact."
+      }
+    },
+    "EVENT_TYPES": {
+      "LEAD_CREATED": "Leads",
+      "LEAD_CONTACTED": "Contacted",
+      "LEAD_QUALIFIED": "Qualified",
+      "DEAL_CREATED": "Deals",
+      "APPOINTMENT_CREATED": "Appointments",
+      "VISIT_EFFECTIVE": "Visits",
+      "RESERVED": "Reserved",
+      "CLOSED_WON": "Won",
+      "CLOSED_LOST": "Lost"
+    },
+    "SIGNAL_TYPES": {
+      "DEAL_STALLED": "Stalled deal",
+      "LEAD_NO_CONTACT": "Lead without contact",
+      "APPOINTMENT_NO_SHOW_UNVERIFIED": "Unverified visit after appointment",
+      "DEAL_WON_STAGE_MISMATCH": "Won/stage mismatch",
+      "DEAL_LOST_STAGE_MISMATCH": "Lost/stage mismatch",
+      "DEAL_WITHOUT_LEAD": "Deal without a linked lead",
+      "STAGE_EVENT_GAP": "Stage sync gap",
+      "UNRESOLVED_IDENTITY_CONFLICT": "Unresolved identity conflict"
+    },
+    "CONVERSION_SEGMENTS": {
+      "CTA_USED": "Used a CTA",
+      "CTA_NOT_USED": "Did not use a CTA",
+      "INTENT_LEVEL": "Intent: {level}",
+      "SCORE_BAND": "Score: {band}"
+    },
+    "FUNNEL": {
+      "TITLE": "By development",
+      "EMPTY": "No funnel activity in this period",
+      "DEVELOPMENT": "Development"
+    },
+    "MARKETING": {
+      "TITLE": "By campaign",
+      "EMPTY": "No campaign-attributed activity in this period",
+      "CAMPAIGN": "Campaign"
+    },
+    "SALES_TEAM": {
+      "TITLE": "By agent",
+      "EMPTY": "No call activity in this period",
+      "AGENT": "Agent",
+      "CALLS_STARTED": "Calls",
+      "CALLS_ANSWERED": "Answered",
+      "CALLS_MISSED": "Missed",
+      "ANSWERED_RATE": "Answered rate",
+      "AVG_SCORE": "Avg. score",
+      "CTA_RATE": "CTA rate"
+    },
+    "CALLS": {
+      "TITLE": "Call → appointment conversion",
+      "DESCRIPTION": "Association, not causation — whether an appointment was created for the same contact after the call started.",
+      "EMPTY": "No call conversion data in this period",
+      "SEGMENT": "Segment",
+      "TOTAL": "Calls",
+      "CONVERTED": "Converted",
+      "RATE": "Rate",
+      "GROUPS": {
+        "CTA": "By CTA usage",
+        "INTENT": "By intent level",
+        "SCORE": "By score band"
+      }
+    },
+    "OBJECTIONS": {
+      "TITLE": "Objection → appointment conversion",
+      "EMPTY": "No objection data in this period",
+      "CATEGORY": "Objection",
+      "MENTIONS": "{count} mentions —",
+      "CONVERTED_SUFFIX": "with a follow-up appointment",
+      "CATEGORIES": {
+        "FINANCIAL": "Financial",
+        "PRODUCT": "Product",
+        "LOCATION": "Location",
+        "DELIVERY_PREORDER": "Delivery / pre-sale",
+        "TRUST": "Trust",
+        "NEED_ALTERNATIVE": "Need / alternative",
+        "TIMING": "Timing",
+        "AUTHORITY": "Decision authority",
+        "UNMET_EXPECTATION": "Unmet expectation"
+      }
+    },
+    "PIPELINE": {
+      "TITLE": "By stage",
+      "EMPTY": "No pipeline stage activity in this period",
+      "STAGE": "Stage",
+      "ENTERED": "Entered",
+      "AVG_DURATION": "Avg. duration (days)",
+      "AGING_TITLE": "Stalled deals",
+      "AGING_DESCRIPTION": "Regardless of the date filter above — these reflect the current state, not the selected period.",
+      "AGING_EMPTY": "No stalled deals right now",
+      "DAYS_STALLED": "Days stalled"
+    },
+    "DATA_QUALITY": {
+      "TITLE": "Open data quality signals",
+      "DESCRIPTION": "Regardless of the date filter above — these reflect the current state, not the selected period.",
+      "EMPTY": "No open data quality signals right now",
+      "HEALTH": {
+        "GOOD": "Good health",
+        "FAIR": "Review soon",
+        "POOR": "Needs attention",
+        "CRITICAL": "Critical"
+      }
+    },
+    "SIGNAL": {
+      "SEVERITY": "Severity",
+      "TYPE": "Type",
+      "SUBJECT": "Subject",
+      "DETECTED": "First detected"
+    },
+    "ERRORS": {
+      "FETCH": "Could not fetch the revenue intelligence report"
+    }
+  },
   "SALES_FUNNEL_REPORTS": {
     "HEADER": "Sales funnel",
     "DESCRIPTION": "Measure conversion from leads to closed-won deals, cross-referencing Chatwoot with Zoho CRM, split by inbox and development.",

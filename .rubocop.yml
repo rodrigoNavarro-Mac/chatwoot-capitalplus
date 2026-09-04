@@ -24,14 +24,17 @@ Metrics/ClassLength:
     - 'app/services/whatsapp/oneoff_campaign_service.rb'
     - 'app/builders/messages/message_builder.rb'
     - 'app/builders/v2/reports/weekly_ops_report_builder.rb'
+    - 'app/builders/v2/reports/revenue_intelligence_builder.rb'
     - 'app/controllers/api/v1/accounts/integrations/zoho_crm_controller.rb'
     - 'app/controllers/api/v2/accounts/reports_controller.rb'
     - 'app/finders/conversation_finder.rb'
+    - 'app/models/account.rb'
     - 'app/models/contact.rb'
     - 'app/models/inbox.rb'
     - 'app/services/agent_bots/internal_flow_handler_service.rb'
     - 'app/services/reports/weekly_ops_report_pdf_service.rb'
     - 'app/services/whatsapp/incoming_message_base_service.rb'
+    - 'app/services/revenue_intelligence/identity_resolver.rb'
     - 'config/initializers/rack_attack.rb'
 
 Metrics/MethodLength:

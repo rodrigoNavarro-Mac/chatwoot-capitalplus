@@ -375,6 +375,7 @@
     "REPORTS_TEMPLATES": "Templates",
     "REPORTS_SALES_FUNNEL": "Sales funnel",
     "REPORTS_CALL_INTELLIGENCE": "Call intelligence",
+    "REPORTS_REVENUE_INTELLIGENCE": "Revenue intelligence",
     "REPORTS_AGENT": "Agents",
     "REPORTS_LABEL": "Labels",
     "REPORTS_INBOX": "Inbox",

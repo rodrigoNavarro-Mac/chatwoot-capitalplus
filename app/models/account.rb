@@ -101,6 +101,18 @@ class Account < ApplicationRecord
   has_many :notification_settings, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
+  has_many :revenue_appointments, dependent: :destroy_async
+  has_many :revenue_call_features, dependent: :destroy_async
+  has_many :revenue_contacts, dependent: :destroy_async
+  has_many :revenue_deals, dependent: :destroy_async
+  has_many :revenue_events, dependent: :destroy_async
+  has_many :revenue_identity_conflicts, dependent: :destroy_async
+  has_many :revenue_lead_journeys, dependent: :destroy_async
+  has_many :revenue_leads, dependent: :destroy_async
+  has_many :revenue_risk_signals, dependent: :destroy_async
+  has_many :revenue_rollups, dependent: :destroy_async
+  has_many :revenue_stage_events, dependent: :destroy_async
+  has_many :revenue_sync_cursors, dependent: :destroy_async
   has_many :sales_funnel_goals, dependent: :destroy_async
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async

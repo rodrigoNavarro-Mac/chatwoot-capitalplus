@@ -122,6 +122,11 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: builder.build
   end
 
+  def revenue_intelligence
+    builder = V2::Reports::RevenueIntelligenceBuilder.new(account: Current.account, params: revenue_intelligence_params)
+    render json: builder.build
+  end
+
   private
 
   def generate_csv(filename, template)
@@ -255,6 +260,13 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
       agent_id: params[:agent_id],
       confidence: params[:confidence],
       conversation_type: params[:conversation_type]
+    }
+  end
+
+  def revenue_intelligence_params
+    {
+      since: params[:since],
+      until: params[:until]
     }
   end
 end

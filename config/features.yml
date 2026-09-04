@@ -291,3 +291,12 @@
   display_name: Análisis de Llamadas (IA)
   enabled: false
   column: feature_flags_ext_1
+- name: revenue_intelligence
+  # Reconstruye el journey Lead -> mensajes -> llamadas -> Deal -> cita -> visita -> ganado/perdido
+  # sobre datos ya sincronizados de Zoho CRM (Leads/Deals/Stage_History/Meetings) en tablas
+  # revenue_* propias. Fase 1 (Fundaciones) es solo backend: sync + resolución de identidad, sin
+  # UI todavía — el flag gatea la futura sección de Reports (Fase 5), no los jobs de sync, que
+  # corren igual estén el flag habilitado o no (mismo criterio que ReportingEvents::RollupService).
+  display_name: Revenue Intelligence
+  enabled: false
+  column: feature_flags_ext_1

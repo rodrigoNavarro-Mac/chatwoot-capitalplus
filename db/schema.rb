@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_08_31_120100) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_02_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1639,6 +1639,328 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_31_120100) do
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_reports_inbox_brandings_on_account_id"
     t.index ["inbox_id"], name: "index_reports_inbox_brandings_on_inbox_id", unique: true
+  end
+
+  create_table "revenue_appointments", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "revenue_contact_id"
+    t.string "zoho_event_id", null: false
+    t.string "zoho_lead_id"
+    t.string "zoho_deal_id"
+    t.bigint "revenue_deal_id"
+    t.string "owner_id"
+    t.string "owner_name"
+    t.datetime "starts_at"
+    t.datetime "ends_at"
+    t.string "status"
+    t.string "subject"
+    t.boolean "verified", default: true, null: false
+    t.jsonb "raw_payload", default: {}
+    t.datetime "synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "revenue_contact_id"], name: "idx_on_account_id_revenue_contact_id_1ef3ecfa59"
+    t.index ["account_id", "revenue_deal_id"], name: "index_revenue_appointments_on_account_id_and_revenue_deal_id"
+    t.index ["account_id", "starts_at"], name: "index_revenue_appointments_on_account_id_and_starts_at"
+    t.index ["account_id", "zoho_deal_id"], name: "index_revenue_appointments_on_account_id_and_zoho_deal_id"
+    t.index ["account_id", "zoho_event_id"], name: "index_revenue_appointments_on_account_id_and_zoho_event_id", unique: true
+  end
+
+  create_table "revenue_call_features", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "call_id", null: false
+    t.bigint "call_analysis_id", null: false
+    t.bigint "revenue_contact_id"
+    t.string "zoho_deal_id"
+    t.bigint "agent_id"
+    t.datetime "started_at"
+    t.string "role"
+    t.string "conversation_type"
+    t.string "intent_level"
+    t.string "confidence"
+    t.string "outcome_type"
+    t.datetime "outcome_at"
+    t.decimal "score_total", precision: 6, scale: 2
+    t.string "score_reading"
+    t.decimal "talk_ratio", precision: 5, scale: 4
+    t.integer "longest_monologue_seconds"
+    t.integer "open_questions", default: 0, null: false
+    t.integer "closed_questions", default: 0, null: false
+    t.boolean "cta_used", default: false, null: false
+    t.integer "qualification_count", default: 0, null: false
+    t.integer "objection_count", default: 0, null: false
+    t.integer "risk_count", default: 0, null: false
+    t.decimal "qualification_completeness", precision: 5, scale: 4
+    t.boolean "qual_intencion_vivir_invertir", default: false, null: false
+    t.boolean "qual_necesidad_concreta", default: false, null: false
+    t.boolean "qual_requisito_indispensable", default: false, null: false
+    t.boolean "qual_presupuesto", default: false, null: false
+    t.boolean "qual_forma_pago_credito", default: false, null: false
+    t.boolean "qual_momento_compra", default: false, null: false
+    t.boolean "qual_tomadores_decision", default: false, null: false
+    t.boolean "qual_alternativas_competencia", default: false, null: false
+    t.boolean "qual_bloqueo_principal", default: false, null: false
+    t.boolean "qual_siguiente_paso", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "agent_id", "started_at"], name: "idx_on_account_id_agent_id_started_at_4084dbc122"
+    t.index ["account_id", "call_id"], name: "index_revenue_call_features_on_account_id_and_call_id", unique: true
+    t.index ["account_id", "intent_level"], name: "index_revenue_call_features_on_account_id_and_intent_level"
+    t.index ["account_id", "outcome_type"], name: "index_revenue_call_features_on_account_id_and_outcome_type"
+    t.index ["account_id", "revenue_contact_id"], name: "idx_on_account_id_revenue_contact_id_65c81fc7f5"
+  end
+
+  create_table "revenue_contacts", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "normalized_phone"
+    t.string "raw_phone"
+    t.string "email"
+    t.bigint "chatwoot_contact_id"
+    t.string "zoho_lead_id"
+    t.string "zoho_contact_id"
+    t.string "zoho_deal_id"
+    t.datetime "first_seen_at", null: false
+    t.datetime "last_seen_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "chatwoot_contact_id"], name: "idx_revenue_contacts_on_account_cw_contact", unique: true, where: "(chatwoot_contact_id IS NOT NULL)"
+    t.index ["account_id", "email"], name: "index_revenue_contacts_on_account_id_and_email"
+    t.index ["account_id", "normalized_phone"], name: "idx_revenue_contacts_on_account_phone", unique: true, where: "(normalized_phone IS NOT NULL)"
+    t.index ["account_id", "zoho_contact_id"], name: "idx_revenue_contacts_on_account_zoho_contact", unique: true, where: "(zoho_contact_id IS NOT NULL)"
+    t.index ["account_id", "zoho_lead_id"], name: "idx_revenue_contacts_on_account_zoho_lead", unique: true, where: "(zoho_lead_id IS NOT NULL)"
+  end
+
+  create_table "revenue_deals", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "revenue_contact_id"
+    t.bigint "revenue_lead_id"
+    t.string "zoho_deal_id", null: false
+    t.string "owner_id"
+    t.string "owner_name"
+    t.string "desarrollo"
+    t.string "stage"
+    t.string "pipeline"
+    t.decimal "probability", precision: 5, scale: 2
+    t.decimal "amount", precision: 14, scale: 2
+    t.decimal "expected_revenue", precision: 14, scale: 2
+    t.string "lead_source"
+    t.string "campaign_source"
+    t.datetime "created_at_source"
+    t.datetime "stage_modified_at"
+    t.date "closing_date"
+    t.boolean "won", default: false, null: false
+    t.boolean "lost", default: false, null: false
+    t.string "reason_for_loss"
+    t.jsonb "quote_fields", default: {}
+    t.jsonb "raw_payload", default: {}
+    t.datetime "synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "desarrollo"], name: "index_revenue_deals_on_account_id_and_desarrollo"
+    t.index ["account_id", "revenue_contact_id"], name: "index_revenue_deals_on_account_id_and_revenue_contact_id"
+    t.index ["account_id", "revenue_lead_id"], name: "index_revenue_deals_on_account_id_and_revenue_lead_id"
+    t.index ["account_id", "stage"], name: "index_revenue_deals_on_account_id_and_stage"
+    t.index ["account_id", "stage_modified_at"], name: "index_revenue_deals_on_account_id_and_stage_modified_at"
+    t.index ["account_id", "won", "lost"], name: "index_revenue_deals_on_account_id_and_won_and_lost"
+    t.index ["account_id", "zoho_deal_id"], name: "index_revenue_deals_on_account_id_and_zoho_deal_id", unique: true
+  end
+
+  create_table "revenue_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "revenue_contact_id"
+    t.string "zoho_lead_id"
+    t.string "zoho_deal_id"
+    t.bigint "conversation_id"
+    t.bigint "call_id"
+    t.bigint "agent_id"
+    t.string "event_type", null: false
+    t.datetime "event_at", null: false
+    t.string "source_system", null: false
+    t.string "source_id", null: false
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "call_id"], name: "index_revenue_events_on_account_id_and_call_id"
+    t.index ["account_id", "conversation_id"], name: "index_revenue_events_on_account_id_and_conversation_id"
+    t.index ["account_id", "event_type", "event_at"], name: "index_revenue_events_on_account_id_and_event_type_and_event_at"
+    t.index ["account_id", "revenue_contact_id", "event_at"], name: "idx_on_account_id_revenue_contact_id_event_at_4e5b9d3616"
+    t.index ["account_id", "source_system", "event_type", "source_id"], name: "idx_revenue_events_dedup", unique: true
+  end
+
+  create_table "revenue_identity_conflicts", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "conflict_type", null: false
+    t.string "match_key"
+    t.jsonb "candidate_ids", default: []
+    t.string "source"
+    t.boolean "resolved", default: false, null: false
+    t.datetime "resolved_at"
+    t.jsonb "raw_context", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "conflict_type"], name: "idx_on_account_id_conflict_type_640a2b91dc"
+    t.index ["account_id", "resolved"], name: "index_revenue_identity_conflicts_on_account_id_and_resolved"
+  end
+
+  create_table "revenue_lead_journeys", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "revenue_lead_id", null: false
+    t.bigint "revenue_contact_id"
+    t.bigint "revenue_deal_id"
+    t.datetime "lead_created_at"
+    t.datetime "first_response_at"
+    t.datetime "first_call_at"
+    t.datetime "first_answered_call_at"
+    t.datetime "qualified_at"
+    t.datetime "deal_created_at"
+    t.datetime "appointment_at"
+    t.datetime "visit_at"
+    t.datetime "reserved_at"
+    t.datetime "closed_at"
+    t.string "final_stage"
+    t.boolean "won", default: false, null: false
+    t.boolean "lost", default: false, null: false
+    t.integer "time_to_first_response_seconds"
+    t.integer "time_to_first_call_seconds"
+    t.integer "time_to_qualification_seconds"
+    t.integer "time_to_appointment_seconds"
+    t.integer "time_to_visit_seconds"
+    t.integer "time_to_close_seconds"
+    t.integer "incoming_messages", default: 0, null: false
+    t.integer "outgoing_messages", default: 0, null: false
+    t.integer "calls_attempted", default: 0, null: false
+    t.integer "calls_answered", default: 0, null: false
+    t.integer "calls_missed", default: 0, null: false
+    t.integer "total_call_seconds", default: 0, null: false
+    t.integer "unique_agents", default: 0, null: false
+    t.string "latest_intent"
+    t.string "max_intent"
+    t.decimal "avg_call_score", precision: 6, scale: 2
+    t.decimal "max_call_score", precision: 6, scale: 2
+    t.decimal "last_call_score", precision: 6, scale: 2
+    t.integer "cta_count", default: 0, null: false
+    t.integer "objections_count", default: 0, null: false
+    t.integer "risks_count", default: 0, null: false
+    t.datetime "built_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "final_stage"], name: "index_revenue_lead_journeys_on_account_id_and_final_stage"
+    t.index ["account_id", "revenue_contact_id"], name: "idx_on_account_id_revenue_contact_id_e5770161d1"
+    t.index ["account_id", "revenue_lead_id"], name: "index_revenue_lead_journeys_on_account_id_and_revenue_lead_id", unique: true
+    t.index ["account_id", "won", "lost"], name: "index_revenue_lead_journeys_on_account_id_and_won_and_lost"
+  end
+
+  create_table "revenue_leads", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "revenue_contact_id"
+    t.string "zoho_lead_id", null: false
+    t.string "owner_id"
+    t.string "owner_name"
+    t.string "desarrollo"
+    t.datetime "created_at_source"
+    t.datetime "first_contact_at"
+    t.datetime "qualified_at"
+    t.string "lead_status"
+    t.string "discard_reason"
+    t.string "razon_compra"
+    t.string "plazo"
+    t.string "genero"
+    t.string "ocupacion"
+    t.string "estado_civil"
+    t.string "etapa_vida"
+    t.string "nacionalidad"
+    t.string "rango_edad"
+    t.string "presupuesto_raw"
+    t.decimal "presupuesto_min", precision: 14, scale: 2
+    t.decimal "presupuesto_max", precision: 14, scale: 2
+    t.string "lead_source"
+    t.string "campaign_id"
+    t.string "campaign_name"
+    t.string "ad_account_id"
+    t.string "ad_account_name"
+    t.string "adset_id"
+    t.string "adset_name"
+    t.string "advert_id"
+    t.string "advert_name"
+    t.string "form_id"
+    t.string "form_name"
+    t.string "platform"
+    t.integer "attempt_count", default: 0, null: false
+    t.integer "reassignment_count", default: 0, null: false
+    t.jsonb "raw_payload", default: {}
+    t.datetime "synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "created_at_source"], name: "index_revenue_leads_on_account_id_and_created_at_source"
+    t.index ["account_id", "desarrollo"], name: "index_revenue_leads_on_account_id_and_desarrollo"
+    t.index ["account_id", "lead_status"], name: "index_revenue_leads_on_account_id_and_lead_status"
+    t.index ["account_id", "owner_id"], name: "index_revenue_leads_on_account_id_and_owner_id"
+    t.index ["account_id", "revenue_contact_id"], name: "index_revenue_leads_on_account_id_and_revenue_contact_id"
+    t.index ["account_id", "zoho_lead_id"], name: "index_revenue_leads_on_account_id_and_zoho_lead_id", unique: true
+  end
+
+  create_table "revenue_risk_signals", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "category", null: false
+    t.string "signal_type", null: false
+    t.string "subject_type", null: false
+    t.bigint "subject_id", null: false
+    t.string "severity", default: "medium", null: false
+    t.datetime "first_detected_at", null: false
+    t.datetime "detected_at", null: false
+    t.datetime "resolved_at"
+    t.jsonb "context", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "category", "resolved_at"], name: "idx_on_account_id_category_resolved_at_33d7075598"
+    t.index ["account_id", "category", "signal_type", "subject_type", "subject_id"], name: "idx_revenue_risk_signals_open_dedup", unique: true, where: "(resolved_at IS NULL)"
+    t.index ["account_id", "signal_type"], name: "index_revenue_risk_signals_on_account_id_and_signal_type"
+  end
+
+  create_table "revenue_rollups", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.date "date", null: false
+    t.string "dimension_type", null: false
+    t.string "dimension_id", null: false
+    t.string "metric", null: false
+    t.integer "count", default: 0, null: false
+    t.decimal "sum_value", precision: 14, scale: 2, default: "0.0", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "date", "dimension_type", "dimension_id", "metric"], name: "idx_revenue_rollups_dedup", unique: true
+    t.index ["account_id", "dimension_type", "date"], name: "idx_on_account_id_dimension_type_date_5f0e1de5f3"
+  end
+
+  create_table "revenue_stage_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "zoho_deal_id", null: false
+    t.bigint "revenue_deal_id"
+    t.bigint "revenue_contact_id"
+    t.string "zoho_history_id"
+    t.string "source_system", default: "zoho_stage_history", null: false
+    t.string "stage", null: false
+    t.string "previous_stage"
+    t.datetime "entered_at", null: false
+    t.datetime "exited_at"
+    t.integer "duration_seconds"
+    t.jsonb "raw_payload", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "revenue_contact_id"], name: "idx_on_account_id_revenue_contact_id_1059575ca7"
+    t.index ["account_id", "revenue_deal_id"], name: "index_revenue_stage_events_on_account_id_and_revenue_deal_id"
+    t.index ["account_id", "zoho_deal_id", "stage", "entered_at"], name: "idx_stage_events_on_composite_key", unique: true, where: "(zoho_history_id IS NULL)"
+    t.index ["account_id", "zoho_deal_id", "zoho_history_id"], name: "idx_stage_events_on_history_id", unique: true, where: "(zoho_history_id IS NOT NULL)"
+  end
+
+  create_table "revenue_sync_cursors", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "sync_type", null: false
+    t.datetime "last_synced_at"
+    t.string "last_run_status"
+    t.text "last_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "sync_type"], name: "index_revenue_sync_cursors_on_account_id_and_sync_type", unique: true
   end
 
   create_table "sales_funnel_goals", force: :cascade do |t|

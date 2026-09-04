@@ -27,6 +27,7 @@ import TemplatesReports from './TemplatesReports.vue';
 import SalesFunnelReport from './SalesFunnelReport.vue';
 import WeeklyOpsReport from './WeeklyOpsReport.vue';
 import CallIntelligenceReport from './CallIntelligenceReport.vue';
+import RevenueIntelligenceReport from './RevenueIntelligenceReport.vue';
 
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
@@ -196,6 +197,15 @@ export default {
             featureFlag: FEATURE_FLAGS.CALL_INTELLIGENCE,
           },
           component: CallIntelligenceReport,
+        },
+        {
+          path: 'revenue_intelligence',
+          name: 'revenue_intelligence_reports',
+          meta: {
+            ...meta,
+            featureFlag: FEATURE_FLAGS.REVENUE_INTELLIGENCE,
+          },
+          component: RevenueIntelligenceReport,
         },
       ],
     },

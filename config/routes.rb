@@ -620,6 +620,7 @@ Rails.application.routes.draw do
               get :sales_funnel
               get :call_intelligence_agents
               get :call_intelligence_project
+              get :revenue_intelligence
             end
           end
           resource :year_in_review, only: [:show]

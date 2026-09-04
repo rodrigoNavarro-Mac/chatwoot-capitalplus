@@ -140,3 +140,83 @@ reconcile_meta_analytics_job:
   cron: '0 7 * * *'
   class: 'Campaigns::ReconcileMetaAnalyticsJob'
   queue: scheduled_jobs
+
+# executed hourly at :00 — sincroniza Zoho Leads -> revenue_leads (Revenue Intelligence, Fase 1)
+revenue_intelligence_sync_leads_job:
+  cron: '0 * * * *'
+  class: 'RevenueIntelligence::SyncZohoLeadsJob'
+  queue: scheduled_jobs
+
+# executed hourly at :05 — sincroniza Zoho Deals -> revenue_deals (Revenue Intelligence, Fase 1)
+revenue_intelligence_sync_deals_job:
+  cron: '5 * * * *'
+  class: 'RevenueIntelligence::SyncZohoDealsJob'
+  queue: scheduled_jobs
+
+# executed hourly at :15 — sincroniza Deals/{id}/Stage_History -> revenue_stage_events, después de
+# que Leads/Deals ya corrieron esta hora (Revenue Intelligence, Fase 1)
+revenue_intelligence_sync_stage_history_job:
+  cron: '15 * * * *'
+  class: 'RevenueIntelligence::SyncZohoStageHistoryJob'
+  queue: scheduled_jobs
+
+# executed hourly at :20 — sincroniza Zoho Events (Meetings) -> revenue_appointments (Revenue
+# Intelligence, Fase 1)
+revenue_intelligence_sync_meetings_job:
+  cron: '20 * * * *'
+  class: 'RevenueIntelligence::SyncZohoMeetingsJob'
+  queue: scheduled_jobs
+
+# executed hourly at :25 — resuelve revenue_contact_id de todo lo sincronizado esta hora, corre al
+# final a propósito (Revenue Intelligence, Fase 1)
+revenue_intelligence_resolve_identity_job:
+  cron: '25 * * * *'
+  class: 'RevenueIntelligence::ResolveIdentityJob'
+  queue: scheduled_jobs
+
+# executed hourly at :30 — construye revenue_events a partir de mensajes/llamadas/análisis/
+# leads/deals/stage_events/citas, después de que Fase 1 ya sincronizó esta hora (Revenue
+# Intelligence, Fase 2)
+revenue_intelligence_build_events_job:
+  cron: '30 * * * *'
+  class: 'RevenueIntelligence::BuildEventsJob'
+  queue: scheduled_jobs
+
+# executed hourly at :40 — agrega revenue_events en revenue_lead_journeys, después de que los
+# eventos de esta hora ya existen (Revenue Intelligence, Fase 2)
+revenue_intelligence_build_journeys_job:
+  cron: '40 * * * *'
+  class: 'RevenueIntelligence::BuildJourneysJob'
+  queue: scheduled_jobs
+
+# executed hourly at :45 — aplana call_analyses completados en revenue_call_features (Revenue
+# Intelligence, Fase 3)
+revenue_intelligence_extract_call_features_job:
+  cron: '45 * * * *'
+  class: 'RevenueIntelligence::ExtractCallFeaturesJob'
+  queue: scheduled_jobs
+
+# executed hourly at :50 — agrega revenue_events/revenue_call_features/revenue_stage_events en
+# revenue_rollups, después de que las features de esta hora ya existen (Revenue Intelligence,
+# Fase 3)
+revenue_intelligence_refresh_aggregates_job:
+  cron: '50 * * * *'
+  class: 'RevenueIntelligence::RefreshAggregatesJob'
+  queue: scheduled_jobs
+
+# executed daily at 0610 UTC — reglas determinísticas de riesgo de negocio (deals estancados,
+# leads sin contactar, citas sin visita verificada) sobre lo ya sincronizado/agregado (Revenue
+# Intelligence, Fase 4). Diario, no horario: son señales de reconciliación periódica, no
+# sincronización incremental en caliente.
+revenue_intelligence_detect_risks_job:
+  cron: '10 6 * * *'
+  class: 'RevenueIntelligence::DetectRisksJob'
+  queue: scheduled_jobs
+
+# executed daily at 0620 UTC — reglas determinísticas de integridad del propio CRM/sincronización
+# (inconsistencias won/lost vs. stage, deal sin lead vinculado, desfase de sync, conflictos de
+# identidad sin resolver) (Revenue Intelligence, Fase 4)
+revenue_intelligence_detect_data_quality_job:
+  cron: '20 6 * * *'
+  class: 'RevenueIntelligence::DetectDataQualityIssuesJob'
+  queue: scheduled_jobs

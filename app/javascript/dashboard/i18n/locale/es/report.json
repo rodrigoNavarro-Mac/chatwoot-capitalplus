@@ -809,6 +809,173 @@
       "FETCH_RECENT": "No se pudo obtener las llamadas recientes"
     }
   },
+  "REVENUE_INTELLIGENCE_REPORTS": {
+    "HEADER": "Inteligencia de ingresos",
+    "DESCRIPTION": "Recorrido de ingresos de lead a deal — embudo, atribución de marketing, desempeño del equipo de ventas, y señales de riesgo/calidad de datos abiertas, construido a partir de lo ya sincronizado desde Zoho CRM.",
+    "FILTERS": {
+      "SINCE": "Desde",
+      "UNTIL": "Hasta"
+    },
+    "TABS": {
+      "OVERVIEW": "Resumen",
+      "FUNNEL": "Embudo",
+      "MARKETING": "Marketing",
+      "SALES_TEAM": "Equipo de ventas",
+      "CALLS": "Llamadas",
+      "OBJECTIONS": "Objeciones",
+      "PIPELINE": "Pipeline",
+      "DATA_QUALITY": "Calidad de datos"
+    },
+    "OVERVIEW": {
+      "KPI": {
+        "LEADS": "Leads",
+        "APPOINTMENTS": "Citas",
+        "VISITS": "Visitas",
+        "RESERVED": "Apartados",
+        "WON": "Ventas"
+      },
+      "CONVERSION": {
+        "LEAD_TO_APPOINTMENT": "Lead → cita",
+        "APPOINTMENT_TO_VISIT": "Cita → visita",
+        "VISIT_TO_RESERVED": "Visita → apartado",
+        "WIN_RATE": "Tasa de cierre",
+        "WIN_RATE_INFO": "Ventas / (ventas + perdidos) en el periodo seleccionado."
+      },
+      "VS_PREVIOUS_PERIOD": "vs. periodo anterior",
+      "FUNNEL_TITLE": "Embudo",
+      "TREND_TITLE": "Tendencia",
+      "TREND_EMPTY": "Todavía no hay suficientes datos para graficar una tendencia",
+      "TIME_TO_TITLE": "Tiempo promedio a",
+      "AVG_TIME_TO_FIRST_RESPONSE": "Primera respuesta",
+      "AVG_TIME_TO_QUALIFICATION": "Calificación",
+      "AVG_TIME_TO_APPOINTMENT": "Cita",
+      "AVG_TIME_TO_CLOSE": "Cierre",
+      "NO_DATA": "Todavía no hay suficientes datos",
+      "RISKS_TITLE": "Requiere atención",
+      "RISKS_DESCRIPTION": "Señales de riesgo abiertas, sin importar el filtro de fechas de arriba — reflejan el estado actual, no el periodo seleccionado.",
+      "RISKS_EMPTY": "No hay señales de riesgo abiertas por el momento",
+      "INSIGHTS_TITLE": "Insights",
+      "INSIGHTS_EMPTY": "Todavía no hay suficientes datos para generar insights de este periodo",
+      "INSIGHTS": {
+        "CTA_CONVERSION": "Usar CTA en la llamada: {used_rate}% de conversión a cita vs {not_used_rate}% sin CTA.",
+        "INTENT_LEVEL_CONVERSION": "Los leads con intención \"{level}\" convierten a cita {rate}% de las veces.",
+        "WORST_OBJECTION": "La objeción \"{category}\" convierte {diff_points} puntos porcentuales por debajo del promedio ({rate}%).",
+        "RESPONSE_TIME_CONVERSION": "Responder en menos de 15 min: {fast_rate}% llega a cita vs {slow_rate}% cuando tarda más.",
+        "LEADS_NO_CONTACT": "{count} leads llevan más de 24 horas sin contacto."
+      }
+    },
+    "EVENT_TYPES": {
+      "LEAD_CREATED": "Leads",
+      "LEAD_CONTACTED": "Contactados",
+      "LEAD_QUALIFIED": "Calificados",
+      "DEAL_CREATED": "Deals",
+      "APPOINTMENT_CREATED": "Citas",
+      "VISIT_EFFECTIVE": "Visitas",
+      "RESERVED": "Apartados",
+      "CLOSED_WON": "Ganados",
+      "CLOSED_LOST": "Perdidos"
+    },
+    "SIGNAL_TYPES": {
+      "DEAL_STALLED": "Deal estancado",
+      "LEAD_NO_CONTACT": "Lead sin contacto",
+      "APPOINTMENT_NO_SHOW_UNVERIFIED": "Visita sin verificar tras la cita",
+      "DEAL_WON_STAGE_MISMATCH": "Inconsistencia ganado/etapa",
+      "DEAL_LOST_STAGE_MISMATCH": "Inconsistencia perdido/etapa",
+      "DEAL_WITHOUT_LEAD": "Deal sin lead relacionado",
+      "STAGE_EVENT_GAP": "Desfase de sincronización de etapa",
+      "UNRESOLVED_IDENTITY_CONFLICT": "Conflicto de identidad sin resolver"
+    },
+    "CONVERSION_SEGMENTS": {
+      "CTA_USED": "Usó CTA",
+      "CTA_NOT_USED": "No usó CTA",
+      "INTENT_LEVEL": "Intención: {level}",
+      "SCORE_BAND": "Score: {band}"
+    },
+    "FUNNEL": {
+      "TITLE": "Por desarrollo",
+      "EMPTY": "No hay actividad de embudo en este periodo",
+      "DEVELOPMENT": "Desarrollo"
+    },
+    "MARKETING": {
+      "TITLE": "Por campaña",
+      "EMPTY": "No hay actividad atribuida a campañas en este periodo",
+      "CAMPAIGN": "Campaña"
+    },
+    "SALES_TEAM": {
+      "TITLE": "Por agente",
+      "EMPTY": "No hay actividad de llamadas en este periodo",
+      "AGENT": "Agente",
+      "CALLS_STARTED": "Llamadas",
+      "CALLS_ANSWERED": "Contestadas",
+      "CALLS_MISSED": "Perdidas",
+      "ANSWERED_RATE": "% contestadas",
+      "AVG_SCORE": "Score prom.",
+      "CTA_RATE": "% con CTA"
+    },
+    "CALLS": {
+      "TITLE": "Conversión llamada → cita",
+      "DESCRIPTION": "Asociación, no causalidad — si se creó una cita para el mismo contacto después de que inició la llamada.",
+      "EMPTY": "No hay datos de conversión de llamadas en este periodo",
+      "SEGMENT": "Segmento",
+      "TOTAL": "Llamadas",
+      "CONVERTED": "Convertidas",
+      "RATE": "Tasa",
+      "GROUPS": {
+        "CTA": "Por uso de CTA",
+        "INTENT": "Por nivel de intención",
+        "SCORE": "Por banda de score"
+      }
+    },
+    "OBJECTIONS": {
+      "TITLE": "Conversión objeción → cita",
+      "EMPTY": "No hay datos de objeciones en este periodo",
+      "CATEGORY": "Objeción",
+      "MENTIONS": "{count} menciones —",
+      "CONVERTED_SUFFIX": "con cita después",
+      "CATEGORIES": {
+        "FINANCIAL": "Financiero",
+        "PRODUCT": "Producto",
+        "LOCATION": "Ubicación",
+        "DELIVERY_PREORDER": "Entrega / preventa",
+        "TRUST": "Confianza",
+        "NEED_ALTERNATIVE": "Necesidad / alternativa",
+        "TIMING": "Momento (timing)",
+        "AUTHORITY": "Autoridad de decisión",
+        "UNMET_EXPECTATION": "Expectativa no cumplida"
+      }
+    },
+    "PIPELINE": {
+      "TITLE": "Por etapa",
+      "EMPTY": "No hay actividad de etapas en este periodo",
+      "STAGE": "Etapa",
+      "ENTERED": "Entradas",
+      "AVG_DURATION": "Duración prom. (días)",
+      "AGING_TITLE": "Deals estancados",
+      "AGING_DESCRIPTION": "Sin importar el filtro de fechas de arriba — reflejan el estado actual, no el periodo seleccionado.",
+      "AGING_EMPTY": "No hay deals estancados por el momento",
+      "DAYS_STALLED": "Días estancado"
+    },
+    "DATA_QUALITY": {
+      "TITLE": "Señales de calidad de datos abiertas",
+      "DESCRIPTION": "Sin importar el filtro de fechas de arriba — reflejan el estado actual, no el periodo seleccionado.",
+      "EMPTY": "No hay señales de calidad de datos abiertas por el momento",
+      "HEALTH": {
+        "GOOD": "Buena salud",
+        "FAIR": "Revisar pronto",
+        "POOR": "Necesita atención",
+        "CRITICAL": "Crítico"
+      }
+    },
+    "SIGNAL": {
+      "SEVERITY": "Severidad",
+      "TYPE": "Tipo",
+      "SUBJECT": "Sujeto",
+      "DETECTED": "Detectado por primera vez"
+    },
+    "ERRORS": {
+      "FETCH": "No se pudo obtener el reporte de inteligencia de ingresos"
+    }
+  },
   "SALES_FUNNEL_REPORTS": {
     "HEADER": "Embudo de ventas",
     "DESCRIPTION": "Mide la conversión de leads a deals cerrados ganados, cruzando datos de Chatwoot con Zoho CRM, separado por entrada y desarrollo.",

@@ -97,6 +97,13 @@ const hasCallIntelligence = computed(() => {
   );
 });
 
+const hasRevenueIntelligence = computed(() => {
+  return isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.REVENUE_INTELLIGENCE
+  );
+});
+
 const hasFilteredUnreadCounts = computed(() => {
   return (
     hasConversationUnreadCounts.value &&
@@ -741,6 +748,15 @@ const menuItems = computed(() => {
                 name: 'Reports Call Intelligence',
                 label: t('SIDEBAR.REPORTS_CALL_INTELLIGENCE'),
                 to: accountScopedRoute('call_intelligence_reports'),
+              },
+            ]
+          : []),
+        ...(hasRevenueIntelligence.value
+          ? [
+              {
+                name: 'Reports Revenue Intelligence',
+                label: t('SIDEBAR.REPORTS_REVENUE_INTELLIGENCE'),
+                to: accountScopedRoute('revenue_intelligence_reports'),
               },
             ]
           : []),
