@@ -266,7 +266,8 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
   def revenue_intelligence_params
     {
       since: params[:since],
-      until: params[:until]
+      until: params[:until],
+      desarrollo: params[:desarrollo]
     }
   end
 end

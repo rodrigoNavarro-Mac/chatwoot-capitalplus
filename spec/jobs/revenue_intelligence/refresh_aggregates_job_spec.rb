@@ -76,6 +76,89 @@ describe RevenueIntelligence::RefreshAggregatesJob do
     end
   end
 
+  describe 'desarrollo column (selector global de Revenue Intelligence)' do
+    it 'attributes agent activity to the desarrollo of the deal carried on the event, over the lead' do
+      agent = create(:user, account: account)
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', desarrollo: 'Fuego')
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, desarrollo: 'OtroDesarrollo')
+      add_event('call_answered', Time.current, agent_id: agent.id, zoho_lead_id: lead.zoho_lead_id, zoho_deal_id: 'deal-1',
+                                                revenue_contact_id: revenue_contact.id)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'agent', dimension_id: agent.id.to_s, metric: 'call_answered')
+      expect(rollup.desarrollo).to eq('OtroDesarrollo')
+    end
+
+    it 'attributes agent_call_quality rows (score_sum/cta_used_count) to the desarrollo of the linked deal' do
+      agent = create(:user, account: account)
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', desarrollo: 'Fuego')
+      started_at = 2.days.ago
+      feature_call = create(:call, account: account, conversation: create(:conversation, account: account, contact: contact),
+                                   contact: contact, status: 'completed', started_at: started_at)
+      analysis = create(:call_analysis, call: feature_call, account: account, status: 'completed')
+      account.revenue_call_features.create!(call_id: feature_call.id, call_analysis_id: analysis.id, revenue_contact_id: revenue_contact.id,
+                                            agent_id: agent.id, zoho_deal_id: 'deal-1', started_at: started_at, cta_used: true, score_total: 80.0)
+
+      described_class.new.perform
+
+      scope = account.revenue_rollups.where(dimension_type: 'agent', dimension_id: agent.id.to_s)
+      expect(scope.find_by(metric: 'calls_scored').desarrollo).to eq('Fuego')
+      expect(scope.find_by(metric: 'score_sum').desarrollo).to eq('Fuego')
+      expect(scope.find_by(metric: 'cta_used_count').desarrollo).to eq('Fuego')
+    end
+
+    it 'attributes campaign/adset/advert rows to the desarrollo column already present on the lead' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', adset_id: 'adset-1', desarrollo: 'Fuego',
+                                    created_at_source: Time.current)
+
+      described_class.new.perform
+
+      expect(account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1').desarrollo).to eq('Fuego')
+      expect(account.revenue_rollups.find_by(dimension_type: 'adset').desarrollo).to eq('Fuego')
+    end
+
+    it 'attributes pipeline_stage rows to the desarrollo of the deal referenced by zoho_deal_id' do
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', desarrollo: 'Fuego')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', stage: 'Apartado', entered_at: Time.current)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'pipeline_stage', dimension_id: 'Apartado', metric: 'entered')
+      expect(rollup.desarrollo).to eq('Fuego')
+    end
+
+    it 'attributes call_conversion rows to the desarrollo of the call feature\'s linked deal' do
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', desarrollo: 'Fuego')
+      started_at = 2.days.ago
+      feature_call = create(:call, account: account, conversation: create(:conversation, account: account, contact: contact),
+                                   contact: contact, status: 'completed', started_at: started_at)
+      analysis = create(:call_analysis, call: feature_call, account: account, status: 'completed')
+      account.revenue_call_features.create!(call_id: feature_call.id, call_analysis_id: analysis.id, revenue_contact_id: revenue_contact.id,
+                                            zoho_deal_id: 'deal-1', started_at: started_at, cta_used: true)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'call_conversion', dimension_id: 'cta_used:true', metric: 'total')
+      expect(rollup.desarrollo).to eq('Fuego')
+    end
+
+    it 'attributes objection_conversion rows to the desarrollo of the analyzed call\'s linked deal' do
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', desarrollo: 'Fuego')
+      call = create(:call, account: account, conversation: create(:conversation, account: account, contact: contact), contact: contact,
+                           status: 'completed', started_at: 2.days.ago)
+      analysis = create(:call_analysis, call: call, account: account, status: 'completed', analyzed_at: 2.days.ago,
+                                        objections: [{ 'category' => 'financiera' }])
+      account.revenue_call_features.create!(call_id: call.id, call_analysis_id: analysis.id, revenue_contact_id: revenue_contact.id,
+                                            zoho_deal_id: 'deal-1', started_at: 2.days.ago)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'objection_conversion', dimension_id: 'financiera', metric: 'total')
+      expect(rollup.desarrollo).to eq('Fuego')
+    end
+  end
+
   describe 'agent dimension' do
     it 'buckets call activity by the Chatwoot agent_id carried on the event' do
       agent = create(:user, account: account)

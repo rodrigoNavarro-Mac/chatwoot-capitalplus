@@ -6,11 +6,53 @@ describe V2::Reports::RevenueIntelligenceBuilder do
   let(:builder) { described_class.new(account: account, params: params) }
 
   # rubocop:disable Metrics/ParameterLists
-  def rollup(dimension_type, dimension_id, metric, count: 1, sum_value: 0, date: 5.days.ago.to_date)
+  def rollup(dimension_type, dimension_id, metric, count: 1, sum_value: 0, date: 5.days.ago.to_date, desarrollo: '_all')
     account.revenue_rollups.create!(date: date, dimension_type: dimension_type, dimension_id: dimension_id, metric: metric, count: count,
-                                    sum_value: sum_value)
+                                    sum_value: sum_value, desarrollo: desarrollo)
   end
   # rubocop:enable Metrics/ParameterLists
+
+  describe 'desarrollo filter (selector global)' do
+    let(:params) { { since: 20.days.ago.to_i.to_s, until: Time.current.to_i.to_s, desarrollo: 'Fuego' } }
+
+    it 'restricts every rollup-backed section to the selected desarrollo when present in params' do
+      rollup('funnel', 'Fuego', 'lead_created', count: 3, desarrollo: 'Fuego')
+      rollup('funnel', 'OtroDesarrollo', 'lead_created', count: 10, desarrollo: 'OtroDesarrollo')
+      rollup('agent', '42', 'call_started', count: 5, desarrollo: 'Fuego')
+      rollup('agent', '42', 'call_started', count: 7, desarrollo: 'OtroDesarrollo')
+
+      result = builder.build
+
+      expect(result[:funnel]).to eq({ 'Fuego' => { 'lead_created' => 3 } })
+      expect(result[:agent]['42']['call_started']).to eq(5)
+    end
+
+    it 'ignores the filter and sums across all desarrollos when desarrollo is absent from params' do
+      rollup('funnel', 'Fuego', 'lead_created', count: 3, desarrollo: 'Fuego')
+      rollup('funnel', 'OtroDesarrollo', 'lead_created', count: 10, desarrollo: 'OtroDesarrollo')
+      unfiltered_builder = described_class.new(account: account, params: { since: 20.days.ago.to_i.to_s, until: Time.current.to_i.to_s })
+
+      result = unfiltered_builder.build
+
+      expect(result[:funnel].values.sum { |m| m['lead_created'] }).to eq(13)
+    end
+
+    it 'lists distinct real desarrollos for the selector, excluding the internal "_all" fallback' do
+      rollup('funnel', 'Fuego', 'lead_created', desarrollo: 'Fuego')
+      rollup('agent', '42', 'call_started', desarrollo: 'OtroDesarrollo')
+      rollup('funnel', '_all', 'lead_created', desarrollo: '_all')
+
+      result = builder.build
+
+      expect(result[:available_desarrollos]).to contain_exactly('Fuego', 'OtroDesarrollo')
+    end
+
+    it 'echoes back the applied filter as desarrollo_filter' do
+      result = builder.build
+
+      expect(result[:desarrollo_filter]).to eq('Fuego')
+    end
+  end
 
   describe '#build' do
     it 'sums funnel rollups by dimension_id and metric within the date range' do

@@ -9,6 +9,7 @@
 #  id             :bigint           not null, primary key
 #  count          :integer          default(0), not null
 #  date           :date             not null
+#  desarrollo     :string           default("_all"), not null
 #  dimension_type :string           not null
 #  metric         :string           not null
 #  sum_value      :decimal(14, 2)   default(0.0), not null
@@ -20,7 +21,7 @@
 # Indexes
 #
 #  idx_on_account_id_dimension_type_date_5f0e1de5f3  (account_id,dimension_type,date)
-#  idx_revenue_rollups_dedup                         (account_id,date,dimension_type,dimension_id,metric) UNIQUE
+#  idx_revenue_rollups_dedup                         (account_id,date,dimension_type,dimension_id,metric,desarrollo) UNIQUE
 #
 class RevenueRollup < ApplicationRecord
   DIMENSION_TYPES = %w[funnel agent campaign adset advert pipeline_stage call_conversion objection_conversion].freeze

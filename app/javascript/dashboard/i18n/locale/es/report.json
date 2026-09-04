@@ -814,7 +814,9 @@
     "DESCRIPTION": "Recorrido de ingresos de lead a deal — embudo, atribución de marketing, desempeño del equipo de ventas, y señales de riesgo/calidad de datos abiertas, construido a partir de lo ya sincronizado desde Zoho CRM.",
     "FILTERS": {
       "SINCE": "Desde",
-      "UNTIL": "Hasta"
+      "UNTIL": "Hasta",
+      "DESARROLLO": "Desarrollo",
+      "ALL_DESARROLLOS": "Todos los desarrollos"
     },
     "TABS": {
       "OVERVIEW": "Resumen",

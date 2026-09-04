@@ -187,9 +187,9 @@ class ReportsAPI extends ApiClient {
     });
   }
 
-  getRevenueIntelligenceReport({ from: since, to: until } = {}) {
+  getRevenueIntelligenceReport({ from: since, to: until, desarrollo } = {}) {
     return axios.get(`${this.url}/revenue_intelligence`, {
-      params: { since, until },
+      params: { since, until, desarrollo },
     });
   }
 }

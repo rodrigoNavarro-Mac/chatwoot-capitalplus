@@ -819,7 +819,9 @@
     "DESCRIPTION": "Lead-to-deal revenue journey — funnel, marketing attribution, sales team performance, and open risk/data-quality signals, built from what's already synced from Zoho CRM.",
     "FILTERS": {
       "SINCE": "Since",
-      "UNTIL": "Until"
+      "UNTIL": "Until",
+      "DESARROLLO": "Development",
+      "ALL_DESARROLLOS": "All developments"
     },
     "TABS": {
       "OVERVIEW": "Overview",

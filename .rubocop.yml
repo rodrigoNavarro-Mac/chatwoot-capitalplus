@@ -35,6 +35,7 @@ Metrics/ClassLength:
     - 'app/services/reports/weekly_ops_report_pdf_service.rb'
     - 'app/services/whatsapp/incoming_message_base_service.rb'
     - 'app/services/revenue_intelligence/identity_resolver.rb'
+    - 'app/jobs/revenue_intelligence/refresh_aggregates_job.rb'
     - 'config/initializers/rack_attack.rb'
 
 Metrics/MethodLength:

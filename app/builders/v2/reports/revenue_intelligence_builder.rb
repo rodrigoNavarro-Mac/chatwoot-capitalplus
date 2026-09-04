@@ -36,7 +36,9 @@ class V2::Reports::RevenueIntelligenceBuilder
       risk_signals: risk_signals_summary,
       journeys: journeys_summary,
       funnel_trend: daily_trend(FUNNEL_TREND_METRICS),
-      insights: insights
+      insights: insights,
+      available_desarrollos: available_desarrollos,
+      desarrollo_filter: desarrollo_filter
     }
   end
 
@@ -52,7 +54,24 @@ class V2::Reports::RevenueIntelligenceBuilder
   end
 
   def rollups_scope(dimension_type)
-    account.revenue_rollups.where(dimension_type: dimension_type, date: date_range)
+    scope = account.revenue_rollups.where(dimension_type: dimension_type, date: date_range)
+    desarrollo_filter ? scope.where(desarrollo: desarrollo_filter) : scope
+  end
+
+  # nil = "todos los desarrollos" (sin filtro, comportamiento histórico) — nunca se filtra por
+  # '_all' explícitamente desde el selector: esa clave es el fallback interno de
+  # RefreshAggregatesJob para filas sin desarrollo resoluble, no una opción real del dropdown (ver
+  # available_desarrollos, que la excluye).
+  def desarrollo_filter
+    params[:desarrollo].presence
+  end
+
+  # Lista para el selector global del frontend — se lee de revenue_rollups (nunca de
+  # revenue_leads/revenue_deals directo, mismo principio de "el builder no toca tablas crudas") y
+  # NO respeta el filtro de fecha ni el propio desarrollo_filter: siempre debe mostrar todas las
+  # opciones posibles, incluso si el usuario ya tiene una seleccionada.
+  def available_desarrollos
+    account.revenue_rollups.where.not(desarrollo: '_all').distinct.order(:desarrollo).pluck(:desarrollo)
   end
 
   # { dimension_id => { metric => count } } — pura agregación Ruby sobre filas ya pequeñas, mismo
@@ -156,8 +175,11 @@ class V2::Reports::RevenueIntelligenceBuilder
     (numerator.to_f / denominator).round(4)
   end
 
-  # No se filtra por date_range a propósito — una señal abierta es "ahora", no un dato histórico
-  # del rango seleccionado (ver riesgo del plan de Fase 5, documentado también en la UI).
+  # No se filtra por date_range NI por desarrollo_filter a propósito — una señal abierta es
+  # "ahora", no un dato histórico del rango/desarrollo seleccionado (ver riesgo del plan de Fase 5,
+  # documentado también en la UI). RevenueRiskSignal no tiene columna desarrollo (su `subject` es
+  # un RevenueDeal/RevenueLead genérico) — filtrar esto requeriría una migración aparte, fuera del
+  # alcance de este bloque.
   def risk_signals_summary
     open_signals = account.revenue_risk_signals.open
 
@@ -179,6 +201,11 @@ class V2::Reports::RevenueIntelligenceBuilder
   # INCIDENTE 2026-09-02: esto se reportó como "contradicción" en la UI. La UI ya NO muestra
   # won/lost/open de aquí como KPI destacado (ver Overview) para evitar la confusión; se
   # conservan en el payload solo para el desglose de tiempos promedio, que no tiene esa ambigüedad.
+  #
+  # NO se filtra por desarrollo_filter — revenue_lead_journeys no tiene columna desarrollo (Fase 2
+  # no la contemplaba); agregarla requeriría tocar BuildJourneysJob y su migración, fuera del
+  # alcance de este bloque (selector global "de mejor esfuerzo": Overview/Funnel/Marketing/Sales
+  # team/Calls/Objections/Pipeline sí filtran, este bloque de tiempos promedio no todavía).
   def journeys_summary
     journeys = account.revenue_lead_journeys.where(lead_created_at: date_range)
 
@@ -211,6 +238,12 @@ class V2::Reports::RevenueIntelligenceBuilder
     end
   end
 
+  def funnel_rollups_scope(date_range_value)
+    scope = account.revenue_rollups.where(dimension_type: 'funnel', metric: RevenueIntelligence::RefreshAggregatesJob::FUNNEL_EVENT_TYPES,
+                                          date: date_range_value)
+    desarrollo_filter ? scope.where(desarrollo: desarrollo_filter) : scope
+  end
+
   # Mismo número de días que date_range, inmediatamente anterior — para el badge de variación
   # (↑/↓ %) de cada KPI del Overview. Ninguna otra sección del payload usa este rango: el resto
   # sigue anclado a date_range únicamente.
@@ -238,9 +271,7 @@ class V2::Reports::RevenueIntelligenceBuilder
   end
 
   def stage_counts(date_range_value)
-    account.revenue_rollups.where(dimension_type: 'funnel', metric: RevenueIntelligence::RefreshAggregatesJob::FUNNEL_EVENT_TYPES,
-                                  date: date_range_value)
-           .group(:metric).sum(:count)
+    funnel_rollups_scope(date_range_value).group(:metric).sum(:count)
   end
 
   def delta_pct(count, previous_count)

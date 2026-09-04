@@ -19,6 +19,7 @@ const toDateInputValue = date => date.toISOString().slice(0, 10);
 const filters = ref({
   since: toDateInputValue(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
   until: toDateInputValue(new Date()),
+  desarrollo: '',
 });
 
 const isLoading = ref(false);
@@ -43,6 +44,7 @@ const fetchReport = async () => {
     const response = await ReportsAPI.getRevenueIntelligenceReport({
       from: toUnixSeconds(filters.value.since),
       to: toUnixSeconds(filters.value.until, true),
+      desarrollo: filters.value.desarrollo || undefined,
     });
     report.value = response.data;
   } catch (error) {
@@ -526,6 +528,13 @@ const insightText = insight => {
   );
 };
 const insights = computed(() => report.value?.insights ?? []);
+
+// Siempre trae la lista completa de desarrollos (el backend no la filtra por el propio
+// desarrollo_filter — ver V2::Reports::RevenueIntelligenceBuilder#available_desarrollos), así que
+// las opciones del selector no desaparecen al elegir uno.
+const availableDesarrollos = computed(
+  () => report.value?.available_desarrollos ?? []
+);
 </script>
 
 <template>
@@ -556,6 +565,23 @@ const insights = computed(() => report.value?.insights ?? []);
             type="date"
             class="!mb-0 !h-8 text-sm"
           />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs text-n-slate-11">
+            {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.DESARROLLO') }}
+          </label>
+          <select v-model="filters.desarrollo" class="!mb-0 !h-8 text-sm">
+            <option value="">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.ALL_DESARROLLOS') }}
+            </option>
+            <option
+              v-for="desarrollo in availableDesarrollos"
+              :key="desarrollo"
+              :value="desarrollo"
+            >
+              {{ desarrollo }}
+            </option>
+          </select>
         </div>
       </div>
 

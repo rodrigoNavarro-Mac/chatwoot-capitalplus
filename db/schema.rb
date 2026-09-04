@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_02_160000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_04_130800) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1927,7 +1927,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_02_160000) do
     t.decimal "sum_value", precision: 14, scale: 2, default: "0.0", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["account_id", "date", "dimension_type", "dimension_id", "metric"], name: "idx_revenue_rollups_dedup", unique: true
+    t.string "desarrollo", default: "_all", null: false
+    t.index ["account_id", "date", "dimension_type", "dimension_id", "metric", "desarrollo"], name: "idx_revenue_rollups_dedup", unique: true
     t.index ["account_id", "dimension_type", "date"], name: "idx_on_account_id_dimension_type_date_5f0e1de5f3"
   end
 
