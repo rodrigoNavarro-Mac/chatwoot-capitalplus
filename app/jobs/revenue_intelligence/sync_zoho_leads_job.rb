@@ -20,12 +20,15 @@ class RevenueIntelligence::SyncZohoLeadsJob < ApplicationJob
   # el cron, eso es responsabilidad exclusiva del rake task.
   INITIAL_WINDOW = 24.hours
 
-  def perform(account_id = nil)
+  # until_at: solo lo usa RevenueIntelligence::BackfillService para acotar la ventana en tramos
+  # (la búsqueda de Zoho rechaza cualquier criteria que devuelva más de 2000 registros); el cron
+  # nunca lo pasa, siempre sincroniza hasta el momento actual.
+  def perform(account_id = nil, until_at: nil)
     hooks = Integrations::Hook.enabled.where(app_id: 'zoho_crm')
     hooks = hooks.where(account_id: account_id) if account_id
 
     hooks.find_each do |hook|
-      sync_hook(hook)
+      sync_hook(hook, until_at: until_at)
     rescue StandardError => e
       Rails.logger.error("[RevenueIntelligence::SyncZohoLeadsJob] hook=#{hook.id} error=#{e.message}")
       ChatwootExceptionTracker.new(e, account: hook.account).capture_exception
@@ -34,11 +37,11 @@ class RevenueIntelligence::SyncZohoLeadsJob < ApplicationJob
 
   private
 
-  def sync_hook(hook)
+  def sync_hook(hook, until_at: nil)
     account = hook.account
     cursor_service = RevenueIntelligence::SyncCursorService.new(account, 'leads')
     since = (cursor_service.since || INITIAL_WINDOW.ago) - OVERLAP
-    until_at = Time.current
+    until_at ||= Time.current
 
     client = Crm::Zoho::Api::LeadsClient.new(hook)
     fetch_and_upsert_pages(client, account, since, until_at)

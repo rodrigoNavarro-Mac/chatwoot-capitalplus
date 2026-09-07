@@ -13,6 +13,17 @@ class RevenueIntelligence::BackfillService
     'meetings' => RevenueIntelligence::SyncZohoMeetingsJob
   }.freeze
 
+  # leads/deals usan Modified_Time:between en Crm::Zoho::Api::*Client#search_by_criteria, que
+  # Zoho rechaza con "LIMIT_REACHED" si el rango pedido devuelve más de 2000 registros — algo que
+  # un rango histórico de meses/años supera fácilmente en cuentas con mucho "ruido" de
+  # Modified_Time (reasignaciones, notas, automatizaciones, no solo altas/cambios reales).
+  # stage_history/meetings iteran por-registro (un request por deal/lead ya sincronizado), sin
+  # ese límite, así que no necesitan chunking.
+  CHUNKABLE_SYNC_TYPES = %w[leads deals].freeze
+  DEFAULT_CHUNK = 1.day
+  MIN_CHUNK = 15.minutes
+  LIMIT_REACHED_MARKER = 'LIMIT_REACHED'.freeze
+
   def initialize(account:, from:)
     @account = account
     @from = from
@@ -26,13 +37,64 @@ class RevenueIntelligence::BackfillService
 
   def perform!
     seed_cursors!
-    JOB_BY_SYNC_TYPE.each_value { |job_class| job_class.perform_now(account.id) }
+    CHUNKABLE_SYNC_TYPES.each { |sync_type| chunked_sync(sync_type) }
+    (JOB_BY_SYNC_TYPE.keys - CHUNKABLE_SYNC_TYPES).each { |sync_type| JOB_BY_SYNC_TYPE.fetch(sync_type).perform_now(account.id) }
     RevenueIntelligence::ResolveIdentityJob.perform_now(account.id)
   end
 
   private
 
   attr_reader :account, :from
+
+  # Avanza en tramos de tamaño ADAPTATIVO en vez de pedir todo el rango de una vez: si un tramo
+  # falla por el límite de 2000 de Zoho, se parte a la mitad y se reintenta desde el MISMO punto
+  # (el cursor no avanzó, seguro reintentar); si tiene éxito, el siguiente tramo vuelve a crecer
+  # hacia DEFAULT_CHUNK. Así no hace falta que quien corre el backfill adivine un rango que quepa.
+  def chunked_sync(sync_type)
+    job_class = JOB_BY_SYNC_TYPE.fetch(sync_type)
+    chunk = DEFAULT_CHUNK
+    # Fijo, tomado UNA vez (Time.current es un blanco móvil — compararlo recalculado en cada
+    # vuelta nunca converge) y TRUNCADO a segundos enteros: el cursor viaja a/desde Postgres en
+    # cada tramo, y el redondeo de punto flotante del viaje redondo puede perder una fracción de
+    # microsegundo — comparar un valor sin fracción contra el releído de la BD sí converge exacto
+    # (bug real encontrado en desarrollo: el loop giraba miles de veces sin terminar nunca,
+    # `since` quedándose una fracción de segundo por debajo de `deadline` para siempre).
+    deadline = Time.current.change(usec: 0)
+
+    until cursor_since(sync_type) >= deadline
+      target = [cursor_since(sync_type) + chunk, deadline].min
+      job_class.perform_now(account.id, until_at: target)
+      cursor = fresh_cursor(sync_type)
+
+      chunk = cursor.last_run_status == 'failed' ? shrink_chunk_or_raise(sync_type, cursor, chunk) : [chunk * 2, DEFAULT_CHUNK].min
+    end
+  end
+
+  def shrink_chunk_or_raise(sync_type, cursor, chunk)
+    unless cursor.last_error.to_s.include?(LIMIT_REACHED_MARKER)
+      raise "No se pudo sincronizar #{sync_type} (cuenta #{account.id}): #{cursor.last_error}"
+    end
+
+    if chunk <= MIN_CHUNK
+      raise "No se pudo sincronizar #{sync_type} (cuenta #{account.id}) incluso con el tramo mínimo " \
+            "(#{MIN_CHUNK.inspect}): #{cursor.last_error}"
+    end
+
+    chunk / 2
+  end
+
+  # Consulta directa a RevenueSyncCursor (no vía account.revenue_sync_cursors) — la asociación
+  # puede quedar "loaded" (cacheada en memoria) por una llamada anterior en la misma cuenta, y
+  # entonces #find_by filtra el array ya cargado en vez de ir a la base de datos: el chunked_sync
+  # de arriba jamás vería el cursor avanzar (bug real encontrado en desarrollo — el loop giraba
+  # miles de veces sin converger, con `since` congelado, aunque el job sí actualizaba la fila).
+  def cursor_since(sync_type)
+    fresh_cursor(sync_type).last_synced_at
+  end
+
+  def fresh_cursor(sync_type)
+    RevenueSyncCursor.find_by(account_id: account.id, sync_type: sync_type)
+  end
 
   def hook
     @hook ||= Integrations::Hook.find_by(account: account, app_id: 'zoho_crm', status: 'enabled')

@@ -84,6 +84,16 @@ describe RevenueIntelligence::SyncZohoLeadsJob do
       expect(other_account.revenue_leads.count).to eq(0)
     end
 
+    it 'uses the given until_at instead of Time.current, and advances the cursor to it (used by BackfillService chunking)' do
+      stub_leads([{ 'id' => 'lead-1' }])
+      target = 5.days.from_now
+
+      described_class.new.perform(account.id, until_at: target)
+
+      cursor = account.revenue_sync_cursors.find_by(sync_type: 'leads')
+      expect(cursor.last_synced_at).to be_within(1.second).of(target)
+    end
+
     it 'requests converted: both so already-converted leads are not excluded from the search' do
       stub_leads([{ 'id' => 'lead-1' }])
 

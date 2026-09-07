@@ -93,5 +93,28 @@ describe RevenueIntelligence::SyncZohoDealsJob do
       expect(account.revenue_deals.where(zoho_deal_id: 'deal-only-this-account')).to exist
       expect(other_account.revenue_deals.count).to eq(0)
     end
+
+    it 'uses the given until_at instead of Time.current, and advances the cursor to it (used by BackfillService chunking)' do
+      stub_deals([{ 'id' => 'deal-1' }])
+      target = 5.days.from_now
+
+      described_class.new.perform(account.id, until_at: target)
+
+      cursor = account.revenue_sync_cursors.find_by(sync_type: 'deals')
+      expect(cursor.last_synced_at).to be_within(1.second).of(target)
+    end
+
+    it 'preserves earlier pages already synced when a later page raises (no batching everything before saving)' do
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Deals/search})
+        .with { |request| CGI.parse(URI(request.uri).query)['page'].first == '1' }
+        .to_return(status: 200, body: { data: [{ 'id' => 'deal-page-1' }], info: { more_records: true } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Deals/search})
+        .with { |request| CGI.parse(URI(request.uri).query)['page'].first == '2' }
+        .to_return(status: 400, body: '{"code":"LIMIT_REACHED"}')
+
+      expect { described_class.new.perform }.not_to raise_error
+      expect(account.revenue_deals.where(zoho_deal_id: 'deal-page-1')).to exist
+    end
   end
 end
