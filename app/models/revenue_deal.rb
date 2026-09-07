@@ -48,6 +48,7 @@ class RevenueDeal < ApplicationRecord
   WON_STAGE = 'Cerrado ganado'.freeze
   LOST_STAGE = 'Cerrado perdido'.freeze
   RESERVED_STAGE = 'Apartado'.freeze
+  SCHEDULED_STAGE = 'Agendo cita'.freeze
 
   belongs_to :account
   belongs_to :revenue_contact, optional: true

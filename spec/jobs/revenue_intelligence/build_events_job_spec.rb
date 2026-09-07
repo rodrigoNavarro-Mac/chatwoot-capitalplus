@@ -167,6 +167,30 @@ describe RevenueIntelligence::BuildEventsJob do
       types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
       expect(types).to contain_exactly('stage_changed', 'visit_effective')
     end
+
+    it 'creates appointment_created when a deal reaches RevenueDeal::SCHEDULED_STAGE ("Agendo cita")' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+      stage_event = account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                                         stage: 'Agendo cita', entered_at: Time.current)
+
+      described_class.new.perform
+
+      types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
+      expect(types).to contain_exactly('stage_changed', 'appointment_created')
+    end
+
+    it 'does not duplicate appointment_created by stage when the deal already has a verified revenue_appointment' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+      account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
+                                           starts_at: Time.current)
+      stage_event = account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                                         stage: 'Agendo cita', entered_at: Time.current)
+
+      described_class.new.perform
+
+      types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
+      expect(types).to eq(['stage_changed'])
+    end
   end
 
   describe 'appointment_created events' do

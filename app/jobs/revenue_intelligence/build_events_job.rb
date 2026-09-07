@@ -169,7 +169,15 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
   end
 
   def build_stage_events(account, since, until_at)
-    stage_events = account.revenue_stage_events.where(window(:created_at, since, until_at))
+    # :updated_at, no :created_at — igual que build_lead_events/build_deal_events. Una fila de
+    # stage_event conserva su created_at original aunque StageHistoryBuilder la reescriba en una
+    # corrida posterior (find_or_initialize_by + save!, ver SyncZohoStageHistoryJob); filtrar por
+    # created_at hace que un hueco de ventana entre cursores sea PERMANENTE (nunca se autosana),
+    # a diferencia de leads/deals que se re-capturan solos en cuanto se vuelven a tocar.
+    stage_events = account.revenue_stage_events.where(window(:updated_at, since, until_at))
+    # Deals con una cita YA verificada por un Zoho Event real (ver revenue_appointment.rb) — para
+    # esos no se emite la señal débil por stage, así "Citas" no cuenta dos veces la misma cita.
+    verified_deal_ids = account.revenue_appointments.where.not(zoho_deal_id: nil).distinct.pluck(:zoho_deal_id).to_set
 
     each_safely(account, stage_events, 'stage_event') do |stage_event|
       upsert_event(account, event_type: 'stage_changed', event_at: stage_event.entered_at, source_system: 'revenue_stage_event',
@@ -177,7 +185,7 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
                             zoho_deal_id: stage_event.zoho_deal_id,
                             metadata: { 'stage' => stage_event.stage, 'previous_stage' => stage_event.previous_stage })
 
-      classify_stage_outcome(account, stage_event)
+      classify_stage_outcome(account, stage_event, verified_deal_ids)
     end
   end
 
@@ -185,17 +193,24 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
   # huérfano que sea simultáneamente "visita efectiva" y "ganado") — nunca es elsif, cada
   # clasificación se evalúa independiente. Mismas listas/constantes ya usadas en Fase 1 y en
   # V2::Reports::SalesFunnelBuilder — no se inventa una nueva.
-  def classify_stage_outcome(account, stage_event)
+  def classify_stage_outcome(account, stage_event, verified_deal_ids)
     stage = stage_event.stage
-    stage_outcome_types(stage).each do |event_type|
+    stage_outcome_types(stage, stage_event.zoho_deal_id, verified_deal_ids).each do |event_type|
       upsert_event(account, event_type: event_type, event_at: stage_event.entered_at, source_system: 'revenue_stage_event',
                             source_id: stage_event.id.to_s, revenue_contact_id: stage_event.revenue_contact_id,
                             zoho_deal_id: stage_event.zoho_deal_id)
     end
   end
 
-  def stage_outcome_types(stage)
+  # appointment_created por stage es una señal débil (el deal entró a "Agendo cita" en Zoho, sin
+  # que necesariamente exista un Zoho Event/Meeting real sincronizado) — confirmado con el usuario
+  # que, para esta cuenta, esta ES la fuente de verdad de "hubo cita" (el sync de Meetings vía
+  # Zoho casi no trae datos reales, ver riesgo ya documentado en el plan de Fase 1 sobre
+  # MeetingsClient/scope ZohoCRM.coql.READ). Se omite solo si ESE deal ya tiene una cita
+  # verificada real, para no contar la misma cita dos veces.
+  def stage_outcome_types(stage, zoho_deal_id, verified_deal_ids)
     [
+      ('appointment_created' if stage == RevenueDeal::SCHEDULED_STAGE && verified_deal_ids.exclude?(zoho_deal_id)),
       ('visit_effective' if V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES.include?(stage)),
       ('reserved' if stage == RevenueDeal::RESERVED_STAGE),
       ('closed_won' if stage == RevenueDeal::WON_STAGE),
@@ -204,7 +219,8 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
   end
 
   def build_appointment_events(account, since, until_at)
-    appointments = account.revenue_appointments.where(window(:created_at, since, until_at))
+    # :updated_at, mismo razonamiento que build_stage_events arriba.
+    appointments = account.revenue_appointments.where(window(:updated_at, since, until_at))
 
     each_safely(account, appointments, 'appointment') do |appointment|
       next if appointment.starts_at.blank?
