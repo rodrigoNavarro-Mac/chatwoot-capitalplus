@@ -138,7 +138,7 @@ const pipelineRows = computed(() =>
 // cerraron ganados) — null (se pinta "—") cuando el denominador es 0, para no mostrar 0% engañoso.
 const marketingRate = (numerator, denominator) => {
   if (!denominator) return null;
-  return Math.round((numerator / denominator) * 1000) / 10;
+  return Math.round(((numerator || 0) / denominator) * 1000) / 10;
 };
 
 const withMarketingRates = metrics => ({
