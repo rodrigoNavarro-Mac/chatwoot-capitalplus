@@ -217,7 +217,7 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = builder.build
 
       totals = result[:funnel_totals]['lead_created']
-      expect(totals).to eq({ count: 10, previous_count: 8, delta_pct: 25.0 })
+      expect(totals).to eq({ count: 10, previous_count: 8, delta_pct: 25.0, seguimiento_count: 0 })
     end
 
     it 'leaves delta_pct nil when there is no data for the previous period (avoids a division by zero)' do
@@ -225,7 +225,47 @@ describe V2::Reports::RevenueIntelligenceBuilder do
 
       result = builder.build
 
-      expect(result[:funnel_totals]['lead_created']).to eq({ count: 10, previous_count: 0, delta_pct: nil })
+      expect(result[:funnel_totals]['lead_created']).to eq({ count: 10, previous_count: 0, delta_pct: nil, seguimiento_count: 0 })
+    end
+
+    it 'counts a stage event as "seguimiento" when its lead was created before the selected range' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 40.days.ago)
+      account.revenue_events.create!(event_type: 'lead_contacted', event_at: 5.days.ago, source_system: 'test', source_id: '1',
+                                     zoho_lead_id: lead.zoho_lead_id)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['lead_contacted'][:seguimiento_count]).to eq(1)
+    end
+
+    it 'does not count a stage event as "seguimiento" when its lead was created within the selected range' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 5.days.ago)
+      account.revenue_events.create!(event_type: 'lead_contacted', event_at: 5.days.ago, source_system: 'test', source_id: '1',
+                                     zoho_lead_id: lead.zoho_lead_id)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['lead_contacted'][:seguimiento_count]).to eq(0)
+    end
+
+    it 'resolves the lead via the deal when the event only carries zoho_deal_id' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 40.days.ago)
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+      account.revenue_events.create!(event_type: 'closed_won', event_at: 5.days.ago, source_system: 'test', source_id: '1',
+                                     zoho_deal_id: 'deal-1')
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['closed_won'][:seguimiento_count]).to eq(1)
+    end
+
+    it 'defaults to "not seguimiento" when the lead/deal cannot be resolved (identity not yet linked)' do
+      account.revenue_events.create!(event_type: 'lead_contacted', event_at: 5.days.ago, source_system: 'test', source_id: '1',
+                                     zoho_lead_id: 'unresolved-lead')
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['lead_contacted'][:seguimiento_count]).to eq(0)
     end
   end
 

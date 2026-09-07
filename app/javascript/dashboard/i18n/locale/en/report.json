@@ -901,7 +901,9 @@
     "FUNNEL": {
       "TITLE": "By development",
       "EMPTY": "No funnel activity in this period",
-      "DEVELOPMENT": "Development"
+      "DEVELOPMENT": "Development",
+      "SEGUIMIENTO_LABEL": "follow-up",
+      "SEGUIMIENTO_TOOLTIP": "Of this total, how many are leads that already existed before the selected period and had this activity now (not new leads)"
     },
     "MARKETING": {
       "TITLE": "By campaign",

@@ -478,6 +478,10 @@ const funnelSteps = computed(() =>
     count: funnelTotals.value[stage]?.count ?? 0,
     conversion: funnelConversions.value[stage],
     deltaPct: funnelTotals.value[stage]?.delta_pct ?? null,
+    // Leads que ya existían ANTES del rango seleccionado pero tuvieron esta actividad de embudo
+    // dentro del rango (seguimiento a un lead viejo, no un lead nuevo) — ver
+    // RevenueIntelligenceBuilder#funnel_seguimiento_counts.
+    seguimientoCount: funnelTotals.value[stage]?.seguimiento_count ?? 0,
   }))
 );
 
@@ -844,6 +848,20 @@ const availableDesarrollos = computed(
                       t(
                         'REVENUE_INTELLIGENCE_REPORTS.OVERVIEW.VS_PREVIOUS_PERIOD'
                       )
+                    }}
+                  </div>
+                  <div
+                    v-if="step.seguimientoCount > 0"
+                    v-tooltip="
+                      t(
+                        'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP'
+                      )
+                    "
+                    class="text-xs mt-1 text-n-amber-11 cursor-help"
+                  >
+                    +{{ step.seguimientoCount }}
+                    {{
+                      t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL')
                     }}
                   </div>
                 </div>

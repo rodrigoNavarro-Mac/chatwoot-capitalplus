@@ -896,7 +896,9 @@
     "FUNNEL": {
       "TITLE": "Por desarrollo",
       "EMPTY": "No hay actividad de embudo en este periodo",
-      "DEVELOPMENT": "Desarrollo"
+      "DEVELOPMENT": "Desarrollo",
+      "SEGUIMIENTO_LABEL": "seguimiento",
+      "SEGUIMIENTO_TOOLTIP": "De este total, cuántos son leads que ya existían antes del periodo seleccionado y tuvieron esta actividad ahora (no leads nuevos)"
     },
     "MARKETING": {
       "TITLE": "Por campaña",

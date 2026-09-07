@@ -263,15 +263,59 @@ class V2::Reports::RevenueIntelligenceBuilder
   def funnel_totals
     current = stage_counts(date_range)
     previous = stage_counts(previous_date_range)
+    seguimiento = funnel_seguimiento_counts
 
     RevenueIntelligence::RefreshAggregatesJob::FUNNEL_EVENT_TYPES.index_with do |stage|
       count = current[stage] || 0
-      { count: count, previous_count: previous[stage] || 0, delta_pct: delta_pct(count, previous[stage] || 0) }
+      { count: count, previous_count: previous[stage] || 0, delta_pct: delta_pct(count, previous[stage] || 0),
+        seguimiento_count: seguimiento[stage] || 0 }
     end
   end
 
   def stage_counts(date_range_value)
     funnel_rollups_scope(date_range_value).group(:metric).sum(:count)
+  end
+
+  # De cada métrica de funnel_totals, cuántos eventos son de un lead que YA EXISTÍA antes de
+  # date_range.begin (seguimiento a un lead viejo) en vez de un lead creado dentro del propio
+  # rango — pregunta real del usuario ("¿por qué Contactados > Leads?": porque parte de los
+  # contactados son leads de periodos anteriores). Única excepción de este builder a "nunca tocar
+  # revenue_events/revenue_leads/revenue_deals crudo" (ver comentario de clase): esta clasificación
+  # depende de comparar la fecha de creación del lead contra el rango de fechas ELEGIDO POR EL
+  # USUARIO en cada request — un rollup diario no puede precalcular eso sin duplicar filas por
+  # cada rango futuro posible. Aceptable al volumen actual de la cuenta (mismo criterio ya usado
+  # para justificar un solo builder en vez de 8, ver comentario de clase); revisar si el volumen
+  # crece mucho.
+  def funnel_seguimiento_counts
+    cohort_by_lead_id, cohort_by_deal_id = funnel_cohort_lookups
+    range_start = date_range.begin.beginning_of_day
+
+    events = account.revenue_events.where(event_type: RevenueIntelligence::RefreshAggregatesJob::FUNNEL_EVENT_TYPES, event_at: date_range)
+    events.pluck(:event_type, :zoho_lead_id, :zoho_deal_id).each_with_object(Hash.new(0)) do |(event_type, zoho_lead_id, zoho_deal_id), acc|
+      created_at, desarrollo = cohort_by_lead_id[zoho_lead_id] || cohort_by_deal_id[zoho_deal_id] || [nil, nil]
+      next unless seguimiento?(created_at, desarrollo, range_start)
+
+      acc[event_type] += 1
+    end
+  end
+
+  def funnel_cohort_lookups
+    by_lead = account.revenue_leads.pluck(:zoho_lead_id, :created_at_source, :desarrollo)
+                     .each_with_object({}) { |(id, created_at, desarrollo), h| h[id] = [created_at, desarrollo] }
+    by_deal = account.revenue_deals.left_joins(:revenue_lead)
+                     .pluck(:zoho_deal_id, 'revenue_leads.created_at_source', 'revenue_deals.desarrollo')
+                     .each_with_object({}) { |(id, created_at, desarrollo), h| h[id] = [created_at, desarrollo] }
+    [by_lead, by_deal]
+  end
+
+  # created_at ausente (identidad sin resolver) se trata como "nuevo" por default, no como
+  # seguimiento — mismo criterio ya usado en el embudo viejo (SalesFunnelReactivatedLeads) para no
+  # penalizar visualmente un hueco de sincronización.
+  def seguimiento?(created_at, desarrollo, range_start)
+    return false if desarrollo_filter.present? && desarrollo != desarrollo_filter
+    return false if created_at.blank?
+
+    created_at < range_start
   end
 
   def delta_pct(count, previous_count)
