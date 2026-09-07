@@ -41,7 +41,7 @@ class RevenueIntelligence::SyncZohoLeadsJob < ApplicationJob
     until_at = Time.current
 
     client = Crm::Zoho::Api::LeadsClient.new(hook)
-    fetch_all_pages(client, account, since, until_at).each { |payload| upsert_lead(account, payload) }
+    fetch_and_upsert_pages(client, account, since, until_at)
 
     cursor_service.advance!(until_at)
   rescue StandardError => e
@@ -49,20 +49,23 @@ class RevenueIntelligence::SyncZohoLeadsJob < ApplicationJob
     raise
   end
 
-  def fetch_all_pages(client, account, since, until_at)
+  # Guarda cada página en cuanto llega, en vez de acumular todas y guardar al final — si una
+  # página posterior falla (ej. límite de 2000 registros de la búsqueda de Zoho), las páginas
+  # anteriores ya sincronizadas no se pierden.
+  def fetch_and_upsert_pages(client, account, since, until_at)
     criteria = "(Modified_Time:between:#{zoho_iso(account, since)},#{zoho_iso(account, until_at)})"
-    records = []
     page = 1
 
     loop do
-      result = client.search_by_criteria(criteria, page: page, per_page: PER_PAGE)
-      records.concat(result[:data])
+      # converted: 'both' — sin esto, la búsqueda de Zoho EXCLUYE por default los leads ya
+      # convertidos a Deal (confirmado contra la API real), y revenue_deals.revenue_lead_id nunca
+      # se puede resolver porque su lead de origen jamás llega a sincronizarse.
+      result = client.search_by_criteria(criteria, page: page, per_page: PER_PAGE, converted: 'both')
+      result[:data].each { |payload| upsert_lead(account, payload) }
       break unless result[:more_records] && page < MAX_PAGES
 
       page += 1
     end
-
-    records
   end
 
   def zoho_iso(account, time)
@@ -77,5 +80,20 @@ class RevenueIntelligence::SyncZohoLeadsJob < ApplicationJob
     lead = account.revenue_leads.find_or_initialize_by(zoho_lead_id: zoho_lead_id)
     lead.assign_attributes(RevenueIntelligence::LeadMapper.map(payload).merge(synced_at: Time.current))
     lead.save!
+    link_converted_deal(account, lead, payload)
+  end
+
+  # Zoho no expone el id del Lead de origen en el payload del Deal — sí al revés: un Lead
+  # convertido trae Converted_Deal: {id:, name:} apuntando al Deal resultante (confirmado contra
+  # la API real). Best-effort: si ese Deal todavía no está sincronizado, queda sin enlazar hasta
+  # que una corrida futura (de este mismo job, tras un nuevo sync de Deals) lo encuentre.
+  def link_converted_deal(account, lead, payload)
+    converted_deal_id = payload.dig('Converted_Deal', 'id')
+    return if converted_deal_id.blank?
+
+    deal = account.revenue_deals.find_by(zoho_deal_id: converted_deal_id)
+    return if deal.blank? || deal.revenue_lead_id.present?
+
+    deal.update!(revenue_lead_id: lead.id)
   end
 end

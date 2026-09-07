@@ -84,6 +84,54 @@ describe RevenueIntelligence::SyncZohoLeadsJob do
       expect(other_account.revenue_leads.count).to eq(0)
     end
 
+    it 'requests converted: both so already-converted leads are not excluded from the search' do
+      stub_leads([{ 'id' => 'lead-1' }])
+
+      described_class.new.perform
+
+      expect(WebMock).to have_requested(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+        .with(query: hash_including('converted' => 'both'))
+    end
+
+    it "links revenue_deals.revenue_lead_id from the lead's Converted_Deal when the deal already exists" do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1')
+      stub_leads([{ 'id' => 'lead-1', 'Converted_Deal' => { 'id' => 'deal-1', 'name' => 'Someone' } }])
+
+      described_class.new.perform
+
+      lead = account.revenue_leads.find_by(zoho_lead_id: 'lead-1')
+      expect(deal.reload.revenue_lead_id).to eq(lead.id)
+    end
+
+    it 'does not raise and leaves revenue_lead_id nil when the Converted_Deal is not synced yet' do
+      stub_leads([{ 'id' => 'lead-1', 'Converted_Deal' => { 'id' => 'deal-not-synced-yet', 'name' => 'Someone' } }])
+
+      expect { described_class.new.perform }.not_to raise_error
+    end
+
+    it 'never overwrites an already-linked revenue_lead_id on a deal' do
+      other_lead = account.revenue_leads.create!(zoho_lead_id: 'lead-other')
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: other_lead.id)
+      stub_leads([{ 'id' => 'lead-1', 'Converted_Deal' => { 'id' => 'deal-1', 'name' => 'Someone' } }])
+
+      described_class.new.perform
+
+      expect(deal.reload.revenue_lead_id).to eq(other_lead.id)
+    end
+
+    it 'preserves earlier pages already synced when a later page raises (no batching everything before saving)' do
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+        .with { |request| CGI.parse(URI(request.uri).query)['page'].first == '1' }
+        .to_return(status: 200, body: { data: [{ 'id' => 'lead-page-1' }], info: { more_records: true } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+        .with { |request| CGI.parse(URI(request.uri).query)['page'].first == '2' }
+        .to_return(status: 400, body: '{"code":"LIMIT_REACHED"}')
+
+      expect { described_class.new.perform }.not_to raise_error
+      expect(account.revenue_leads.where(zoho_lead_id: 'lead-page-1')).to exist
+    end
+
     it 'follows pagination until more_records is false' do
       stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
         .with { |request| CGI.parse(URI(request.uri).query)['page'].first == '1' }
