@@ -57,10 +57,15 @@ class RevenueIntelligence::LeadMapper
     { presupuesto_raw: payload['Presupuesto'], presupuesto_min: parsed[:min], presupuesto_max: parsed[:max] }
   end
 
+  # campaign_id/adset_id/advert_id son la clave de identidad usada para agrupar en el rollup de
+  # Marketing (ver RefreshAggregatesJob#campaign_rows) — para esta cuenta, Zoho NUNCA llena el
+  # lookup "Campa_a" ni Adset_Id/Advert_Id (confirmado contra payloads reales: siempre nil),
+  # solo los campos de nombre libre. Sin fallback, campaign_id sale nil en el 100% de los leads y
+  # la pestaña Marketing queda vacía. Se usa el nombre como id cuando no hay lookup real.
   def marketing_attrs
     {
       lead_source: payload['Lead_Source'],
-      campaign_id: payload.dig('Campa_a', 'id'),
+      campaign_id: payload.dig('Campa_a', 'id') || payload['Campaing_Name'],
       campaign_name: payload['Campaing_Name'].presence || payload.dig('Campa_a', 'name')
     }
   end
@@ -69,9 +74,9 @@ class RevenueIntelligence::LeadMapper
     {
       ad_account_id: payload['Ad_Account_Id'],
       ad_account_name: payload['Ad_Account_Name'],
-      adset_id: payload['Adset_Id'],
+      adset_id: payload['Adset_Id'] || payload['Adset_Name'],
       adset_name: payload['Adset_Name'],
-      advert_id: payload['Advert_Id'],
+      advert_id: payload['Advert_Id'] || payload['Advert_name'],
       advert_name: payload['Advert_name'],
       form_id: payload['Form_Id'],
       form_name: payload['Form_Name'],

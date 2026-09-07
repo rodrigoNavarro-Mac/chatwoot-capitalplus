@@ -78,6 +78,15 @@ describe RevenueIntelligence::LeadMapper do
       expect(attrs[:campaign_name]).to eq('Nombre del lookup')
     end
 
+    it 'falls back to the *_Name fields as ids when Zoho never fills the lookup/id fields (caso real de esta cuenta)' do
+      attrs = described_class.map({ 'Campa_a' => nil, 'Campaing_Name' => 'Fuego 11 Abril', 'Adset_Id' => nil,
+                                    'Adset_Name' => 'Adset 1', 'Advert_Id' => nil, 'Advert_name' => 'Anuncio 1' })
+
+      expect(attrs[:campaign_id]).to eq('Fuego 11 Abril')
+      expect(attrs[:adset_id]).to eq('Adset 1')
+      expect(attrs[:advert_id]).to eq('Anuncio 1')
+    end
+
     it 'defaults attempt_count and reassignment_count to 0 when absent' do
       attrs = described_class.map({})
 
