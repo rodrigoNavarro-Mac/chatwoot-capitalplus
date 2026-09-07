@@ -133,6 +133,20 @@ const pipelineRows = computed(() =>
 // componente de árbol nuevo. El id de campaña no tiene nombre resuelto (limitación documentada:
 // esa dimensión ya tiene datos reales acumulados desde Fase 3, no se puede reescribir su clave);
 // adset/advert sí traen `name` porque son dimensiones nuevas sin histórico que proteger.
+// % contactados = lead_contacted / lead_created (qué tan rápido/bien se atiende lo que entra por
+// esa campaña); % a venta = closed_won / deal_created (de los deals que sí se abrieron, cuántos
+// cerraron ganados) — null (se pinta "—") cuando el denominador es 0, para no mostrar 0% engañoso.
+const marketingRate = (numerator, denominator) => {
+  if (!denominator) return null;
+  return Math.round((numerator / denominator) * 1000) / 10;
+};
+
+const withMarketingRates = metrics => ({
+  ...metrics,
+  contactRate: marketingRate(metrics.lead_contacted, metrics.lead_created),
+  closeRate: marketingRate(metrics.closed_won, metrics.deal_created),
+});
+
 const marketingRows = computed(() => {
   const campaigns = report.value?.campaign ?? [];
   const rows = [];
@@ -141,27 +155,33 @@ const marketingRows = computed(() => {
       key: `c:${campaign.id}`,
       level: 0,
       label: campaign.id,
-      metrics: campaign.metrics,
+      metrics: withMarketingRates(campaign.metrics),
     });
     (campaign.adsets ?? []).forEach(adset => {
       rows.push({
         key: `a:${campaign.id}:${adset.id}`,
         level: 1,
         label: adset.name,
-        metrics: adset.metrics,
+        metrics: withMarketingRates(adset.metrics),
       });
       (adset.adverts ?? []).forEach(advert => {
         rows.push({
           key: `d:${campaign.id}:${adset.id}:${advert.id}`,
           level: 2,
           label: advert.name,
-          metrics: advert.metrics,
+          metrics: withMarketingRates(advert.metrics),
         });
       });
     });
   });
   return rows;
 });
+const MARKETING_METRIC_COLUMNS = [
+  'lead_created',
+  'lead_contacted',
+  'deal_created',
+  'closed_won',
+];
 
 // Traduce nombres crudos del backend (event_type/signal_type/segmentos compuestos) a lenguaje de
 // negocio — se aplica en TODAS las pestañas, no solo Overview, para no dejar ningún
@@ -920,11 +940,14 @@ const availableDesarrollos = computed(
                 <th>
                   {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CAMPAIGN') }}
                 </th>
-                <th
-                  v-for="metric in ['lead_created', 'closed_won']"
-                  :key="metric"
-                >
+                <th v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
                   {{ eventTypeLabel(metric) }}
+                </th>
+                <th>
+                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONTACT_RATE') }}
+                </th>
+                <th>
+                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CLOSE_RATE') }}
                 </th>
               </tr>
             </thead>
@@ -942,11 +965,22 @@ const availableDesarrollos = computed(
                     {{ row.label }}
                   </span>
                 </td>
-                <td
-                  v-for="metric in ['lead_created', 'closed_won']"
-                  :key="metric"
-                >
+                <td v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
                   {{ row.metrics[metric] || 0 }}
+                </td>
+                <td>
+                  {{
+                    row.metrics.contactRate === null
+                      ? '—'
+                      : `${row.metrics.contactRate}%`
+                  }}
+                </td>
+                <td>
+                  {{
+                    row.metrics.closeRate === null
+                      ? '—'
+                      : `${row.metrics.closeRate}%`
+                  }}
                 </td>
               </tr>
             </tbody>

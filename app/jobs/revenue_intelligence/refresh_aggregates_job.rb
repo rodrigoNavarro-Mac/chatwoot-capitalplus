@@ -152,26 +152,33 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   end
 
   # dimension_id: campaign_id (y, en paralelo, adset/advert — ver marketing_dimension_rows).
-  # leads_created desde revenue_leads directo (no vía eventos, el campaign_id no viaja en el
-  # evento); closed_won heredado del campaign_id del lead de origen del deal (best-effort, ver
-  # revenue_deals.revenue_lead_id en Fase 1).
+  # lead_created/lead_contacted desde revenue_leads directo (no vía eventos, el campaign_id no
+  # viaja en el evento); deal_created/closed_won heredados del campaign_id del lead de origen del
+  # deal (best-effort, ver revenue_deals.revenue_lead_id en Fase 1) — deal_created para saber qué
+  # campaña/adset/advert produce deals (no solo ventas cerradas), closed_won para la venta en sí.
   def campaign_rows(account, since, until_at)
-    lead_rows = account.revenue_leads.where.not(campaign_id: nil).where(window(:created_at_source, since, until_at))
-                       .pluck(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, :created_at_source)
-                       .flat_map do |cols|
-      marketing_dimension_rows(account, cols.last.to_date, cols[0..5], 'lead_created')
-    end
-
-    won_rows = account.revenue_deals.joins(:revenue_lead).where.not(revenue_leads: { campaign_id: nil })
-                      .where(won: true).where(window(:updated_at, since, until_at))
-                      .pluck('revenue_leads.campaign_id', 'revenue_leads.adset_id', 'revenue_leads.adset_name',
-                             'revenue_leads.advert_id', 'revenue_leads.advert_name', 'revenue_deals.desarrollo', :updated_at)
-                      .flat_map do |cols|
-      marketing_dimension_rows(account, cols.last.to_date, cols[0..5], 'closed_won')
-    end
-
-    lead_rows + won_rows
+    campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
+      campaign_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
+      campaign_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
+      campaign_deal_rows(account, since, until_at, date_column: :updated_at, metric: 'closed_won', won_only: true)
   end
+
+  def campaign_lead_rows(account, since, until_at, date_column, metric)
+    account.revenue_leads.where.not(campaign_id: nil).where.not(date_column => nil).where(window(date_column, since, until_at))
+           .pluck(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, date_column)
+           .flat_map { |cols| marketing_dimension_rows(account, cols.last.to_date, cols[0..5], metric) }
+  end
+
+  # rubocop:disable Metrics/ParameterLists
+  def campaign_deal_rows(account, since, until_at, date_column:, metric:, won_only:)
+    scope = account.revenue_deals.joins(:revenue_lead).where.not(revenue_leads: { campaign_id: nil })
+    scope = scope.where(won: true) if won_only
+    scope.where.not(date_column => nil).where(window(date_column, since, until_at))
+         .pluck('revenue_leads.campaign_id', 'revenue_leads.adset_id', 'revenue_leads.adset_name',
+                'revenue_leads.advert_id', 'revenue_leads.advert_name', 'revenue_deals.desarrollo', date_column)
+         .flat_map { |cols| marketing_dimension_rows(account, cols.last.to_date, cols[0..5], metric) }
+  end
+  # rubocop:enable Metrics/ParameterLists
 
   # Emite hasta 3 filas por lead/deal de marketing: 'campaign' (siempre, dimension_id = campaign_id
   # tal cual — SIN cambiar esta clave, ya tiene datos reales acumulados en producción desde Fase 3),

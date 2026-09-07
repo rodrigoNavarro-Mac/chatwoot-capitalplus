@@ -906,7 +906,9 @@
     "MARKETING": {
       "TITLE": "By campaign",
       "EMPTY": "No campaign-attributed activity in this period",
-      "CAMPAIGN": "Campaign"
+      "CAMPAIGN": "Campaign",
+      "CONTACT_RATE": "% contacted",
+      "CLOSE_RATE": "% to sale"
     },
     "SALES_TEAM": {
       "TITLE": "By agent",

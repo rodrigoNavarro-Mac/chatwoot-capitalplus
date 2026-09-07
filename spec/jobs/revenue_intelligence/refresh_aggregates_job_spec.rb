@@ -223,6 +223,33 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(rollup.count).to eq(1)
     end
 
+    it 'counts lead_contacted by campaign_id, keyed by first_contact_at' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', first_contact_at: Time.current)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_contacted')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'does not count lead_contacted when first_contact_at is absent' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', created_at_source: Time.current)
+
+      described_class.new.perform
+
+      expect(account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_contacted')).to be_nil
+    end
+
+    it 'attributes deal_created (won or not) to the campaign_id of the deal\'s originating lead' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, created_at_source: Time.current)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'deal_created')
+      expect(rollup.count).to eq(1)
+    end
+
     it 'attributes closed_won to the campaign_id of the deal\'s originating lead' do
       lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
       account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, won: true, stage: 'Cerrado ganado')
