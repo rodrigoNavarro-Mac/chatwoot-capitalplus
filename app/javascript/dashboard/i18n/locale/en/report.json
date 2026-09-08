@@ -821,7 +821,25 @@
       "SINCE": "Since",
       "UNTIL": "Until",
       "DESARROLLO": "Development",
-      "ALL_DESARROLLOS": "All developments"
+      "ALL_DESARROLLOS": "All developments",
+      "PERIOD_TYPE": "Period",
+      "PERIOD_TYPES": {
+        "CUSTOM": "Custom",
+        "WEEKLY": "Weekly",
+        "MONTHLY": "Monthly",
+        "QUARTERLY": "Quarterly",
+        "ANNUAL": "Annual"
+      },
+      "WEEK": "Week",
+      "MONTH": "Month",
+      "QUARTER": "Quarter",
+      "YEAR": "Year",
+      "QUARTER_OPTIONS": {
+        "Q1": "Q1 (Jan–Mar)",
+        "Q2": "Q2 (Apr–Jun)",
+        "Q3": "Q3 (Jul–Sep)",
+        "Q4": "Q4 (Oct–Dec)"
+      }
     },
     "TABS": {
       "OVERVIEW": "Overview",

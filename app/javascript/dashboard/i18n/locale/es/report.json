@@ -816,7 +816,25 @@
       "SINCE": "Desde",
       "UNTIL": "Hasta",
       "DESARROLLO": "Desarrollo",
-      "ALL_DESARROLLOS": "Todos los desarrollos"
+      "ALL_DESARROLLOS": "Todos los desarrollos",
+      "PERIOD_TYPE": "Periodo",
+      "PERIOD_TYPES": {
+        "CUSTOM": "Personalizado",
+        "WEEKLY": "Semanal",
+        "MONTHLY": "Mensual",
+        "QUARTERLY": "Trimestral",
+        "ANNUAL": "Anual"
+      },
+      "WEEK": "Semana",
+      "MONTH": "Mes",
+      "QUARTER": "Trimestre",
+      "YEAR": "Año",
+      "QUARTER_OPTIONS": {
+        "Q1": "T1 (Ene–Mar)",
+        "Q2": "T2 (Abr–Jun)",
+        "Q3": "T3 (Jul–Sep)",
+        "Q4": "T4 (Oct–Dic)"
+      }
     },
     "TABS": {
       "OVERVIEW": "Resumen",

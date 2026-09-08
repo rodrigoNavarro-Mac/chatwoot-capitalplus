@@ -57,6 +57,83 @@ const fetchReport = async () => {
 onMounted(fetchReport);
 watch(filters, fetchReport, { deep: true });
 
+// Selector de periodo (Semanal/Mensual/Trimestral/Anual/Personalizado) — deriva filters.since/
+// filters.until automáticamente según el tipo elegido; 'custom' no los toca, deja los inputs de
+// fecha libres exactamente como funcionaban antes de este selector.
+const periodType = ref('custom');
+
+const today = new Date();
+const currentYear = today.getFullYear();
+
+// ISO 8601: la semana de un año es la que contiene su jueves.
+const isoWeekValue = date => {
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  target.setDate(target.getDate() + 3 - ((target.getDay() + 6) % 7));
+  const week1 = new Date(target.getFullYear(), 0, 4);
+  const weekNumber =
+    1 +
+    Math.round(
+      ((target - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+    );
+  return `${target.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+};
+
+const isoWeekToRange = value => {
+  const [yearStr, weekStr] = value.split('-W');
+  const year = Number(yearStr);
+  const week = Number(weekStr);
+  const jan4 = new Date(year, 0, 4);
+  const jan4Day = (jan4.getDay() + 6) % 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - jan4Day + (week - 1) * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { start: monday, end: sunday };
+};
+
+const weekValue = ref(isoWeekValue(today));
+const monthValue = ref(
+  `${currentYear}-${String(today.getMonth() + 1).padStart(2, '0')}`
+);
+const quarterValue = ref(Math.floor(today.getMonth() / 3) + 1);
+const quarterYearValue = ref(currentYear);
+const annualYearValue = ref(currentYear);
+const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentYear - i);
+
+const applyPeriod = () => {
+  if (periodType.value === 'weekly') {
+    const { start, end } = isoWeekToRange(weekValue.value);
+    filters.value.since = toDateInputValue(start);
+    filters.value.until = toDateInputValue(end);
+  } else if (periodType.value === 'monthly') {
+    const [year, month] = monthValue.value.split('-').map(Number);
+    filters.value.since = toDateInputValue(new Date(year, month - 1, 1));
+    filters.value.until = toDateInputValue(new Date(year, month, 0));
+  } else if (periodType.value === 'quarterly') {
+    const startMonth = (quarterValue.value - 1) * 3;
+    filters.value.since = toDateInputValue(
+      new Date(quarterYearValue.value, startMonth, 1)
+    );
+    filters.value.until = toDateInputValue(
+      new Date(quarterYearValue.value, startMonth + 3, 0)
+    );
+  } else if (periodType.value === 'annual') {
+    filters.value.since = toDateInputValue(
+      new Date(annualYearValue.value, 0, 1)
+    );
+    filters.value.until = toDateInputValue(
+      new Date(annualYearValue.value, 11, 31)
+    );
+  }
+};
+
+watch(periodType, applyPeriod);
+watch(
+  [weekValue, monthValue, quarterValue, quarterYearValue, annualYearValue],
+  applyPeriod
+);
+
 const TABS = [
   { key: 'overview', label: t('REVENUE_INTELLIGENCE_REPORTS.TABS.OVERVIEW') },
   { key: 'funnel', label: t('REVENUE_INTELLIGENCE_REPORTS.TABS.FUNNEL') },
@@ -572,24 +649,120 @@ const availableDesarrollos = computed(
       <div class="flex flex-wrap items-end gap-3 mb-6">
         <div class="flex flex-col gap-1">
           <label class="text-xs text-n-slate-11">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.SINCE') }}
+            {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.PERIOD_TYPE') }}
           </label>
-          <input
-            v-model="filters.since"
-            type="date"
-            class="!mb-0 !h-8 text-sm"
-          />
+          <select v-model="periodType" class="!mb-0 !h-8 text-sm">
+            <option value="custom">
+              {{
+                t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.PERIOD_TYPES.CUSTOM')
+              }}
+            </option>
+            <option value="weekly">
+              {{
+                t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.PERIOD_TYPES.WEEKLY')
+              }}
+            </option>
+            <option value="monthly">
+              {{
+                t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.PERIOD_TYPES.MONTHLY')
+              }}
+            </option>
+            <option value="quarterly">
+              {{
+                t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.PERIOD_TYPES.QUARTERLY')
+              }}
+            </option>
+            <option value="annual">
+              {{
+                t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.PERIOD_TYPES.ANNUAL')
+              }}
+            </option>
+          </select>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs text-n-slate-11">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.UNTIL') }}
-          </label>
-          <input
-            v-model="filters.until"
-            type="date"
-            class="!mb-0 !h-8 text-sm"
-          />
-        </div>
+
+        <template v-if="periodType === 'weekly'">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.WEEK') }}
+            </label>
+            <input v-model="weekValue" type="week" class="!mb-0 !h-8 text-sm" />
+          </div>
+        </template>
+        <template v-else-if="periodType === 'monthly'">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.MONTH') }}
+            </label>
+            <input
+              v-model="monthValue"
+              type="month"
+              class="!mb-0 !h-8 text-sm"
+            />
+          </div>
+        </template>
+        <template v-else-if="periodType === 'quarterly'">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.QUARTER') }}
+            </label>
+            <select v-model.number="quarterValue" class="!mb-0 !h-8 text-sm">
+              <option v-for="q in [1, 2, 3, 4]" :key="q" :value="q">
+                {{
+                  t(
+                    `REVENUE_INTELLIGENCE_REPORTS.FILTERS.QUARTER_OPTIONS.Q${q}`
+                  )
+                }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.YEAR') }}
+            </label>
+            <select
+              v-model.number="quarterYearValue"
+              class="!mb-0 !h-8 text-sm"
+            >
+              <option v-for="year in YEAR_OPTIONS" :key="year" :value="year">
+                {{ year }}
+              </option>
+            </select>
+          </div>
+        </template>
+        <template v-else-if="periodType === 'annual'">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.YEAR') }}
+            </label>
+            <select v-model.number="annualYearValue" class="!mb-0 !h-8 text-sm">
+              <option v-for="year in YEAR_OPTIONS" :key="year" :value="year">
+                {{ year }}
+              </option>
+            </select>
+          </div>
+        </template>
+        <template v-else>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.SINCE') }}
+            </label>
+            <input
+              v-model="filters.since"
+              type="date"
+              class="!mb-0 !h-8 text-sm"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-n-slate-11">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.UNTIL') }}
+            </label>
+            <input
+              v-model="filters.until"
+              type="date"
+              class="!mb-0 !h-8 text-sm"
+            />
+          </div>
+        </template>
         <div class="flex flex-col gap-1">
           <label class="text-xs text-n-slate-11">
             {{ t('REVENUE_INTELLIGENCE_REPORTS.FILTERS.DESARROLLO') }}
