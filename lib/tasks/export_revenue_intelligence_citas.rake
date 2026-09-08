@@ -59,7 +59,10 @@ namespace :chatwoot do
 
     rows.sort_by! { |r| r[:fecha].to_s }
 
-    CSV.open(output, 'w') do |csv|
+    # BOM al inicio: sin él, Excel en Windows reinterpreta el UTF-8 como Windows-1252 y rompe
+    # acentos/emojis (confirmado 2026-09-08: "Rodríguez" salía como "RodrÃ­guez").
+    File.write(output, "\xEF\xBB\xBF")
+    CSV.open(output, 'a') do |csv|
       csv << %w[tipo fecha nombre correo celular campaign adset advert platform]
       rows.each { |r| csv << r.values }
     end
