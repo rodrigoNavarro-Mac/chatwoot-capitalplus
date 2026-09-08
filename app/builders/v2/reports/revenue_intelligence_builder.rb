@@ -180,12 +180,15 @@ class V2::Reports::RevenueIntelligenceBuilder
   # documentado también en la UI). RevenueRiskSignal no tiene columna desarrollo (su `subject` es
   # un RevenueDeal/RevenueLead genérico) — filtrar esto requeriría una migración aparte, fuera del
   # alcance de este bloque.
-  # Tope por categoría (no global): 'risk' y 'data_quality' se acotan por separado para que una
-  # categoría con muchas señales (ej. cientos de "lead sin contacto" tras un backfill histórico) no
-  # desplace a la otra fuera del límite. `by_category` (abajo) sigue siendo el conteo REAL sin
-  # tope — el frontend compara contra `open.length` para saber si hay más de las que se muestran.
-  MAX_OPEN_SIGNALS_PER_CATEGORY = 30
-  SEVERITY_ORDER_SQL = "CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END".freeze
+  # Tope por (categoría, signal_type) — NO por categoría sola: 'data_quality' agrupa tipos con
+  # severidad MUY distinta (unresolved_identity_conflict siempre 'medium' vs. deal_without_lead
+  # siempre 'low'), y un tope global ordenado por severidad hacía que decenas de conflictos de
+  # identidad desplazaran a los deal_without_lead FUERA del límite por completo — nunca aparecían,
+  # ni la señal ni el botón de acción (bug real encontrado en producción, 2026-09-08). Acotar por
+  # tipo garantiza que cada clase de problema tenga su propio cupo. `by_category` (abajo) sigue
+  # siendo el conteo REAL sin tope — el frontend compara contra `open.length` para saber si hay
+  # más de las que se muestran.
+  MAX_OPEN_SIGNALS_PER_SIGNAL_TYPE = 15
 
   def risk_signals_summary
     open_signals = account.revenue_risk_signals.open
@@ -199,20 +202,42 @@ class V2::Reports::RevenueIntelligenceBuilder
   end
 
   def capped_open_signals(scope, category)
-    scope.where(category: category).order(Arel.sql(SEVERITY_ORDER_SQL), detected_at: :desc).limit(MAX_OPEN_SIGNALS_PER_CATEGORY)
+    scoped = scope.where(category: category)
+    scoped.distinct.pluck(:signal_type).flat_map do |signal_type|
+      scoped.where(signal_type: signal_type).order(detected_at: :desc).limit(MAX_OPEN_SIGNALS_PER_SIGNAL_TYPE)
+    end
   end
 
   # Etiqueta legible para la UI en vez de "RevenueLead #2771" — se resuelve leyendo raw_payload
   # (Zoho ya trae First_Name/Last_Name/Phone en Leads y Deal_Name en Deals) SOLO para los sujetos
-  # ya acotados por capped_open_signals arriba, nunca para la tabla completa.
+  # ya acotados por capped_open_signals arriba, nunca para la tabla completa. Para
+  # RevenueIdentityConflict no hay raw_payload — se usa match_key (el dato ambiguo real: el
+  # teléfono/email que apunta a más de un contacto) más cuántos candidatos hay.
   def risk_subject_labels(signals)
-    lead_ids = signals.select { |s| s.subject_type == 'RevenueLead' }.map(&:subject_id)
-    deal_ids = signals.select { |s| s.subject_type == 'RevenueDeal' }.map(&:subject_id)
+    ids_by_type = signals.group_by(&:subject_type).transform_values { |group| group.map(&:subject_id) }
 
     {
-      'RevenueLead' => account.revenue_leads.where(id: lead_ids).pluck(:id, :raw_payload).to_h.transform_values { |payload| lead_label(payload) },
-      'RevenueDeal' => account.revenue_deals.where(id: deal_ids).pluck(:id, :raw_payload).to_h.transform_values { |payload| payload['Deal_Name'] }
+      'RevenueLead' => lead_labels(ids_by_type['RevenueLead']),
+      'RevenueDeal' => deal_labels(ids_by_type['RevenueDeal']),
+      'RevenueIdentityConflict' => conflict_labels(ids_by_type['RevenueIdentityConflict'])
     }
+  end
+
+  def lead_labels(ids)
+    account.revenue_leads.where(id: Array(ids)).pluck(:id, :raw_payload).to_h.transform_values { |payload| lead_label(payload) }
+  end
+
+  def deal_labels(ids)
+    account.revenue_deals.where(id: Array(ids)).pluck(:id, :raw_payload).to_h.transform_values { |payload| payload['Deal_Name'] }
+  end
+
+  def conflict_labels(ids)
+    account.revenue_identity_conflicts.where(id: Array(ids)).pluck(:id, :match_key, :candidate_ids)
+           .to_h { |id, match_key, candidate_ids| [id, conflict_label(match_key, candidate_ids)] }
+  end
+
+  def conflict_label(match_key, candidate_ids)
+    "#{match_key.presence || 'sin dato de match'} (#{Array(candidate_ids).size} candidatos)"
   end
 
   def lead_label(payload)

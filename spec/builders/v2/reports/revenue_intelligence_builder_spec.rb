@@ -161,7 +161,7 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       expect(result[:risk_signals][:open].first['context']).to be_a(Hash)
     end
 
-    it 'caps open signals per category so one category with many signals does not crowd out the other' do
+    it 'caps open signals per signal_type (not per category) so a numerous type does not crowd out a rarer one' do
       35.times do |i|
         account.revenue_risk_signals.create!(category: 'risk', signal_type: 'lead_no_contact', subject_type: 'RevenueLead', subject_id: i,
                                              first_detected_at: Time.current, detected_at: Time.current)
@@ -172,9 +172,30 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = builder.build
 
       open = result[:risk_signals][:open]
-      expect(open.count { |s| s['category'] == 'risk' }).to eq(30)
+      expect(open.count { |s| s['category'] == 'risk' }).to eq(15)
       expect(open.count { |s| s['category'] == 'data_quality' }).to eq(1)
       expect(result[:risk_signals][:by_category]).to eq({ 'risk' => 35, 'data_quality' => 1 })
+    end
+
+    it 'does not let many signals of ONE type within the same category crowd out a rarer type of the same category' do
+      # Bug real (2026-09-08): unresolved_identity_conflict (severidad 'medium', numerosos tras un
+      # backfill) ocultaba por completo a deal_without_lead (severidad 'low') dentro de
+      # 'data_quality' bajo un tope global por categoría — nunca aparecía ni la fila ni el botón
+      # de acción correspondiente.
+      25.times do |i|
+        account.revenue_risk_signals.create!(category: 'data_quality', signal_type: 'unresolved_identity_conflict', severity: 'medium',
+                                             subject_type: 'RevenueIdentityConflict', subject_id: i,
+                                             first_detected_at: Time.current, detected_at: Time.current)
+      end
+      account.revenue_risk_signals.create!(category: 'data_quality', signal_type: 'deal_without_lead', severity: 'low',
+                                           subject_type: 'RevenueDeal', subject_id: 1,
+                                           first_detected_at: Time.current, detected_at: Time.current)
+
+      result = builder.build
+
+      types = result[:risk_signals][:open].map { |s| s['signal_type'] }
+      expect(types).to include('deal_without_lead')
+      expect(types.count('unresolved_identity_conflict')).to eq(15)
     end
 
     it 'resolves a real subject_label for RevenueLead/RevenueDeal signals from raw_payload, instead of a raw "Model #id"' do
@@ -200,6 +221,18 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = builder.build
 
       expect(result[:risk_signals][:open].first['subject_label']).to eq('9981234567')
+    end
+
+    it "resolves subject_label for RevenueIdentityConflict from match_key, instead of a raw 'RevenueIdentityConflict #id'" do
+      conflict = account.revenue_identity_conflicts.create!(conflict_type: 'multiple_candidates', match_key: '9981234567',
+                                                            candidate_ids: [1, 2])
+      account.revenue_risk_signals.create!(category: 'data_quality', signal_type: 'unresolved_identity_conflict',
+                                           subject_type: 'RevenueIdentityConflict', subject_id: conflict.id,
+                                           first_detected_at: Time.current, detected_at: Time.current)
+
+      result = builder.build
+
+      expect(result[:risk_signals][:open].first['subject_label']).to eq('9981234567 (2 candidatos)')
     end
 
     it 'summarizes journeys created within the range: won/lost/open counts and average time-to-X, ignoring nil milestones' do
