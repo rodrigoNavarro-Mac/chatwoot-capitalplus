@@ -5,9 +5,11 @@ import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import { formatTime } from '@chatwoot/utils';
 import ReportsAPI from 'dashboard/api/reports';
+import RevenueIntelligenceAPI from 'dashboard/api/revenueIntelligence';
 import ReportHeader from './components/ReportHeader.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 import LineChart from 'shared/components/charts/LineChart.vue';
 
 const { t } = useI18n();
@@ -183,6 +185,50 @@ const agentName = agentId => {
 
 const signalSubjectLabel = signal =>
   signal.subject_label || `${signal.subject_type} #${signal.subject_id}`;
+
+// Quita la señal del payload en memoria tras resolverla, sin recargar todo el reporte — también
+// baja by_category en 1 para que el conteo real (usado por riskSignalsTruncatedCount) no quede
+// desfasado.
+const removeSignalLocally = signal => {
+  if (!report.value?.risk_signals) return;
+  report.value.risk_signals.open = report.value.risk_signals.open.filter(
+    s => s.id !== signal.id
+  );
+  const current = report.value.risk_signals.by_category?.[signal.category];
+  if (current)
+    report.value.risk_signals.by_category[signal.category] = current - 1;
+};
+
+const signalActionInProgress = ref(null);
+
+const resolveIdentityConflict = async signal => {
+  signalActionInProgress.value = signal.id;
+  try {
+    await RevenueIntelligenceAPI.resolveIdentityConflict(signal.subject_id);
+    removeSignalLocally(signal);
+  } catch (error) {
+    useAlert(t('REVENUE_INTELLIGENCE_REPORTS.DATA_QUALITY.ACTION_ERROR'));
+  } finally {
+    signalActionInProgress.value = null;
+  }
+};
+
+const relinkDeal = async signal => {
+  signalActionInProgress.value = signal.id;
+  try {
+    const { data } = await RevenueIntelligenceAPI.relinkDeal(signal.subject_id);
+    if (data.linked) {
+      removeSignalLocally(signal);
+      useAlert(t('REVENUE_INTELLIGENCE_REPORTS.DATA_QUALITY.RELINK_SUCCESS'));
+    } else {
+      useAlert(t('REVENUE_INTELLIGENCE_REPORTS.DATA_QUALITY.RELINK_NOT_FOUND'));
+    }
+  } catch (error) {
+    useAlert(t('REVENUE_INTELLIGENCE_REPORTS.DATA_QUALITY.ACTION_ERROR'));
+  } finally {
+    signalActionInProgress.value = null;
+  }
+};
 
 // report.risk_signals.open ya viene acotado por categoría desde el backend (ver
 // RevenueIntelligenceBuilder::MAX_OPEN_SIGNALS_PER_CATEGORY) — by_category sigue siendo el
@@ -1526,6 +1572,7 @@ const availableDesarrollos = computed(
                 <th>{{ t('REVENUE_INTELLIGENCE_REPORTS.SIGNAL.TYPE') }}</th>
                 <th>{{ t('REVENUE_INTELLIGENCE_REPORTS.SIGNAL.SUBJECT') }}</th>
                 <th>{{ t('REVENUE_INTELLIGENCE_REPORTS.SIGNAL.DETECTED') }}</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -1545,6 +1592,28 @@ const availableDesarrollos = computed(
                 <td>{{ signalSubjectLabel(signal) }}</td>
                 <td>
                   {{ new Date(signal.first_detected_at).toLocaleDateString() }}
+                </td>
+                <td>
+                  <Button
+                    v-if="signal.signal_type === 'unresolved_identity_conflict'"
+                    size="xs"
+                    variant="outline"
+                    :is-loading="signalActionInProgress === signal.id"
+                    :label="
+                      t('REVENUE_INTELLIGENCE_REPORTS.DATA_QUALITY.RESOLVE')
+                    "
+                    @click="resolveIdentityConflict(signal)"
+                  />
+                  <Button
+                    v-else-if="signal.signal_type === 'deal_without_lead'"
+                    size="xs"
+                    variant="outline"
+                    :is-loading="signalActionInProgress === signal.id"
+                    :label="
+                      t('REVENUE_INTELLIGENCE_REPORTS.DATA_QUALITY.RELINK')
+                    "
+                    @click="relinkDeal(signal)"
+                  />
                 </td>
               </tr>
             </tbody>

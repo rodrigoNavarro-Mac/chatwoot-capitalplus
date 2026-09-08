@@ -985,6 +985,11 @@
       "DESCRIPTION": "Sin importar el filtro de fechas de arriba — reflejan el estado actual, no el periodo seleccionado.",
       "EMPTY": "No hay señales de calidad de datos abiertas por el momento",
       "MORE": "+{count} más",
+      "RESOLVE": "Marcar revisado",
+      "RELINK": "Reintentar vínculo",
+      "RELINK_SUCCESS": "Deal enlazado a su lead de origen",
+      "RELINK_NOT_FOUND": "No se encontró un lead ya sincronizado que apunte a este deal — puede que su lead de origen todavía no se haya sincronizado",
+      "ACTION_ERROR": "No se pudo completar la acción, intenta de nuevo",
       "HEALTH": {
         "GOOD": "Buena salud",
         "FAIR": "Revisar pronto",

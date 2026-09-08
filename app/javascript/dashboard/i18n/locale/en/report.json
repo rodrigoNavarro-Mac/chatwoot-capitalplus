@@ -990,6 +990,11 @@
       "DESCRIPTION": "Regardless of the date filter above — these reflect the current state, not the selected period.",
       "EMPTY": "No open data quality signals right now",
       "MORE": "+{count} more",
+      "RESOLVE": "Mark reviewed",
+      "RELINK": "Retry link",
+      "RELINK_SUCCESS": "Deal linked to its originating lead",
+      "RELINK_NOT_FOUND": "No already-synced lead points to this deal — its originating lead may not have synced yet",
+      "ACTION_ERROR": "Couldn't complete the action, please try again",
       "HEALTH": {
         "GOOD": "Good health",
         "FAIR": "Review soon",

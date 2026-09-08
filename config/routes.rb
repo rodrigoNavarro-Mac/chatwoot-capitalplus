@@ -623,6 +623,12 @@ Rails.application.routes.draw do
               get :revenue_intelligence
             end
           end
+          resources :revenue_intelligence, only: [] do
+            collection do
+              patch 'identity_conflicts/:id/resolve', action: :resolve_identity_conflict, as: :resolve_identity_conflict
+              post 'deals/:id/relink_lead', action: :relink_deal, as: :relink_deal
+            end
+          end
           resource :year_in_review, only: [:show]
           resources :live_reports, only: [] do
             collection do
