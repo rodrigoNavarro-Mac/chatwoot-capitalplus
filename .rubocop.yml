@@ -114,6 +114,7 @@ Metrics/BlockLength:
     - db/schema.rb
     - 'lib/tasks/backfill_first_reply.rake'
     - 'lib/tasks/repair_aircall_backdated_activity.rake'
+    - 'lib/tasks/export_revenue_intelligence_citas.rake'
 
 Metrics/ModuleLength:
   Exclude:
