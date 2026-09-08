@@ -874,6 +874,7 @@
       "RISKS_TITLE": "Requiere atención",
       "RISKS_DESCRIPTION": "Señales de riesgo abiertas, sin importar el filtro de fechas de arriba — reflejan el estado actual, no el periodo seleccionado.",
       "RISKS_EMPTY": "No hay señales de riesgo abiertas por el momento",
+      "RISKS_MORE": "+{count} más — sin importar el filtro de fechas, reflejan el estado actual",
       "INSIGHTS_TITLE": "Insights",
       "INSIGHTS_EMPTY": "Todavía no hay suficientes datos para generar insights de este periodo",
       "INSIGHTS": {
@@ -983,6 +984,7 @@
       "TITLE": "Señales de calidad de datos abiertas",
       "DESCRIPTION": "Sin importar el filtro de fechas de arriba — reflejan el estado actual, no el periodo seleccionado.",
       "EMPTY": "No hay señales de calidad de datos abiertas por el momento",
+      "MORE": "+{count} más",
       "HEALTH": {
         "GOOD": "Buena salud",
         "FAIR": "Revisar pronto",

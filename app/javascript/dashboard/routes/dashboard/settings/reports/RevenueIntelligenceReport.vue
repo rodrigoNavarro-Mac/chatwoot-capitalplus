@@ -182,7 +182,27 @@ const agentName = agentId => {
 };
 
 const signalSubjectLabel = signal =>
-  `${signal.subject_type} #${signal.subject_id}`;
+  signal.subject_label || `${signal.subject_type} #${signal.subject_id}`;
+
+// report.risk_signals.open ya viene acotado por categoría desde el backend (ver
+// RevenueIntelligenceBuilder::MAX_OPEN_SIGNALS_PER_CATEGORY) — by_category sigue siendo el
+// conteo REAL sin tope, así que la diferencia dice cuántas quedaron fuera de lo mostrado.
+const riskSignalsTruncatedCount = category => {
+  const total = report.value?.risk_signals?.by_category?.[category] ?? 0;
+  return Math.max(total - riskSignals(category).length, 0);
+};
+
+// La tarjeta "Requiere atención" del Overview es un vistazo rápido, no la lista completa (esa
+// vive en la pestaña Calidad de datos para 'data_quality'; 'risk' no tiene pestaña propia, así
+// que aquí solo se recorta a un puñado y se indica cuántas quedaron fuera).
+const OVERVIEW_RISK_PREVIEW_LIMIT = 8;
+const overviewRiskPreview = computed(() =>
+  riskSignals('risk').slice(0, OVERVIEW_RISK_PREVIEW_LIMIT)
+);
+const overviewRiskHiddenCount = computed(() => {
+  const total = report.value?.risk_signals?.by_category?.risk ?? 0;
+  return Math.max(total - overviewRiskPreview.value.length, 0);
+});
 
 const severityBadgeClass = severity => {
   if (severity === 'high') return 'bg-n-ruby-3 text-n-ruby-11';
@@ -877,31 +897,43 @@ const availableDesarrollos = computed(
                 }}
               </p>
               <div
-                v-if="!riskSignals('risk').length"
+                v-if="!overviewRiskPreview.length"
                 class="text-sm text-n-slate-11 py-4 text-center"
               >
                 {{ t('REVENUE_INTELLIGENCE_REPORTS.OVERVIEW.RISKS_EMPTY') }}
               </div>
-              <ul v-else class="flex flex-col gap-2">
-                <li
-                  v-for="signal in riskSignals('risk')"
-                  :key="signal.id"
-                  class="flex items-center gap-2 text-sm"
-                >
-                  <span
-                    class="px-2 py-0.5 rounded text-xs shrink-0"
-                    :class="severityBadgeClass(signal.severity)"
+              <template v-else>
+                <ul class="flex flex-col gap-2">
+                  <li
+                    v-for="signal in overviewRiskPreview"
+                    :key="signal.id"
+                    class="flex items-center gap-2 text-sm"
                   >
-                    {{ signal.severity }}
-                  </span>
-                  <span class="text-n-slate-12">{{
-                    signalTypeLabel(signal.signal_type)
-                  }}</span>
-                  <span class="text-n-slate-10">
-                    — {{ signalSubjectLabel(signal) }}
-                  </span>
-                </li>
-              </ul>
+                    <span
+                      class="px-2 py-0.5 rounded text-xs shrink-0"
+                      :class="severityBadgeClass(signal.severity)"
+                    >
+                      {{ signal.severity }}
+                    </span>
+                    <span class="text-n-slate-12">{{
+                      signalTypeLabel(signal.signal_type)
+                    }}</span>
+                    <span class="text-n-slate-10">
+                      — {{ signalSubjectLabel(signal) }}
+                    </span>
+                  </li>
+                </ul>
+                <p
+                  v-if="overviewRiskHiddenCount > 0"
+                  class="text-xs text-n-slate-10 mt-2"
+                >
+                  {{
+                    t('REVENUE_INTELLIGENCE_REPORTS.OVERVIEW.RISKS_MORE', {
+                      count: overviewRiskHiddenCount,
+                    })
+                  }}
+                </p>
+              </template>
             </div>
           </div>
 
@@ -1517,6 +1549,16 @@ const availableDesarrollos = computed(
               </tr>
             </tbody>
           </table>
+          <p
+            v-if="riskSignalsTruncatedCount('data_quality') > 0"
+            class="text-xs text-n-slate-10 mt-2"
+          >
+            {{
+              t('REVENUE_INTELLIGENCE_REPORTS.DATA_QUALITY.MORE', {
+                count: riskSignalsTruncatedCount('data_quality'),
+              })
+            }}
+          </p>
         </div>
       </template>
     </div>

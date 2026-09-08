@@ -180,17 +180,49 @@ class V2::Reports::RevenueIntelligenceBuilder
   # documentado también en la UI). RevenueRiskSignal no tiene columna desarrollo (su `subject` es
   # un RevenueDeal/RevenueLead genérico) — filtrar esto requeriría una migración aparte, fuera del
   # alcance de este bloque.
+  # Tope por categoría (no global): 'risk' y 'data_quality' se acotan por separado para que una
+  # categoría con muchas señales (ej. cientos de "lead sin contacto" tras un backfill histórico) no
+  # desplace a la otra fuera del límite. `by_category` (abajo) sigue siendo el conteo REAL sin
+  # tope — el frontend compara contra `open.length` para saber si hay más de las que se muestran.
+  MAX_OPEN_SIGNALS_PER_CATEGORY = 30
+  SEVERITY_ORDER_SQL = "CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END".freeze
+
   def risk_signals_summary
     open_signals = account.revenue_risk_signals.open
+    visible = RevenueRiskSignal::CATEGORIES.flat_map { |category| capped_open_signals(open_signals, category) }
+    labels = risk_subject_labels(visible)
 
     {
-      open: open_signals.order(detected_at: :desc).map { |signal| serialize_signal(signal) },
+      open: visible.map { |signal| serialize_signal(signal, labels) },
       by_category: open_signals.group(:category).count
     }
   end
 
-  def serialize_signal(signal)
+  def capped_open_signals(scope, category)
+    scope.where(category: category).order(Arel.sql(SEVERITY_ORDER_SQL), detected_at: :desc).limit(MAX_OPEN_SIGNALS_PER_CATEGORY)
+  end
+
+  # Etiqueta legible para la UI en vez de "RevenueLead #2771" — se resuelve leyendo raw_payload
+  # (Zoho ya trae First_Name/Last_Name/Phone en Leads y Deal_Name en Deals) SOLO para los sujetos
+  # ya acotados por capped_open_signals arriba, nunca para la tabla completa.
+  def risk_subject_labels(signals)
+    lead_ids = signals.select { |s| s.subject_type == 'RevenueLead' }.map(&:subject_id)
+    deal_ids = signals.select { |s| s.subject_type == 'RevenueDeal' }.map(&:subject_id)
+
+    {
+      'RevenueLead' => account.revenue_leads.where(id: lead_ids).pluck(:id, :raw_payload).to_h.transform_values { |payload| lead_label(payload) },
+      'RevenueDeal' => account.revenue_deals.where(id: deal_ids).pluck(:id, :raw_payload).to_h.transform_values { |payload| payload['Deal_Name'] }
+    }
+  end
+
+  def lead_label(payload)
+    name = "#{payload['First_Name']} #{payload['Last_Name']}".strip
+    name.presence || payload['Phone'].presence || payload['Mobile'].presence
+  end
+
+  def serialize_signal(signal, labels)
     signal.slice('id', 'category', 'signal_type', 'subject_type', 'subject_id', 'severity', 'first_detected_at', 'detected_at', 'context')
+          .merge('subject_label' => labels.dig(signal.subject_type, signal.subject_id))
   end
 
   # Ancla a lead_created_at (cohorte: "de los leads que entraron en el periodo, ¿cómo les fue?"),

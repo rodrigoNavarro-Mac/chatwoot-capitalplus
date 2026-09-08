@@ -879,6 +879,7 @@
       "RISKS_TITLE": "Needs attention",
       "RISKS_DESCRIPTION": "Open risk signals, regardless of the date filter above — these reflect the current state, not the selected period.",
       "RISKS_EMPTY": "No open risk signals right now",
+      "RISKS_MORE": "+{count} more — regardless of the date filter, these reflect the current state",
       "INSIGHTS_TITLE": "Insights",
       "INSIGHTS_EMPTY": "Not enough data yet for insights this period",
       "INSIGHTS": {
@@ -988,6 +989,7 @@
       "TITLE": "Open data quality signals",
       "DESCRIPTION": "Regardless of the date filter above — these reflect the current state, not the selected period.",
       "EMPTY": "No open data quality signals right now",
+      "MORE": "+{count} more",
       "HEALTH": {
         "GOOD": "Good health",
         "FAIR": "Review soon",

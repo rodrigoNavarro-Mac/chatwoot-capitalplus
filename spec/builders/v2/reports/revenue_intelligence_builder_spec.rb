@@ -161,6 +161,47 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       expect(result[:risk_signals][:open].first['context']).to be_a(Hash)
     end
 
+    it 'caps open signals per category so one category with many signals does not crowd out the other' do
+      35.times do |i|
+        account.revenue_risk_signals.create!(category: 'risk', signal_type: 'lead_no_contact', subject_type: 'RevenueLead', subject_id: i,
+                                             first_detected_at: Time.current, detected_at: Time.current)
+      end
+      account.revenue_risk_signals.create!(category: 'data_quality', signal_type: 'deal_without_lead', subject_type: 'RevenueDeal',
+                                           subject_id: 1, first_detected_at: Time.current, detected_at: Time.current)
+
+      result = builder.build
+
+      open = result[:risk_signals][:open]
+      expect(open.count { |s| s['category'] == 'risk' }).to eq(30)
+      expect(open.count { |s| s['category'] == 'data_quality' }).to eq(1)
+      expect(result[:risk_signals][:by_category]).to eq({ 'risk' => 35, 'data_quality' => 1 })
+    end
+
+    it 'resolves a real subject_label for RevenueLead/RevenueDeal signals from raw_payload, instead of a raw "Model #id"' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', raw_payload: { 'First_Name' => 'Ana', 'Last_Name' => 'Pérez' })
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', raw_payload: { 'Deal_Name' => 'Ana Pérez - Depto 302' })
+      account.revenue_risk_signals.create!(category: 'risk', signal_type: 'lead_no_contact', subject_type: 'RevenueLead', subject_id: lead.id,
+                                           first_detected_at: Time.current, detected_at: Time.current)
+      account.revenue_risk_signals.create!(category: 'risk', signal_type: 'deal_stalled', subject_type: 'RevenueDeal', subject_id: deal.id,
+                                           first_detected_at: Time.current, detected_at: Time.current)
+
+      result = builder.build
+
+      labels = result[:risk_signals][:open].to_h { |s| [s['subject_type'], s['subject_label']] }
+      expect(labels['RevenueLead']).to eq('Ana Pérez')
+      expect(labels['RevenueDeal']).to eq('Ana Pérez - Depto 302')
+    end
+
+    it 'falls back to the phone when a lead has no name in raw_payload' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', raw_payload: { 'Phone' => '9981234567' })
+      account.revenue_risk_signals.create!(category: 'risk', signal_type: 'lead_no_contact', subject_type: 'RevenueLead', subject_id: lead.id,
+                                           first_detected_at: Time.current, detected_at: Time.current)
+
+      result = builder.build
+
+      expect(result[:risk_signals][:open].first['subject_label']).to eq('9981234567')
+    end
+
     it 'summarizes journeys created within the range: won/lost/open counts and average time-to-X, ignoring nil milestones' do
       lead1 = account.revenue_leads.create!(zoho_lead_id: 'l1')
       lead2 = account.revenue_leads.create!(zoho_lead_id: 'l2')
