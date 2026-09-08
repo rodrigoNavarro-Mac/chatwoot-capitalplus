@@ -69,6 +69,15 @@ describe RevenueIntelligence::SyncZohoMeetingsJob do
       expect(appointment.revenue_deal_id).to eq(deal.id)
     end
 
+    it 'skips the Lead-side Events lookup for an already-converted lead (Zoho rejects it with "id already converted")' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-converted', raw_payload: { 'Converted_Deal' => { 'id' => 'deal-1' } })
+      lead_events_request = stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/lead-converted/Events})
+
+      described_class.new.perform
+
+      expect(lead_events_request).not_to have_been_requested
+    end
+
     it 'continues syncing when one deal/lead lookup raises' do
       account.revenue_deals.create!(zoho_deal_id: 'deal-broken')
       account.revenue_deals.create!(zoho_deal_id: 'deal-ok')

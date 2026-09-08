@@ -52,10 +52,20 @@ class RevenueIntelligence::SyncZohoMeetingsJob < ApplicationJob
 
   def sync_lead_events(client, account, since)
     touched(account.revenue_leads, since).find_each do |lead|
+      next if converted?(lead)
+
       fetch_events(client, lead.zoho_lead_id, 'Leads').each { |event| upsert_appointment(account, event, lead_link(lead)) }
     rescue StandardError => e
       log_and_track(account, 'lead', lead.id, e)
     end
+  end
+
+  # Zoho rechaza Leads/{id}/Events con "id already converted" para todo Lead ya convertido a
+  # Deal — 100% predecible sin llamar a la API (Converted_Deal ya viene en el payload local, ver
+  # RevenueIntelligence::SyncZohoLeadsJob#link_converted_deal). Sus citas se sincronizan igual,
+  # vía sync_deal_events sobre el Deal convertido.
+  def converted?(lead)
+    lead.raw_payload.dig('Converted_Deal', 'id').present?
   end
 
   def touched(scope, since)
