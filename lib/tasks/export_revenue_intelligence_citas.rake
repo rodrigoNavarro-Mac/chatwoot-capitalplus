@@ -24,7 +24,13 @@ namespace :chatwoot do
       deal && (deal.raw_payload || {})['Deal_Name']
     end
 
-    row_for = lambda do |tipo, fecha, lead, deal, contact|
+    row_for = lambda do |tipo, fecha, lead, deal, stale_contact|
+      # Prefiere el contacto ACTUAL del Deal/Lead sobre el que quedó guardado en el momento en que
+      # se sincronizó la cita/visita (revenue_appointments.revenue_contact_id /
+      # revenue_stage_events.revenue_contact_id) — ese denormalizado puede quedar desactualizado
+      # si el contacto del Deal se re-resolvió después (ver RevenueIntelligence::
+      # DealAttributionCopier / fix_deal_contacts.rake).
+      contact = deal&.revenue_contact || lead&.revenue_contact || stale_contact
       {
         tipo: tipo,
         fecha: fecha&.in_time_zone('America/Cancun')&.strftime('%Y-%m-%d %H:%M'),
