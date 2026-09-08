@@ -33,6 +33,7 @@ class RevenueIntelligence::LeadMapper
       created_at_source: parse_time(payload['Created_Time']),
       first_contact_at: parse_time(payload['First_Contact_Time']),
       qualified_at: parse_time(payload['Fecha_de_calificaci_n']),
+      qualification_channel: payload['Canal_de_calificaci_n'],
       lead_status: payload['Lead_Status'],
       discard_reason: payload['Raz_n_de_descarte'],
       razon_compra: payload['Raz_n_de_compra'],
@@ -81,6 +82,16 @@ class RevenueIntelligence::LeadMapper
       form_id: payload['Form_Id'],
       form_name: payload['Form_Name'],
       platform: payload['Plataforma']
+    }.merge(lead_source_extra_attrs)
+  end
+
+  # Confirmados contra la cuenta real vía Zoho CRM API getFields, faltaban de Fase 1.
+  def lead_source_extra_attrs
+    {
+      page_id: payload['Page_Id'],
+      page_name: payload['Page_Name'],
+      social_lead_id: payload['leadchain0__Social_Lead_ID'],
+      lead_type: payload['Lead_Type']
     }
   end
 

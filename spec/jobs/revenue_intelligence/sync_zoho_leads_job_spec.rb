@@ -119,6 +119,16 @@ describe RevenueIntelligence::SyncZohoLeadsJob do
       expect { described_class.new.perform }.not_to raise_error
     end
 
+    it "copies the lead's Meta Ads attribution onto the deal when linking its Converted_Deal" do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1')
+      stub_leads([{ 'id' => 'lead-1', 'Converted_Deal' => { 'id' => 'deal-1', 'name' => 'Someone' },
+                    'Campaing_Name' => 'Campaña Q1', 'Plataforma' => 'Meta' }])
+
+      described_class.new.perform
+
+      expect(deal.reload).to have_attributes(campaign_name: 'Campaña Q1', platform: 'Meta')
+    end
+
     it 'never overwrites an already-linked revenue_lead_id on a deal' do
       other_lead = account.revenue_leads.create!(zoho_lead_id: 'lead-other')
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: other_lead.id)

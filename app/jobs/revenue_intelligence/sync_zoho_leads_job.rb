@@ -95,8 +95,9 @@ class RevenueIntelligence::SyncZohoLeadsJob < ApplicationJob
     return if converted_deal_id.blank?
 
     deal = account.revenue_deals.find_by(zoho_deal_id: converted_deal_id)
-    return if deal.blank? || deal.revenue_lead_id.present?
+    return if deal.blank?
 
-    deal.update!(revenue_lead_id: lead.id)
+    deal.update!(revenue_lead_id: lead.id) if deal.revenue_lead_id.blank?
+    RevenueIntelligence::DealAttributionCopier.copy(deal: deal, lead: lead)
   end
 end

@@ -9,6 +9,7 @@ describe RevenueIntelligence::LeadMapper do
         'Created_Time' => '2026-01-05T10:00:00-06:00',
         'First_Contact_Time' => '2026-01-05T10:05:00-06:00',
         'Fecha_de_calificaci_n' => '2026-01-06T09:00:00-06:00',
+        'Canal_de_calificaci_n' => 'WhatsApp',
         'Lead_Status' => 'Contactado',
         'Raz_n_de_descarte' => nil,
         'Raz_n_de_compra' => 'Inversión',
@@ -27,6 +28,9 @@ describe RevenueIntelligence::LeadMapper do
         'Adset_Id' => 'adset-1', 'Adset_Name' => 'Adset 1',
         'Advert_Id' => 'ad-1', 'Advert_name' => 'Anuncio 1',
         'Form_Id' => 'form-1', 'Form_Name' => 'Formulario 1',
+        'Page_Id' => 'page-1', 'Page_Name' => 'Página 1',
+        'leadchain0__Social_Lead_ID' => 'social-1',
+        'Lead_Type' => 'Facebook Lead Ad',
         'Plataforma' => 'Meta',
         'Contador_Intentos' => 3,
         'Numero_Reasignaciones' => 1
@@ -44,6 +48,7 @@ describe RevenueIntelligence::LeadMapper do
       expect(attrs[:created_at_source]).to eq(Time.zone.parse('2026-01-05T10:00:00-06:00'))
       expect(attrs[:lead_status]).to eq('Contactado')
       expect(attrs[:razon_compra]).to eq('Inversión')
+      expect(attrs[:qualification_channel]).to eq('WhatsApp')
     end
 
     it 'parses presupuesto while keeping the raw value' do
@@ -62,6 +67,13 @@ describe RevenueIntelligence::LeadMapper do
       expect(attrs[:adset_name]).to eq('Adset 1')
       expect(attrs[:advert_name]).to eq('Anuncio 1')
       expect(attrs[:platform]).to eq('Meta')
+    end
+
+    it 'maps the Page/Social Lead/Lead Type fields' do
+      expect(attrs[:page_id]).to eq('page-1')
+      expect(attrs[:page_name]).to eq('Página 1')
+      expect(attrs[:social_lead_id]).to eq('social-1')
+      expect(attrs[:lead_type]).to eq('Facebook Lead Ad')
     end
 
     it 'maps traceability counters and preserves the raw payload' do

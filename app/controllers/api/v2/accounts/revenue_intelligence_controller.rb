@@ -31,6 +31,7 @@ class Api::V2::Accounts::RevenueIntelligenceController < Api::V1::Accounts::Base
     return render json: { linked: false } if lead.blank?
 
     deal.update!(revenue_lead_id: lead.id)
+    RevenueIntelligence::DealAttributionCopier.copy(deal: deal, lead: lead)
     resolve_open_signal(signal_type: 'deal_without_lead', subject_type: 'RevenueDeal', subject_id: deal.id)
     render json: { linked: true }
   end

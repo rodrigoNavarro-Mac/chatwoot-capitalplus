@@ -44,8 +44,9 @@ RSpec.describe Api::V2::Accounts::RevenueIntelligenceController, type: :request 
 
   describe 'POST /api/v2/accounts/{account.id}/revenue_intelligence/deals/:id/relink_lead' do
     context 'when a synced lead\'s Converted_Deal points to this deal' do
-      it 'links the deal to that lead and resolves the mirrored signal' do
-        lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', raw_payload: { 'Converted_Deal' => { 'id' => 'deal-1' } })
+      it 'links the deal to that lead, copies its Meta Ads attribution, and resolves the mirrored signal' do
+        lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', raw_payload: { 'Converted_Deal' => { 'id' => 'deal-1' } },
+                                             campaign_name: 'Campaña Q1', platform: 'Meta')
         deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1')
         signal = account.revenue_risk_signals.create!(category: 'data_quality', signal_type: 'deal_without_lead',
                                                       subject_type: 'RevenueDeal', subject_id: deal.id,
@@ -55,7 +56,7 @@ RSpec.describe Api::V2::Accounts::RevenueIntelligenceController, type: :request 
              headers: admin.create_new_auth_token, as: :json
 
         expect(response.parsed_body['linked']).to be(true)
-        expect(deal.reload.revenue_lead_id).to eq(lead.id)
+        expect(deal.reload).to have_attributes(revenue_lead_id: lead.id, campaign_name: 'Campaña Q1', platform: 'Meta')
         expect(signal.reload.resolved_at).to be_present
       end
     end

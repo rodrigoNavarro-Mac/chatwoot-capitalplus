@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_04_130800) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_08_193000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1756,6 +1756,22 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_04_130800) do
     t.datetime "synced_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "campaign_id"
+    t.string "campaign_name"
+    t.string "adset_id"
+    t.string "adset_name"
+    t.string "advert_id"
+    t.string "advert_name"
+    t.string "ad_account_id"
+    t.string "ad_account_name"
+    t.string "form_id"
+    t.string "form_name"
+    t.string "page_id"
+    t.string "page_name"
+    t.string "social_lead_id"
+    t.string "lead_type"
+    t.string "platform"
+    t.string "qualification_channel"
     t.index ["account_id", "desarrollo"], name: "index_revenue_deals_on_account_id_and_desarrollo"
     t.index ["account_id", "revenue_contact_id"], name: "index_revenue_deals_on_account_id_and_revenue_contact_id"
     t.index ["account_id", "revenue_lead_id"], name: "index_revenue_deals_on_account_id_and_revenue_lead_id"
@@ -1891,6 +1907,11 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_04_130800) do
     t.datetime "synced_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "social_lead_id"
+    t.string "lead_type"
+    t.string "page_id"
+    t.string "page_name"
+    t.string "qualification_channel"
     t.index ["account_id", "created_at_source"], name: "index_revenue_leads_on_account_id_and_created_at_source"
     t.index ["account_id", "desarrollo"], name: "index_revenue_leads_on_account_id_and_desarrollo"
     t.index ["account_id", "lead_status"], name: "index_revenue_leads_on_account_id_and_lead_status"

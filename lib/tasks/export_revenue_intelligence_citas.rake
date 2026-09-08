@@ -31,10 +31,10 @@ namespace :chatwoot do
         nombre: lead_name.call(lead) || deal_name.call(deal),
         correo: contact&.email,
         celular: contact&.raw_phone,
-        campaign: lead&.campaign_name,
-        adset: lead&.adset_name,
-        advert: lead&.advert_name,
-        platform: lead&.platform
+        campaign: deal&.campaign_name || lead&.campaign_name,
+        adset: deal&.adset_name || lead&.adset_name,
+        advert: deal&.advert_name || lead&.advert_name,
+        platform: deal&.platform || lead&.platform
       }
     end
 
