@@ -4,6 +4,8 @@
 class Api::V2::Accounts::RevenueIntelligenceController < Api::V1::Accounts::BaseController
   before_action :check_authorization
 
+  SYNC_NOW_THROTTLE = 10.minutes
+
   # Deuda documentada desde Fase 1 (RevenueIntelligence::IdentityResolver): un conflicto de
   # identidad (mismo teléfono/email apuntando a revenue_contacts distintos) nunca se fusiona
   # solo, queda para revisión manual. Esta acción NO fusiona nada tampoco — solo registra que un
@@ -31,6 +33,21 @@ class Api::V2::Accounts::RevenueIntelligenceController < Api::V1::Accounts::Base
     deal.update!(revenue_lead_id: lead.id)
     resolve_open_signal(signal_type: 'deal_without_lead', subject_type: 'RevenueDeal', subject_id: deal.id)
     render json: { linked: true }
+  end
+
+  # Dispara los 2 jobs de sync de Zoho (Leads/Deals) de Fase 1 de forma asíncrona, para no obligar
+  # al usuario a pedir un comando de SSH cada vez que sospecha que faltan datos por sincronizar.
+  # Throttle vía Rails.cache (mismo patrón ya usado en FetchImapEmailsJob) para no agotar los
+  # créditos de API de Zoho si alguien le da clic varias veces seguidas (ver riesgo de rate
+  # limiting documentado en el plan de Fase 1).
+  def sync_now
+    throttle_key = "revenue_intelligence_sync_now:#{Current.account.id}"
+    return render json: { queued: false, reason: 'throttled' }, status: :too_many_requests if Rails.cache.exist?(throttle_key)
+
+    RevenueIntelligence::SyncZohoLeadsJob.perform_later(Current.account.id)
+    RevenueIntelligence::SyncZohoDealsJob.perform_later(Current.account.id)
+    Rails.cache.write(throttle_key, true, expires_in: SYNC_NOW_THROTTLE)
+    render json: { queued: true }
   end
 
   private

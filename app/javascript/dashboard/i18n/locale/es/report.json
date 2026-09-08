@@ -836,6 +836,12 @@
         "Q4": "T4 (Oct–Dic)"
       }
     },
+    "SYNC_NOW": {
+      "LABEL": "Sincronizar ahora",
+      "QUEUED": "Sync con Zoho en cola, puede tardar unos minutos en reflejarse.",
+      "THROTTLED": "Ya se disparó un sync hace poco, espera unos minutos antes de reintentar.",
+      "ERROR": "No se pudo encolar el sync, intenta de nuevo."
+    },
     "TABS": {
       "OVERVIEW": "Resumen",
       "FUNNEL": "Embudo",

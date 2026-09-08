@@ -627,6 +627,7 @@ Rails.application.routes.draw do
             collection do
               patch 'identity_conflicts/:id/resolve', action: :resolve_identity_conflict, as: :resolve_identity_conflict
               post 'deals/:id/relink_lead', action: :relink_deal, as: :relink_deal
+              post 'sync_now', action: :sync_now, as: :sync_now
             end
           end
           resource :year_in_review, only: [:show]

@@ -841,6 +841,12 @@
         "Q4": "Q4 (Oct–Dec)"
       }
     },
+    "SYNC_NOW": {
+      "LABEL": "Sync now",
+      "QUEUED": "Zoho sync queued, it may take a few minutes to show up.",
+      "THROTTLED": "A sync was already triggered recently, wait a few minutes before retrying.",
+      "ERROR": "Could not queue the sync, try again."
+    },
     "TABS": {
       "OVERVIEW": "Overview",
       "FUNNEL": "Funnel",

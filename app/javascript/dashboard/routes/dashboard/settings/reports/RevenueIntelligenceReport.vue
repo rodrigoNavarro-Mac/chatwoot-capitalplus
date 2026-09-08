@@ -230,6 +230,27 @@ const relinkDeal = async signal => {
   }
 };
 
+// Dispara el sync de Zoho (Leads/Deals) sin salir de la página en vez de pedir un comando de SSH
+// cada vez — el backend throttlea (429) si ya se disparó uno recientemente, ver
+// Api::V2::Accounts::RevenueIntelligenceController#sync_now.
+const syncInProgress = ref(false);
+
+const triggerSyncNow = async () => {
+  syncInProgress.value = true;
+  try {
+    await RevenueIntelligenceAPI.syncNow();
+    useAlert(t('REVENUE_INTELLIGENCE_REPORTS.SYNC_NOW.QUEUED'));
+  } catch (error) {
+    if (error?.response?.status === 429) {
+      useAlert(t('REVENUE_INTELLIGENCE_REPORTS.SYNC_NOW.THROTTLED'));
+    } else {
+      useAlert(t('REVENUE_INTELLIGENCE_REPORTS.SYNC_NOW.ERROR'));
+    }
+  } finally {
+    syncInProgress.value = false;
+  }
+};
+
 // report.risk_signals.open ya viene acotado por categoría desde el backend (ver
 // RevenueIntelligenceBuilder::MAX_OPEN_SIGNALS_PER_CATEGORY) — by_category sigue siendo el
 // conteo REAL sin tope, así que la diferencia dice cuántas quedaron fuera de lo mostrado.
@@ -845,6 +866,16 @@ const availableDesarrollos = computed(
               {{ desarrollo }}
             </option>
           </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            icon="i-lucide-refresh-cw"
+            :is-loading="syncInProgress"
+            :label="t('REVENUE_INTELLIGENCE_REPORTS.SYNC_NOW.LABEL')"
+            @click="triggerSyncNow"
+          />
         </div>
       </div>
 

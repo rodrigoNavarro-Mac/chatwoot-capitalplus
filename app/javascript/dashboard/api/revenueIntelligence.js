@@ -15,6 +15,10 @@ class RevenueIntelligenceAPI extends ApiClient {
   relinkDeal(id) {
     return axios.post(`${this.url}/deals/${id}/relink_lead`);
   }
+
+  syncNow() {
+    return axios.post(`${this.url}/sync_now`);
+  }
 }
 
 export default new RevenueIntelligenceAPI();

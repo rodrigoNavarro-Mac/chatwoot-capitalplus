@@ -95,4 +95,39 @@ RSpec.describe Api::V2::Accounts::RevenueIntelligenceController, type: :request 
       end
     end
   end
+
+  describe 'POST /api/v2/accounts/{account.id}/revenue_intelligence/sync_now' do
+    # test.rb fuerza Rails.cache a :null_store (ver config/environments/test.rb) — exist?/write
+    # reales son no-ops ahí, así que el caso "throttled" se verifica con un stub explícito, mismo
+    # patrón ya usado en spec/jobs/inboxes/fetch_imap_emails_job_spec.rb para este mismo problema.
+    context 'when authenticated and authorized' do
+      it 'enqueues the leads and deals sync jobs and returns queued: true' do
+        expect do
+          post "/api/v2/accounts/#{account.id}/revenue_intelligence/sync_now", headers: admin.create_new_auth_token, as: :json
+        end.to have_enqueued_job(RevenueIntelligence::SyncZohoLeadsJob).with(account.id)
+           .and have_enqueued_job(RevenueIntelligence::SyncZohoDealsJob).with(account.id)
+
+        expect(response.parsed_body['queued']).to be(true)
+      end
+
+      it 'throttles when a sync was already triggered recently, without enqueueing new jobs' do
+        allow(Rails.cache).to receive(:exist?).with("revenue_intelligence_sync_now:#{account.id}").and_return(true)
+
+        expect do
+          post "/api/v2/accounts/#{account.id}/revenue_intelligence/sync_now", headers: admin.create_new_auth_token, as: :json
+        end.not_to have_enqueued_job(RevenueIntelligence::SyncZohoLeadsJob)
+
+        expect(response).to have_http_status(:too_many_requests)
+        expect(response.parsed_body['queued']).to be(false)
+      end
+    end
+
+    context 'when the user is not an administrator' do
+      it 'returns unauthorized' do
+        post "/api/v2/accounts/#{account.id}/revenue_intelligence/sync_now", headers: agent.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
 end
