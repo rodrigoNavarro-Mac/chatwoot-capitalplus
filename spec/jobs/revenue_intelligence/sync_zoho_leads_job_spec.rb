@@ -113,6 +113,21 @@ describe RevenueIntelligence::SyncZohoLeadsJob do
       expect(deal.reload.revenue_lead_id).to eq(lead.id)
     end
 
+    it "re-points the deal's revenue_contact_id to the lead's real contact when the lead's identity " \
+       'was already resolved (by an earlier ResolveIdentityJob run) but the deal was still empty' do
+      real_contact = account.revenue_contacts.create!(email: 'real@example.com', first_seen_at: Time.current,
+                                                      last_seen_at: Time.current)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: real_contact.id)
+      empty_contact = account.revenue_contacts.create!(zoho_contact_id: 'zoho-contact-1', first_seen_at: Time.current,
+                                                       last_seen_at: Time.current)
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: empty_contact.id)
+      stub_leads([{ 'id' => 'lead-1', 'Converted_Deal' => { 'id' => 'deal-1', 'name' => 'Someone' } }])
+
+      described_class.new.perform
+
+      expect(deal.reload.revenue_contact_id).to eq(real_contact.id)
+    end
+
     it 'does not raise and leaves revenue_lead_id nil when the Converted_Deal is not synced yet' do
       stub_leads([{ 'id' => 'lead-1', 'Converted_Deal' => { 'id' => 'deal-not-synced-yet', 'name' => 'Someone' } }])
 

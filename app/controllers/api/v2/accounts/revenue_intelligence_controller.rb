@@ -32,6 +32,7 @@ class Api::V2::Accounts::RevenueIntelligenceController < Api::V1::Accounts::Base
 
     deal.update!(revenue_lead_id: lead.id)
     RevenueIntelligence::DealAttributionCopier.copy(deal: deal, lead: lead)
+    RevenueIntelligence::IdentityResolver.new(Current.account).resolve_for_deal(deal)
     resolve_open_signal(signal_type: 'deal_without_lead', subject_type: 'RevenueDeal', subject_id: deal.id)
     render json: { linked: true }
   end

@@ -99,5 +99,11 @@ class RevenueIntelligence::SyncZohoLeadsJob < ApplicationJob
 
     deal.update!(revenue_lead_id: lead.id) if deal.revenue_lead_id.blank?
     RevenueIntelligence::DealAttributionCopier.copy(deal: deal, lead: lead)
+    # Re-resuelve el contacto del deal ahora que su lead está vinculado — si el deal ya se había
+    # resuelto ANTES de tener este vínculo (ej. leads convertidos sincronizados antes del fix del
+    # bug "0 deals vinculados"), quedó anclado a un RevenueContact vacío (sin teléfono/correo,
+    # Deals de Zoho no traen esos campos propios) que nunca se vuelve a tocar por sí solo, ya que
+    # ResolveIdentityJob solo procesa revenue_contact_id: nil.
+    RevenueIntelligence::IdentityResolver.new(account).resolve_for_deal(deal)
   end
 end

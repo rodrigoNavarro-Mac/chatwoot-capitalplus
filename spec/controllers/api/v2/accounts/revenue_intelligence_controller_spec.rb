@@ -61,6 +61,24 @@ RSpec.describe Api::V2::Accounts::RevenueIntelligenceController, type: :request 
       end
     end
 
+    context 'when the deal was previously resolved to an empty contact (before the link existed)' do
+      it "re-points the deal's contact to the lead's real one" do
+        real_contact = account.revenue_contacts.create!(email: 'real@example.com', first_seen_at: Time.current,
+                                                        last_seen_at: Time.current)
+        account.revenue_leads.create!(zoho_lead_id: 'lead-1', raw_payload: { 'Converted_Deal' => { 'id' => 'deal-1' } },
+                                      revenue_contact_id: real_contact.id)
+        empty_contact = account.revenue_contacts.create!(zoho_contact_id: 'zoho-contact-1', first_seen_at: Time.current,
+                                                         last_seen_at: Time.current)
+        deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: empty_contact.id)
+
+        post "/api/v2/accounts/#{account.id}/revenue_intelligence/deals/#{deal.id}/relink_lead",
+             headers: admin.create_new_auth_token, as: :json
+
+        expect(deal.reload.revenue_contact_id).to eq(real_contact.id)
+        expect(response.parsed_body['linked']).to be(true)
+      end
+    end
+
     context 'when no synced lead points to this deal' do
       it 'returns linked: false without raising' do
         deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1')
