@@ -42,17 +42,22 @@ namespace :chatwoot do
       next if real_time&.to_i == lead.first_contact_at&.to_i
 
       changed += 1
-      converted = lead.raw_payload.dig('Converted_Deal', 'id').present?
       puts "lead=#{lead.id} zoho_lead_id=#{lead.zoho_lead_id} actual=#{lead.first_contact_at&.iso8601 || 'blank'} " \
-           "-> real=#{real_time&.iso8601 || 'blank'}#{' (convertido -- Zoho no se toca, solo local)' if converted}"
+           "-> real=#{real_time&.iso8601 || 'blank'}"
       next if dry_run
 
       # Zoho rechaza cualquier update a un Lead ya convertido ("can't update the converted
-      # record") -- confirmado en vivo. Para esos, solo se corrige la copia local (que es lo que
-      # de verdad alimenta el reporte de Revenue Intelligence); Zoho se queda desactualizado ahi,
-      # limitacion de la plataforma, no nuestra.
-      skipped_zoho += 1 if converted
-      leads_client.update(lead.zoho_lead_id, { 'First_Contact_Time' => real_time&.iso8601 || '' }) unless converted
+      # record") -- confirmado en vivo. raw_payload['Converted_Deal'] localmente puede estar
+      # desactualizado (el mismo problema ya documentado en SyncZohoMeetingsJob), asi que no se
+      # predice antes -- se maneja el error real si ocurre. Para esos, solo se corrige la copia
+      # local (que es lo que de verdad alimenta Revenue Intelligence); Zoho se queda
+      # desactualizado ahi, limitacion de la plataforma, no nuestra.
+      begin
+        leads_client.update(lead.zoho_lead_id, { 'First_Contact_Time' => real_time&.iso8601 || '' })
+      rescue Crm::Zoho::Api::BaseClient::ApiError => e
+        skipped_zoho += 1
+        puts "  (Zoho rechazo el update -- #{e.message} -- solo se corrigio localmente)"
+      end
       lead.update!(first_contact_at: real_time)
     end
 
