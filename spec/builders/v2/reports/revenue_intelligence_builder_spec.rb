@@ -113,10 +113,33 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = builder.build
 
       campaign = result[:campaign].find { |c| c[:id] == 'camp-1' }
-      expect(campaign[:metrics]).to eq({ 'lead_created' => 10 })
+      expect(campaign[:metrics]).to eq({ 'lead_created' => 10, :lead_contacted_seguimiento => 0 })
       adset = campaign[:adsets].first
-      expect(adset).to include(id: 'adset-1', name: 'Adset Uno', metrics: { 'lead_created' => 6 })
-      expect(adset[:adverts].first).to eq({ id: 'ad-1', name: 'Anuncio Uno', metrics: { 'lead_created' => 4 } })
+      expect(adset).to include(id: 'adset-1', name: 'Adset Uno', metrics: { 'lead_created' => 6, :lead_contacted_seguimiento => 0 })
+      expect(adset[:adverts].first).to eq({ id: 'ad-1', name: 'Anuncio Uno',
+                                            metrics: { 'lead_created' => 4, :lead_contacted_seguimiento => 0 } })
+    end
+
+    it 'counts a lead as "seguimiento" in the Marketing tab when contacted in-range but created before it' do
+      rollup('campaign', 'camp-1', 'lead_contacted', count: 1)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', created_at_source: 40.days.ago,
+                                    first_contact_at: 5.days.ago)
+
+      result = builder.build
+
+      campaign = result[:campaign].find { |c| c[:id] == 'camp-1' }
+      expect(campaign[:metrics][:lead_contacted_seguimiento]).to eq(1)
+    end
+
+    it 'does not count a lead as "seguimiento" in the Marketing tab when created within the selected range' do
+      rollup('campaign', 'camp-1', 'lead_contacted', count: 1)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', created_at_source: 5.days.ago,
+                                    first_contact_at: 5.days.ago)
+
+      result = builder.build
+
+      campaign = result[:campaign].find { |c| c[:id] == 'camp-1' }
+      expect(campaign[:metrics][:lead_contacted_seguimiento]).to eq(0)
     end
 
     it 'leaves adsets empty for a campaign with no adset-level rollups' do

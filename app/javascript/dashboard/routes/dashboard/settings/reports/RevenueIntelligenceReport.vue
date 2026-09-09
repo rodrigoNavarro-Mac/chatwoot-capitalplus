@@ -1267,6 +1267,23 @@ const availableDesarrollos = computed(
                 </td>
                 <td v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
                   {{ row.metrics[metric] || 0 }}
+                  <span
+                    v-if="
+                      metric === 'lead_contacted' &&
+                      row.metrics.lead_contacted_seguimiento > 0
+                    "
+                    v-tooltip="
+                      t(
+                        'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP'
+                      )
+                    "
+                    class="text-xs text-n-amber-11 cursor-help"
+                  >
+                    +{{ row.metrics.lead_contacted_seguimiento }}
+                    {{
+                      t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL')
+                    }}
+                  </span>
                 </td>
                 <td>
                   {{

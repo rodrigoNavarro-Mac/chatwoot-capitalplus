@@ -114,11 +114,18 @@ class V2::Reports::RevenueIntelligenceBuilder
   # 'advert' son dimensiones nuevas cuyo dimension_id trae el nombre embebido (ver
   # RefreshAggregatesJob#marketing_dimension_rows) — se parsean aquí, nunca se lee revenue_leads.
   def marketing_hierarchy
-    adsets = rollup_summary('adset')
-    adverts = rollup_summary('advert')
+    seguimiento = marketing_seguimiento_counts
+    adsets = with_seguimiento(rollup_summary('adset'), seguimiento['adset'])
+    adverts = with_seguimiento(rollup_summary('advert'), seguimiento['advert'])
 
-    rollup_summary('campaign').map do |campaign_id, metrics|
+    with_seguimiento(rollup_summary('campaign'), seguimiento['campaign']).map do |campaign_id, metrics|
       { id: campaign_id, metrics: metrics, adsets: marketing_adsets(campaign_id, adsets, adverts) }
+    end
+  end
+
+  def with_seguimiento(rollup, seguimiento_counts)
+    rollup.each_with_object({}) do |(dimension_id, metrics), acc|
+      acc[dimension_id] = metrics.merge(lead_contacted_seguimiento: seguimiento_counts[dimension_id] || 0)
     end
   end
 
@@ -354,6 +361,36 @@ class V2::Reports::RevenueIntelligenceBuilder
 
       acc[event_type] += 1
     end
+  end
+
+  # Misma excepción que funnel_seguimiento_counts (comparar contra el rango elegido por el
+  # usuario no se puede precalcular en un rollup diario) — aquí para "Contactados" por
+  # campaña/adset/advert: cuántos de los leads contactados en el rango ya existían de un periodo
+  # anterior (seguimiento), para no confundirlos visualmente con leads nuevos de esta campaña.
+  def marketing_seguimiento_counts
+    range_start = date_range.begin.beginning_of_day
+    counts = { 'campaign' => Hash.new(0), 'adset' => Hash.new(0), 'advert' => Hash.new(0) }
+
+    scope = account.revenue_leads.where.not(campaign_id: nil).where(first_contact_at: date_range)
+    scope = scope.where(desarrollo: desarrollo_filter) if desarrollo_filter.present?
+    scope.pluck(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :created_at_source).each do |row|
+      accumulate_marketing_seguimiento(counts, row, range_start)
+    end
+
+    counts
+  end
+
+  def accumulate_marketing_seguimiento(counts, row, range_start)
+    campaign_id, adset_id, adset_name, advert_id, advert_name, created_at = row
+    return if created_at.blank? || created_at >= range_start
+
+    counts['campaign'][campaign_id] += 1
+    return if adset_id.blank?
+
+    counts['adset']["#{campaign_id}::#{adset_id}::#{adset_name.presence || adset_id}"] += 1
+    return if advert_id.blank?
+
+    counts['advert']["#{campaign_id}::#{adset_id}::#{advert_id}::#{advert_name.presence || advert_id}"] += 1
   end
 
   def funnel_cohort_lookups
