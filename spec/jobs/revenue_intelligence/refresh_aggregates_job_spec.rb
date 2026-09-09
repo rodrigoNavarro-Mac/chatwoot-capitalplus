@@ -45,6 +45,19 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(account.revenue_rollups.find_by(dimension_type: 'funnel', dimension_id: '_all', metric: 'lead_created')).to be_present
     end
 
+    it 'buckets the rollup date by the local timezone (America/Mexico_City), not UTC' do
+      # 2026-08-01 02:00 UTC = 2026-07-31 20:00 hora local (-06:00) -- Zoho reporta esto como un
+      # evento del 31 de julio, no del 1 de agosto (confirmado en producción: 239 leads calculados
+      # vs. 231 reales en Zoho para agosto por este mismo corrimiento de zona horaria).
+      event_at = Time.utc(2026, 8, 1, 2, 0, 0)
+      add_event('lead_created', event_at, revenue_contact_id: revenue_contact.id)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'funnel', dimension_id: '_all', metric: 'lead_created')
+      expect(rollup.date).to eq(Date.new(2026, 7, 31))
+    end
+
     it 'accumulates count across separate runs instead of overwriting it' do
       add_event('lead_created', Time.current, revenue_contact_id: revenue_contact.id)
       described_class.new.perform

@@ -17,6 +17,14 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   AGENT_EVENT_TYPES = %w[call_started call_answered call_missed].freeze
   SCORE_BANDS = { (0..39) => '0-39', (40..69) => '40-69', (70..100) => '70-100' }.freeze
 
+  # Zoho devuelve todos sus timestamps en -06:00 para esta cuenta (confirmado contra decenas de
+  # leads de meses distintos, sin variación estacional -- no es horario de verano, es el timezone
+  # fijo configurado en el propio org de Zoho). La app no tiene Time.zone configurado (default
+  # UTC), así que sin esto un lead creado a las 22:00 hora real del 31 de julio se bucketeaba como
+  # "1 de agosto" -- confirmado en producción: 239 leads calculados vs. 231 reales en Zoho para
+  # agosto 2026.
+  LOCAL_TIMEZONE = 'America/Mexico_City'.freeze
+
   def perform(account_id = nil)
     hooks = Integrations::Hook.enabled.where(app_id: 'zoho_crm')
     hooks = hooks.where(account_id: account_id) if account_id
@@ -72,6 +80,10 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     since ? { column => since...until_at } : { column => ..until_at }
   end
 
+  def local_date(time)
+    time.in_time_zone(LOCAL_TIMEZONE).to_date
+  end
+
   # Postgres rechaza un upsert_all cuyo VALUES tenga dos filas que apunten al mismo índice único
   # ("ON CONFLICT DO UPDATE command cannot affect row a second time") — algo que pasa todo el
   # tiempo aquí (ej. dos leads del mismo desarrollo el mismo día). Por eso se pre-agrupan/suman
@@ -116,7 +128,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
     events.pluck(:event_type, :event_at, :zoho_lead_id, :zoho_deal_id).map do |event_type, event_at, zoho_lead_id, zoho_deal_id|
       desarrollo = resolve_desarrollo(lookups, zoho_lead_id: zoho_lead_id, zoho_deal_id: zoho_deal_id)
-      row(account, event_at.to_date, 'funnel', desarrollo, event_type, desarrollo: desarrollo)
+      row(account, local_date(event_at), 'funnel', desarrollo, event_type, desarrollo: desarrollo)
     end
   end
 
@@ -128,7 +140,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
     events.pluck(:event_type, :event_at, :agent_id, :zoho_lead_id, :zoho_deal_id).map do |event_type, event_at, agent_id, zoho_lead_id, zoho_deal_id|
       desarrollo = resolve_desarrollo(lookups, zoho_lead_id: zoho_lead_id, zoho_deal_id: zoho_deal_id)
-      row(account, event_at.to_date, 'agent', agent_id, event_type, desarrollo: desarrollo)
+      row(account, local_date(event_at), 'agent', agent_id, event_type, desarrollo: desarrollo)
     end
   end
 
@@ -142,7 +154,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
     features.pluck(:agent_id, :started_at, :score_total, :cta_used,
                    :zoho_deal_id).flat_map do |agent_id, started_at, score_total, cta_used, zoho_deal_id|
-      date = started_at.to_date
+      date = local_date(started_at)
       desarrollo = resolve_desarrollo(lookups, zoho_deal_id: zoho_deal_id)
       rows = [row(account, date, 'agent', agent_id, 'calls_scored', desarrollo: desarrollo)]
       rows << row(account, date, 'agent', agent_id, 'score_sum', count: 0, sum_value: score_total, desarrollo: desarrollo) if score_total.present?
@@ -166,7 +178,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   def campaign_lead_rows(account, since, until_at, date_column, metric)
     account.revenue_leads.where.not(campaign_id: nil).where.not(date_column => nil).where(window(date_column, since, until_at))
            .pluck(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, date_column)
-           .flat_map { |cols| marketing_dimension_rows(account, cols.last.to_date, cols[0..5], metric) }
+           .flat_map { |cols| marketing_dimension_rows(account, local_date(cols.last), cols[0..5], metric) }
   end
 
   # rubocop:disable Metrics/ParameterLists
@@ -176,7 +188,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     scope.where.not(date_column => nil).where(window(date_column, since, until_at))
          .pluck('revenue_leads.campaign_id', 'revenue_leads.adset_id', 'revenue_leads.adset_name',
                 'revenue_leads.advert_id', 'revenue_leads.advert_name', 'revenue_deals.desarrollo', date_column)
-         .flat_map { |cols| marketing_dimension_rows(account, cols.last.to_date, cols[0..5], metric) }
+         .flat_map { |cols| marketing_dimension_rows(account, local_date(cols.last), cols[0..5], metric) }
   end
   # rubocop:enable Metrics/ParameterLists
 
@@ -209,15 +221,15 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   def pipeline_stage_rows(account, since, until_at, lookups)
     entered = account.revenue_stage_events.where(window(:created_at, since, until_at)).pluck(:stage, :entered_at, :zoho_deal_id)
                      .map do |stage, entered_at, zoho_deal_id|
-      row(account, entered_at.to_date, 'pipeline_stage', stage, 'entered', desarrollo: resolve_desarrollo(lookups, zoho_deal_id: zoho_deal_id))
+      row(account, local_date(entered_at), 'pipeline_stage', stage, 'entered', desarrollo: resolve_desarrollo(lookups, zoho_deal_id: zoho_deal_id))
     end
 
     closed = account.revenue_stage_events.where.not(exited_at: nil).where(window(:created_at, since, until_at))
                     .pluck(:stage, :exited_at, :duration_seconds, :zoho_deal_id)
                     .map do |stage, exited_at, duration_seconds, zoho_deal_id|
       desarrollo = resolve_desarrollo(lookups, zoho_deal_id: zoho_deal_id)
-      row(account, exited_at.to_date, 'pipeline_stage', stage, 'duration_seconds', count: 1, sum_value: duration_seconds || 0,
-                                                                                   desarrollo: desarrollo)
+      row(account, local_date(exited_at), 'pipeline_stage', stage, 'duration_seconds', count: 1, sum_value: duration_seconds || 0,
+                                                                                       desarrollo: desarrollo)
     end
 
     entered + closed
@@ -273,8 +285,9 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
   # rubocop:disable Metrics/ParameterLists
   def conversion_pair(account, date, dimension_type, dimension_id, converted, desarrollo)
-    rows = [row(account, date.to_date, dimension_type, dimension_id, 'total', desarrollo: desarrollo)]
-    rows << row(account, date.to_date, dimension_type, dimension_id, 'converted', desarrollo: desarrollo) if converted
+    local = local_date(date)
+    rows = [row(account, local, dimension_type, dimension_id, 'total', desarrollo: desarrollo)]
+    rows << row(account, local, dimension_type, dimension_id, 'converted', desarrollo: desarrollo) if converted
     rows
   end
   # rubocop:enable Metrics/ParameterLists
