@@ -129,6 +129,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
 
     result = @finder.find_or_create(contact)
     update_last_contact(result, message.created_at)
+    sync_first_contact_time(result, contact, message) if result[:zoho_module] == 'Leads'
   rescue Crm::Zoho::Api::BaseClient::ApiError => e
     log_api_error('handle_message_created', message.id, e)
   rescue StandardError => e
@@ -147,6 +148,31 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     end
   end
 
+  # Una plantilla de WhatsApp (obligatoria como primer mensaje por la ventana de 24h de su API) no
+  # cuenta como contacto real -- First_Contact_Time solo se marca en el primer mensaje humano que
+  # NO sea plantilla, para no inflar "contactados" con el saludo automático de apertura de
+  # conversación (confirmado con el usuario: sin esto, "% contactados" salía en 100% aunque no
+  # hubiera interacción real).
+  def sync_first_contact_time(result, contact, message)
+    return if message.content_attributes['template_params'].present?
+    return unless first_non_template_human_message?(message)
+
+    record = result[:record] || @finder.fetch_record(contact)
+    return unless zoho_field_blank?(record, 'First_Contact_Time')
+
+    @leads_client.update(result[:zoho_id], { 'First_Contact_Time' => message.created_at.iso8601 })
+  end
+
+  def first_non_template_human_message?(message)
+    message.conversation.messages.outgoing
+           .where.not(sender_type: ['AgentBot', 'Captain::Assistant'])
+           .where.not(private: true)
+           .where("(additional_attributes->'campaign_id') is null")
+           .where("(content_attributes->'template_params') is null")
+           .where.not(id: message.id)
+           .none?
+  end
+
   def sync_first_reply_fields(result, contact, conversation, timestamp)
     record = result[:record] || @finder.fetch_record(contact)
     updates = first_reply_zoho_updates(record, conversation, timestamp)
@@ -156,10 +182,12 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
   end
 
   # Only fields Zoho doesn't already have a value for get sent, per field, so a Lead edited
-  # manually on just one of them still gets the other backfilled.
+  # manually on just one of them still gets the other backfilled. First_Contact_Time NO se toca
+  # aquí -- lo marca sync_first_contact_time (vía handle_message_created), que exige que el
+  # mensaje no sea una plantilla; el "first reply" de Chatwoot casi siempre ES la plantilla de
+  # apertura de WhatsApp, así que usarlo aquí inflaría "contactados" con saludos automáticos.
   def first_reply_zoho_updates(record, conversation, timestamp)
     updates = {}
-    updates['First_Contact_Time'] = timestamp.iso8601 if zoho_field_blank?(record, 'First_Contact_Time')
     if zoho_field_blank?(record, 'Tiempo_de_respuesta_inicial')
       start_time = last_non_human_activity(conversation)
       updates['Tiempo_de_respuesta_inicial'] = ((timestamp.to_i - start_time.to_i) / 60.0).round

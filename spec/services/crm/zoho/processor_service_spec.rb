@@ -71,10 +71,10 @@ RSpec.describe Crm::Zoho::ProcessorService do
         allow(leads_client).to receive(:update)
       end
 
-      it 'sends First_Contact_Time and Tiempo_de_respuesta_inicial (rounded minutes) in a single update' do
+      it 'sends only Tiempo_de_respuesta_inicial (rounded minutes) -- First_Contact_Time is handled ' \
+         'separately by handle_message_created, gated on the message not being a WhatsApp template' do
         service.handle_first_reply_created(event_data)
-        expect(leads_client).to have_received(:update)
-          .with('l1', { 'First_Contact_Time' => conversation.reload.first_reply_created_at.iso8601, 'Tiempo_de_respuesta_inicial' => 4 })
+        expect(leads_client).to have_received(:update).with('l1', { 'Tiempo_de_respuesta_inicial' => 4 })
       end
     end
 
@@ -94,7 +94,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
       end
     end
 
-    context 'when only First_Contact_Time is missing' do
+    context 'when Tiempo_de_respuesta_inicial is already set (First_Contact_Time is handled elsewhere)' do
       before do
         conversation.update!(first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
         allow(finder).to receive(:find_or_create).with(contact)
@@ -103,10 +103,9 @@ RSpec.describe Crm::Zoho::ProcessorService do
         allow(leads_client).to receive(:update)
       end
 
-      it 'sends only First_Contact_Time' do
+      it 'does not call Zoho at all (nothing left to update)' do
         service.handle_first_reply_created(event_data)
-        expect(leads_client).to have_received(:update)
-          .with('l1', { 'First_Contact_Time' => conversation.reload.first_reply_created_at.iso8601 })
+        expect(leads_client).not_to have_received(:update)
       end
     end
 
@@ -148,8 +147,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
       it 'fetches the record before updating' do
         service.handle_first_reply_created(event_data)
         expect(finder).to have_received(:fetch_record).with(contact)
-        expect(leads_client).to have_received(:update)
-          .with('l1', { 'First_Contact_Time' => conversation.reload.first_reply_created_at.iso8601, 'Tiempo_de_respuesta_inicial' => 16 })
+        expect(leads_client).to have_received(:update).with('l1', { 'Tiempo_de_respuesta_inicial' => 16 })
       end
     end
 
@@ -181,12 +179,70 @@ RSpec.describe Crm::Zoho::ProcessorService do
     context 'when the message is a human agent reply' do
       before do
         allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:fetch_record).with(contact).and_return({})
         allow(leads_client).to receive(:update)
       end
 
       it 'updates Ultimo_conctacto on the Lead with the message timestamp' do
         service.handle_message_created(event_data)
         expect(leads_client).to have_received(:update).with('l1', { 'Ultimo_conctacto' => agent_message.created_at.iso8601 })
+      end
+    end
+
+    context 'when the message is the first non-template human reply and First_Contact_Time is blank in Zoho' do
+      before do
+        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:fetch_record).with(contact).and_return({ 'First_Contact_Time' => nil })
+        allow(leads_client).to receive(:update)
+      end
+
+      it 'also sets First_Contact_Time on the Lead' do
+        service.handle_message_created(event_data)
+        expect(leads_client).to have_received(:update).with('l1', { 'First_Contact_Time' => agent_message.created_at.iso8601 })
+      end
+    end
+
+    context 'when the message is a WhatsApp template (the mandatory opening message)' do
+      before do
+        agent_message.update!(content_attributes: { template_params: { name: 'saludo_inicial' } })
+        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:fetch_record)
+        allow(leads_client).to receive(:update)
+      end
+
+      it 'does not set First_Contact_Time -- opening a WhatsApp conversation is not real contact' do
+        service.handle_message_created(event_data)
+        expect(finder).not_to have_received(:fetch_record)
+        expect(leads_client).not_to have_received(:update).with('l1', hash_including('First_Contact_Time'))
+      end
+    end
+
+    context 'when a later non-template message follows an earlier non-template reply in the same conversation' do
+      before do
+        create(:message, account: account, conversation: conversation, message_type: :outgoing, sender: agent,
+                         created_at: agent_message.created_at - 1.hour)
+        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:fetch_record)
+        allow(leads_client).to receive(:update)
+      end
+
+      it 'does not re-check or re-set First_Contact_Time (not the first non-template message anymore)' do
+        service.handle_message_created(event_data)
+        expect(finder).not_to have_received(:fetch_record)
+        expect(leads_client).not_to have_received(:update).with('l1', hash_including('First_Contact_Time'))
+      end
+    end
+
+    context 'when First_Contact_Time is already set in Zoho' do
+      before do
+        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:fetch_record).with(contact).and_return({ 'First_Contact_Time' => '2026-01-01T00:00:00-06:00' })
+        allow(leads_client).to receive(:update)
+      end
+
+      it 'does not overwrite it' do
+        service.handle_message_created(event_data)
+        expect(leads_client).not_to have_received(:update).with('l1', hash_including('First_Contact_Time'))
       end
     end
 
