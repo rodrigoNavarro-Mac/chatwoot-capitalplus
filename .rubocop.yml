@@ -116,6 +116,7 @@ Metrics/BlockLength:
     - 'lib/tasks/repair_aircall_backdated_activity.rake'
     - 'lib/tasks/export_revenue_intelligence_citas.rake'
     - 'lib/tasks/export_revenue_intelligence_deals.rake'
+    - 'lib/tasks/backfill_first_contact_time.rake'
 
 Metrics/ModuleLength:
   Exclude:
