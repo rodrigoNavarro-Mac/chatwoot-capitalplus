@@ -21,8 +21,8 @@ namespace :chatwoot do
       Message.joins(:conversation)
              .where(conversations: { contact_id: chatwoot_contact_id, account_id: account.id })
              .outgoing.where.not(sender_type: %w[AgentBot Captain::Assistant]).where.not(private: true)
-             .where("(additional_attributes->'campaign_id') is null")
-             .where("(content_attributes->'template_params') is null")
+             .where("(messages.additional_attributes->'campaign_id') is null")
+             .where("(messages.content_attributes->'template_params') is null")
              .order(:created_at).limit(1).pick(:created_at)
     end
 
