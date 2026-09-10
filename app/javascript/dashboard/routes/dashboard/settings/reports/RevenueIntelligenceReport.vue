@@ -375,6 +375,7 @@ const marketingTotals = computed(
       lead_created: 0,
       lead_contacted: 0,
       lead_contacted_seguimiento: 0,
+      lead_converted: 0,
       deal_created: 0,
       closed_won: 0,
     }
@@ -1276,6 +1277,20 @@ const availableDesarrollos = computed(
                 <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
                   {{ marketingTotals.lead_created }}
                 </h4>
+                <div
+                  v-if="marketingTotals.lead_converted > 0"
+                  v-tooltip="
+                    t(
+                      'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_TOOLTIP'
+                    )
+                  "
+                  class="text-xs mt-1 text-n-blue-11 cursor-help"
+                >
+                  +{{ marketingTotals.lead_converted }}
+                  {{
+                    t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL')
+                  }}
+                </div>
               </div>
               <div class="min-w-[7rem]">
                 <h3 class="m-0 text-sm font-medium text-n-slate-11">
@@ -1370,6 +1385,25 @@ const availableDesarrollos = computed(
                     {{ row.metrics[metric] || 0 }}
                     <span
                       v-if="
+                        metric === 'lead_created' &&
+                        row.metrics.lead_converted > 0
+                      "
+                      v-tooltip="
+                        t(
+                          'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_TOOLTIP'
+                        )
+                      "
+                      class="text-xs text-n-blue-11 cursor-help"
+                    >
+                      +{{ row.metrics.lead_converted }}
+                      {{
+                        t(
+                          'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL'
+                        )
+                      }}
+                    </span>
+                    <span
+                      v-if="
                         metric === 'lead_contacted' &&
                         row.metrics.lead_contacted_seguimiento > 0
                       "
@@ -1443,6 +1477,25 @@ const availableDesarrollos = computed(
                       :key="metric"
                     >
                       {{ row.metrics[metric] || 0 }}
+                      <span
+                        v-if="
+                          metric === 'lead_created' &&
+                          row.metrics.lead_converted > 0
+                        "
+                        v-tooltip="
+                          t(
+                            'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_TOOLTIP'
+                          )
+                        "
+                        class="text-xs text-n-blue-11 cursor-help"
+                      >
+                        +{{ row.metrics.lead_converted }}
+                        {{
+                          t(
+                            'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL'
+                          )
+                        }}
+                      </span>
                       <span
                         v-if="
                           metric === 'lead_contacted' &&

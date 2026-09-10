@@ -939,7 +939,9 @@
       "CLOSE_RATE": "% a venta",
       "SOURCES_TITLE": "Por fuente",
       "SOURCES_DESCRIPTION": "Leads sin campaña de Meta Ads asociada, agrupados por la fuente original registrada en Zoho",
-      "SOURCE": "Fuente"
+      "SOURCE": "Fuente",
+      "CONVERTED_LABEL": "ya convertidos",
+      "CONVERTED_TOOLTIP": "De los leads creados en este periodo, cuántos ya se convirtieron a Deal en Zoho. Un reporte de Zoho que excluya leads convertidos (comportamiento default de su buscador) mostrará un número menor a este."
     },
     "SALES_TEAM": {
       "TITLE": "Por agente",

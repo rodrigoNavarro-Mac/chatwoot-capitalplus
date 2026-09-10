@@ -145,7 +145,7 @@ class V2::Reports::RevenueIntelligenceBuilder
     end
   end
 
-  MARKETING_TOTAL_METRICS = %w[lead_created lead_contacted deal_created closed_won].freeze
+  MARKETING_TOTAL_METRICS = %w[lead_created lead_contacted lead_converted deal_created closed_won].freeze
 
   # Suma "Por campaña" (nivel top, ya inclusivo de sus adsets/adverts -- ver comentario de
   # marketing_hierarchy) + "Por fuente" -- para que la UI pueda mostrar un total del tab Marketing

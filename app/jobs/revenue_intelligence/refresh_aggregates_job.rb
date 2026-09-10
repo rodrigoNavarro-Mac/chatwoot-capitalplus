@@ -43,18 +43,23 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     cursor_service = RevenueIntelligence::SyncCursorService.new(account, 'rollups')
     since = cursor_service.since
     until_at = Time.current
-    lookups = desarrollo_lookups(account)
 
-    rows = funnel_rows(account, since, until_at, lookups) + agent_rows(account, since, until_at, lookups) +
-           agent_call_quality_rows(account, since, until_at, lookups) + campaign_rows(account, since, until_at) +
-           source_rows(account, since, until_at) + pipeline_stage_rows(account, since, until_at, lookups) +
-           call_conversion_rows(account, since, until_at, lookups) + objection_conversion_rows(account, since, until_at, lookups)
-    upsert_rows(rows)
+    upsert_rows(build_rows(account, since, until_at))
 
     cursor_service.advance!(until_at)
   rescue StandardError => e
     cursor_service&.record_error!(e.message)
     raise
+  end
+
+  def build_rows(account, since, until_at)
+    lookups = desarrollo_lookups(account)
+    converted_ids = converted_lead_ids(account)
+
+    funnel_rows(account, since, until_at, lookups) + agent_rows(account, since, until_at, lookups) +
+      agent_call_quality_rows(account, since, until_at, lookups) + campaign_rows(account, since, until_at, converted_ids) +
+      source_rows(account, since, until_at, converted_ids) + pipeline_stage_rows(account, since, until_at, lookups) +
+      call_conversion_rows(account, since, until_at, lookups) + objection_conversion_rows(account, since, until_at, lookups)
   end
 
   # { zoho_lead_id => desarrollo }, { zoho_deal_id => desarrollo } — construidos UNA vez por
@@ -74,6 +79,18 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   # ambos ids.
   def resolve_desarrollo(lookups, zoho_lead_id: nil, zoho_deal_id: nil)
     lookups[:deal][zoho_deal_id] || lookups[:lead][zoho_lead_id] || '_all'
+  end
+
+  # IDs de revenue_leads que YA tienen un revenue_deal asociado (best-effort vía
+  # revenue_deals.revenue_lead_id, ver Fase 1) -- para la métrica 'lead_converted' de
+  # campaign/lead_source: cuántos de los leads CREADOS en el periodo ya se convirtieron a Deal.
+  # Sin esto, un cliente que compara "Leads" de esta pantalla contra un reporte de Zoho que excluye
+  # convertidos por default (comportamiento real confirmado de la API de Search/COQL de Zoho) ve un
+  # número más alto aquí sin entender por qué -- confirmado como el origen real de una consulta en
+  # producción (2026-09-10): 11 de 155 leads de una campaña ya estaban convertidos, y Zoho's propio
+  # conteo (que excluye convertidos) mostraba 146.
+  def converted_lead_ids(account)
+    account.revenue_deals.where.not(revenue_lead_id: nil).distinct.pluck(:revenue_lead_id).to_set
   end
 
   def window(column, since, until_at)
@@ -165,12 +182,16 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
   # dimension_id: campaign_id (y, en paralelo, adset/advert — ver marketing_dimension_rows).
   # lead_created/lead_contacted desde revenue_leads directo (no vía eventos, el campaign_id no
-  # viaja en el evento); deal_created/closed_won heredados del campaign_id del lead de origen del
-  # deal (best-effort, ver revenue_deals.revenue_lead_id en Fase 1) — deal_created para saber qué
-  # campaña/adset/advert produce deals (no solo ventas cerradas), closed_won para la venta en sí.
-  def campaign_rows(account, since, until_at)
+  # viaja en el evento); lead_converted = de los leads CREADOS en el periodo, cuántos ya tienen un
+  # revenue_deal asociado (ver converted_lead_ids) -- misma cohorte que lead_created, para que la
+  # UI pueda anotar "X ya convertidos" junto al conteo de Leads; deal_created/closed_won heredados
+  # del campaign_id del lead de origen del deal (best-effort, ver revenue_deals.revenue_lead_id en
+  # Fase 1) — deal_created para saber qué campaña/adset/advert produce deals (no solo ventas
+  # cerradas), closed_won para la venta en sí.
+  def campaign_rows(account, since, until_at, converted_ids)
     campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
       campaign_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
+      campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_converted', converted_ids: converted_ids) +
       campaign_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
       campaign_deal_rows(account, since, until_at, date_column: :updated_at, metric: 'closed_won', won_only: true)
   end
@@ -179,19 +200,23 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   # respaldo para el ~94% de leads sin campaign_id (confirmado contra Zoho: la atribución fina de
   # campaña solo existe desde el 10 de agosto de 2026 para esta cuenta). Sin esto, la pestaña de
   # Marketing solo mostraba la fracción con campaña y daba la impresión de que el marketing
-  # "empezó" en esa fecha. Mismas 4 métricas que campaign_rows, misma semántica.
-  def source_rows(account, since, until_at)
+  # "empezó" en esa fecha. Mismas métricas que campaign_rows, misma semántica.
+  def source_rows(account, since, until_at, converted_ids)
     source_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
       source_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
+      source_lead_rows(account, since, until_at, :created_at_source, 'lead_converted', converted_ids: converted_ids) +
       source_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
       source_deal_rows(account, since, until_at, date_column: :updated_at, metric: 'closed_won', won_only: true)
   end
 
-  def source_lead_rows(account, since, until_at, date_column, metric)
-    account.revenue_leads.where(campaign_id: nil).where.not(date_column => nil).where(window(date_column, since, until_at))
-           .pluck(:lead_source, :desarrollo, date_column)
-           .map { |lead_source, desarrollo, date| source_row(account, local_date(date), lead_source, desarrollo, metric) }
+  # rubocop:disable Metrics/ParameterLists
+  def source_lead_rows(account, since, until_at, date_column, metric, converted_ids: nil)
+    scope = account.revenue_leads.where(campaign_id: nil).where.not(date_column => nil).where(window(date_column, since, until_at))
+    scope = scope.where(id: converted_ids.to_a) if converted_ids
+    scope.pluck(:lead_source, :desarrollo, date_column)
+         .map { |lead_source, desarrollo, date| source_row(account, local_date(date), lead_source, desarrollo, metric) }
   end
+  # rubocop:enable Metrics/ParameterLists
 
   # rubocop:disable Metrics/ParameterLists
   def source_deal_rows(account, since, until_at, date_column:, metric:, won_only:)
@@ -207,11 +232,14 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     row(account, date, 'lead_source', lead_source.presence || 'Sin fuente', metric, desarrollo: desarrollo || '_all')
   end
 
-  def campaign_lead_rows(account, since, until_at, date_column, metric)
-    account.revenue_leads.where.not(campaign_id: nil).where.not(date_column => nil).where(window(date_column, since, until_at))
-           .pluck(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, date_column)
-           .flat_map { |cols| marketing_dimension_rows(account, local_date(cols.last), cols[0..5], metric) }
+  # rubocop:disable Metrics/ParameterLists
+  def campaign_lead_rows(account, since, until_at, date_column, metric, converted_ids: nil)
+    scope = account.revenue_leads.where.not(campaign_id: nil).where.not(date_column => nil).where(window(date_column, since, until_at))
+    scope = scope.where(id: converted_ids.to_a) if converted_ids
+    scope.pluck(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, date_column)
+         .flat_map { |cols| marketing_dimension_rows(account, local_date(cols.last), cols[0..5], metric) }
   end
+  # rubocop:enable Metrics/ParameterLists
 
   # rubocop:disable Metrics/ParameterLists
   def campaign_deal_rows(account, since, until_at, date_column:, metric:, won_only:)

@@ -189,7 +189,8 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = builder.build
 
       expect(result[:marketing_totals]).to eq(
-        { 'lead_created' => 15, 'lead_contacted' => 8, 'deal_created' => 2, 'closed_won' => 1, 'lead_contacted_seguimiento' => 0 }
+        { 'lead_created' => 15, 'lead_contacted' => 8, 'lead_converted' => 0, 'deal_created' => 2, 'closed_won' => 1,
+          'lead_contacted_seguimiento' => 0 }
       )
     end
 

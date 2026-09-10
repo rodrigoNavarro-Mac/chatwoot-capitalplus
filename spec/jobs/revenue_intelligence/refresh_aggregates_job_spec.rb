@@ -253,6 +253,24 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_contacted')).to be_nil
     end
 
+    it 'counts lead_converted for a lead created in the period that already has a revenue_deal' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', created_at_source: Time.current)
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_converted')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'does not count lead_converted for a lead with no associated revenue_deal' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', created_at_source: Time.current)
+
+      described_class.new.perform
+
+      expect(account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_converted')).to be_nil
+    end
+
     it 'attributes deal_created (won or not) to the campaign_id of the deal\'s originating lead' do
       lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
       account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, created_at_source: Time.current)
@@ -338,6 +356,16 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       described_class.new.perform
 
       expect(account.revenue_rollups.find_by(dimension_type: 'lead_source', dimension_id: 'Sin fuente', metric: 'lead_created')).to be_present
+    end
+
+    it 'counts lead_converted for a lead created in the period that already has a revenue_deal' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: 'Facebook Ads', created_at_source: Time.current)
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'lead_source', dimension_id: 'Facebook Ads', metric: 'lead_converted')
+      expect(rollup.count).to eq(1)
     end
 
     it 'attributes closed_won to the lead_source of the deal\'s originating lead when it has no campaign_id' do
