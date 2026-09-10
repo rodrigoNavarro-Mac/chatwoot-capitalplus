@@ -139,6 +139,18 @@ describe RevenueIntelligence::BuildEventsJob do
       expect(event.event_at).not_to eq(original_event_at)
       expect(account.revenue_events.where(source_system: 'revenue_lead', source_id: lead.id.to_s, event_type: 'lead_contacted').count).to eq(1)
     end
+
+    it 'deletes a stale event when the underlying timestamp is cleared back to nil' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id, created_at_source: 3.days.ago,
+                                           first_contact_at: 2.days.ago)
+      described_class.new.perform
+      expect(account.revenue_events.where(source_system: 'revenue_lead', source_id: lead.id.to_s, event_type: 'lead_contacted')).to exist
+
+      lead.update!(first_contact_at: nil)
+      described_class.new.perform
+
+      expect(account.revenue_events.where(source_system: 'revenue_lead', source_id: lead.id.to_s, event_type: 'lead_contacted')).not_to exist
+    end
   end
 
   describe 'deal_created events' do
@@ -148,6 +160,17 @@ describe RevenueIntelligence::BuildEventsJob do
       described_class.new.perform
 
       expect(account.revenue_events.find_by(source_system: 'revenue_deal', source_id: deal.id.to_s, event_type: 'deal_created')).to be_present
+    end
+
+    it 'deletes a stale deal_created event when created_at_source is cleared back to nil' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id, created_at_source: Time.current)
+      described_class.new.perform
+      expect(account.revenue_events.where(source_system: 'revenue_deal', source_id: deal.id.to_s, event_type: 'deal_created')).to exist
+
+      deal.update!(created_at_source: nil)
+      described_class.new.perform
+
+      expect(account.revenue_events.where(source_system: 'revenue_deal', source_id: deal.id.to_s, event_type: 'deal_created')).not_to exist
     end
   end
 
@@ -219,6 +242,18 @@ describe RevenueIntelligence::BuildEventsJob do
 
       event = account.revenue_events.find_by(source_system: 'revenue_appointment', source_id: appointment.id.to_s)
       expect(event.event_at).to be_within(1.second).of(starts_at)
+    end
+
+    it 'deletes a stale appointment_created event when starts_at is cleared back to nil' do
+      appointment = account.revenue_appointments.create!(zoho_event_id: 'event-1', revenue_contact_id: revenue_contact.id,
+                                                         starts_at: 2.days.from_now)
+      described_class.new.perform
+      expect(account.revenue_events.where(source_system: 'revenue_appointment', source_id: appointment.id.to_s)).to exist
+
+      appointment.update!(starts_at: nil)
+      described_class.new.perform
+
+      expect(account.revenue_events.where(source_system: 'revenue_appointment', source_id: appointment.id.to_s)).not_to exist
     end
   end
 

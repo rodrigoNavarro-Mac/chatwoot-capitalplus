@@ -149,23 +149,34 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     end
   end
 
+  # Si event_at ya no tiene valor (el campo de origen se limpió DESPUÉS de que el evento ya
+  # existía — confirmado en producción con un lead cuyo first_contact_at volvió a nil), el evento
+  # viejo se BORRA en vez de dejarse huérfano -- sin esto, un evento con event_at desde antes de
+  # la limpieza sigue contando en los rollups de tipo funnel para siempre, aunque
+  # campaign/lead_source (que leen el campo actual, ya nil) ya no lo cuenten. Mismo bug de fondo
+  # que el fix de upsert_event (event_at nunca se refrescaba), en su variante "el dato desapareció"
+  # en vez de "el dato cambió".
   def upsert_lead_milestone(account, lead, event_type, event_at)
-    return if event_at.blank?
+    key = { source_system: 'revenue_lead', event_type: event_type, source_id: lead.id.to_s }
+    return delete_event(account, key) if event_at.blank?
 
-    upsert_event(account, event_type: event_type, event_at: event_at, source_system: 'revenue_lead',
-                          source_id: lead.id.to_s, revenue_contact_id: lead.revenue_contact_id, zoho_lead_id: lead.zoho_lead_id)
+    upsert_event(account, key.merge(event_at: event_at, revenue_contact_id: lead.revenue_contact_id, zoho_lead_id: lead.zoho_lead_id))
   end
 
   def build_deal_events(account, since, until_at)
     deals = account.revenue_deals.where(window(:updated_at, since, until_at))
 
     each_safely(account, deals, 'deal') do |deal|
-      next if deal.created_at_source.blank?
+      key = { source_system: 'revenue_deal', event_type: 'deal_created', source_id: deal.id.to_s }
+      next delete_event(account, key) if deal.created_at_source.blank?
 
-      upsert_event(account, event_type: 'deal_created', event_at: deal.created_at_source, source_system: 'revenue_deal',
-                            source_id: deal.id.to_s, revenue_contact_id: deal.revenue_contact_id, zoho_deal_id: deal.zoho_deal_id,
-                            zoho_lead_id: deal.revenue_lead&.zoho_lead_id)
+      upsert_event(account, key.merge(event_at: deal.created_at_source, revenue_contact_id: deal.revenue_contact_id,
+                                      zoho_deal_id: deal.zoho_deal_id, zoho_lead_id: deal.revenue_lead&.zoho_lead_id))
     end
+  end
+
+  def delete_event(account, key)
+    account.revenue_events.where(key).delete_all
   end
 
   def build_stage_events(account, since, until_at)
@@ -223,11 +234,11 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     appointments = account.revenue_appointments.where(window(:updated_at, since, until_at))
 
     each_safely(account, appointments, 'appointment') do |appointment|
-      next if appointment.starts_at.blank?
+      key = { source_system: 'revenue_appointment', event_type: 'appointment_created', source_id: appointment.id.to_s }
+      next delete_event(account, key) if appointment.starts_at.blank?
 
-      upsert_event(account, event_type: 'appointment_created', event_at: appointment.starts_at, source_system: 'revenue_appointment',
-                            source_id: appointment.id.to_s, revenue_contact_id: appointment.revenue_contact_id,
-                            zoho_deal_id: appointment.zoho_deal_id, zoho_lead_id: appointment.zoho_lead_id)
+      upsert_event(account, key.merge(event_at: appointment.starts_at, revenue_contact_id: appointment.revenue_contact_id,
+                                      zoho_deal_id: appointment.zoho_deal_id, zoho_lead_id: appointment.zoho_lead_id))
     end
   end
 
