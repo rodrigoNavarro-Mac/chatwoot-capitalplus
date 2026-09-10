@@ -366,6 +366,20 @@ const marketingSourceRows = computed(() => {
       (a, b) => (b.metrics.lead_created || 0) - (a.metrics.lead_created || 0)
     );
 });
+// Total del tab Marketing = "Por campaña" + "Por fuente" -- se muestra explícitamente para que el
+// usuario pueda comparar de un vistazo contra Leads/Contacted de Overview, sin tener que sumar dos
+// tablas a mano (origen real de la confusión "no cuadra" reportada en producción).
+const marketingTotals = computed(
+  () =>
+    report.value?.marketing_totals ?? {
+      lead_created: 0,
+      lead_contacted: 0,
+      lead_contacted_seguimiento: 0,
+      deal_created: 0,
+      closed_won: 0,
+    }
+);
+
 const MARKETING_METRIC_COLUMNS = [
   'lead_created',
   'lead_contacted',
@@ -1247,97 +1261,83 @@ const availableDesarrollos = computed(
         </template>
 
         <!-- Marketing -->
-        <div
-          v-else-if="activeTab === 'marketing'"
-          class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-        >
-          <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TITLE') }}
-          </h3>
-          <p class="text-sm text-n-slate-11 mb-4">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.DESCRIPTION') }}
-          </p>
+        <template v-else-if="activeTab === 'marketing'">
           <div
-            v-if="!marketingRows.length"
-            class="text-sm text-n-slate-11 py-4 text-center"
+            class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 mb-6"
           >
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.EMPTY') }}
+            <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-4">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTALS_TITLE') }}
+            </h3>
+            <div class="flex flex-wrap gap-6">
+              <div class="min-w-[7rem]">
+                <h3 class="m-0 text-sm font-medium text-n-slate-11">
+                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTAL_LEADS') }}
+                </h3>
+                <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
+                  {{ marketingTotals.lead_created }}
+                </h4>
+              </div>
+              <div class="min-w-[7rem]">
+                <h3 class="m-0 text-sm font-medium text-n-slate-11">
+                  {{
+                    t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTAL_CONTACTED')
+                  }}
+                </h3>
+                <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
+                  {{ marketingTotals.lead_contacted }}
+                </h4>
+                <div
+                  v-if="marketingTotals.lead_contacted_seguimiento > 0"
+                  v-tooltip="
+                    t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
+                  "
+                  class="text-xs mt-1 text-n-amber-11 cursor-help"
+                >
+                  +{{ marketingTotals.lead_contacted_seguimiento }}
+                  {{
+                    t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL')
+                  }}
+                </div>
+              </div>
+              <div class="min-w-[7rem]">
+                <h3 class="m-0 text-sm font-medium text-n-slate-11">
+                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTAL_DEALS') }}
+                </h3>
+                <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
+                  {{ marketingTotals.deal_created }}
+                </h4>
+              </div>
+              <div class="min-w-[7rem]">
+                <h3 class="m-0 text-sm font-medium text-n-slate-11">
+                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTAL_WON') }}
+                </h3>
+                <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
+                  {{ marketingTotals.closed_won }}
+                </h4>
+              </div>
+            </div>
           </div>
-          <table v-else class="woot-table w-full">
-            <thead>
-              <tr>
-                <th>
-                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CAMPAIGN') }}
-                </th>
-                <th v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
-                  {{ eventTypeLabel(metric) }}
-                </th>
-                <th>
-                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONTACT_RATE') }}
-                </th>
-                <th>
-                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CLOSE_RATE') }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in marketingRows" :key="row.key">
-                <td>
-                  <span
-                    :style="{ paddingLeft: `${row.level * 1.25}rem` }"
-                    :class="
-                      row.level === 0
-                        ? 'font-semibold text-n-slate-12'
-                        : 'text-n-slate-11'
-                    "
-                  >
-                    {{ row.label }}
-                  </span>
-                </td>
-                <td v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
-                  {{ row.metrics[metric] || 0 }}
-                  <span
-                    v-if="
-                      metric === 'lead_contacted' &&
-                      row.metrics.lead_contacted_seguimiento > 0
-                    "
-                    v-tooltip="
-                      t(
-                        'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP'
-                      )
-                    "
-                    class="text-xs text-n-amber-11 cursor-help"
-                  >
-                    +{{ row.metrics.lead_contacted_seguimiento }}
-                    {{
-                      t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL')
-                    }}
-                  </span>
-                </td>
-                <td>
-                  <MarketingRateCell :rate="row.metrics.contactRate" />
-                </td>
-                <td>
-                  <MarketingRateCell :rate="row.metrics.closeRate" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
 
-          <div v-if="marketingSourceRows.length" class="mt-8">
-            <h4 class="text-sm font-semibold text-n-slate-12 mt-0 mb-1">
-              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCES_TITLE') }}
-            </h4>
-            <p class="text-xs text-n-slate-11 mb-3">
-              {{
-                t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCES_DESCRIPTION')
-              }}
+          <div
+            class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
+          >
+            <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TITLE') }}
+            </h3>
+            <p class="text-sm text-n-slate-11 mb-4">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.DESCRIPTION') }}
             </p>
-            <table class="woot-table w-full">
+            <div
+              v-if="!marketingRows.length"
+              class="text-sm text-n-slate-11 py-4 text-center"
+            >
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.EMPTY') }}
+            </div>
+            <table v-else class="woot-table w-full">
               <thead>
                 <tr>
                   <th>
-                    {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCE') }}
+                    {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CAMPAIGN') }}
                   </th>
                   <th v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
                     {{ eventTypeLabel(metric) }}
@@ -1353,9 +1353,18 @@ const availableDesarrollos = computed(
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in marketingSourceRows" :key="row.key">
-                  <td class="font-semibold text-n-slate-12">
-                    {{ row.label }}
+                <tr v-for="row in marketingRows" :key="row.key">
+                  <td>
+                    <span
+                      :style="{ paddingLeft: `${row.level * 1.25}rem` }"
+                      :class="
+                        row.level === 0
+                          ? 'font-semibold text-n-slate-12'
+                          : 'text-n-slate-11'
+                      "
+                    >
+                      {{ row.label }}
+                    </span>
                   </td>
                   <td v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
                     {{ row.metrics[metric] || 0 }}
@@ -1388,8 +1397,84 @@ const availableDesarrollos = computed(
                 </tr>
               </tbody>
             </table>
+
+            <div v-if="marketingSourceRows.length" class="mt-8">
+              <h4 class="text-sm font-semibold text-n-slate-12 mt-0 mb-1">
+                {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCES_TITLE') }}
+              </h4>
+              <p class="text-xs text-n-slate-11 mb-3">
+                {{
+                  t(
+                    'REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCES_DESCRIPTION'
+                  )
+                }}
+              </p>
+              <table class="woot-table w-full">
+                <thead>
+                  <tr>
+                    <th>
+                      {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCE') }}
+                    </th>
+                    <th
+                      v-for="metric in MARKETING_METRIC_COLUMNS"
+                      :key="metric"
+                    >
+                      {{ eventTypeLabel(metric) }}
+                    </th>
+                    <th>
+                      {{
+                        t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONTACT_RATE')
+                      }}
+                    </th>
+                    <th>
+                      {{
+                        t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CLOSE_RATE')
+                      }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in marketingSourceRows" :key="row.key">
+                    <td class="font-semibold text-n-slate-12">
+                      {{ row.label }}
+                    </td>
+                    <td
+                      v-for="metric in MARKETING_METRIC_COLUMNS"
+                      :key="metric"
+                    >
+                      {{ row.metrics[metric] || 0 }}
+                      <span
+                        v-if="
+                          metric === 'lead_contacted' &&
+                          row.metrics.lead_contacted_seguimiento > 0
+                        "
+                        v-tooltip="
+                          t(
+                            'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP'
+                          )
+                        "
+                        class="text-xs text-n-amber-11 cursor-help"
+                      >
+                        +{{ row.metrics.lead_contacted_seguimiento }}
+                        {{
+                          t(
+                            'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL'
+                          )
+                        }}
+                      </span>
+                    </td>
+                    <td>
+                      <MarketingRateCell :rate="row.metrics.contactRate" />
+                    </td>
+                    <td>
+                      <MarketingRateCell :rate="row.metrics.closeRate" />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </template>
 
         <!-- Sales team -->
         <div

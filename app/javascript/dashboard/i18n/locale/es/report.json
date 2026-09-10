@@ -926,6 +926,11 @@
       "SEGUIMIENTO_TOOLTIP": "De este total, cuántos son leads que ya existían antes del periodo seleccionado y tuvieron esta actividad ahora (no leads nuevos)"
     },
     "MARKETING": {
+      "TOTALS_TITLE": "Resumen del periodo",
+      "TOTAL_LEADS": "Leads",
+      "TOTAL_CONTACTED": "Contactados",
+      "TOTAL_DEALS": "Deals",
+      "TOTAL_WON": "Ventas",
       "TITLE": "Por campaña",
       "DESCRIPTION": "Leads y ventas atribuidos a campañas de Meta Ads, agrupados por campaña, conjunto de anuncios y anuncio",
       "EMPTY": "No hay actividad atribuida a campañas en este periodo",

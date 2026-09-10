@@ -37,6 +37,7 @@ class V2::Reports::RevenueIntelligenceBuilder
       agent: agent_summary,
       campaign: marketing_hierarchy,
       marketing_sources: marketing_sources_summary,
+      marketing_totals: marketing_totals,
       pipeline_stage: pipeline_stage_summary,
       call_conversion: conversion_summary('call_conversion'),
       objection_conversion: conversion_summary('objection_conversion'),
@@ -142,6 +143,28 @@ class V2::Reports::RevenueIntelligenceBuilder
     with_seguimiento(rollup_summary('lead_source'), marketing_seguimiento_counts['lead_source']).map do |lead_source, metrics|
       { id: lead_source, metrics: metrics }
     end
+  end
+
+  MARKETING_TOTAL_METRICS = %w[lead_created lead_contacted deal_created closed_won].freeze
+
+  # Suma "Por campaña" (nivel top, ya inclusivo de sus adsets/adverts -- ver comentario de
+  # marketing_hierarchy) + "Por fuente" -- para que la UI pueda mostrar un total del tab Marketing
+  # que reconcilie directo contra funnel_totals de Overview (mismo lead_created/lead_contacted,
+  # ambos derivados en última instancia de revenue_leads/revenue_events ya consistentes entre sí,
+  # ver BuildEventsJob#upsert_event). Sin este total, el usuario tenía que sumar dos tablas a mano
+  # para verificar que Marketing cuadra con Overview -- confirmado como el origen real de la
+  # confusión "no cuadra" reportada en producción (2026-09-10), no un bug de datos.
+  def marketing_totals
+    seguimiento = marketing_seguimiento_counts
+    campaign_metrics = rollup_summary('campaign').values
+    source_metrics = rollup_summary('lead_source').values
+
+    totals = MARKETING_TOTAL_METRICS.index_with { |metric| sum_metric(campaign_metrics, metric) + sum_metric(source_metrics, metric) }
+    totals.merge('lead_contacted_seguimiento' => seguimiento['campaign'].values.sum + seguimiento['lead_source'].values.sum)
+  end
+
+  def sum_metric(rows, metric)
+    rows.sum { |metrics| metrics[metric] || 0 }
   end
 
   def with_seguimiento(rollup, seguimiento_counts)

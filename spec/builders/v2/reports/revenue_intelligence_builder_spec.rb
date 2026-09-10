@@ -178,6 +178,33 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       expect(facebook[:metrics][:lead_contacted_seguimiento]).to eq(1)
     end
 
+    it 'sums marketing_totals across campaign (top-level only) and lead_source' do
+      rollup('campaign', 'camp-1', 'lead_created', count: 10)
+      rollup('campaign', 'camp-1', 'lead_contacted', count: 8)
+      rollup('adset', 'camp-1::adset-1::Adset 1', 'lead_created', count: 10)
+      rollup('lead_source', 'Facebook Ads', 'lead_created', count: 5)
+      rollup('lead_source', 'Facebook Ads', 'deal_created', count: 2)
+      rollup('lead_source', 'Facebook Ads', 'closed_won', count: 1)
+
+      result = builder.build
+
+      expect(result[:marketing_totals]).to eq(
+        { 'lead_created' => 15, 'lead_contacted' => 8, 'deal_created' => 2, 'closed_won' => 1, 'lead_contacted_seguimiento' => 0 }
+      )
+    end
+
+    it 'includes seguimiento leads from both campaign and lead_source in marketing_totals' do
+      rollup('campaign', 'camp-1', 'lead_contacted', count: 1)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', created_at_source: 40.days.ago, first_contact_at: 5.days.ago)
+      rollup('lead_source', 'Facebook Ads', 'lead_contacted', count: 1)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-2', lead_source: 'Facebook Ads', created_at_source: 40.days.ago,
+                                    first_contact_at: 5.days.ago)
+
+      result = builder.build
+
+      expect(result[:marketing_totals]['lead_contacted_seguimiento']).to eq(2)
+    end
+
     it 'leaves adsets empty for a campaign with no adset-level rollups' do
       rollup('campaign', 'camp-2', 'lead_created', count: 3)
 
