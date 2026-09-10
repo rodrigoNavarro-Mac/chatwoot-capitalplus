@@ -36,6 +36,7 @@ class V2::Reports::RevenueIntelligenceBuilder
       funnel_conversions: funnel_conversions(totals),
       agent: agent_summary,
       campaign: marketing_hierarchy,
+      marketing_sources: marketing_sources_summary,
       pipeline_stage: pipeline_stage_summary,
       call_conversion: conversion_summary('call_conversion'),
       objection_conversion: conversion_summary('objection_conversion'),
@@ -130,6 +131,16 @@ class V2::Reports::RevenueIntelligenceBuilder
 
     with_seguimiento(rollup_summary('campaign'), seguimiento['campaign']).map do |campaign_id, metrics|
       { id: campaign_id, metrics: metrics, adsets: marketing_adsets(campaign_id, adsets, adverts) }
+    end
+  end
+
+  # Bucket de respaldo para leads/deals SIN campaign_id (~94% del histórico de esta cuenta, ver
+  # RevenueIntelligence::RefreshAggregatesJob#source_rows) — agrupado por Lead_Source en vez de
+  # campaña/adset/advert, para que la pestaña de Marketing muestre el volumen real completo y no
+  # solo la fracción con atribución fina.
+  def marketing_sources_summary
+    with_seguimiento(rollup_summary('lead_source'), marketing_seguimiento_counts['lead_source']).map do |lead_source, metrics|
+      { id: lead_source, metrics: metrics }
     end
   end
 
@@ -378,16 +389,30 @@ class V2::Reports::RevenueIntelligenceBuilder
   # campaña/adset/advert: cuántos de los leads contactados en el rango ya existían de un periodo
   # anterior (seguimiento), para no confundirlos visualmente con leads nuevos de esta campaña.
   def marketing_seguimiento_counts
-    range_start = Time.find_zone!(LOCAL_TIMEZONE).parse(date_range.begin.to_s)
-    counts = { 'campaign' => Hash.new(0), 'adset' => Hash.new(0), 'advert' => Hash.new(0) }
+    @marketing_seguimiento_counts ||= begin
+      range_start = Time.find_zone!(LOCAL_TIMEZONE).parse(date_range.begin.to_s)
+      counts = { 'campaign' => Hash.new(0), 'adset' => Hash.new(0), 'advert' => Hash.new(0), 'lead_source' => Hash.new(0) }
 
-    scope = account.revenue_leads.where.not(campaign_id: nil).where(first_contact_at: date_range)
-    scope = scope.where(desarrollo: desarrollo_filter) if desarrollo_filter.present?
-    scope.pluck(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :created_at_source).each do |row|
-      accumulate_marketing_seguimiento(counts, row, range_start)
+      base_leads_scope.where.not(campaign_id: nil).where(first_contact_at: date_range)
+                      .pluck(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :created_at_source)
+                      .each { |row| accumulate_marketing_seguimiento(counts, row, range_start) }
+
+      base_leads_scope.where(campaign_id: nil).where(first_contact_at: date_range)
+                      .pluck(:lead_source, :created_at_source)
+                      .each { |lead_source, created_at| accumulate_source_seguimiento(counts, lead_source, created_at, range_start) }
+
+      counts
     end
+  end
 
-    counts
+  def base_leads_scope
+    desarrollo_filter.present? ? account.revenue_leads.where(desarrollo: desarrollo_filter) : account.revenue_leads
+  end
+
+  def accumulate_source_seguimiento(counts, lead_source, created_at, range_start)
+    return if created_at.blank? || created_at >= range_start
+
+    counts['lead_source'][lead_source.presence || 'Sin fuente'] += 1
   end
 
   def accumulate_marketing_seguimiento(counts, row, range_start)

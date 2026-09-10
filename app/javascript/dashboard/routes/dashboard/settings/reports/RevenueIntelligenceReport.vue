@@ -7,6 +7,7 @@ import { formatTime } from '@chatwoot/utils';
 import ReportsAPI from 'dashboard/api/reports';
 import RevenueIntelligenceAPI from 'dashboard/api/revenueIntelligence';
 import ReportHeader from './components/ReportHeader.vue';
+import MarketingRateCell from './components/MarketingRateCell.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -305,11 +306,20 @@ const marketingRate = (numerator, denominator) => {
   return Math.round(((numerator || 0) / denominator) * 1000) / 10;
 };
 
-const withMarketingRates = metrics => ({
-  ...metrics,
-  contactRate: marketingRate(metrics.lead_contacted, metrics.lead_created),
-  closeRate: marketingRate(metrics.closed_won, metrics.deal_created),
-});
+// lead_contacted incluye seguimiento a leads de periodos anteriores (ver badge ámbar) — restarlo
+// antes de calcular el % evita que "% contactados" pase de 100% (confirmado en producción: se
+// veían valores de 300%/500% que parecían un error). El seguimiento se sigue mostrando aparte.
+const withMarketingRates = metrics => {
+  const contactedThisPeriod = Math.max(
+    (metrics.lead_contacted || 0) - (metrics.lead_contacted_seguimiento || 0),
+    0
+  );
+  return {
+    ...metrics,
+    contactRate: marketingRate(contactedThisPeriod, metrics.lead_created),
+    closeRate: marketingRate(metrics.closed_won, metrics.deal_created),
+  };
+};
 
 const marketingRows = computed(() => {
   const campaigns = report.value?.campaign ?? [];
@@ -339,6 +349,22 @@ const marketingRows = computed(() => {
     });
   });
   return rows;
+});
+
+// Bucket de respaldo (marketing_sources) para leads/deals sin campaign_id -- ordenado de mayor a
+// menor volumen para que las fuentes más grandes aparezcan primero, mismo criterio ya usado en
+// Objections.
+const marketingSourceRows = computed(() => {
+  const sources = report.value?.marketing_sources ?? [];
+  return sources
+    .map(source => ({
+      key: `s:${source.id}`,
+      label: source.id,
+      metrics: withMarketingRates(source.metrics),
+    }))
+    .sort(
+      (a, b) => (b.metrics.lead_created || 0) - (a.metrics.lead_created || 0)
+    );
 });
 const MARKETING_METRIC_COLUMNS = [
   'lead_created',
@@ -1225,9 +1251,12 @@ const availableDesarrollos = computed(
           v-else-if="activeTab === 'marketing'"
           class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
         >
-          <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-4">
+          <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
             {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TITLE') }}
           </h3>
+          <p class="text-sm text-n-slate-11 mb-4">
+            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.DESCRIPTION') }}
+          </p>
           <div
             v-if="!marketingRows.length"
             class="text-sm text-n-slate-11 py-4 text-center"
@@ -1286,22 +1315,80 @@ const availableDesarrollos = computed(
                   </span>
                 </td>
                 <td>
-                  {{
-                    row.metrics.contactRate === null
-                      ? '—'
-                      : `${row.metrics.contactRate}%`
-                  }}
+                  <MarketingRateCell :rate="row.metrics.contactRate" />
                 </td>
                 <td>
-                  {{
-                    row.metrics.closeRate === null
-                      ? '—'
-                      : `${row.metrics.closeRate}%`
-                  }}
+                  <MarketingRateCell :rate="row.metrics.closeRate" />
                 </td>
               </tr>
             </tbody>
           </table>
+
+          <div v-if="marketingSourceRows.length" class="mt-8">
+            <h4 class="text-sm font-semibold text-n-slate-12 mt-0 mb-1">
+              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCES_TITLE') }}
+            </h4>
+            <p class="text-xs text-n-slate-11 mb-3">
+              {{
+                t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCES_DESCRIPTION')
+              }}
+            </p>
+            <table class="woot-table w-full">
+              <thead>
+                <tr>
+                  <th>
+                    {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCE') }}
+                  </th>
+                  <th v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
+                    {{ eventTypeLabel(metric) }}
+                  </th>
+                  <th>
+                    {{
+                      t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONTACT_RATE')
+                    }}
+                  </th>
+                  <th>
+                    {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CLOSE_RATE') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in marketingSourceRows" :key="row.key">
+                  <td class="font-semibold text-n-slate-12">
+                    {{ row.label }}
+                  </td>
+                  <td v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
+                    {{ row.metrics[metric] || 0 }}
+                    <span
+                      v-if="
+                        metric === 'lead_contacted' &&
+                        row.metrics.lead_contacted_seguimiento > 0
+                      "
+                      v-tooltip="
+                        t(
+                          'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP'
+                        )
+                      "
+                      class="text-xs text-n-amber-11 cursor-help"
+                    >
+                      +{{ row.metrics.lead_contacted_seguimiento }}
+                      {{
+                        t(
+                          'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL'
+                        )
+                      }}
+                    </span>
+                  </td>
+                  <td>
+                    <MarketingRateCell :rate="row.metrics.contactRate" />
+                  </td>
+                  <td>
+                    <MarketingRateCell :rate="row.metrics.closeRate" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Sales team -->

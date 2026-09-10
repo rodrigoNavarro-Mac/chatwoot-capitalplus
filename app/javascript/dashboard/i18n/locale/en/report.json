@@ -932,10 +932,14 @@
     },
     "MARKETING": {
       "TITLE": "By campaign",
+      "DESCRIPTION": "Leads and sales attributed to Meta Ads campaigns, grouped by campaign, adset and ad",
       "EMPTY": "No campaign-attributed activity in this period",
       "CAMPAIGN": "Campaign",
       "CONTACT_RATE": "% contacted",
-      "CLOSE_RATE": "% to sale"
+      "CLOSE_RATE": "% to sale",
+      "SOURCES_TITLE": "By source",
+      "SOURCES_DESCRIPTION": "Leads with no Meta Ads campaign attached, grouped by their original source recorded in Zoho",
+      "SOURCE": "Source"
     },
     "SALES_TEAM": {
       "TITLE": "By agent",

@@ -314,6 +314,43 @@ describe RevenueIntelligence::RefreshAggregatesJob do
     end
   end
 
+  describe 'lead_source dimension (bucket de respaldo para leads sin campaign_id)' do
+    it 'counts lead_created by lead_source when campaign_id is absent' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: 'Facebook Ads', created_at_source: Time.current)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'lead_source', dimension_id: 'Facebook Ads', metric: 'lead_created')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'does not emit a lead_source row when the lead already has a campaign_id (goes to campaign_rows instead)' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', lead_source: 'Facebook Ads', created_at_source: Time.current)
+
+      described_class.new.perform
+
+      expect(account.revenue_rollups.where(dimension_type: 'lead_source')).to be_empty
+    end
+
+    it 'falls back to "Sin fuente" when lead_source is blank' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: nil, created_at_source: Time.current)
+
+      described_class.new.perform
+
+      expect(account.revenue_rollups.find_by(dimension_type: 'lead_source', dimension_id: 'Sin fuente', metric: 'lead_created')).to be_present
+    end
+
+    it 'attributes closed_won to the lead_source of the deal\'s originating lead when it has no campaign_id' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: 'Google Ads')
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, won: true, stage: 'Cerrado ganado')
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'lead_source', dimension_id: 'Google Ads', metric: 'closed_won')
+      expect(rollup.count).to eq(1)
+    end
+  end
+
   describe 'pipeline_stage dimension' do
     it 'counts an "entered" row for every new stage_event, bucketed by entered_at' do
       account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', stage: 'Apartado', entered_at: Time.current)

@@ -47,8 +47,8 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
     rows = funnel_rows(account, since, until_at, lookups) + agent_rows(account, since, until_at, lookups) +
            agent_call_quality_rows(account, since, until_at, lookups) + campaign_rows(account, since, until_at) +
-           pipeline_stage_rows(account, since, until_at, lookups) + call_conversion_rows(account, since, until_at, lookups) +
-           objection_conversion_rows(account, since, until_at, lookups)
+           source_rows(account, since, until_at) + pipeline_stage_rows(account, since, until_at, lookups) +
+           call_conversion_rows(account, since, until_at, lookups) + objection_conversion_rows(account, since, until_at, lookups)
     upsert_rows(rows)
 
     cursor_service.advance!(until_at)
@@ -173,6 +173,38 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
       campaign_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
       campaign_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
       campaign_deal_rows(account, since, until_at, date_column: :updated_at, metric: 'closed_won', won_only: true)
+  end
+
+  # dimension_id: Lead_Source ("Facebook Ads"/"Google Ads"/etc., o 'Sin fuente') — bucket de
+  # respaldo para el ~94% de leads sin campaign_id (confirmado contra Zoho: la atribución fina de
+  # campaña solo existe desde el 10 de agosto de 2026 para esta cuenta). Sin esto, la pestaña de
+  # Marketing solo mostraba la fracción con campaña y daba la impresión de que el marketing
+  # "empezó" en esa fecha. Mismas 4 métricas que campaign_rows, misma semántica.
+  def source_rows(account, since, until_at)
+    source_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
+      source_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
+      source_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
+      source_deal_rows(account, since, until_at, date_column: :updated_at, metric: 'closed_won', won_only: true)
+  end
+
+  def source_lead_rows(account, since, until_at, date_column, metric)
+    account.revenue_leads.where(campaign_id: nil).where.not(date_column => nil).where(window(date_column, since, until_at))
+           .pluck(:lead_source, :desarrollo, date_column)
+           .map { |lead_source, desarrollo, date| source_row(account, local_date(date), lead_source, desarrollo, metric) }
+  end
+
+  # rubocop:disable Metrics/ParameterLists
+  def source_deal_rows(account, since, until_at, date_column:, metric:, won_only:)
+    scope = account.revenue_deals.joins(:revenue_lead).where(revenue_leads: { campaign_id: nil })
+    scope = scope.where(won: true) if won_only
+    scope.where.not(date_column => nil).where(window(date_column, since, until_at))
+         .pluck('revenue_leads.lead_source', 'revenue_deals.desarrollo', date_column)
+         .map { |lead_source, desarrollo, date| source_row(account, local_date(date), lead_source, desarrollo, metric) }
+  end
+  # rubocop:enable Metrics/ParameterLists
+
+  def source_row(account, date, lead_source, desarrollo, metric)
+    row(account, date, 'lead_source', lead_source.presence || 'Sin fuente', metric, desarrollo: desarrollo || '_all')
   end
 
   def campaign_lead_rows(account, since, until_at, date_column, metric)

@@ -927,10 +927,14 @@
     },
     "MARKETING": {
       "TITLE": "Por campaña",
+      "DESCRIPTION": "Leads y ventas atribuidos a campañas de Meta Ads, agrupados por campaña, conjunto de anuncios y anuncio",
       "EMPTY": "No hay actividad atribuida a campañas en este periodo",
       "CAMPAIGN": "Campaña",
       "CONTACT_RATE": "% contactados",
-      "CLOSE_RATE": "% a venta"
+      "CLOSE_RATE": "% a venta",
+      "SOURCES_TITLE": "Por fuente",
+      "SOURCES_DESCRIPTION": "Leads sin campaña de Meta Ads asociada, agrupados por la fuente original registrada en Zoho",
+      "SOURCE": "Fuente"
     },
     "SALES_TEAM": {
       "TITLE": "Por agente",

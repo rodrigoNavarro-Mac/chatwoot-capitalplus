@@ -24,7 +24,7 @@
 #  idx_revenue_rollups_dedup                         (account_id,date,dimension_type,dimension_id,metric,desarrollo) UNIQUE
 #
 class RevenueRollup < ApplicationRecord
-  DIMENSION_TYPES = %w[funnel agent campaign adset advert pipeline_stage call_conversion objection_conversion].freeze
+  DIMENSION_TYPES = %w[funnel agent campaign adset advert lead_source pipeline_stage call_conversion objection_conversion].freeze
 
   belongs_to :account
 

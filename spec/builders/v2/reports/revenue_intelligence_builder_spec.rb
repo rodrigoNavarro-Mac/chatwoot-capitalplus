@@ -155,6 +155,29 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       expect(campaign[:metrics][:lead_contacted_seguimiento]).to eq(0)
     end
 
+    it 'lists marketing_sources (bucket de respaldo para leads sin campaign_id) as a flat list' do
+      rollup('lead_source', 'Facebook Ads', 'lead_created', count: 20)
+      rollup('lead_source', 'Facebook Ads', 'lead_contacted', count: 15)
+      rollup('lead_source', 'Sin fuente', 'lead_created', count: 4)
+
+      result = builder.build
+
+      facebook = result[:marketing_sources].find { |s| s[:id] == 'Facebook Ads' }
+      expect(facebook[:metrics]).to eq({ 'lead_created' => 20, 'lead_contacted' => 15, :lead_contacted_seguimiento => 0 })
+      expect(result[:marketing_sources].find { |s| s[:id] == 'Sin fuente' }).to be_present
+    end
+
+    it 'counts a lead as "seguimiento" in marketing_sources too, same rule as marketing campaigns' do
+      rollup('lead_source', 'Facebook Ads', 'lead_contacted', count: 1)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: 'Facebook Ads', created_at_source: 40.days.ago,
+                                    first_contact_at: 5.days.ago)
+
+      result = builder.build
+
+      facebook = result[:marketing_sources].find { |s| s[:id] == 'Facebook Ads' }
+      expect(facebook[:metrics][:lead_contacted_seguimiento]).to eq(1)
+    end
+
     it 'leaves adsets empty for a campaign with no adset-level rollups' do
       rollup('campaign', 'camp-2', 'lead_created', count: 3)
 
