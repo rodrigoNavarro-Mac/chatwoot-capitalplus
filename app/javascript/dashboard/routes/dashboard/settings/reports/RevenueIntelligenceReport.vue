@@ -1286,10 +1286,10 @@ const availableDesarrollos = computed(
                   "
                   class="text-xs mt-1 text-n-blue-11 cursor-help"
                 >
-                  +{{ marketingTotals.lead_converted }}
+                  ({{ marketingTotals.lead_converted }}
                   {{
                     t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL')
-                  }}
+                  }})
                 </div>
               </div>
               <div class="min-w-[7rem]">
@@ -1395,12 +1395,12 @@ const availableDesarrollos = computed(
                       "
                       class="text-xs text-n-blue-11 cursor-help"
                     >
-                      +{{ row.metrics.lead_converted }}
+                      ({{ row.metrics.lead_converted }}
                       {{
                         t(
                           'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL'
                         )
-                      }}
+                      }})
                     </span>
                     <span
                       v-if="
@@ -1489,12 +1489,12 @@ const availableDesarrollos = computed(
                         "
                         class="text-xs text-n-blue-11 cursor-help"
                       >
-                        +{{ row.metrics.lead_converted }}
+                        ({{ row.metrics.lead_converted }}
                         {{
                           t(
                             'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL'
                           )
-                        }}
+                        }})
                       </span>
                       <span
                         v-if="
