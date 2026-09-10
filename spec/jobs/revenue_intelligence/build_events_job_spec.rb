@@ -122,6 +122,23 @@ describe RevenueIntelligence::BuildEventsJob do
       types = account.revenue_events.where(source_system: 'revenue_lead', source_id: lead.id.to_s).pluck(:event_type)
       expect(types).to eq(['lead_created'])
     end
+
+    it 'updates event_at on a re-run when the underlying timestamp changed (not create-only)' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id, created_at_source: 3.days.ago,
+                                           first_contact_at: 2.days.ago)
+      described_class.new.perform
+      original_event_at = account.revenue_events.find_by(source_system: 'revenue_lead', source_id: lead.id.to_s,
+                                                         event_type: 'lead_contacted').event_at
+
+      corrected_time = 1.hour.ago
+      lead.update!(first_contact_at: corrected_time)
+      described_class.new.perform
+
+      event = account.revenue_events.find_by(source_system: 'revenue_lead', source_id: lead.id.to_s, event_type: 'lead_contacted')
+      expect(event.event_at).to be_within(1.second).of(corrected_time)
+      expect(event.event_at).not_to eq(original_event_at)
+      expect(account.revenue_events.where(source_system: 'revenue_lead', source_id: lead.id.to_s, event_type: 'lead_contacted').count).to eq(1)
+    end
   end
 
   describe 'deal_created events' do

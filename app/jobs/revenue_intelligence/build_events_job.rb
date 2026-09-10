@@ -234,13 +234,23 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
   # El journey solo tiene sentido para contactos ya resueltos — si no hay revenue_contact_id no se
   # crea el evento (ver comentario de clase sobre el riesgo aceptado de mensajes/llamadas
   # tempranas de identidad todavía no resuelta).
+  #
+  # find_or_initialize_by + save! si cambió (no find_or_create_by!, que es create-only): un evento
+  # ya creado antes SÍ puede necesitar su event_at/metadata actualizados en una corrida posterior
+  # -- ej. lead_contacted usa revenue_leads.first_contact_at, que la corrección de "primer contacto
+  # real" (backfill_first_contact_time.rake) reescribe DESPUÉS de que el evento original ya existía;
+  # igual con stage_changed/closed_won/etc. si StageHistoryBuilder reescribe entered_at en una
+  # corrida posterior (ver comentario de build_stage_events). Con find_or_create_by! ese evento
+  # quedaba con el event_at viejo para siempre, aunque el dato de origen ya estuviera corregido --
+  # bug real confirmado en producción (funnel de agosto 2026: 277 lead_contacted vía revenue_events
+  # vs. 341 vía campaign+lead_source, que leen first_contact_at directo).
   def upsert_event(account, attrs)
     return if attrs[:revenue_contact_id].blank?
 
-    account.revenue_events.find_or_create_by!(
+    event = account.revenue_events.find_or_initialize_by(
       source_system: attrs[:source_system], event_type: attrs[:event_type], source_id: attrs[:source_id]
-    ) do |event|
-      event.assign_attributes(attrs.except(:source_system, :event_type, :source_id))
-    end
+    )
+    event.assign_attributes(attrs.except(:source_system, :event_type, :source_id))
+    event.save! if event.new_record? || event.changed?
   end
 end
