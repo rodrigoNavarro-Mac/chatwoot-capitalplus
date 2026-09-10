@@ -66,6 +66,19 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       expect(result[:funnel]).to eq({ 'Fuego' => { 'lead_created' => 5, 'closed_won' => 1 } })
     end
 
+    it "does not leak the next day's rollups into range because of UTC vs local timezone " \
+       'conversion (confirmado en producción: "agosto" incluía rollups del 1 de septiembre)' do
+      mexico = Time.find_zone!('America/Mexico_City')
+      params_local = { since: mexico.parse('2026-08-01 00:00:00').to_i.to_s, until: mexico.parse('2026-08-31 23:59:59').to_i.to_s }
+      local_builder = described_class.new(account: account, params: params_local)
+      rollup('funnel', 'Fuego', 'lead_created', count: 5, date: Date.new(2026, 8, 31))
+      rollup('funnel', 'Fuego', 'lead_created', count: 3, date: Date.new(2026, 9, 1))
+
+      result = local_builder.build
+
+      expect(result[:funnel]['Fuego']['lead_created']).to eq(5)
+    end
+
     it 'computes avg_duration_days from sum_value/count of the duration_seconds metric per stage' do
       rollup('pipeline_stage', 'Apartado', 'entered', count: 3)
       rollup('pipeline_stage', 'Apartado', 'duration_seconds', count: 2, sum_value: 4.days.to_i)
