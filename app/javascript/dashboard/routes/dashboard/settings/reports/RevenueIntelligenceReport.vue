@@ -7,7 +7,6 @@ import { formatTime } from '@chatwoot/utils';
 import ReportsAPI from 'dashboard/api/reports';
 import RevenueIntelligenceAPI from 'dashboard/api/revenueIntelligence';
 import ReportHeader from './components/ReportHeader.vue';
-import MarketingRateCell from './components/MarketingRateCell.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -319,35 +318,6 @@ const pipelineRows = computed(() =>
   }))
 );
 
-// `campaign` llega como jerarquía anidada campaña -> adset -> advert (ver
-// V2::Reports::RevenueIntelligenceBuilder#marketing_hierarchy) — se aplana aquí a una lista con
-// nivel de indentación (0/1/2) para pintarla como una sola tabla con sangría, sin necesitar un
-// componente de árbol nuevo. El id de campaña no tiene nombre resuelto (limitación documentada:
-// esa dimensión ya tiene datos reales acumulados desde Fase 3, no se puede reescribir su clave);
-// adset/advert sí traen `name` porque son dimensiones nuevas sin histórico que proteger.
-// % contactados = lead_contacted / lead_created (qué tan rápido/bien se atiende lo que entra por
-// esa campaña); % a venta = closed_won / deal_created (de los deals que sí se abrieron, cuántos
-// cerraron ganados) — null (se pinta "—") cuando el denominador es 0, para no mostrar 0% engañoso.
-const marketingRate = (numerator, denominator) => {
-  if (!denominator) return null;
-  return Math.round(((numerator || 0) / denominator) * 1000) / 10;
-};
-
-// lead_contacted incluye seguimiento a leads de periodos anteriores (ver badge ámbar) — restarlo
-// antes de calcular el % evita que "% contactados" pase de 100% (confirmado en producción: se
-// veían valores de 300%/500% que parecían un error). El seguimiento se sigue mostrando aparte.
-const withMarketingRates = metrics => {
-  const contactedThisPeriod = Math.max(
-    (metrics.lead_contacted || 0) - (metrics.lead_contacted_seguimiento || 0),
-    0
-  );
-  return {
-    ...metrics,
-    contactRate: marketingRate(contactedThisPeriod, metrics.lead_created),
-    closeRate: marketingRate(metrics.closed_won, metrics.deal_created),
-  };
-};
-
 const MARKETING_METRIC_COLUMNS = [
   'lead_created',
   'lead_contacted',
@@ -359,14 +329,13 @@ const hasMarketingActivity = metrics =>
   MARKETING_METRIC_COLUMNS.some(metric => (metrics?.[metric] || 0) > 0);
 
 // `marketing_by_source` llega como jerarquía fuente -> campaña (si Zoho la atribuyó) -> adset ->
-// advert (ver V2::Reports::RevenueIntelligenceBuilder#marketing_by_source) -- se aplana aquí a una
-// sola lista con nivel de indentación (0-3) para pintarla como una sola tabla con sangría, sin
-// necesitar un componente de árbol nuevo. Antes había dos tablas separadas ("por campaña" / "por
-// fuente") sin relación visible entre sí -- un usuario viendo "Meta Ads: 46" en la tabla de fuente
-// no tenía forma de saber que el total real de Meta Ads incluía también la campaña de la otra
-// tabla. Ahora cada fuente muestra su total real, con sus campañas anidadas debajo y un renglón
-// "(sin campaña específica)" para los leads de esa fuente que Zoho no pudo atribuir a una campaña
-// puntual -- el total de la fuente siempre es visualmente la suma de sus hijos.
+// advert (ver V2::Reports::RevenueIntelligenceBuilder#marketing_by_source), pero esta tabla solo
+// pinta 2 niveles (fuente y campaña) -- adset/advert se dejan fuera a propósito, quedan
+// disponibles en el payload por si en el futuro se agrega un detalle expandible, pero mostrarlos
+// aquí por default era demasiada profundidad para un vistazo rápido (feedback directo del
+// usuario). El residual sin campaña específica ya no es un renglón aparte (confundía, parecía una
+// campaña más) -- se anota como badge bajo el número de Leads de la fuente, mismo patrón visual
+// que "ya convertidos"/"seguimiento" en el resto de esta pantalla.
 const marketingRows = computed(() => {
   const sources = report.value?.marketing_by_source ?? [];
   const rows = [];
@@ -375,41 +344,20 @@ const marketingRows = computed(() => {
       key: `s:${source.id}`,
       level: 0,
       label: source.id,
-      metrics: withMarketingRates(source.metrics),
+      metrics: source.metrics,
+      withoutCampaign: hasMarketingActivity(source.direct_metrics)
+        ? source.direct_metrics.lead_created || 0
+        : 0,
     });
     (source.campaigns ?? []).forEach(campaign => {
       rows.push({
         key: `c:${source.id}:${campaign.id}`,
         level: 1,
         label: campaign.id,
-        metrics: withMarketingRates(campaign.metrics),
-      });
-      (campaign.adsets ?? []).forEach(adset => {
-        rows.push({
-          key: `a:${campaign.id}:${adset.id}`,
-          level: 2,
-          label: adset.name,
-          metrics: withMarketingRates(adset.metrics),
-        });
-        (adset.adverts ?? []).forEach(advert => {
-          rows.push({
-            key: `d:${campaign.id}:${adset.id}:${advert.id}`,
-            level: 3,
-            label: advert.name,
-            metrics: withMarketingRates(advert.metrics),
-          });
-        });
+        metrics: campaign.metrics,
+        withoutCampaign: 0,
       });
     });
-    if (hasMarketingActivity(source.direct_metrics)) {
-      rows.push({
-        key: `w:${source.id}`,
-        level: 1,
-        label: t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.WITHOUT_CAMPAIGN'),
-        muted: true,
-        metrics: withMarketingRates(source.direct_metrics),
-      });
-    }
   });
   return rows;
 });
@@ -1398,14 +1346,6 @@ const availableDesarrollos = computed(
                   <th v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
                     {{ eventTypeLabel(metric) }}
                   </th>
-                  <th>
-                    {{
-                      t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONTACT_RATE')
-                    }}
-                  </th>
-                  <th>
-                    {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CLOSE_RATE') }}
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1413,12 +1353,11 @@ const availableDesarrollos = computed(
                   <td>
                     <span
                       :style="{ paddingLeft: `${row.level * 1.25}rem` }"
-                      :class="[
+                      :class="
                         row.level === 0
                           ? 'font-semibold text-n-slate-12'
-                          : 'text-n-slate-11',
-                        row.muted ? 'italic' : '',
-                      ]"
+                          : 'text-n-slate-11'
+                      "
                     >
                       {{ row.label }}
                     </span>
@@ -1445,6 +1384,22 @@ const availableDesarrollos = computed(
                       }})
                     </span>
                     <span
+                      v-if="metric === 'lead_created' && row.withoutCampaign"
+                      v-tooltip="
+                        t(
+                          'REVENUE_INTELLIGENCE_REPORTS.MARKETING.WITHOUT_CAMPAIGN_TOOLTIP'
+                        )
+                      "
+                      class="text-xs text-n-slate-11 cursor-help"
+                    >
+                      ({{ row.withoutCampaign }}
+                      {{
+                        t(
+                          'REVENUE_INTELLIGENCE_REPORTS.MARKETING.WITHOUT_CAMPAIGN'
+                        )
+                      }})
+                    </span>
+                    <span
                       v-if="
                         metric === 'lead_contacted' &&
                         row.metrics.lead_contacted_seguimiento > 0
@@ -1463,12 +1418,6 @@ const availableDesarrollos = computed(
                         )
                       }}
                     </span>
-                  </td>
-                  <td>
-                    <MarketingRateCell :rate="row.metrics.contactRate" />
-                  </td>
-                  <td>
-                    <MarketingRateCell :rate="row.metrics.closeRate" />
                   </td>
                 </tr>
               </tbody>

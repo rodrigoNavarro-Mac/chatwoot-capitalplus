@@ -940,9 +940,8 @@
       "DESCRIPTION": "Leads and sales by source (Meta Ads, Google Ads, etc.), with attributed Meta Ads campaigns nested under each source",
       "EMPTY": "No marketing activity in this period",
       "CAMPAIGN": "Campaign",
-      "WITHOUT_CAMPAIGN": "(no specific campaign)",
-      "CONTACT_RATE": "% contacted",
-      "CLOSE_RATE": "% to sale",
+      "WITHOUT_CAMPAIGN": "no specific campaign",
+      "WITHOUT_CAMPAIGN_TOOLTIP": "Of this source's leads, how many could not be attributed to any specific Meta Ads campaign (Zoho didn't provide that data).",
       "SOURCE": "Source",
       "CONVERTED_LABEL": "already converted",
       "CONVERTED_TOOLTIP": "Of the leads created in this period, how many have already converted to a Deal in Zoho. A Zoho report that excludes converted leads (its search's default behavior) will show a lower number than this."

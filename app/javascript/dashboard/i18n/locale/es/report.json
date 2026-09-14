@@ -935,9 +935,8 @@
       "DESCRIPTION": "Leads y ventas por fuente (Meta Ads, Google Ads, etc.), con las campañas de Meta Ads atribuidas anidadas debajo de cada fuente",
       "EMPTY": "No hay actividad de marketing en este periodo",
       "CAMPAIGN": "Campaña",
-      "WITHOUT_CAMPAIGN": "(sin campaña específica)",
-      "CONTACT_RATE": "% contactados",
-      "CLOSE_RATE": "% a venta",
+      "WITHOUT_CAMPAIGN": "sin campaña específica",
+      "WITHOUT_CAMPAIGN_TOOLTIP": "De los leads de esta fuente, cuántos no se pudieron atribuir a ninguna campaña puntual de Meta Ads (Zoho no trajo ese dato).",
       "SOURCE": "Fuente",
       "CONVERTED_LABEL": "ya convertidos",
       "CONVERTED_TOOLTIP": "De los leads creados en este periodo, cuántos ya se convirtieron a Deal en Zoho. Un reporte de Zoho que excluya leads convertidos (comportamiento default de su buscador) mostrará un número menor a este."
