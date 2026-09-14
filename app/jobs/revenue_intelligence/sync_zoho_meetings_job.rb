@@ -75,7 +75,15 @@ class RevenueIntelligence::SyncZohoMeetingsJob < ApplicationJob
   def fetch_events(client, zoho_id, zoho_module)
     return [] if zoho_id.blank?
 
-    client.list(zoho_id: zoho_id, zoho_module: zoho_module, per_page: EVENTS_PER_PAGE)
+    events = client.list(zoho_id: zoho_id, zoho_module: zoho_module, per_page: EVENTS_PER_PAGE)
+    if events.size >= EVENTS_PER_PAGE
+      # Este cliente no pagina (una sola llamada por deal/lead) -- si Zoho tenía más eventos de
+      # los que caben en EVENTS_PER_PAGE, los de más simplemente no se traen. No se espera que
+      # pase en la práctica (un deal/lead no debería acumular >=200 citas), pero se deja visible.
+      Rails.logger.warn("[RevenueIntelligence::SyncZohoMeetingsJob] zoho_id=#{zoho_id} zoho_module=#{zoho_module} " \
+                        "devolvió >= EVENTS_PER_PAGE=#{EVENTS_PER_PAGE} eventos -- posible truncamiento.")
+    end
+    events
   end
 
   def deal_link(deal)
@@ -91,6 +99,20 @@ class RevenueIntelligence::SyncZohoMeetingsJob < ApplicationJob
     return if zoho_event_id.blank?
 
     appointment = account.revenue_appointments.find_or_initialize_by(zoho_event_id: zoho_event_id)
+    save_appointment!(appointment, event, link)
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+    # Carrera entre dos corridas concurrentes del mismo sync sobre el mismo zoho_event_id: otro
+    # proceso ya insertó la fila entre el find_or_initialize_by y el save!. Según qué tan cerca
+    # coincidan en el tiempo, esto llega como RecordNotUnique (choque real en el índice de BD) o
+    # como RecordInvalid "has already been taken" (la validación de Rails ya alcanza a verla). En
+    # ambos casos: releer directo del modelo (no de la asociación cacheada, ver
+    # feedback_ar_association_cache_and_time_precision) y reintentar el mismo upsert una sola vez
+    # sobre la fila ganadora.
+    appointment = RevenueAppointment.find_by!(account_id: account.id, zoho_event_id: zoho_event_id)
+    save_appointment!(appointment, event, link)
+  end
+
+  def save_appointment!(appointment, event, link)
     appointment.assign_attributes(linkage_updates(appointment, link))
     appointment.assign_attributes(event_attrs(event))
     appointment.save!

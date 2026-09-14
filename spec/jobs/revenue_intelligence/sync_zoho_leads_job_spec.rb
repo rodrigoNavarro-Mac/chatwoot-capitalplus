@@ -167,6 +167,31 @@ describe RevenueIntelligence::SyncZohoLeadsJob do
       expect(account.revenue_leads.where(zoho_lead_id: 'lead-page-1')).to exist
     end
 
+    it 'recovers via a fresh lookup when save! raises RecordNotUnique (concurrent sync race)' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_status: 'Nuevo')
+      racing_lead = account.revenue_leads.new(zoho_lead_id: 'lead-1')
+      allow(account.revenue_leads).to receive(:find_or_initialize_by).and_return(racing_lead)
+
+      described_class.new.send(:upsert_lead, account, { 'id' => 'lead-1', 'Lead_Status' => 'Contactado' })
+
+      expect(account.revenue_leads.where(zoho_lead_id: 'lead-1').count).to eq(1)
+      expect(account.revenue_leads.find_by(zoho_lead_id: 'lead-1').lead_status).to eq('Contactado')
+    end
+
+    it 'does not advance the cursor when the run is truncated at MAX_PAGES with more_records still true' do
+      stub_const("#{described_class}::MAX_PAGES", 1)
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+        .with { |request| CGI.parse(URI(request.uri).query)['page'].first == '1' }
+        .to_return(status: 200, body: { data: [{ 'id' => 'lead-page-1' }], info: { more_records: true } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new.perform
+
+      expect(account.revenue_leads.where(zoho_lead_id: 'lead-page-1')).to exist
+      cursor = account.revenue_sync_cursors.find_by(sync_type: 'leads')
+      expect(cursor.last_synced_at).to be_nil
+    end
+
     it 'follows pagination until more_records is false' do
       stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
         .with { |request| CGI.parse(URI(request.uri).query)['page'].first == '1' }

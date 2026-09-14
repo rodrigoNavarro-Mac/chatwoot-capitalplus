@@ -16,14 +16,14 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
                           closed_lost].freeze
   AGENT_EVENT_TYPES = %w[call_started call_answered call_missed].freeze
   SCORE_BANDS = { (0..39) => '0-39', (40..69) => '40-69', (70..100) => '70-100' }.freeze
-
-  # Zoho devuelve todos sus timestamps en -06:00 para esta cuenta (confirmado contra decenas de
-  # leads de meses distintos, sin variación estacional -- no es horario de verano, es el timezone
-  # fijo configurado en el propio org de Zoho). La app no tiene Time.zone configurado (default
-  # UTC), así que sin esto un lead creado a las 22:00 hora real del 31 de julio se bucketeaba como
-  # "1 de agosto" -- confirmado en producción: 239 leads calculados vs. 231 reales en Zoho para
-  # agosto 2026.
-  LOCAL_TIMEZONE = 'America/Mexico_City'.freeze
+  # El upsert es acumulativo (count/sum_value se SUMAN, ver upsert_rows) sobre una ventana
+  # estrictamente incremental -- si un dato ya rolleado cambia después (desarrollo corregido, un
+  # evento reconstruido), el rollup viejo se queda mal para siempre. Por eso cada corrida
+  # reconstruye desde cero (borra + vuelve a sumar) los últimos RECHECK_WINDOW días, además de la
+  # ventana incremental normal -- se autocorrige sola sin depender de que un operador se acuerde
+  # de correr recompute_revenue_rollups.rake. Corridas cada hora (config/schedule.yml), así que el
+  # costo de reconstruir 7 días es trivial al volumen actual de la cuenta.
+  RECHECK_WINDOW = 7.days
 
   def perform(account_id = nil)
     hooks = Integrations::Hook.enabled.where(app_id: 'zoho_crm')
@@ -41,9 +41,21 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
   def build_for_account(account)
     cursor_service = RevenueIntelligence::SyncCursorService.new(account, 'rollups')
-    since = cursor_service.since
     until_at = Time.current
+    recheck_from = local_date(until_at - RECHECK_WINDOW).in_time_zone(RevenueIntelligence::TIMEZONE).beginning_of_day
+    cursor_since = cursor_service.since
+    # cursor_since nil == primera corrida de la cuenta, o justo después de un reset manual
+    # (lib/tasks/recompute_revenue_rollups.rake, que borra TODOS los rollups antes de resetear el
+    # cursor) -- en ambos casos no hay nada que reconstruir en revenue_rollups todavía, así que se
+    # mantiene sin límite inferior (build_rows recorre el histórico completo) en vez de acotarlo a
+    # RECHECK_WINDOW.
+    since = cursor_since && [cursor_since, recheck_from].min
 
+    # Reconstruye desde cero la ventana de reconciliación antes de volver a sumarla (ver
+    # RECHECK_WINDOW) -- lo anterior a recheck_from, si el cursor venía más atrasado, es
+    # incremental nuevo y nunca se había rolleado, así que ahí el upsert acumulativo de siempre
+    # sigue siendo correcto sin necesidad de borrar nada.
+    account.revenue_rollups.where(date: recheck_from..).delete_all
     upsert_rows(build_rows(account, since, until_at))
 
     cursor_service.advance!(until_at)
@@ -68,17 +80,11 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   # única excepción: lee revenue_leads/revenue_deals directo, así que puede pluckear :desarrollo
   # sin pasar por aquí.
   def desarrollo_lookups(account)
-    {
-      lead: account.revenue_leads.pluck(:zoho_lead_id, :desarrollo).to_h,
-      deal: account.revenue_deals.pluck(:zoho_deal_id, :desarrollo).to_h
-    }
+    RevenueIntelligence::DesarrolloResolver.lookups(account)
   end
 
-  # Prioridad deal > lead > '_all', igual que funnel_rows ya establecía — un deal puede tener su
-  # propio desarrollo distinto al del lead que lo originó (ver DealMapper), y no todo evento trae
-  # ambos ids.
   def resolve_desarrollo(lookups, zoho_lead_id: nil, zoho_deal_id: nil)
-    lookups[:deal][zoho_deal_id] || lookups[:lead][zoho_lead_id] || '_all'
+    RevenueIntelligence::DesarrolloResolver.resolve(lookups, zoho_lead_id: zoho_lead_id, zoho_deal_id: zoho_deal_id)
   end
 
   # IDs de revenue_leads que YA tienen un revenue_deal asociado (best-effort vía
@@ -98,7 +104,13 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   end
 
   def local_date(time)
-    time.in_time_zone(LOCAL_TIMEZONE).to_date
+    # Zoho devuelve todos sus timestamps en -06:00 para esta cuenta (confirmado contra decenas de
+    # leads de meses distintos, sin variación estacional -- no es horario de verano, es el timezone
+    # fijo configurado en el propio org de Zoho). La app no tiene Time.zone configurado (default
+    # UTC), así que sin esto un lead creado a las 22:00 hora real del 31 de julio se bucketeaba como
+    # "1 de agosto" -- confirmado en producción: 239 leads calculados vs. 231 reales en Zoho para
+    # agosto 2026.
+    time.in_time_zone(RevenueIntelligence::TIMEZONE).to_date
   end
 
   # Postgres rechaza un upsert_all cuyo VALUES tenga dos filas que apunten al mismo índice único

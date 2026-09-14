@@ -7,15 +7,14 @@ namespace :chatwoot do
   task debug_funnel_leads: :environment do
     account = Account.find(ENV.fetch('ACCOUNT_ID'))
     desarrollo = ENV.fetch('DESARROLLO')
-    since = Time.find_zone!('America/Mexico_City').parse("#{ENV.fetch('MONTH')}-01")
+    since = Time.find_zone!(RevenueIntelligence::TIMEZONE).parse("#{ENV.fetch('MONTH')}-01")
     until_at = since + 1.month
 
-    lead_lookup = account.revenue_leads.pluck(:zoho_lead_id, :desarrollo).to_h
-    deal_lookup = account.revenue_deals.pluck(:zoho_deal_id, :desarrollo).to_h
+    lookups = RevenueIntelligence::DesarrolloResolver.lookups(account)
 
     ids = account.revenue_events.where(event_type: 'lead_created', event_at: since...until_at)
                  .pluck(:zoho_lead_id, :zoho_deal_id).filter_map do |zoho_lead_id, zoho_deal_id|
-      resolved = deal_lookup[zoho_deal_id] || lead_lookup[zoho_lead_id] || '_all'
+      resolved = RevenueIntelligence::DesarrolloResolver.resolve(lookups, zoho_lead_id: zoho_lead_id, zoho_deal_id: zoho_deal_id)
       zoho_lead_id if resolved == desarrollo
     end
 

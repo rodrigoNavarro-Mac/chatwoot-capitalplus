@@ -17,11 +17,36 @@ const { t } = useI18n();
 
 const agents = useMapGetter('agents/getAgents');
 
-const toDateInputValue = date => date.toISOString().slice(0, 10);
+// Formatea un objeto Date leyendo sus componentes de calendario locales (año/mes/día) tal cual,
+// sin reinterpretar la zona horaria — usado por el selector de periodo (semanal/mensual/
+// trimestral/anual), que ya construye estos Date como "este día de calendario" vía
+// `new Date(year, month, day)`; convertirlos a otra zona horaria correría la fecha un día para
+// algunos husos.
+const toDateInputValue = date => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Todo el negocio opera desde CDMX (México no tiene horario de verano desde 2022, así que el
+// offset -06:00 es fijo) — para el rango por default ("hoy"/"hace 30 días") usamos la fecha
+// calendario de CDMX del instante actual, no la del navegador del usuario, para que coincida con
+// lo que el backend bucketea sin importar desde qué huso horario se abra el dashboard.
+const cdmxDateInputValue = date =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(
+    date
+  );
+
+const subtractDays = (dateStr, days) => {
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+};
 
 const filters = ref({
-  since: toDateInputValue(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
-  until: toDateInputValue(new Date()),
+  since: subtractDays(cdmxDateInputValue(new Date()), 30),
+  until: cdmxDateInputValue(new Date()),
   desarrollo: '',
 });
 
@@ -29,8 +54,10 @@ const isLoading = ref(false);
 const report = ref(null);
 
 const toUnixSeconds = (dateValue, endOfDay = false) => {
-  const date = new Date(`${dateValue}T${endOfDay ? '23:59:59' : '00:00:00'}`);
-  return Math.floor(date.getTime() / 1000).toString();
+  const time = endOfDay ? '23:59:59' : '00:00:00';
+  return Math.floor(
+    new Date(`${dateValue}T${time}-06:00`).getTime() / 1000
+  ).toString();
 };
 
 const isCompleteDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value);

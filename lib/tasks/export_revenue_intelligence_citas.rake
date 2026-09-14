@@ -33,7 +33,7 @@ namespace :chatwoot do
       contact = deal&.revenue_contact || lead&.revenue_contact || stale_contact
       {
         tipo: tipo,
-        fecha: fecha&.in_time_zone('America/Cancun')&.strftime('%Y-%m-%d %H:%M'),
+        fecha: fecha&.in_time_zone(RevenueIntelligence::TIMEZONE)&.strftime('%Y-%m-%d %H:%M'),
         nombre: lead_name.call(lead) || deal_name.call(deal),
         correo: contact&.email,
         celular: contact&.raw_phone,

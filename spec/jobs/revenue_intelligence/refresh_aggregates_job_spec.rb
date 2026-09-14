@@ -70,6 +70,41 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(rollup.count).to eq(2)
     end
 
+    it 'self-corrects a rollup within RECHECK_WINDOW when the underlying desarrollo is fixed later, without double-counting' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', desarrollo: 'Fuego')
+      add_event('lead_created', Time.current, zoho_lead_id: lead.zoho_lead_id, revenue_contact_id: revenue_contact.id)
+      described_class.new.perform
+      expect(account.revenue_rollups.find_by(dimension_type: 'funnel', dimension_id: 'Fuego', metric: 'lead_created').count).to eq(1)
+
+      # se corrige el desarrollo del lead DESPUÉS de que ya se rolleó (ej. un remapeo de Zoho)
+      lead.update!(desarrollo: 'OtroDesarrollo')
+      described_class.new.perform
+
+      expect(account.revenue_rollups.find_by(dimension_type: 'funnel', dimension_id: 'Fuego', metric: 'lead_created')).to be_nil
+      corrected = account.revenue_rollups.find_by(dimension_type: 'funnel', dimension_id: 'OtroDesarrollo', metric: 'lead_created')
+      expect(corrected.count).to eq(1)
+    end
+
+    it 'does not touch rollups older than RECHECK_WINDOW' do
+      travel_to(10.days.ago) do
+        lead = account.revenue_leads.create!(zoho_lead_id: 'lead-old', desarrollo: 'Fuego')
+        add_event('lead_created', Time.current, zoho_lead_id: lead.zoho_lead_id, revenue_contact_id: revenue_contact.id)
+      end
+      # corre el job un poco DESPUÉS del evento (mismo día) -- si corriera en el mismo instante
+      # exacto del evento, el límite inclusivo since...until_at del propio cursor reprocesaría
+      # ese evento en la siguiente corrida real, un artefacto de timing que no ocurre con relojes
+      # reales (siempre avanzan entre llamadas), solo con travel_to congelando el tiempo.
+      travel_to(10.days.ago + 1.hour) { described_class.new.perform }
+
+      old_rollup = account.revenue_rollups.find_by(dimension_type: 'funnel', dimension_id: 'Fuego', metric: 'lead_created')
+      account.revenue_leads.find_by(zoho_lead_id: 'lead-old').update!(desarrollo: 'OtroDesarrollo')
+
+      described_class.new.perform
+
+      expect(account.revenue_rollups.find_by(id: old_rollup.id)).to be_present
+      expect(account.revenue_rollups.find_by(id: old_rollup.id).dimension_id).to eq('Fuego')
+    end
+
     it 'does not aggregate a non-funnel event_type (e.g. whatsapp_incoming)' do
       add_event('whatsapp_incoming', Time.current, revenue_contact_id: revenue_contact.id)
 

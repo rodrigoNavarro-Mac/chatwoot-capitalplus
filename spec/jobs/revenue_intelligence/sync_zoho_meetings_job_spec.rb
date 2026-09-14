@@ -48,6 +48,20 @@ describe RevenueIntelligence::SyncZohoMeetingsJob do
       expect(account.revenue_appointments.where(zoho_event_id: 'event-1').count).to eq(1)
     end
 
+    it 'recovers via a fresh lookup when save! raises RecordNotUnique (concurrent sync race)' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1')
+      account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, status: 'Reagendo')
+      racing_appointment = account.revenue_appointments.new(zoho_event_id: 'event-1')
+      allow(account.revenue_appointments).to receive(:find_or_initialize_by).and_return(racing_appointment)
+      job = described_class.new
+      link = job.send(:deal_link, deal)
+
+      job.send(:upsert_appointment, account, sample_event, link)
+
+      expect(account.revenue_appointments.where(zoho_event_id: 'event-1').count).to eq(1)
+      expect(account.revenue_appointments.find_by(zoho_event_id: 'event-1').status).to eq('No Show')
+    end
+
     it 'does not create any appointment when a deal has no Zoho Events (no fake evidence)' do
       account.revenue_deals.create!(zoho_deal_id: 'deal-1')
 

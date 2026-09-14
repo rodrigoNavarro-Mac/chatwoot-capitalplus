@@ -12,7 +12,7 @@ namespace :chatwoot do
     account = Account.find(ENV.fetch('ACCOUNT_ID'))
     raise "No hay hook de Zoho CRM habilitado para la cuenta #{account.id}" if account.hooks.find_by(app_id: 'zoho_crm', status: 'enabled').blank?
 
-    from = Time.zone.parse(ENV.fetch('FROM'))
+    from = Time.find_zone!(RevenueIntelligence::TIMEZONE).parse(ENV.fetch('FROM'))
     service = RevenueIntelligence::BackfillService.new(account: account, from: from)
 
     counts = service.preview_counts

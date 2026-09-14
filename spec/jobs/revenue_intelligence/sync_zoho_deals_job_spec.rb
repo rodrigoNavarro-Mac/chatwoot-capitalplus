@@ -65,6 +65,31 @@ describe RevenueIntelligence::SyncZohoDealsJob do
       expect(cursor.last_run_status).to eq('ok')
     end
 
+    it 'recovers via a fresh lookup when save! raises RecordNotUnique (concurrent sync race)' do
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', stage: 'Qualification')
+      racing_deal = account.revenue_deals.new(zoho_deal_id: 'deal-1')
+      allow(account.revenue_deals).to receive(:find_or_initialize_by).and_return(racing_deal)
+
+      described_class.new.send(:upsert_deal, account, { 'id' => 'deal-1', 'Stage' => 'Cerrado ganado' })
+
+      expect(account.revenue_deals.where(zoho_deal_id: 'deal-1').count).to eq(1)
+      expect(account.revenue_deals.find_by(zoho_deal_id: 'deal-1').stage).to eq('Cerrado ganado')
+    end
+
+    it 'does not advance the cursor when the run is truncated at MAX_PAGES with more_records still true' do
+      stub_const("#{described_class}::MAX_PAGES", 1)
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Deals/search})
+        .with { |request| CGI.parse(URI(request.uri).query)['page'].first == '1' }
+        .to_return(status: 200, body: { data: [{ 'id' => 'deal-page-1' }], info: { more_records: true } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new.perform
+
+      expect(account.revenue_deals.where(zoho_deal_id: 'deal-page-1')).to exist
+      cursor = account.revenue_sync_cursors.find_by(sync_type: 'deals')
+      expect(cursor.last_synced_at).to be_nil
+    end
+
     it 'continues syncing other hooks when one hook raises' do
       other_account = create(:account)
       other_account.enable_features!('crm_integration')

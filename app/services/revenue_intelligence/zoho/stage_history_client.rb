@@ -10,10 +10,19 @@
 # esto a entered_at/exited_at/duration_seconds.
 class RevenueIntelligence::Zoho::StageHistoryClient < Crm::Zoho::Api::BaseClient
   FIELDS = %w[id Stage Moved_To__s Stage_Duration_Calendar_Days Modified_Time Amount].freeze
+  # Tope default conocido de un related list de Zoho por llamada -- este cliente no pagina (una
+  # sola llamada por deal). No se espera alcanzarlo en la práctica (un deal en un pipeline de 7
+  # etapas no debería acumular tantas filas de historial), pero se deja visible si pasa.
+  DEFAULT_PAGE_CAP = 200
 
   def list(zoho_deal_id)
     response = get("Deals/#{zoho_deal_id}/Stage_History", fields: FIELDS.join(','))
-    response.is_a?(Hash) ? Array(response['data']) : []
+    rows = response.is_a?(Hash) ? Array(response['data']) : []
+    if rows.size >= DEFAULT_PAGE_CAP
+      Rails.logger.warn("[RevenueIntelligence::Zoho::StageHistoryClient] zoho_deal_id=#{zoho_deal_id} " \
+                        "devolvió >= #{DEFAULT_PAGE_CAP} filas -- posible truncamiento.")
+    end
+    rows
   rescue Crm::Zoho::Api::BaseClient::ApiError => e
     return [] if e.code == 204
 

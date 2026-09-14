@@ -27,7 +27,7 @@ namespace :chatwoot do
         celular: contact&.raw_phone,
         etapa: deal.stage,
         monto: deal.amount,
-        fecha_creacion: deal.created_at_source&.in_time_zone('America/Cancun')&.strftime('%Y-%m-%d'),
+        fecha_creacion: deal.created_at_source&.in_time_zone(RevenueIntelligence::TIMEZONE)&.strftime('%Y-%m-%d'),
         campaign: deal.campaign_name,
         adset: deal.adset_name,
         advert: deal.advert_name,

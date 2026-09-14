@@ -8,12 +8,6 @@ class V2::Reports::RevenueIntelligenceBuilder
   include DateRangeHelper
 
   DEFAULT_RANGE_DAYS = 30
-  # Mismo fix de zona horaria que RevenueIntelligence::RefreshAggregatesJob: la app no tiene
-  # Time.zone configurado (default UTC), y Zoho reporta en -06:00 para esta cuenta. Sin esto,
-  # DateRangeHelper#range (via DateTime.strptime(ts, '%s'), siempre UTC) convertía "31 de agosto
-  # 23:59:59 hora local" en "1 de septiembre 05:59 UTC" -- el filtro de "agosto" colaba también
-  # los rollups del 1 de septiembre (confirmado en producción: 238 vs. 231 leads reales de Zoho).
-  LOCAL_TIMEZONE = 'America/Mexico_City'.freeze
   FUNNEL_TREND_METRICS = %w[lead_created appointment_created closed_won].freeze
   # Secuencia real del embudo para calcular conversión etapa-a-etapa — deliberadamente NO incluye
   # 'deal_created' (paralelo al embudo, no un paso obligatorio para el usuario de negocio) ni
@@ -62,7 +56,12 @@ class V2::Reports::RevenueIntelligenceBuilder
   end
 
   def local_date(time)
-    time.in_time_zone(LOCAL_TIMEZONE).to_date
+    # Mismo fix de zona horaria que RevenueIntelligence::RefreshAggregatesJob: la app no tiene
+    # Time.zone configurado (default UTC), y Zoho reporta en -06:00 para esta cuenta. Sin esto,
+    # DateRangeHelper#range (via DateTime.strptime(ts, '%s'), siempre UTC) convertía "31 de agosto
+    # 23:59:59 hora local" en "1 de septiembre 05:59 UTC" -- el filtro de "agosto" colaba también
+    # los rollups del 1 de septiembre (confirmado en producción: 238 vs. 231 leads reales de Zoho).
+    time.in_time_zone(RevenueIntelligence::TIMEZONE).to_date
   end
 
   def rollups_scope(dimension_type)
@@ -396,7 +395,7 @@ class V2::Reports::RevenueIntelligenceBuilder
   # crece mucho.
   def funnel_seguimiento_counts
     cohort_by_lead_id, cohort_by_deal_id = funnel_cohort_lookups
-    range_start = Time.find_zone!(LOCAL_TIMEZONE).parse(date_range.begin.to_s)
+    range_start = Time.find_zone!(RevenueIntelligence::TIMEZONE).parse(date_range.begin.to_s)
 
     events = account.revenue_events.where(event_type: RevenueIntelligence::RefreshAggregatesJob::FUNNEL_EVENT_TYPES, event_at: date_range)
     events.pluck(:event_type, :zoho_lead_id, :zoho_deal_id).each_with_object(Hash.new(0)) do |(event_type, zoho_lead_id, zoho_deal_id), acc|
@@ -413,7 +412,7 @@ class V2::Reports::RevenueIntelligenceBuilder
   # anterior (seguimiento), para no confundirlos visualmente con leads nuevos de esta campaña.
   def marketing_seguimiento_counts
     @marketing_seguimiento_counts ||= begin
-      range_start = Time.find_zone!(LOCAL_TIMEZONE).parse(date_range.begin.to_s)
+      range_start = Time.find_zone!(RevenueIntelligence::TIMEZONE).parse(date_range.begin.to_s)
       counts = { 'campaign' => Hash.new(0), 'adset' => Hash.new(0), 'advert' => Hash.new(0), 'lead_source' => Hash.new(0) }
 
       base_leads_scope.where.not(campaign_id: nil).where(first_contact_at: date_range)
