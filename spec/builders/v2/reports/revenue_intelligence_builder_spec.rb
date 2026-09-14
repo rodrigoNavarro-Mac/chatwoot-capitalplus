@@ -118,14 +118,16 @@ describe V2::Reports::RevenueIntelligenceBuilder do
                                            'avg_score' => nil, 'cta_rate' => nil })
     end
 
-    it 'builds a campaign -> adset -> advert hierarchy from 3 flat rollup dimensions' do
+    it 'nests a campaign -> adset -> advert hierarchy under its resolved source, from 4 flat rollup dimensions' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', lead_source: 'Facebook Ads')
       rollup('campaign', 'camp-1', 'lead_created', count: 10)
       rollup('adset', 'camp-1::adset-1::Adset Uno', 'lead_created', count: 6)
       rollup('advert', 'camp-1::adset-1::ad-1::Anuncio Uno', 'lead_created', count: 4)
 
       result = builder.build
 
-      campaign = result[:campaign].find { |c| c[:id] == 'camp-1' }
+      source = result[:marketing_by_source].find { |s| s[:id] == 'Facebook Ads' }
+      campaign = source[:campaigns].find { |c| c[:id] == 'camp-1' }
       expect(campaign[:metrics]).to eq({ 'lead_created' => 10, :lead_contacted_seguimiento => 0 })
       adset = campaign[:adsets].first
       expect(adset).to include(id: 'adset-1', name: 'Adset Uno', metrics: { 'lead_created' => 6, :lead_contacted_seguimiento => 0 })
@@ -133,49 +135,72 @@ describe V2::Reports::RevenueIntelligenceBuilder do
                                             metrics: { 'lead_created' => 4, :lead_contacted_seguimiento => 0 } })
     end
 
+    it 'sums a campaign together with the direct (sin campaña) bucket of the same source, without double-counting adsets' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', lead_source: 'Facebook Ads')
+      rollup('campaign', 'camp-1', 'lead_created', count: 10)
+      rollup('adset', 'camp-1::adset-1::Adset Uno', 'lead_created', count: 10)
+      rollup('lead_source', 'Facebook Ads', 'lead_created', count: 5)
+
+      result = builder.build
+
+      source = result[:marketing_by_source].find { |s| s[:id] == 'Facebook Ads' }
+      expect(source[:metrics]['lead_created']).to eq(15)
+      expect(source[:direct_metrics]['lead_created']).to eq(5)
+    end
+
+    it 'lists a source with no attributed campaign as campaigns: [], metrics from its direct bucket only' do
+      rollup('lead_source', 'Sin fuente', 'lead_created', count: 4)
+
+      result = builder.build
+
+      source = result[:marketing_by_source].find { |s| s[:id] == 'Sin fuente' }
+      expect(source[:campaigns]).to eq([])
+      expect(source[:metrics]).to eq({ 'lead_created' => 4, 'lead_contacted' => 0, 'lead_converted' => 0, 'deal_created' => 0, 'closed_won' => 0,
+                                       :lead_contacted_seguimiento => 0 })
+    end
+
+    it 'falls back a campaign with no resolvable source to the "_sin_atribuir" bucket instead of dropping it' do
+      rollup('campaign', 'camp-orphan', 'lead_created', count: 2)
+
+      result = builder.build
+
+      source = result[:marketing_by_source].find { |s| s[:id] == '_sin_atribuir' }
+      expect(source[:campaigns].map { |c| c[:id] }).to contain_exactly('camp-orphan')
+    end
+
     it 'counts a lead as "seguimiento" in the Marketing tab when contacted in-range but created before it' do
       rollup('campaign', 'camp-1', 'lead_contacted', count: 1)
-      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', created_at_source: 40.days.ago,
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', lead_source: 'Facebook Ads', created_at_source: 40.days.ago,
                                     first_contact_at: 5.days.ago)
 
       result = builder.build
 
-      campaign = result[:campaign].find { |c| c[:id] == 'camp-1' }
+      source = result[:marketing_by_source].find { |s| s[:id] == 'Facebook Ads' }
+      campaign = source[:campaigns].find { |c| c[:id] == 'camp-1' }
       expect(campaign[:metrics][:lead_contacted_seguimiento]).to eq(1)
     end
 
     it 'does not count a lead as "seguimiento" in the Marketing tab when created within the selected range' do
       rollup('campaign', 'camp-1', 'lead_contacted', count: 1)
-      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', created_at_source: 5.days.ago,
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', lead_source: 'Facebook Ads', created_at_source: 5.days.ago,
                                     first_contact_at: 5.days.ago)
 
       result = builder.build
 
-      campaign = result[:campaign].find { |c| c[:id] == 'camp-1' }
+      source = result[:marketing_by_source].find { |s| s[:id] == 'Facebook Ads' }
+      campaign = source[:campaigns].find { |c| c[:id] == 'camp-1' }
       expect(campaign[:metrics][:lead_contacted_seguimiento]).to eq(0)
     end
 
-    it 'lists marketing_sources (bucket de respaldo para leads sin campaign_id) as a flat list' do
-      rollup('lead_source', 'Facebook Ads', 'lead_created', count: 20)
-      rollup('lead_source', 'Facebook Ads', 'lead_contacted', count: 15)
-      rollup('lead_source', 'Sin fuente', 'lead_created', count: 4)
-
-      result = builder.build
-
-      facebook = result[:marketing_sources].find { |s| s[:id] == 'Facebook Ads' }
-      expect(facebook[:metrics]).to eq({ 'lead_created' => 20, 'lead_contacted' => 15, :lead_contacted_seguimiento => 0 })
-      expect(result[:marketing_sources].find { |s| s[:id] == 'Sin fuente' }).to be_present
-    end
-
-    it 'counts a lead as "seguimiento" in marketing_sources too, same rule as marketing campaigns' do
+    it 'counts a lead as "seguimiento" in the direct (sin campaña) bucket too, same rule as campaigns' do
       rollup('lead_source', 'Facebook Ads', 'lead_contacted', count: 1)
       account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: 'Facebook Ads', created_at_source: 40.days.ago,
                                     first_contact_at: 5.days.ago)
 
       result = builder.build
 
-      facebook = result[:marketing_sources].find { |s| s[:id] == 'Facebook Ads' }
-      expect(facebook[:metrics][:lead_contacted_seguimiento]).to eq(1)
+      source = result[:marketing_by_source].find { |s| s[:id] == 'Facebook Ads' }
+      expect(source[:direct_metrics][:lead_contacted_seguimiento]).to eq(1)
     end
 
     it 'sums marketing_totals across campaign (top-level only) and lead_source' do
@@ -207,11 +232,13 @@ describe V2::Reports::RevenueIntelligenceBuilder do
     end
 
     it 'leaves adsets empty for a campaign with no adset-level rollups' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-2', lead_source: 'Facebook Ads')
       rollup('campaign', 'camp-2', 'lead_created', count: 3)
 
       result = builder.build
 
-      campaign = result[:campaign].find { |c| c[:id] == 'camp-2' }
+      source = result[:marketing_by_source].find { |s| s[:id] == 'Facebook Ads' }
+      campaign = source[:campaigns].find { |c| c[:id] == 'camp-2' }
       expect(campaign[:adsets]).to eq([])
     end
 

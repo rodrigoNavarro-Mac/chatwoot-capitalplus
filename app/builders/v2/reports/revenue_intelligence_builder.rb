@@ -29,8 +29,7 @@ class V2::Reports::RevenueIntelligenceBuilder
       funnel_totals: totals,
       funnel_conversions: funnel_conversions(totals),
       agent: agent_summary,
-      campaign: marketing_hierarchy,
-      marketing_sources: marketing_sources_summary,
+      marketing_by_source: marketing_by_source,
       marketing_totals: marketing_totals,
       pipeline_stage: pipeline_stage_summary,
       call_conversion: conversion_summary('call_conversion'),
@@ -119,35 +118,70 @@ class V2::Reports::RevenueIntelligenceBuilder
     }
   end
 
-  # Reconstruye la jerarquía campaña -> adset -> advert a partir de 3 dimension_types planas de
-  # rollups. 'campaign' conserva dimension_id = campaign_id crudo sin tocar (ya tiene datos reales
-  # acumulados desde Fase 3, no se puede reescribir su clave sin fragmentar el histórico). 'adset'/
-  # 'advert' son dimensiones nuevas cuyo dimension_id trae el nombre embebido (ver
-  # RefreshAggregatesJob#marketing_dimension_rows) — se parsean aquí, nunca se lee revenue_leads.
-  def marketing_hierarchy
+  MARKETING_TOTAL_METRICS = %w[lead_created lead_contacted lead_converted deal_created closed_won].freeze
+  # Fuente sintética para una campaña cuyo campaign_id no se pudo resolver a ningún lead_source
+  # (no debería pasar dado que LeadMapper#marketing_attrs siempre puebla ambos campos en la misma
+  # fila, pero así nunca desaparece en silencio si algún día pasa).
+  UNATTRIBUTED_SOURCE = '_sin_atribuir'.freeze
+
+  # Jerarquía unificada fuente -> campaña (si Zoho la atribuyó) -> adset -> advert, con un bucket
+  # "directo" (sin campaign_id) expuesto aparte por fuente para pintar un renglón "(sin campaña
+  # específica)". Antes eran dos tablas sin relación visible ("por campaña" con campaign_id
+  # presente, "por fuente" sin él) -- un usuario viendo "Meta Ads: 46" en la tabla de fuente no
+  # tenía forma de saber que el total real de Meta Ads era 202 (156 de la campaña + 46 sueltos),
+  # confusión real reportada en producción. lead_source coexiste con campaign_id en la misma fila
+  # de revenue_leads siempre (ver LeadMapper#marketing_attrs), así que resolver "esta campaña es de
+  # esta fuente" es un lookup barato -- no requiere cambiar cómo se escriben los rollups ni
+  # recalcular histórico. 'campaign' conserva dimension_id = campaign_id crudo sin tocar (ya tiene
+  # datos reales acumulados desde Fase 3); 'adset'/'advert' traen el nombre embebido en su
+  # dimension_id (ver RefreshAggregatesJob#marketing_dimension_rows).
+  def marketing_by_source
+    direct_by_source = with_seguimiento(rollup_summary('lead_source'), marketing_seguimiento_counts['lead_source'])
+    campaigns_by_source = campaigns_grouped_by_source
+
+    source_ids = (direct_by_source.keys + campaigns_by_source.keys).uniq
+    source_ids.map { |source_id| marketing_source_row(source_id, campaigns_by_source[source_id], direct_by_source[source_id]) }
+              .sort_by { |row| -(row[:metrics]['lead_created'] || 0) }
+  end
+
+  # { fuente => [{ id: campaign_id, metrics:, adsets: [...] }, ...] } -- una sola pasada, adsets/
+  # adverts se resuelven una vez y se reusan para todas las campañas (evita recalcularlos por
+  # fuente).
+  def campaigns_grouped_by_source
     seguimiento = marketing_seguimiento_counts
     adsets = with_seguimiento(rollup_summary('adset'), seguimiento['adset'])
     adverts = with_seguimiento(rollup_summary('advert'), seguimiento['advert'])
+    source_of = campaign_source_lookup
 
-    with_seguimiento(rollup_summary('campaign'), seguimiento['campaign']).map do |campaign_id, metrics|
-      { id: campaign_id, metrics: metrics, adsets: marketing_adsets(campaign_id, adsets, adverts) }
-    end
+    with_seguimiento(rollup_summary('campaign'), seguimiento['campaign'])
+      .group_by { |campaign_id, _metrics| source_of[campaign_id] || UNATTRIBUTED_SOURCE }
+      .transform_values do |pairs|
+        pairs.map { |campaign_id, metrics| { id: campaign_id, metrics: metrics, adsets: marketing_adsets(campaign_id, adsets, adverts) } }
+      end
   end
 
-  # Bucket de respaldo para leads/deals SIN campaign_id (~94% del histórico de esta cuenta, ver
-  # RevenueIntelligence::RefreshAggregatesJob#source_rows) — agrupado por Lead_Source en vez de
-  # campaña/adset/advert, para que la pestaña de Marketing muestre el volumen real completo y no
-  # solo la fracción con atribución fina.
-  def marketing_sources_summary
-    with_seguimiento(rollup_summary('lead_source'), marketing_seguimiento_counts['lead_source']).map do |lead_source, metrics|
-      { id: lead_source, metrics: metrics }
-    end
+  def marketing_source_row(source_id, campaigns, direct_metrics)
+    campaigns ||= []
+    direct_metrics ||= {}
+
+    { id: source_id, metrics: sum_metric_hashes([direct_metrics] + campaigns.pluck(:metrics)), direct_metrics: direct_metrics, campaigns: campaigns }
   end
 
-  MARKETING_TOTAL_METRICS = %w[lead_created lead_contacted lead_converted deal_created closed_won].freeze
+  # { campaign_id => lead_source } -- RevenueDeal no tiene columna campaign_id propia, toda
+  # atribución de campaña vive en revenue_leads (los deals la heredan de su lead vía
+  # DealAttributionCopier), así que este lookup basta para resolver también los deals agregados
+  # bajo cada dimension_id de campaña.
+  def campaign_source_lookup
+    account.revenue_leads.where.not(campaign_id: nil).distinct.pluck(:campaign_id, :lead_source).to_h
+  end
+
+  def sum_metric_hashes(hashes)
+    totals = MARKETING_TOTAL_METRICS.index_with { |metric| hashes.sum { |h| h[metric] || 0 } }
+    totals.merge(lead_contacted_seguimiento: hashes.sum { |h| h[:lead_contacted_seguimiento] || 0 })
+  end
 
   # Suma "Por campaña" (nivel top, ya inclusivo de sus adsets/adverts -- ver comentario de
-  # marketing_hierarchy) + "Por fuente" -- para que la UI pueda mostrar un total del tab Marketing
+  # marketing_by_source) + "Por fuente" -- para que la UI pueda mostrar un total del tab Marketing
   # que reconcilie directo contra funnel_totals de Overview (mismo lead_created/lead_contacted,
   # ambos derivados en última instancia de revenue_leads/revenue_events ya consistentes entre sí,
   # ver BuildEventsJob#upsert_event). Sin este total, el usuario tenía que sumar dos tablas a mano

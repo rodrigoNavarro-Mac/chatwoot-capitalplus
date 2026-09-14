@@ -348,54 +348,75 @@ const withMarketingRates = metrics => {
   };
 };
 
+const MARKETING_METRIC_COLUMNS = [
+  'lead_created',
+  'lead_contacted',
+  'deal_created',
+  'closed_won',
+];
+
+const hasMarketingActivity = metrics =>
+  MARKETING_METRIC_COLUMNS.some(metric => (metrics?.[metric] || 0) > 0);
+
+// `marketing_by_source` llega como jerarquía fuente -> campaña (si Zoho la atribuyó) -> adset ->
+// advert (ver V2::Reports::RevenueIntelligenceBuilder#marketing_by_source) -- se aplana aquí a una
+// sola lista con nivel de indentación (0-3) para pintarla como una sola tabla con sangría, sin
+// necesitar un componente de árbol nuevo. Antes había dos tablas separadas ("por campaña" / "por
+// fuente") sin relación visible entre sí -- un usuario viendo "Meta Ads: 46" en la tabla de fuente
+// no tenía forma de saber que el total real de Meta Ads incluía también la campaña de la otra
+// tabla. Ahora cada fuente muestra su total real, con sus campañas anidadas debajo y un renglón
+// "(sin campaña específica)" para los leads de esa fuente que Zoho no pudo atribuir a una campaña
+// puntual -- el total de la fuente siempre es visualmente la suma de sus hijos.
 const marketingRows = computed(() => {
-  const campaigns = report.value?.campaign ?? [];
+  const sources = report.value?.marketing_by_source ?? [];
   const rows = [];
-  campaigns.forEach(campaign => {
+  sources.forEach(source => {
     rows.push({
-      key: `c:${campaign.id}`,
+      key: `s:${source.id}`,
       level: 0,
-      label: campaign.id,
-      metrics: withMarketingRates(campaign.metrics),
+      label: source.id,
+      metrics: withMarketingRates(source.metrics),
     });
-    (campaign.adsets ?? []).forEach(adset => {
+    (source.campaigns ?? []).forEach(campaign => {
       rows.push({
-        key: `a:${campaign.id}:${adset.id}`,
+        key: `c:${source.id}:${campaign.id}`,
         level: 1,
-        label: adset.name,
-        metrics: withMarketingRates(adset.metrics),
+        label: campaign.id,
+        metrics: withMarketingRates(campaign.metrics),
       });
-      (adset.adverts ?? []).forEach(advert => {
+      (campaign.adsets ?? []).forEach(adset => {
         rows.push({
-          key: `d:${campaign.id}:${adset.id}:${advert.id}`,
+          key: `a:${campaign.id}:${adset.id}`,
           level: 2,
-          label: advert.name,
-          metrics: withMarketingRates(advert.metrics),
+          label: adset.name,
+          metrics: withMarketingRates(adset.metrics),
+        });
+        (adset.adverts ?? []).forEach(advert => {
+          rows.push({
+            key: `d:${campaign.id}:${adset.id}:${advert.id}`,
+            level: 3,
+            label: advert.name,
+            metrics: withMarketingRates(advert.metrics),
+          });
         });
       });
     });
+    if (hasMarketingActivity(source.direct_metrics)) {
+      rows.push({
+        key: `w:${source.id}`,
+        level: 1,
+        label: t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.WITHOUT_CAMPAIGN'),
+        muted: true,
+        metrics: withMarketingRates(source.direct_metrics),
+      });
+    }
   });
   return rows;
 });
 
-// Bucket de respaldo (marketing_sources) para leads/deals sin campaign_id -- ordenado de mayor a
-// menor volumen para que las fuentes más grandes aparezcan primero, mismo criterio ya usado en
-// Objections.
-const marketingSourceRows = computed(() => {
-  const sources = report.value?.marketing_sources ?? [];
-  return sources
-    .map(source => ({
-      key: `s:${source.id}`,
-      label: source.id,
-      metrics: withMarketingRates(source.metrics),
-    }))
-    .sort(
-      (a, b) => (b.metrics.lead_created || 0) - (a.metrics.lead_created || 0)
-    );
-});
-// Total del tab Marketing = "Por campaña" + "Por fuente" -- se muestra explícitamente para que el
-// usuario pueda comparar de un vistazo contra Leads/Contacted de Overview, sin tener que sumar dos
-// tablas a mano (origen real de la confusión "no cuadra" reportada en producción).
+// Total del tab Marketing (ya reconciliado en el backend, ver marketing_totals) -- se muestra
+// explícitamente arriba de la tabla para que el usuario pueda comparar de un vistazo contra
+// Leads/Contacted de Overview, sin tener que sumar filas a mano.
 const marketingTotals = computed(
   () =>
     report.value?.marketing_totals ?? {
@@ -407,13 +428,6 @@ const marketingTotals = computed(
       closed_won: 0,
     }
 );
-
-const MARKETING_METRIC_COLUMNS = [
-  'lead_created',
-  'lead_contacted',
-  'deal_created',
-  'closed_won',
-];
 
 // Traduce nombres crudos del backend (event_type/signal_type/segmentos compuestos) a lenguaje de
 // negocio — se aplica en TODAS las pestañas, no solo Overview, para no dejar ningún
@@ -1379,7 +1393,7 @@ const availableDesarrollos = computed(
               <thead>
                 <tr>
                   <th>
-                    {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CAMPAIGN') }}
+                    {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCE') }}
                   </th>
                   <th v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
                     {{ eventTypeLabel(metric) }}
@@ -1399,11 +1413,12 @@ const availableDesarrollos = computed(
                   <td>
                     <span
                       :style="{ paddingLeft: `${row.level * 1.25}rem` }"
-                      :class="
+                      :class="[
                         row.level === 0
                           ? 'font-semibold text-n-slate-12'
-                          : 'text-n-slate-11'
-                      "
+                          : 'text-n-slate-11',
+                        row.muted ? 'italic' : '',
+                      ]"
                     >
                       {{ row.label }}
                     </span>
@@ -1458,101 +1473,6 @@ const availableDesarrollos = computed(
                 </tr>
               </tbody>
             </table>
-
-            <div v-if="marketingSourceRows.length" class="mt-8">
-              <h4 class="text-sm font-semibold text-n-slate-12 mt-0 mb-1">
-                {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCES_TITLE') }}
-              </h4>
-              <p class="text-xs text-n-slate-11 mb-3">
-                {{
-                  t(
-                    'REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCES_DESCRIPTION'
-                  )
-                }}
-              </p>
-              <table class="woot-table w-full">
-                <thead>
-                  <tr>
-                    <th>
-                      {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCE') }}
-                    </th>
-                    <th
-                      v-for="metric in MARKETING_METRIC_COLUMNS"
-                      :key="metric"
-                    >
-                      {{ eventTypeLabel(metric) }}
-                    </th>
-                    <th>
-                      {{
-                        t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONTACT_RATE')
-                      }}
-                    </th>
-                    <th>
-                      {{
-                        t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CLOSE_RATE')
-                      }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in marketingSourceRows" :key="row.key">
-                    <td class="font-semibold text-n-slate-12">
-                      {{ row.label }}
-                    </td>
-                    <td
-                      v-for="metric in MARKETING_METRIC_COLUMNS"
-                      :key="metric"
-                    >
-                      {{ row.metrics[metric] || 0 }}
-                      <span
-                        v-if="
-                          metric === 'lead_created' &&
-                          row.metrics.lead_converted > 0
-                        "
-                        v-tooltip="
-                          t(
-                            'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_TOOLTIP'
-                          )
-                        "
-                        class="text-xs text-n-blue-11 cursor-help"
-                      >
-                        ({{ row.metrics.lead_converted }}
-                        {{
-                          t(
-                            'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL'
-                          )
-                        }})
-                      </span>
-                      <span
-                        v-if="
-                          metric === 'lead_contacted' &&
-                          row.metrics.lead_contacted_seguimiento > 0
-                        "
-                        v-tooltip="
-                          t(
-                            'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP'
-                          )
-                        "
-                        class="text-xs text-n-amber-11 cursor-help"
-                      >
-                        +{{ row.metrics.lead_contacted_seguimiento }}
-                        {{
-                          t(
-                            'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL'
-                          )
-                        }}
-                      </span>
-                    </td>
-                    <td>
-                      <MarketingRateCell :rate="row.metrics.contactRate" />
-                    </td>
-                    <td>
-                      <MarketingRateCell :rate="row.metrics.closeRate" />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </div>
         </template>
 
