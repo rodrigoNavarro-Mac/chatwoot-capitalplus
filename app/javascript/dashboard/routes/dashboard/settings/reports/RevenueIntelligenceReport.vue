@@ -328,14 +328,26 @@ const MARKETING_METRIC_COLUMNS = [
 const hasMarketingActivity = metrics =>
   MARKETING_METRIC_COLUMNS.some(metric => (metrics?.[metric] || 0) > 0);
 
+// Campañas con adset/advert colapsados por default -- desplegar ese detalle no aporta en el
+// vistazo de todos los días (feedback directo: demasiada profundidad), pero sigue haciendo falta
+// para saber qué anuncio específico funcionó -- se abre por campaña, no globalmente.
+const expandedCampaigns = ref(new Set());
+const toggleCampaign = key => {
+  const next = new Set(expandedCampaigns.value);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  expandedCampaigns.value = next;
+};
+
 // `marketing_by_source` llega como jerarquía fuente -> campaña (si Zoho la atribuyó) -> adset ->
-// advert (ver V2::Reports::RevenueIntelligenceBuilder#marketing_by_source), pero esta tabla solo
-// pinta 2 niveles (fuente y campaña) -- adset/advert se dejan fuera a propósito, quedan
-// disponibles en el payload por si en el futuro se agrega un detalle expandible, pero mostrarlos
-// aquí por default era demasiada profundidad para un vistazo rápido (feedback directo del
-// usuario). El residual sin campaña específica ya no es un renglón aparte (confundía, parecía una
-// campaña más) -- se anota como badge bajo el número de Leads de la fuente, mismo patrón visual
-// que "ya convertidos"/"seguimiento" en el resto de esta pantalla.
+// advert (ver V2::Reports::RevenueIntelligenceBuilder#marketing_by_source) -- se aplana aquí a una
+// lista con nivel de indentación (0-3), pero adset/advert solo se incluyen si su campaña está
+// expandida (ver expandedCampaigns arriba). El residual sin campaña específica no es un renglón
+// aparte (confundía, parecía una campaña más) -- se anota como badge bajo el número de Leads de la
+// fuente, mismo patrón visual que "ya convertidos"/"seguimiento" en el resto de esta pantalla.
 const marketingRows = computed(() => {
   const sources = report.value?.marketing_by_source ?? [];
   const rows = [];
@@ -350,12 +362,37 @@ const marketingRows = computed(() => {
         : 0,
     });
     (source.campaigns ?? []).forEach(campaign => {
+      const campaignKey = `c:${source.id}:${campaign.id}`;
+      const adsets = campaign.adsets ?? [];
+      const isExpanded = expandedCampaigns.value.has(campaignKey);
       rows.push({
-        key: `c:${source.id}:${campaign.id}`,
+        key: campaignKey,
         level: 1,
         label: campaign.id,
         metrics: campaign.metrics,
         withoutCampaign: 0,
+        expandable: adsets.length > 0,
+        expanded: isExpanded,
+      });
+      if (adsets.length === 0 || !isExpanded) return;
+
+      adsets.forEach(adset => {
+        rows.push({
+          key: `a:${campaign.id}:${adset.id}`,
+          level: 2,
+          label: adset.name,
+          metrics: adset.metrics,
+          withoutCampaign: 0,
+        });
+        (adset.adverts ?? []).forEach(advert => {
+          rows.push({
+            key: `d:${campaign.id}:${adset.id}:${advert.id}`,
+            level: 3,
+            label: advert.name,
+            metrics: advert.metrics,
+            withoutCampaign: 0,
+          });
+        });
       });
     });
   });
@@ -1351,7 +1388,25 @@ const availableDesarrollos = computed(
               <tbody>
                 <tr v-for="row in marketingRows" :key="row.key">
                   <td>
+                    <button
+                      v-if="row.expandable"
+                      type="button"
+                      class="inline-flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
+                      :style="{ paddingLeft: `${row.level * 1.25}rem` }"
+                      :class="
+                        row.level === 0
+                          ? 'font-semibold text-n-slate-12'
+                          : 'text-n-slate-11'
+                      "
+                      @click="toggleCampaign(row.key)"
+                    >
+                      <span class="text-xs w-3 inline-block">{{
+                        row.expanded ? '▾' : '▸'
+                      }}</span>
+                      {{ row.label }}
+                    </button>
                     <span
+                      v-else
                       :style="{ paddingLeft: `${row.level * 1.25}rem` }"
                       :class="
                         row.level === 0
