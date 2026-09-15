@@ -68,35 +68,15 @@ describe CadenceStepDefinition do
     expect(record.errors[:time_of_day]).to be_present
   end
 
-  it 'requires media_type when media_url is present' do
-    record = described_class.new(base_attrs(media_url: 'https://cdn.example.com/video.mp4', media_type: nil))
-
-    expect(record).not_to be_valid
-    expect(record.errors[:media_type]).to be_present
-  end
-
-  it 'requires media_name when media_type is document' do
-    record = described_class.new(base_attrs(media_url: 'https://cdn.example.com/doc.pdf', media_type: 'document', media_name: nil))
-
-    expect(record).not_to be_valid
-    expect(record.errors[:media_name]).to be_present
-  end
-
-  it 'is valid with a video media attachment and no media_name' do
-    record = described_class.new(base_attrs(media_url: 'https://cdn.example.com/video.mp4', media_type: 'video'))
-
-    expect(record).to be_valid
-  end
-
   describe '#to_snapshot' do
     it 'includes the fields the cadence engine needs, and nothing else' do
-      record = described_class.create!(base_attrs(media_url: 'https://cdn.example.com/v.mp4', media_type: 'video'))
+      record = described_class.create!(base_attrs)
 
       snapshot = record.to_snapshot
 
       expect(snapshot).to include(
         'position' => 1, 'template_key' => 'wa_primer_contacto', 'schedule_type' => 'immediate',
-        'wait_window_minutes' => 15, 'media_url' => 'https://cdn.example.com/v.mp4', 'media_type' => 'video'
+        'wait_window_minutes' => 15
       )
       expect(snapshot).not_to have_key('cadence_definition_id')
     end
@@ -105,6 +85,27 @@ describe CadenceStepDefinition do
       record = described_class.create!(base_attrs(body_variables: { '1' => '{{ contact.name }}' }))
 
       expect(record.to_snapshot).to include('body_variables' => { '1' => '{{ contact.name }}' })
+    end
+
+    it 'omits media keys when the inbox has no default configured for this template' do
+      record = described_class.create!(base_attrs)
+
+      expect(record.to_snapshot).not_to have_key('media_url')
+    end
+
+    it 'resolves media_url/media_name/media_type from the inbox default, not from the step itself' do
+      whatsapp_channel.update!(message_templates: [{
+        'name' => 'cadencia_primer_contacto', 'language' => 'es_MX', 'status' => 'approved',
+        'components' => [{ 'type' => 'HEADER', 'format' => 'VIDEO' }, { 'type' => 'BODY', 'text' => 'Hola' }]
+      }])
+      create(:whatsapp_template_inbox_assignment, account: account, inbox: whatsapp_inbox,
+                                                   template_name: 'cadencia_primer_contacto',
+                                                   media_url: 'https://cdn.example.com/v.mp4', media_name: 'video.mp4')
+      record = described_class.create!(base_attrs)
+
+      expect(record.to_snapshot).to include(
+        'media_url' => 'https://cdn.example.com/v.mp4', 'media_name' => 'video.mp4', 'media_type' => 'video'
+      )
     end
   end
 

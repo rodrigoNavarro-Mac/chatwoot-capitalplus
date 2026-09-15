@@ -230,15 +230,8 @@
       "CREATES_CALL_TASK": "Create a call task if there is no reply",
       "MEDIA": {
         "SECTION": "Media attachment",
-        "TYPE_LABEL": "Attachment type",
-        "NONE": "None",
-        "IMAGE": "Image",
-        "VIDEO": "Video",
-        "DOCUMENT": "Document",
-        "URL_LABEL": "Media link",
-        "URL_PLACEHOLDER": "https://...",
-        "NAME_LABEL": "File name",
-        "DETECTED_HINT": "This template's header is a {type} — paste its link below.",
+        "USES_INBOX_DEFAULT": "Uses the media configured for this template in Settings > Inbox > Configuration ({url}).",
+        "CONFIGURE_IN_INBOX": "This template has a media header. Configure its link in Settings > Inbox > Configuration — it will apply here automatically.",
         "NOT_APPLICABLE": "This template has no media header, nothing to configure here."
       },
       "BODY_VARIABLES": {

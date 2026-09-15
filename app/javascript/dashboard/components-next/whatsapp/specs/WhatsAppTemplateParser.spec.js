@@ -2,11 +2,6 @@ import { mount, shallowMount, flushPromises } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { createStore } from 'vuex';
 import WhatsAppTemplateParser from '../WhatsAppTemplateParser.vue';
-import { getCadenceStepDefinitions } from 'dashboard/helper/cadenceStepDefaultsCache';
-
-vi.mock('dashboard/helper/cadenceStepDefaultsCache', () => ({
-  getCadenceStepDefinitions: vi.fn(),
-}));
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: key => key }),
@@ -40,56 +35,8 @@ const mountParser = (props, inboxesById = {}) =>
     global: { plugins: [buildStore(inboxesById)] },
   });
 
-describe('WhatsAppTemplateParser.vue - cadence media prefill', () => {
-  beforeEach(() => {
-    getCadenceStepDefinitions.mockReset();
-  });
-
-  it('prefills media_url when a matching cadence step is configured for the inbox', async () => {
-    getCadenceStepDefinitions.mockResolvedValue([
-      {
-        template_name: 'cadencia_primer_contacto',
-        template_language: 'es_MX',
-        media_url: 'https://cdn.example.com/v.mp4',
-        media_type: 'video',
-        media_name: null,
-      },
-    ]);
-
-    const wrapper = mountParser({ template: mediaTemplate, inboxId: 7 });
-    await flushPromises();
-
-    expect(getCadenceStepDefinitions).toHaveBeenCalledWith(7);
-    expect(wrapper.find('input[type="url"]').element.value).toBe(
-      'https://cdn.example.com/v.mp4'
-    );
-  });
-
-  it('leaves the field blank when there is no matching cadence step nor inbox default', async () => {
-    getCadenceStepDefinitions.mockResolvedValue([]);
-
-    const wrapper = mountParser({ template: mediaTemplate, inboxId: 7 });
-    await flushPromises();
-
-    expect(wrapper.find('input[type="url"]').element.value).toBe('');
-  });
-
-  it('does not look up cadence steps when no inboxId is provided', async () => {
-    const wrapper = mountParser({ template: mediaTemplate });
-    await flushPromises();
-
-    expect(getCadenceStepDefinitions).not.toHaveBeenCalled();
-    expect(wrapper.find('input[type="url"]').element.value).toBe('');
-  });
-});
-
 describe('WhatsAppTemplateParser.vue - inbox-level template media default', () => {
-  beforeEach(() => {
-    getCadenceStepDefinitions.mockReset();
-    getCadenceStepDefinitions.mockResolvedValue([]);
-  });
-
-  it('prefills media_url from the inbox default when there is no cadence step override', async () => {
+  it('prefills media_url from the inbox default', async () => {
     const wrapper = mountParser(
       { template: mediaTemplate, inboxId: 7 },
       {
@@ -109,34 +56,11 @@ describe('WhatsAppTemplateParser.vue - inbox-level template media default', () =
     );
   });
 
-  it('lets a cadence step media_url override the inbox default', async () => {
-    getCadenceStepDefinitions.mockResolvedValue([
-      {
-        template_name: 'cadencia_primer_contacto',
-        template_language: 'es_MX',
-        media_url: 'https://cdn.example.com/cadence-specific.mp4',
-        media_type: 'video',
-        media_name: null,
-      },
-    ]);
-
-    const wrapper = mountParser(
-      { template: mediaTemplate, inboxId: 7 },
-      {
-        7: {
-          template_inbox_media_defaults: {
-            cadencia_primer_contacto: {
-              media_url: 'https://cdn.example.com/global-default.mp4',
-            },
-          },
-        },
-      }
-    );
+  it('leaves the field blank when there is no inbox default configured', async () => {
+    const wrapper = mountParser({ template: mediaTemplate, inboxId: 7 });
     await flushPromises();
 
-    expect(wrapper.find('input[type="url"]').element.value).toBe(
-      'https://cdn.example.com/cadence-specific.mp4'
-    );
+    expect(wrapper.find('input[type="url"]').element.value).toBe('');
   });
 });
 
