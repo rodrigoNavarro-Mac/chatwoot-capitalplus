@@ -60,17 +60,15 @@ RSpec.describe 'Cadence Step Definitions API', type: :request do
   end
 
   describe 'PATCH /api/v1/accounts/{account.id}/cadences/step_definitions/:id' do
-    it 'updates the schedule and media of a step' do
+    it 'updates the schedule of a step' do
       patch "/api/v1/accounts/#{account.id}/cadences/step_definitions/#{step_one.id}",
             params: {
-              cadence_definition_id: cadence_definition.id, wait_window_minutes: 30,
-              media_url: 'https://cdn.example.com/v.mp4', media_type: 'video'
+              cadence_definition_id: cadence_definition.id, wait_window_minutes: 30
             },
             headers: administrator.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:success)
       expect(step_one.reload.wait_window_minutes).to eq(30)
-      expect(step_one.reload.media_url).to eq('https://cdn.example.com/v.mp4')
     end
 
     it 'updates the body_variables mapping' do

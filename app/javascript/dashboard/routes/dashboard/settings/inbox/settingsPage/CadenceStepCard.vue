@@ -45,11 +45,19 @@ const form = reactive({
   wait_window_minutes: props.step.wait_window_minutes,
   creates_call_task: !!props.step.creates_call_task,
   active: props.step.active !== false,
-  media_type: props.step.media_type || '',
-  media_url: props.step.media_url || '',
-  media_name: props.step.media_name || '',
   body_variables: { ...(props.step.body_variables || {}) },
 });
+
+// El media_url de la plantilla ya no se configura por paso: se lee de una sola fuente
+// (Settings > Inbox > Configuration) y la aplican tanto los envíos manuales como los de
+// cadencia (ver CadenceStepDefinition#to_snapshot en el backend).
+const getInbox = useMapGetter('inboxes/getInbox');
+const inboxMediaDefault = computed(
+  () =>
+    getInbox.value(props.inboxId)?.template_inbox_media_defaults?.[
+      form.template_name
+    ]
+);
 
 const initialMatch = availableTemplates.value.find(
   tpl =>
@@ -105,9 +113,9 @@ const bodyVariableKeys = computed(() => {
   return Object.keys(skeleton.body || {});
 });
 
-// Al elegir una plantilla real del picklist: autocompleta nombre/idioma/namespace,
-// detecta el tipo real de adjunto del header (ya no se elige a mano) y prepara un input
-// por cada variable del cuerpo que la plantilla realmente tenga.
+// Al elegir una plantilla real del picklist: autocompleta nombre/idioma/namespace y
+// prepara un input por cada variable del cuerpo que la plantilla realmente tenga. El
+// adjunto del header (si aplica) se resuelve solo del default del inbox, no aquí.
 watch(
   selectedTemplate,
   tpl => {
@@ -116,14 +124,6 @@ watch(
     form.template_name = tpl.name;
     form.template_language = tpl.language;
     form.template_namespace = tpl.namespace || '';
-
-    if (hasMediaHeader.value) {
-      form.media_type = headerComponent.value.format.toLowerCase();
-    } else {
-      form.media_type = '';
-      form.media_url = '';
-      form.media_name = '';
-    }
 
     const nextBodyVariables = {};
     bodyVariableKeys.value.forEach(key => {
@@ -149,13 +149,6 @@ const scheduleTypeOptions = computed(() => [
   },
 ]);
 
-const manualMediaTypeOptions = computed(() => [
-  { value: '', label: t('CADENCE.TEMPLATES_SETTINGS.MEDIA.NONE') },
-  { value: 'image', label: t('CADENCE.TEMPLATES_SETTINGS.MEDIA.IMAGE') },
-  { value: 'video', label: t('CADENCE.TEMPLATES_SETTINGS.MEDIA.VIDEO') },
-  { value: 'document', label: t('CADENCE.TEMPLATES_SETTINGS.MEDIA.DOCUMENT') },
-]);
-
 const LIQUID_VARIABLE_HINTS = [
   '{{ contact.name }}',
   '{{ contact.first_name }}',
@@ -178,14 +171,6 @@ const isOffsetSchedule = computed(
 const isDayOffsetSchedule = computed(
   () => form.schedule_type === 'day_offset_at_time'
 );
-const hasMedia = computed(() =>
-  isManualMode.value ? !!form.media_type : hasMediaHeader.value
-);
-const isDocumentMedia = computed(() =>
-  isManualMode.value
-    ? form.media_type === 'document'
-    : headerComponent.value?.format === 'DOCUMENT'
-);
 
 const save = () => {
   emit('save', {
@@ -200,9 +185,6 @@ const save = () => {
     wait_window_minutes: form.wait_window_minutes,
     creates_call_task: form.creates_call_task,
     active: form.active,
-    media_type: hasMedia.value ? form.media_type : null,
-    media_url: hasMedia.value ? form.media_url : null,
-    media_name: isDocumentMedia.value ? form.media_name : null,
     body_variables: form.body_variables,
   });
 };
@@ -331,54 +313,20 @@ const save = () => {
       <span class="text-sm font-medium text-n-slate-12">
         {{ t('CADENCE.TEMPLATES_SETTINGS.MEDIA.SECTION') }}
       </span>
-      <template v-if="isManualMode">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div class="flex flex-col gap-1">
-            <label class="text-sm text-n-slate-11">
-              {{ t('CADENCE.TEMPLATES_SETTINGS.MEDIA.TYPE_LABEL') }}
-            </label>
-            <Select
-              v-model="form.media_type"
-              :options="manualMediaTypeOptions"
-            />
-          </div>
-          <Input
-            v-if="hasMedia"
-            v-model="form.media_url"
-            type="url"
-            class="md:col-span-2"
-            :label="t('CADENCE.TEMPLATES_SETTINGS.MEDIA.URL_LABEL')"
-            :placeholder="t('CADENCE.TEMPLATES_SETTINGS.MEDIA.URL_PLACEHOLDER')"
-          />
-          <Input
-            v-if="isDocumentMedia"
-            v-model="form.media_name"
-            :label="t('CADENCE.TEMPLATES_SETTINGS.MEDIA.NAME_LABEL')"
-          />
-        </div>
-      </template>
+      <p v-if="isManualMode" class="text-xs text-n-slate-11">
+        {{ t('CADENCE.TEMPLATES_SETTINGS.MEDIA.CONFIGURE_IN_INBOX') }}
+      </p>
       <template v-else-if="hasMediaHeader">
-        <p class="text-xs text-n-slate-11">
+        <p v-if="inboxMediaDefault?.media_url" class="text-xs text-n-slate-11">
           {{
-            t('CADENCE.TEMPLATES_SETTINGS.MEDIA.DETECTED_HINT', {
-              type: form.media_type,
+            t('CADENCE.TEMPLATES_SETTINGS.MEDIA.USES_INBOX_DEFAULT', {
+              url: inboxMediaDefault.media_url,
             })
           }}
         </p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Input
-            v-model="form.media_url"
-            type="url"
-            class="md:col-span-2"
-            :label="t('CADENCE.TEMPLATES_SETTINGS.MEDIA.URL_LABEL')"
-            :placeholder="t('CADENCE.TEMPLATES_SETTINGS.MEDIA.URL_PLACEHOLDER')"
-          />
-          <Input
-            v-if="isDocumentMedia"
-            v-model="form.media_name"
-            :label="t('CADENCE.TEMPLATES_SETTINGS.MEDIA.NAME_LABEL')"
-          />
-        </div>
+        <p v-else class="text-xs text-n-slate-11">
+          {{ t('CADENCE.TEMPLATES_SETTINGS.MEDIA.CONFIGURE_IN_INBOX') }}
+        </p>
       </template>
       <p v-else class="text-xs text-n-slate-11">
         {{ t('CADENCE.TEMPLATES_SETTINGS.MEDIA.NOT_APPLICABLE') }}

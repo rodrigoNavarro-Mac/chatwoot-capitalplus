@@ -20,6 +20,20 @@ describe Cadences::StepExecutor do
       .to_return(status: 200, body: { messages: [{ id: 'wamid.step1' }] }.to_json, headers: { 'Content-Type' => 'application/json' })
   end
 
+  # El media_url de un step ya no vive en CadenceStepDefinition: CadenceStepDefinition#to_snapshot
+  # lo resuelve desde WhatsappTemplateInboxAssignment (única fuente de verdad), derivando
+  # media_type del formato de header del template registrado en el canal.
+  def configure_media_default!(media_url:, format:, template_name: 'cadencia_paso_1', language: 'es_MX', media_name: nil)
+    templates = whatsapp_channel.message_templates.reject { |t| t['name'] == template_name && t['language'] == language }
+    templates << {
+      'name' => template_name, 'language' => language, 'status' => 'approved',
+      'components' => [{ 'type' => 'HEADER', 'format' => format }, { 'type' => 'BODY', 'text' => 'Hola' }]
+    }
+    whatsapp_channel.update!(message_templates: templates)
+    create(:whatsapp_template_inbox_assignment, account: account, inbox: whatsapp_inbox, template_name: template_name,
+                                                 media_url: media_url, media_name: media_name)
+  end
+
   describe '#execute_current_step!' do
     it 'sends the step 1 template and schedules the response check' do
       expect { described_class.new(enrollment: enrollment).execute_current_step! }
@@ -60,8 +74,7 @@ describe Cadences::StepExecutor do
     end
 
     it 'includes the configured media_url in the template header when present' do
-      cadence_definition.cadence_step_definitions.find_by(position: 1)
-                        .update!(media_url: 'https://cdn.example.com/video.mp4', media_type: 'video')
+      configure_media_default!(media_url: 'https://cdn.example.com/video.mp4', format: 'VIDEO')
       enrollment # force creation with the updated step definition in its snapshot
 
       # No hace falta un template real registrado en el canal (find_template) para probar
@@ -82,8 +95,7 @@ describe Cadences::StepExecutor do
     end
 
     it 'attaches the header media as a previewable Attachment on the message' do
-      cadence_definition.cadence_step_definitions.find_by(position: 1)
-                        .update!(media_url: 'https://cdn.example.com/video.mp4', media_type: 'video')
+      configure_media_default!(media_url: 'https://cdn.example.com/video.mp4', format: 'VIDEO')
       enrollment # force creation with the updated step definition in its snapshot
 
       described_class.new(enrollment: enrollment).execute_current_step!
@@ -168,8 +180,7 @@ describe Cadences::StepExecutor do
     end
 
     it 'fails immediately without retrying when the media_url is a Google Drive share link (permanently broken, not transient)' do
-      cadence_definition.cadence_step_definitions.find_by(position: 1)
-                        .update!(media_url: 'https://drive.google.com/file/d/abc123/view?usp=sharing', media_type: 'video')
+      configure_media_default!(media_url: 'https://drive.google.com/file/d/abc123/view?usp=sharing', format: 'VIDEO')
       enrollment # force creation with the updated step definition in its snapshot
 
       expect { described_class.new(enrollment: enrollment).execute_current_step! }
@@ -182,8 +193,7 @@ describe Cadences::StepExecutor do
     end
 
     it 'does not flag an object-storage media_url without a file extension as invalid (it can still resolve a valid Content-Type)' do
-      cadence_definition.cadence_step_definitions.find_by(position: 1)
-                        .update!(media_url: 'https://cdn.example.com/blob/imagen-sin-extension', media_type: 'image')
+      configure_media_default!(media_url: 'https://cdn.example.com/blob/imagen-sin-extension', format: 'IMAGE')
       enrollment # force creation with the updated step definition in its snapshot
 
       expect { described_class.new(enrollment: enrollment).execute_current_step! }
@@ -212,8 +222,7 @@ describe Cadences::StepExecutor do
     end
 
     it 'does not reset send_retry_count when a media step is merely accepted by Meta, since it can still fail validation asynchronously' do
-      cadence_definition.cadence_step_definitions.find_by(position: 1)
-                        .update!(media_url: 'https://cdn.example.com/video.mp4', media_type: 'video')
+      configure_media_default!(media_url: 'https://cdn.example.com/video.mp4', format: 'VIDEO')
       enrollment # force creation with the updated step definition in its snapshot
       enrollment.update!(send_retry_count: 1)
 

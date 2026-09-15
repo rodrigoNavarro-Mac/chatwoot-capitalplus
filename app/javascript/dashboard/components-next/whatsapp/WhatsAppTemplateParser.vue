@@ -26,7 +26,6 @@ import {
   findComponentByType,
   renderTemplatePreview,
 } from 'dashboard/helper/templateHelper';
-import { getCadenceStepDefinitions } from 'dashboard/helper/cadenceStepDefaultsCache';
 
 const props = defineProps({
   template: {
@@ -143,9 +142,8 @@ const v$ = useVuelidate(
 
 const getInbox = useMapGetter('inboxes/getInbox');
 
-// Default de media configurado una sola vez por plantilla+bandeja (Settings > Inbox).
-// Se aplica primero como base; si la cadencia trae su propio media_url (más específico
-// para ese paso), lo sobreescribe más abajo.
+// Default de media configurado una sola vez por plantilla+bandeja (Settings > Inbox):
+// única fuente de verdad, la usan tanto el envío manual como los pasos de cadencia.
 const prefillMediaFromInboxDefault = () => {
   if (!hasMediaHeader.value || !props.inboxId) return;
 
@@ -162,34 +160,6 @@ const prefillMediaFromInboxDefault = () => {
   };
 };
 
-// Si ya se configuró el media_url de esta plantilla como paso de una cadencia (en ese
-// inbox), lo precargamos aquí: el agente no debería tener que volver a pegarlo a mano.
-// El campo sigue siendo editable por si lo quiere cambiar para este envío puntual.
-let prefillToken = 0;
-const prefillMediaFromCadenceStep = async () => {
-  prefillToken += 1;
-  const token = prefillToken;
-  if (!hasMediaHeader.value || !props.inboxId) return;
-
-  const stepDefinitions = await getCadenceStepDefinitions(props.inboxId);
-  if (token !== prefillToken) return; // el template cambió mientras esperábamos la respuesta
-
-  const match = stepDefinitions.find(
-    step =>
-      step.template_name === props.template.name &&
-      (step.template_language || DEFAULT_LANGUAGE) ===
-        (props.template.language || DEFAULT_LANGUAGE) &&
-      step.media_url
-  );
-  if (!match) return;
-
-  processedParams.value.header = {
-    ...processedParams.value.header,
-    media_url: match.media_url,
-    ...(match.media_name ? { media_name: match.media_name } : {}),
-  };
-};
-
 const initializeTemplateParameters = () => {
   processedParams.value = buildTemplateParameters(
     props.template,
@@ -201,7 +171,6 @@ const initializeTemplateParameters = () => {
   }
 
   prefillMediaFromInboxDefault();
-  prefillMediaFromCadenceStep();
 };
 
 const updateMediaUrl = value => {

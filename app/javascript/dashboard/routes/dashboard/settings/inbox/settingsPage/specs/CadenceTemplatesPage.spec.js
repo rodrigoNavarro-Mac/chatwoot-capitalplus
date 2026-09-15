@@ -38,9 +38,6 @@ const buildStep = overrides => ({
   wait_window_minutes: 15,
   creates_call_task: true,
   active: true,
-  media_url: null,
-  media_type: null,
-  media_name: null,
   ...overrides,
 });
 

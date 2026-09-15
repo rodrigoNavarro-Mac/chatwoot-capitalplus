@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_08_193000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_15_120100) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -408,9 +408,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_08_193000) do
     t.integer "wait_window_minutes", null: false
     t.boolean "creates_call_task", default: false, null: false
     t.boolean "active", default: true, null: false
-    t.string "media_url"
-    t.string "media_type"
-    t.string "media_name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "cadence_definition_id", null: false
