@@ -72,6 +72,39 @@ describe RevenueIntelligence::LeadMapper do
       expect(attrs[:first_contact_at]).to eq(Time.zone.parse('2026-01-07T12:00:00-06:00'))
     end
 
+    it 'sets first_contact_at for Lead_Status "Calificado" (a stage reached only after being contacted)' do
+      qualified_payload = payload.merge('Lead_Status' => 'Calificado')
+
+      attrs = described_class.map(qualified_payload)
+
+      expect(attrs[:first_contact_at]).to eq(Time.zone.parse('2026-01-05T10:05:00-06:00'))
+    end
+
+    it 'sets first_contact_at for a discarded lead whose reason implies a real conversation happened' do
+      discarded_but_reached = payload.merge('Lead_Status' => 'Cliente perdido/Descartado', 'Raz_n_de_descarte' => 'NO ESTÁ INTERESADO')
+
+      attrs = described_class.map(discarded_but_reached)
+
+      expect(attrs[:first_contact_at]).to eq(Time.zone.parse('2026-01-05T10:05:00-06:00'))
+    end
+
+    it 'leaves first_contact_at nil for a discarded lead that was never reached (wrong phone/email)' do
+      discarded_unreachable = payload.merge('Lead_Status' => 'Cliente perdido/Descartado',
+                                            'Raz_n_de_descarte' => 'ILOCALIZABLE (NÚMERO Y CORREO INCORRECTOS)')
+
+      attrs = described_class.map(discarded_unreachable)
+
+      expect(attrs[:first_contact_at]).to be_nil
+    end
+
+    it 'leaves first_contact_at nil for a discarded lead with no discard reason captured (conservative default)' do
+      discarded_no_reason = payload.merge('Lead_Status' => 'Cliente perdido/Descartado', 'Raz_n_de_descarte' => nil)
+
+      attrs = described_class.map(discarded_no_reason)
+
+      expect(attrs[:first_contact_at]).to be_nil
+    end
+
     it 'parses presupuesto while keeping the raw value' do
       expect(attrs[:presupuesto_raw]).to eq('1.5 millones')
       expect(attrs[:presupuesto_min]).to eq(1_500_000.0)

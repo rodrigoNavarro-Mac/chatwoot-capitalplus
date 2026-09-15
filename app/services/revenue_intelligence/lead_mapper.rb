@@ -32,9 +32,26 @@ class RevenueIntelligence::LeadMapper
   # "lead de calidad"/contactado de verdad (ver V2::Reports::ZohoLeadsMetrics::CONTACTED_STATUS,
   # confirmado contra la API real 2026-08-18) -- lo mantiene el equipo de ventas a mano en Zoho, a
   # diferencia de First_Contact_Time (que solo marca que el AGENTE mandó un mensaje, sin importar
-  # si el cliente respondió o el lead de verdad se trabajó). Modified_Time como respaldo cuando no
-  # hay First_Contact_Time (leads contactados por teléfono, sin rastro en WhatsApp).
-  CONTACTED_STATUS = 'Contactado'.freeze
+  # si el cliente respondió o el lead de verdad se trabajó). 'Calificado' también cuenta -- es una
+  # etapa posterior a Contactado (no se califica a alguien sin haberle hablado), y Lead_Status ya
+  # no dice 'Contactado' una vez que el lead avanzó ahí (mismo error de "etapa actual vs. etapa
+  # máxima alcanzada" ya documentado para el embudo viejo, ver
+  # project_revenue_intelligence_requisitos_pendientes).
+  CONTACTED_LEAD_STATUSES = ['Contactado', 'Calificado'].freeze
+
+  # 'Cliente perdido/Descartado' (44% de los leads de esta cuenta) es ambiguo por sí solo -- un
+  # lead se descarta tanto por "no le interesó DESPUÉS de hablar con él" (sí se contactó) como por
+  # "nunca se pudo localizar" (nunca se contactó). Raz_n_de_descarte desambigua: confirmado contra
+  # el desglose real de la cuenta (2026-09-15) que ~72% de los descartados tiene una razón que solo
+  # se conoce hablando con la persona (no le interesó, no tenía presupuesto, no le gustó el
+  # producto, etc.) -- esas SÍ cuentan como contactadas. Estas dos razones confirman que nunca se
+  # logró contactar; una razón vacía (~8% de los descartados, sin dato para decidir) se trata igual
+  # como NO contactado, por default conservador -- confirmado con el usuario.
+  DISCARDED_LEAD_STATUSES = ['Cliente perdido/Descartado', 'Lost Lead'].freeze
+  NEVER_REACHED_DISCARD_REASONS = [
+    'ILOCALIZABLE (NÚMERO Y CORREO INCORRECTOS)',
+    'NO CONTESTÓ (DESPUES DE 5 INTENTOS)'
+  ].freeze
 
   def qualification_attrs
     {
@@ -111,9 +128,18 @@ class RevenueIntelligence::LeadMapper
   end
 
   def contacted_at
-    return nil unless payload['Lead_Status'] == CONTACTED_STATUS
+    return nil unless considered_contacted?
 
     parse_time(payload['First_Contact_Time']) || parse_time(payload['Modified_Time'])
+  end
+
+  def considered_contacted?
+    status = payload['Lead_Status']
+    return true if CONTACTED_LEAD_STATUSES.include?(status)
+    return false unless DISCARDED_LEAD_STATUSES.include?(status)
+
+    discard_reason = payload['Raz_n_de_descarte']
+    discard_reason.present? && NEVER_REACHED_DISCARD_REASONS.exclude?(discard_reason)
   end
 
   def parse_time(value)
