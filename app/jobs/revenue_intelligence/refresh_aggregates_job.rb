@@ -199,26 +199,31 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   # UI pueda anotar "X ya convertidos" junto al conteo de Leads; deal_created/closed_won heredados
   # del campaign_id del lead de origen del deal (best-effort, ver revenue_deals.revenue_lead_id en
   # Fase 1) — deal_created para saber qué campaña/adset/advert produce deals (no solo ventas
-  # cerradas), closed_won para la venta en sí.
+  # cerradas), closed_won para la venta en sí, anclado a closing_date (fecha real de cierre que
+  # captura el vendedor en Zoho) -- NUNCA :updated_at, que solo refleja cuándo se tocó la fila por
+  # última vez en nuestro sync y no tiene relación con cuándo se ganó el deal de verdad (bug real
+  # confirmado en producción 2026-09-15: 3 deals cerrados entre nov-2025 y may-2026 aparecían como
+  # "ganados" en septiembre 2026 solo porque un recompute los volvió a tocar ese día).
   def campaign_rows(account, since, until_at, converted_ids)
     campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
       campaign_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
       campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_converted', converted_ids: converted_ids) +
       campaign_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
-      campaign_deal_rows(account, since, until_at, date_column: :updated_at, metric: 'closed_won', won_only: true)
+      campaign_deal_rows(account, since, until_at, date_column: :closing_date, metric: 'closed_won', won_only: true)
   end
 
   # dimension_id: Lead_Source ("Facebook Ads"/"Google Ads"/etc., o 'Sin fuente') — bucket de
   # respaldo para el ~94% de leads sin campaign_id (confirmado contra Zoho: la atribución fina de
   # campaña solo existe desde el 10 de agosto de 2026 para esta cuenta). Sin esto, la pestaña de
   # Marketing solo mostraba la fracción con campaña y daba la impresión de que el marketing
-  # "empezó" en esa fecha. Mismas métricas que campaign_rows, misma semántica.
+  # "empezó" en esa fecha. Mismas métricas que campaign_rows, misma semántica (closed_won anclado a
+  # closing_date, no :updated_at -- ver comentario de campaign_rows).
   def source_rows(account, since, until_at, converted_ids)
     source_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
       source_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
       source_lead_rows(account, since, until_at, :created_at_source, 'lead_converted', converted_ids: converted_ids) +
       source_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
-      source_deal_rows(account, since, until_at, date_column: :updated_at, metric: 'closed_won', won_only: true)
+      source_deal_rows(account, since, until_at, date_column: :closing_date, metric: 'closed_won', won_only: true)
   end
 
   # rubocop:disable Metrics/ParameterLists
