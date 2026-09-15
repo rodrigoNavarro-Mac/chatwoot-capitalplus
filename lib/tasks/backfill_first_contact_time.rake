@@ -1,9 +1,11 @@
 namespace :chatwoot do
-  desc 'Corrige First_Contact_Time en Zoho para leads que lo tenian marcado por la plantilla de ' \
-       'apertura de WhatsApp (fix ya desplegado en app/services/crm/zoho/processor_service.rb, ' \
-       'pero no retroactivo) -- revisa el historial real de mensajes en Chatwoot de cada lead y ' \
-       'deja First_Contact_Time en el timestamp del primer mensaje humano que NO sea plantilla, ' \
-       'o en blanco si nunca lo hubo.' \
+  desc 'Corrige First_Contact_Time en ZOHO (no en revenue_leads -- ver ' \
+       'RevenueIntelligence::LeadMapper#contacted_at, first_contact_at ya no se deriva de este ' \
+       'dato, se deriva de Lead_Status == "Contactado") para leads que lo tenian marcado por la ' \
+       'plantilla de apertura de WhatsApp (fix ya desplegado en ' \
+       'app/services/crm/zoho/processor_service.rb, pero no retroactivo) -- revisa el historial ' \
+       'real de mensajes en Chatwoot de cada lead y deja First_Contact_Time en el timestamp del ' \
+       'primer mensaje humano que NO sea plantilla, o en blanco si nunca lo hubo.' \
        "\nPor default solo IMPRIME lo que cambiaria (dry run), no escribe nada en Zoho." \
        "\nUso: ACCOUNT_ID=2 DESARROLLO=Fuego bin/rails chatwoot:backfill_first_contact_time" \
        "\nAgregar DRY_RUN=false para aplicar de verdad. DESARROLLO es opcional (sin el, revisa " \
@@ -39,26 +41,24 @@ namespace :chatwoot do
       next if chatwoot_contact_id.blank?
 
       real_time = real_first_contact_time.call(chatwoot_contact_id)
-      next if real_time&.to_i == lead.first_contact_at&.to_i
+      zoho_first_contact_time = Time.zone.parse(lead.raw_payload['First_Contact_Time'].to_s) if lead.raw_payload['First_Contact_Time'].present?
+      next if real_time&.to_i == zoho_first_contact_time&.to_i
 
       changed += 1
-      puts "lead=#{lead.id} zoho_lead_id=#{lead.zoho_lead_id} actual=#{lead.first_contact_at&.iso8601 || 'blank'} " \
+      puts "lead=#{lead.id} zoho_lead_id=#{lead.zoho_lead_id} actual=#{zoho_first_contact_time&.iso8601 || 'blank'} " \
            "-> real=#{real_time&.iso8601 || 'blank'}"
       next if dry_run
 
       # Zoho rechaza cualquier update a un Lead ya convertido ("can't update the converted
       # record") -- confirmado en vivo. raw_payload['Converted_Deal'] localmente puede estar
       # desactualizado (el mismo problema ya documentado en SyncZohoMeetingsJob), asi que no se
-      # predice antes -- se maneja el error real si ocurre. Para esos, solo se corrige la copia
-      # local (que es lo que de verdad alimenta Revenue Intelligence); Zoho se queda
-      # desactualizado ahi, limitacion de la plataforma, no nuestra.
+      # predice antes -- se maneja el error real si ocurre.
       begin
         leads_client.update(lead.zoho_lead_id, { 'First_Contact_Time' => real_time&.iso8601 || '' })
       rescue Crm::Zoho::Api::BaseClient::ApiError => e
         skipped_zoho += 1
-        puts "  (Zoho rechazo el update -- #{e.message} -- solo se corrigio localmente)"
+        puts "  (Zoho rechazo el update -- #{e.message})"
       end
-      lead.update!(first_contact_at: real_time)
     end
 
     puts "#{total} leads revisados, #{changed} con First_Contact_Time distinto al real (#{skipped_zoho} convertidos, " \

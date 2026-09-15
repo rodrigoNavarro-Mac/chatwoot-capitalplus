@@ -28,10 +28,18 @@ class RevenueIntelligence::LeadMapper
     }
   end
 
+  # 'Contactado' es el valor exacto de Lead_Status que el reporte semanal operativo ya usa como
+  # "lead de calidad"/contactado de verdad (ver V2::Reports::ZohoLeadsMetrics::CONTACTED_STATUS,
+  # confirmado contra la API real 2026-08-18) -- lo mantiene el equipo de ventas a mano en Zoho, a
+  # diferencia de First_Contact_Time (que solo marca que el AGENTE mandó un mensaje, sin importar
+  # si el cliente respondió o el lead de verdad se trabajó). Modified_Time como respaldo cuando no
+  # hay First_Contact_Time (leads contactados por teléfono, sin rastro en WhatsApp).
+  CONTACTED_STATUS = 'Contactado'.freeze
+
   def qualification_attrs
     {
       created_at_source: parse_time(payload['Created_Time']),
-      first_contact_at: parse_time(payload['First_Contact_Time']),
+      first_contact_at: contacted_at,
       qualified_at: parse_time(payload['Fecha_de_calificaci_n']),
       qualification_channel: payload['Canal_de_calificaci_n'],
       lead_status: payload['Lead_Status'],
@@ -100,6 +108,12 @@ class RevenueIntelligence::LeadMapper
       attempt_count: payload['Contador_Intentos'].to_i,
       reassignment_count: payload['Numero_Reasignaciones'].to_i
     }
+  end
+
+  def contacted_at
+    return nil unless payload['Lead_Status'] == CONTACTED_STATUS
+
+    parse_time(payload['First_Contact_Time']) || parse_time(payload['Modified_Time'])
   end
 
   def parse_time(value)

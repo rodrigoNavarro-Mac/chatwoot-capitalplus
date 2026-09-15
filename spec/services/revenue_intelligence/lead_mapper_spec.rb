@@ -51,6 +51,27 @@ describe RevenueIntelligence::LeadMapper do
       expect(attrs[:qualification_channel]).to eq('WhatsApp')
     end
 
+    it 'sets first_contact_at from First_Contact_Time when Lead_Status is "Contactado"' do
+      expect(attrs[:first_contact_at]).to eq(Time.zone.parse('2026-01-05T10:05:00-06:00'))
+    end
+
+    it 'leaves first_contact_at nil when Lead_Status is not "Contactado", even with First_Contact_Time present' do
+      other_status_payload = payload.merge('Lead_Status' => 'Intento de contacto')
+
+      attrs = described_class.map(other_status_payload)
+
+      expect(attrs[:first_contact_at]).to be_nil
+    end
+
+    it 'falls back to Modified_Time for first_contact_at when Lead_Status is "Contactado" but First_Contact_Time is blank ' \
+       '(contacted by phone, no WhatsApp trace)' do
+      no_whatsapp_payload = payload.merge('First_Contact_Time' => nil, 'Modified_Time' => '2026-01-07T12:00:00-06:00')
+
+      attrs = described_class.map(no_whatsapp_payload)
+
+      expect(attrs[:first_contact_at]).to eq(Time.zone.parse('2026-01-07T12:00:00-06:00'))
+    end
+
     it 'parses presupuesto while keeping the raw value' do
       expect(attrs[:presupuesto_raw]).to eq('1.5 millones')
       expect(attrs[:presupuesto_min]).to eq(1_500_000.0)

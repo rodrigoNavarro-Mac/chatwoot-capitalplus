@@ -58,7 +58,9 @@ class RevenueIntelligence::DetectRisksJob < ApplicationJob
     STALLED_THRESHOLD_DAYS[stage] || STALLED_THRESHOLD_DAYS['_default']
   end
 
-  # Un lead ya descartado (discard_reason presente) no necesita seguimiento — no se marca.
+  # first_contact_at nil == el lead todavía no llega a Lead_Status "Contactado" en Zoho (ver
+  # RevenueIntelligence::LeadMapper#contacted_at) -- no "nadie le ha mandado un mensaje". Un lead
+  # ya descartado (discard_reason presente) no necesita seguimiento — no se marca.
   def detect_lead_no_contact(account, recorder)
     candidates = account.revenue_leads.where(first_contact_at: nil, discard_reason: nil).where.not(created_at_source: nil)
                         .where(created_at_source: ..LEAD_NO_CONTACT_HOURS.hours.ago)
