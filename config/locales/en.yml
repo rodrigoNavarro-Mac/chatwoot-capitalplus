@@ -231,6 +231,27 @@ en:
       avg_resolution_time: Avg resolution time
       resolution_count: Resolution Count
       avg_customer_waiting_time: Avg customer waiting time
+    revenue_intelligence_leads_csv:
+      zoho_lead_id: Zoho lead ID
+      nombre: Name
+      fecha_creacion: Created at
+      desarrollo: Development
+      campaign: Campaign
+      adset: Adset
+      advert: Ad
+      lead_source: Source
+      estado: Status
+      contestado: Contacted
+      fecha_primer_contacto: First contact date
+      plantillas_enviadas: Templates sent
+      calificado: Qualified
+      descartado: Discarded
+      razon_descarte: Discard reason
+      es_deal: Is deal
+      etapa_deal: Deal stage
+      ganado: Won
+      dias_lead_a_deal: Days lead to deal
+      dias_deal_activo: Days as deal
     inbox_csv:
       inbox_name: Inbox name
       inbox_type: Inbox type

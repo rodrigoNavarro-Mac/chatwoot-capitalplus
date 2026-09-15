@@ -842,6 +842,10 @@
       "THROTTLED": "Ya se disparó un sync hace poco, espera unos minutos antes de reintentar.",
       "ERROR": "No se pudo encolar el sync, intenta de nuevo."
     },
+    "LEADS_EXPORT": {
+      "LABEL": "Exportar leads",
+      "ERROR": "No se pudo generar el archivo, intenta de nuevo."
+    },
     "TABS": {
       "OVERVIEW": "Resumen",
       "FUNNEL": "Embudo",

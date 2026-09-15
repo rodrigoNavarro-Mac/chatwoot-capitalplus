@@ -621,6 +621,7 @@ Rails.application.routes.draw do
               get :call_intelligence_agents
               get :call_intelligence_project
               get :revenue_intelligence
+              get :revenue_intelligence_leads_export
             end
           end
           resources :revenue_intelligence, only: [] do

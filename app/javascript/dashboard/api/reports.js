@@ -192,6 +192,16 @@ class ReportsAPI extends ApiClient {
       params: { since, until, desarrollo },
     });
   }
+
+  getRevenueIntelligenceLeadsExport({
+    from: since,
+    to: until,
+    desarrollo,
+  } = {}) {
+    return axios.get(`${this.url}/revenue_intelligence_leads_export`, {
+      params: { since, until, desarrollo },
+    });
+  }
 }
 
 export default new ReportsAPI();

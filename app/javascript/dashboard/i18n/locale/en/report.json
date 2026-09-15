@@ -847,6 +847,10 @@
       "THROTTLED": "A sync was already triggered recently, wait a few minutes before retrying.",
       "ERROR": "Could not queue the sync, try again."
     },
+    "LEADS_EXPORT": {
+      "LABEL": "Export leads",
+      "ERROR": "Could not generate the file, try again."
+    },
     "TABS": {
       "OVERVIEW": "Overview",
       "FUNNEL": "Funnel",

@@ -118,7 +118,6 @@ Metrics/BlockLength:
     - 'lib/tasks/export_revenue_intelligence_deals.rake'
     - 'lib/tasks/backfill_first_contact_time.rake'
     - 'lib/tasks/refresh_lead_source.rake'
-    - 'lib/tasks/export_revenue_intelligence_leads.rake'
 
 Metrics/ModuleLength:
   Exclude:

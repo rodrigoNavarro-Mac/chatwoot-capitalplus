@@ -6,6 +6,7 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { formatTime } from '@chatwoot/utils';
 import ReportsAPI from 'dashboard/api/reports';
 import RevenueIntelligenceAPI from 'dashboard/api/revenueIntelligence';
+import { downloadCsvFile } from 'dashboard/helper/downloadHelper';
 import ReportHeader from './components/ReportHeader.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
@@ -275,6 +276,30 @@ const triggerSyncNow = async () => {
     }
   } finally {
     syncInProgress.value = false;
+  }
+};
+
+// Desglose completo de leads (fecha, campaña/adset/advert, estado, plantillas mandadas, si ya es
+// Deal y hace cuánto) -- pedido recurrente de marketing, antes solo se entregaba vía SSH
+// (lib/tasks/export_revenue_intelligence_leads.rake, que ahora reutiliza el mismo builder). Usa
+// los mismos filtros ya aplicados en pantalla (rango de fechas + desarrollo).
+const leadsExportInProgress = ref(false);
+
+const downloadLeadsExport = async () => {
+  if (!hasValidDateRange.value) return;
+
+  leadsExportInProgress.value = true;
+  try {
+    const response = await ReportsAPI.getRevenueIntelligenceLeadsExport({
+      from: toUnixSeconds(filters.value.since),
+      to: toUnixSeconds(filters.value.until, true),
+      desarrollo: filters.value.desarrollo || undefined,
+    });
+    downloadCsvFile('revenue_intelligence_leads.csv', response.data);
+  } catch (error) {
+    useAlert(t('REVENUE_INTELLIGENCE_REPORTS.LEADS_EXPORT.ERROR'));
+  } finally {
+    leadsExportInProgress.value = false;
   }
 };
 
@@ -942,6 +967,17 @@ const availableDesarrollos = computed(
             :is-loading="syncInProgress"
             :label="t('REVENUE_INTELLIGENCE_REPORTS.SYNC_NOW.LABEL')"
             @click="triggerSyncNow"
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            icon="i-lucide-download"
+            :is-loading="leadsExportInProgress"
+            :disabled="!hasValidDateRange"
+            :label="t('REVENUE_INTELLIGENCE_REPORTS.LEADS_EXPORT.LABEL')"
+            @click="downloadLeadsExport"
           />
         </div>
       </div>

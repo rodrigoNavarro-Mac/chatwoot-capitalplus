@@ -127,6 +127,11 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: builder.build
   end
 
+  def revenue_intelligence_leads_export
+    @report_data = V2::Reports::RevenueIntelligenceLeadsExportBuilder.new(account: Current.account, params: revenue_intelligence_params).build
+    generate_csv('revenue_intelligence_leads', 'api/v2/accounts/reports/revenue_intelligence_leads')
+  end
+
   private
 
   def generate_csv(filename, template)

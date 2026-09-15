@@ -491,4 +491,30 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
       end
     end
   end
+
+  describe 'GET /api/v2/accounts/{account.id}/reports/revenue_intelligence_leads_export' do
+    context 'when unauthenticated' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/reports/revenue_intelligence_leads_export"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated as admin' do
+      before do
+        account.revenue_leads.create!(zoho_lead_id: 'lead-1', desarrollo: 'Fuego', lead_status: 'Contactado',
+                                      created_at_source: 3.days.ago)
+      end
+
+      it 'returns a downloadable CSV with the lead breakdown' do
+        get "/api/v2/accounts/#{account.id}/reports/revenue_intelligence_leads_export",
+            headers: admin.create_new_auth_token
+
+        expect(response).to have_http_status(:success)
+        expect(response.headers['Content-Type']).to include('text/csv')
+        expect(response.headers['Content-Disposition']).to include('revenue_intelligence_leads.csv')
+        expect(response.body).to include('lead-1', 'Fuego', 'Contactado')
+      end
+    end
+  end
 end

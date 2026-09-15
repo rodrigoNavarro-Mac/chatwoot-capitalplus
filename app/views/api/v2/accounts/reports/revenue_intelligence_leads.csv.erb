@@ -1,0 +1,27 @@
+<% headers = [
+    I18n.t('reports.revenue_intelligence_leads_csv.zoho_lead_id'),
+    I18n.t('reports.revenue_intelligence_leads_csv.nombre'),
+    I18n.t('reports.revenue_intelligence_leads_csv.fecha_creacion'),
+    I18n.t('reports.revenue_intelligence_leads_csv.desarrollo'),
+    I18n.t('reports.revenue_intelligence_leads_csv.campaign'),
+    I18n.t('reports.revenue_intelligence_leads_csv.adset'),
+    I18n.t('reports.revenue_intelligence_leads_csv.advert'),
+    I18n.t('reports.revenue_intelligence_leads_csv.lead_source'),
+    I18n.t('reports.revenue_intelligence_leads_csv.estado'),
+    I18n.t('reports.revenue_intelligence_leads_csv.contestado'),
+    I18n.t('reports.revenue_intelligence_leads_csv.fecha_primer_contacto'),
+    I18n.t('reports.revenue_intelligence_leads_csv.plantillas_enviadas'),
+    I18n.t('reports.revenue_intelligence_leads_csv.calificado'),
+    I18n.t('reports.revenue_intelligence_leads_csv.descartado'),
+    I18n.t('reports.revenue_intelligence_leads_csv.razon_descarte'),
+    I18n.t('reports.revenue_intelligence_leads_csv.es_deal'),
+    I18n.t('reports.revenue_intelligence_leads_csv.etapa_deal'),
+    I18n.t('reports.revenue_intelligence_leads_csv.ganado'),
+    I18n.t('reports.revenue_intelligence_leads_csv.dias_lead_a_deal'),
+    I18n.t('reports.revenue_intelligence_leads_csv.dias_deal_activo')
+  ]
+%>
+<%= CSVSafe.generate_line headers -%>
+<% @report_data.each do |row| %>
+<%= CSVSafe.generate_line row.values -%>
+<% end %>
