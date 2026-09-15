@@ -31,7 +31,7 @@ describe Cadences::StepExecutor do
     }
     whatsapp_channel.update!(message_templates: templates)
     create(:whatsapp_template_inbox_assignment, account: account, inbox: whatsapp_inbox, template_name: template_name,
-                                                 media_url: media_url, media_name: media_name)
+                                                media_url: media_url, media_name: media_name)
   end
 
   describe '#execute_current_step!' do

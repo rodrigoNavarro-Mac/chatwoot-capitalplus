@@ -95,12 +95,12 @@ describe CadenceStepDefinition do
 
     it 'resolves media_url/media_name/media_type from the inbox default, not from the step itself' do
       whatsapp_channel.update!(message_templates: [{
-        'name' => 'cadencia_primer_contacto', 'language' => 'es_MX', 'status' => 'approved',
-        'components' => [{ 'type' => 'HEADER', 'format' => 'VIDEO' }, { 'type' => 'BODY', 'text' => 'Hola' }]
-      }])
+                                 'name' => 'cadencia_primer_contacto', 'language' => 'es_MX', 'status' => 'approved',
+                                 'components' => [{ 'type' => 'HEADER', 'format' => 'VIDEO' }, { 'type' => 'BODY', 'text' => 'Hola' }]
+                               }])
       create(:whatsapp_template_inbox_assignment, account: account, inbox: whatsapp_inbox,
-                                                   template_name: 'cadencia_primer_contacto',
-                                                   media_url: 'https://cdn.example.com/v.mp4', media_name: 'video.mp4')
+                                                  template_name: 'cadencia_primer_contacto',
+                                                  media_url: 'https://cdn.example.com/v.mp4', media_name: 'video.mp4')
       record = described_class.create!(base_attrs)
 
       expect(record.to_snapshot).to include(
