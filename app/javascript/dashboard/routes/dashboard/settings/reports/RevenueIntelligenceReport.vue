@@ -739,6 +739,9 @@ const funnelSteps = computed(() =>
     // dentro del rango (seguimiento a un lead viejo, no un lead nuevo) — ver
     // RevenueIntelligenceBuilder#funnel_seguimiento_counts.
     seguimientoCount: funnelTotals.value[stage]?.seguimiento_count ?? 0,
+    // De los que llegaron a esta etapa, cuántos terminaron descartados/perdidos sin avanzar a la
+    // siguiente — ver RevenueIntelligenceBuilder#funnel_lost_counts.
+    lostCount: funnelTotals.value[stage]?.lost_count ?? 0,
   }))
 );
 
@@ -1092,6 +1095,10 @@ const availableDesarrollos = computed(
                   :activity-tooltip="
                     t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
                   "
+                  :lost-count="step.lostCount"
+                  :lost-tooltip="
+                    t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.LOST_TOOLTIP')
+                  "
                 />
               </div>
             </div>
@@ -1251,6 +1258,10 @@ const availableDesarrollos = computed(
                   :activity-count="step.seguimientoCount"
                   :activity-tooltip="
                     t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
+                  "
+                  :lost-count="step.lostCount"
+                  :lost-tooltip="
+                    t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.LOST_TOOLTIP')
                   "
                 />
                 <div

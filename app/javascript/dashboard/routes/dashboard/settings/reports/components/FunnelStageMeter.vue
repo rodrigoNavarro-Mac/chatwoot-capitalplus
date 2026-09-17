@@ -71,6 +71,19 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  // Cuánto de `count`/`actualPercent` ya está PERDIDO -- de los que llegaron a esta etapa, cuántos
+  // terminaron descartados/perdidos sin avanzar a la siguiente (ver
+  // RevenueIntelligenceBuilder#funnel_lost_counts). Igual que activityCount/externalCount, ya está
+  // SUMADO dentro de `count` -- este prop solo dice cuánto pintar en rojo, no es una cantidad
+  // aparte que haya que sumar.
+  lostCount: {
+    type: Number,
+    default: null,
+  },
+  lostTooltip: {
+    type: String,
+    default: '',
+  },
 });
 
 // El track se pinta 0-100 aunque actualPercent pase de 100 (posible cuando la actividad/externos
@@ -90,9 +103,13 @@ const widthFor = countValue => {
 };
 const activityBarWidth = computed(() => widthFor(props.activityCount));
 const externalBarWidth = computed(() => widthFor(props.externalCount));
+const lostBarWidth = computed(() => widthFor(props.lostCount));
 const cohortBarWidth = computed(() =>
   Math.max(
-    visibleTotalWidth.value - activityBarWidth.value - externalBarWidth.value,
+    visibleTotalWidth.value -
+      activityBarWidth.value -
+      externalBarWidth.value -
+      lostBarWidth.value,
     0
   )
 );
@@ -139,6 +156,13 @@ const reactivatedBarWidth = computed(() => {
           >
             (-{{ reactivatedCount }})
           </span>
+          <span
+            v-if="lostCount"
+            v-tooltip="lostTooltip"
+            class="text-n-ruby-11 font-medium"
+          >
+            ({{ lostCount }})
+          </span>
         </span>
         <span class="text-n-slate-12 font-semibold">{{ actualPercent }}%</span>
         <span
@@ -168,6 +192,12 @@ const reactivatedBarWidth = computed(() => {
         v-tooltip="externalTooltip"
         class="h-full bg-n-violet-9 flex-shrink-0"
         :style="{ width: `${externalBarWidth}%` }"
+      />
+      <div
+        v-if="lostBarWidth > 0"
+        v-tooltip="lostTooltip"
+        class="h-full bg-n-ruby-9 flex-shrink-0"
+        :style="{ width: `${lostBarWidth}%` }"
       />
       <div
         v-if="targetPercent !== null"

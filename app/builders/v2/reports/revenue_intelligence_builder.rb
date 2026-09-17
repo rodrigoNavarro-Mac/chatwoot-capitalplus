@@ -405,11 +405,12 @@ class V2::Reports::RevenueIntelligenceBuilder
     current = stage_counts(date_range)
     previous = stage_counts(previous_date_range)
     seguimiento = funnel_seguimiento_counts
+    lost = funnel_lost_counts
 
     RevenueIntelligence::RefreshAggregatesJob::FUNNEL_EVENT_TYPES.index_with do |stage|
       count = current[stage] || 0
       { count: count, previous_count: previous[stage] || 0, delta_pct: delta_pct(count, previous[stage] || 0),
-        seguimiento_count: seguimiento[stage] || 0 }
+        seguimiento_count: seguimiento[stage] || 0, lost_count: lost[stage] || 0 }
     end
   end
 
@@ -438,6 +439,86 @@ class V2::Reports::RevenueIntelligenceBuilder
 
       acc[event_type] += 1
     end
+  end
+
+  # { stage => count } — de los leads/deals que alcanzaron esta etapa DENTRO del rango (mismo
+  # ancla por evento que funnel_totals), cuántos terminaron descartados/perdidos sin avanzar a la
+  # siguiente — pedido explícito del usuario (2026-09-03): "marcar en rojo dónde se descartó",
+  # pendiente desde antes de que existiera este builder (ver memoria
+  # project_revenue_intelligence_requisitos_pendientes). Misma excepción de clase que
+  # funnel_seguimiento_counts: depende del rango elegido por el usuario, no precalculable en un
+  # rollup diario sin duplicar filas.
+  #
+  # Etapas de lead (lead_created/lead_contacted/lead_qualified): un lead SIN deal asociado, con
+  # discard_reason presente, se atribuye a la etapa MÁS ALTA que alcanzó (qualified > contacted >
+  # created). Un lead CON deal deja de rastrearse aquí — su destino se sigue a nivel de deal abajo,
+  # nunca se cuenta dos veces.
+  #
+  # Etapas de deal (appointment_created/visit_effective/reserved): un deal perdido (lost: true) se
+  # atribuye a la etapa MÁS ALTA de su historial real de Stage_History (revenue_stage_events), NO a
+  # su etapa actual cacheada — así un deal que llegó a "Visita efectiva" y luego se marcó "Cerrado
+  # perdido" sigue contando como perdido EN Visita efectiva en vez de desaparecer (mismo principio
+  # de "contar por etapa máxima alcanzada" que ya resuelve por diseño el conteo normal, ver
+  # BuildEventsJob#build_stage_events: un evento por CADA transición del historial, no solo la
+  # etapa actual).
+  #
+  # closed_won es terminal (no hay "siguiente etapa" de la que caerse) — nunca aparece aquí.
+  def funnel_lost_counts
+    counts = Hash.new(0)
+    lead_lost_counts(counts)
+    deal_lost_counts(counts)
+    counts
+  end
+
+  def lead_lost_counts(counts)
+    leads_with_deal = account.revenue_deals.where.not(revenue_lead_id: nil).select(:revenue_lead_id)
+    base_leads_scope.where.not(discard_reason: nil).where.not(id: leads_with_deal)
+                    .pluck(:qualified_at, :first_contact_at, :created_at_source).each do |qualified_at, first_contact_at, created_at_source|
+      stage, event_at = highest_lead_stage(qualified_at, first_contact_at, created_at_source)
+      next unless event_at && date_range.cover?(local_date(event_at))
+
+      counts[stage] += 1
+    end
+  end
+
+  def highest_lead_stage(qualified_at, first_contact_at, created_at_source)
+    return ['lead_qualified', qualified_at] if qualified_at.present?
+    return ['lead_contacted', first_contact_at] if first_contact_at.present?
+    return ['lead_created', created_at_source] if created_at_source.present?
+
+    [nil, nil]
+  end
+
+  def deal_lost_counts(counts)
+    lost_deals = base_deals_scope.where(lost: true).pluck(:zoho_deal_id)
+    return if lost_deals.empty?
+
+    stage_events = account.revenue_stage_events.where(zoho_deal_id: lost_deals)
+                          .pluck(:zoho_deal_id, :stage, :entered_at).group_by(&:first)
+
+    lost_deals.each do |zoho_deal_id|
+      stage, event_at = highest_deal_stage(stage_events[zoho_deal_id] || [])
+      next unless stage && date_range.cover?(local_date(event_at))
+
+      counts[stage] += 1
+    end
+  end
+
+  def highest_deal_stage(events)
+    reserved = events.find { |_id, stage, _at| stage == RevenueDeal::RESERVED_STAGE }
+    return ['reserved', reserved[2]] if reserved
+
+    visit = events.find { |_id, stage, _at| V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES.include?(stage) }
+    return ['visit_effective', visit[2]] if visit
+
+    appointment = events.find { |_id, stage, _at| stage == RevenueDeal::SCHEDULED_STAGE }
+    return ['appointment_created', appointment[2]] if appointment
+
+    [nil, nil]
+  end
+
+  def base_deals_scope
+    desarrollo_filter.present? ? account.revenue_deals.where(desarrollo: desarrollo_filter) : account.revenue_deals
   end
 
   # Misma excepción que funnel_seguimiento_counts (comparar contra el rango elegido por el

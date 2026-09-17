@@ -932,7 +932,8 @@
       "EMPTY": "No funnel activity in this period",
       "DEVELOPMENT": "Development",
       "SEGUIMIENTO_LABEL": "follow-up",
-      "SEGUIMIENTO_TOOLTIP": "Of this total, how many are leads that already existed before the selected period and had this activity now (not new leads)"
+      "SEGUIMIENTO_TOOLTIP": "Of this total, how many are leads that already existed before the selected period and had this activity now (not new leads)",
+      "LOST_TOOLTIP": "Of the ones that reached this stage, how many ended up discarded or lost here, without moving to the next one"
     },
     "MARKETING": {
       "TOTALS_TITLE": "Period summary",

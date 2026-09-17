@@ -927,7 +927,8 @@
       "EMPTY": "No hay actividad de embudo en este periodo",
       "DEVELOPMENT": "Desarrollo",
       "SEGUIMIENTO_LABEL": "seguimiento",
-      "SEGUIMIENTO_TOOLTIP": "De este total, cuántos son leads que ya existían antes del periodo seleccionado y tuvieron esta actividad ahora (no leads nuevos)"
+      "SEGUIMIENTO_TOOLTIP": "De este total, cuántos son leads que ya existían antes del periodo seleccionado y tuvieron esta actividad ahora (no leads nuevos)",
+      "LOST_TOOLTIP": "De los que llegaron a esta etapa, cuántos terminaron descartados o perdidos aquí, sin avanzar a la siguiente"
     },
     "MARKETING": {
       "TOTALS_TITLE": "Resumen del periodo",

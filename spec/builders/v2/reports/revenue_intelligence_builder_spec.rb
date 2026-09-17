@@ -405,7 +405,7 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = builder.build
 
       totals = result[:funnel_totals]['lead_created']
-      expect(totals).to eq({ count: 10, previous_count: 8, delta_pct: 25.0, seguimiento_count: 0 })
+      expect(totals).to eq({ count: 10, previous_count: 8, delta_pct: 25.0, seguimiento_count: 0, lost_count: 0 })
     end
 
     it 'leaves delta_pct nil when there is no data for the previous period (avoids a division by zero)' do
@@ -413,7 +413,9 @@ describe V2::Reports::RevenueIntelligenceBuilder do
 
       result = builder.build
 
-      expect(result[:funnel_totals]['lead_created']).to eq({ count: 10, previous_count: 0, delta_pct: nil, seguimiento_count: 0 })
+      expect(result[:funnel_totals]['lead_created']).to eq(
+        { count: 10, previous_count: 0, delta_pct: nil, seguimiento_count: 0, lost_count: 0 }
+      )
     end
 
     it 'counts a stage event as "seguimiento" when its lead was created before the selected range' do
@@ -454,6 +456,82 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = builder.build
 
       expect(result[:funnel_totals]['lead_contacted'][:seguimiento_count]).to eq(0)
+    end
+  end
+
+  describe 'funnel_totals lost_count' do
+    it 'attributes a discarded lead with no deal to the highest lead milestone it reached' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', desarrollo: 'Fuego', discard_reason: 'No contestó',
+                                    created_at_source: 40.days.ago, first_contact_at: 5.days.ago, qualified_at: nil)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['lead_contacted'][:lost_count]).to eq(1)
+      expect(result[:funnel_totals]['lead_qualified'][:lost_count]).to eq(0)
+    end
+
+    it 'does not count a discarded lead if it already has a deal (tracked at the deal level instead)' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', discard_reason: 'No contestó', first_contact_at: 5.days.ago)
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['lead_contacted'][:lost_count]).to eq(0)
+    end
+
+    it 'attributes a lost deal to the highest stage in its real Stage_History, not its current cached stage' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lost: true, stage: 'Cerrado perdido')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Agendo cita', entered_at: 20.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Visita efectiva', entered_at: 5.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Cerrado perdido', entered_at: 1.day.ago)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['visit_effective'][:lost_count]).to eq(1)
+      expect(result[:funnel_totals]['appointment_created'][:lost_count]).to eq(0)
+    end
+
+    it 'attributes a lost deal that reached "Apartado" to reserved, even if it also passed through earlier stages' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lost: true)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Visita efectiva', entered_at: 10.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Apartado', entered_at: 5.days.ago)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['reserved'][:lost_count]).to eq(1)
+      expect(result[:funnel_totals]['visit_effective'][:lost_count]).to eq(0)
+    end
+
+    it 'does not count an open (not lost) deal' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lost: false, won: false)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Visita efectiva', entered_at: 5.days.ago)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['visit_effective'][:lost_count]).to eq(0)
+    end
+
+    it 'only counts the loss if the highest stage was reached within the selected date range' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lost: true)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Visita efectiva', entered_at: 40.days.ago)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['visit_effective'][:lost_count]).to eq(0)
+    end
+
+    it 'respects the desarrollo filter for lost deals' do
+      scoped_builder = described_class.new(account: account, params: params.merge(desarrollo: 'Fuego'))
+      fuego_deal = account.revenue_deals.create!(zoho_deal_id: 'deal-fuego', lost: true, desarrollo: 'Fuego')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-fuego', revenue_deal_id: fuego_deal.id, stage: 'Visita efectiva',
+                                           entered_at: 5.days.ago)
+      other_deal = account.revenue_deals.create!(zoho_deal_id: 'deal-amura', lost: true, desarrollo: 'Amura')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-amura', revenue_deal_id: other_deal.id, stage: 'Visita efectiva',
+                                           entered_at: 5.days.ago)
+
+      result = scoped_builder.build
+
+      expect(result[:funnel_totals]['visit_effective'][:lost_count]).to eq(1)
     end
   end
 
