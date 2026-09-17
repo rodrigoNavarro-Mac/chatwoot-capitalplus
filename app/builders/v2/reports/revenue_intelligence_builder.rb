@@ -508,7 +508,7 @@ class V2::Reports::RevenueIntelligenceBuilder
     reserved = events.find { |_id, stage, _at| stage == RevenueDeal::RESERVED_STAGE }
     return ['reserved', reserved[2]] if reserved
 
-    visit = events.find { |_id, stage, _at| V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES.include?(stage) }
+    visit = events.find { |_id, stage, _at| RevenueDeal::VISIT_STAGES.include?(stage) }
     return ['visit_effective', visit[2]] if visit
 
     appointment = events.find { |_id, stage, _at| stage == RevenueDeal::SCHEDULED_STAGE }

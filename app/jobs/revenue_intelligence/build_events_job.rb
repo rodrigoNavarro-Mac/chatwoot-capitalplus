@@ -200,10 +200,10 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     end
   end
 
-  # Un stage puede calificar para MÁS de un tipo a la vez (ej. si algún día aparece un valor
-  # huérfano que sea simultáneamente "visita efectiva" y "ganado") — nunca es elsif, cada
-  # clasificación se evalúa independiente. Mismas listas/constantes ya usadas en Fase 1 y en
-  # V2::Reports::SalesFunnelBuilder — no se inventa una nueva.
+  # Un stage puede calificar para MÁS de un tipo a la vez (ej. Apartado es simultáneamente "visita
+  # efectiva" y "reserved") — nunca es elsif, cada clasificación se evalúa independiente.
+  # RevenueDeal::VISIT_STAGES (no V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES, que usa
+  # una representación en inglés de otra fuente — ver comentario en el modelo).
   def classify_stage_outcome(account, stage_event, verified_deal_ids)
     stage = stage_event.stage
     stage_outcome_types(stage, stage_event.zoho_deal_id, verified_deal_ids).each do |event_type|
@@ -222,7 +222,7 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
   def stage_outcome_types(stage, zoho_deal_id, verified_deal_ids)
     [
       ('appointment_created' if stage == RevenueDeal::SCHEDULED_STAGE && verified_deal_ids.exclude?(zoho_deal_id)),
-      ('visit_effective' if V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES.include?(stage)),
+      ('visit_effective' if RevenueDeal::VISIT_STAGES.include?(stage)),
       ('reserved' if stage == RevenueDeal::RESERVED_STAGE),
       ('closed_won' if stage == RevenueDeal::WON_STAGE),
       ('closed_lost' if stage == RevenueDeal::LOST_STAGE)

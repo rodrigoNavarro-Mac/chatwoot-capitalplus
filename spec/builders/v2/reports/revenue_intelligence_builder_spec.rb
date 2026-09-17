@@ -491,6 +491,17 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       expect(result[:funnel_totals]['appointment_created'][:lost_count]).to eq(0)
     end
 
+    it 'attributes a lost deal to visit_effective when it reached "Cotizado" (real reference_value of "Cotizado con visita")' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lost: true)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Agendo cita', entered_at: 10.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Cotizado', entered_at: 5.days.ago)
+
+      result = builder.build
+
+      expect(result[:funnel_totals]['visit_effective'][:lost_count]).to eq(1)
+      expect(result[:funnel_totals]['appointment_created'][:lost_count]).to eq(0)
+    end
+
     it 'attributes a lost deal that reached "Apartado" to reserved, even if it also passed through earlier stages' do
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lost: true)
       account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Visita efectiva', entered_at: 10.days.ago)

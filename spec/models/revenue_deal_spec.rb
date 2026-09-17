@@ -30,6 +30,22 @@ describe RevenueDeal do
     expect(deal.lost).to be(false)
   end
 
+  describe 'VISIT_STAGES' do
+    it 'includes the real reference_value for "Cotizado con visita" ("Cotizado"), not its English actual_value' do
+      expect(described_class::VISIT_STAGES).to include('Cotizado')
+      expect(described_class::VISIT_STAGES).not_to include('Needs Analysis')
+    end
+
+    it 'does not include a "sin cita" quote stage, since that does not imply a visit happened' do
+      expect(described_class::VISIT_STAGES).not_to include('Cotizado sin cita.')
+      expect(described_class::VISIT_STAGES).not_to include('Cotizado sin cita')
+    end
+
+    it 'includes RESERVED_STAGE and WON_STAGE, since reaching either implies the visit already happened' do
+      expect(described_class::VISIT_STAGES).to include(described_class::RESERVED_STAGE, described_class::WON_STAGE)
+    end
+  end
+
   describe 'scopes' do
     let!(:won_deal) { described_class.create!(account: account, zoho_deal_id: 'deal-won', won: true) }
     let!(:lost_deal) { described_class.create!(account: account, zoho_deal_id: 'deal-lost', lost: true) }

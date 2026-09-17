@@ -95,7 +95,7 @@ class RevenueIntelligence::DetectRisksJob < ApplicationJob
   end
 
   def visited_stage_entered_ats(account)
-    account.revenue_stage_events.where(stage: V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES)
+    account.revenue_stage_events.where(stage: RevenueDeal::VISIT_STAGES)
            .pluck(:revenue_deal_id, :entered_at).group_by(&:first).transform_values { |pairs| pairs.map(&:last) }
   end
 

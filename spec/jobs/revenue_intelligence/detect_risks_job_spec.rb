@@ -103,8 +103,19 @@ describe RevenueIntelligence::DetectRisksJob do
     it 'does not flag an appointment whose deal has a visit_effective stage event after it started' do
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', stage: 'Contactado')
       appointment = account.revenue_appointments.create!(zoho_event_id: 'evt-1', revenue_deal_id: deal.id, starts_at: 1.day.ago)
-      visita_stage = V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES.first
+      visita_stage = RevenueDeal::VISIT_STAGES.first
       account.revenue_stage_events.create!(zoho_deal_id: deal.zoho_deal_id, revenue_deal_id: deal.id, stage: visita_stage,
+                                           entered_at: 12.hours.ago)
+
+      described_class.new.perform
+
+      expect(account.revenue_risk_signals.where(signal_type: 'appointment_no_show_unverified', subject_id: appointment.id)).to be_empty
+    end
+
+    it 'does not flag an appointment whose deal reached "Cotizado" (reference_value real de "Cotizado con visita") after it started' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', stage: 'Contactado')
+      appointment = account.revenue_appointments.create!(zoho_event_id: 'evt-1', revenue_deal_id: deal.id, starts_at: 1.day.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: deal.zoho_deal_id, revenue_deal_id: deal.id, stage: 'Cotizado',
                                            entered_at: 12.hours.ago)
 
       described_class.new.perform

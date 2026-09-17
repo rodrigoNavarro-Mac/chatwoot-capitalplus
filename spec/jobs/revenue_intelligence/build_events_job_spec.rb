@@ -175,7 +175,7 @@ describe RevenueIntelligence::BuildEventsJob do
   end
 
   describe 'stage events' do
-    it 'creates both stage_changed and closed_won for a deal that reached "Cerrado ganado"' do
+    it 'creates stage_changed, visit_effective and closed_won for "Cerrado ganado" (closing implies a visit already happened)' do
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
       stage_event = account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
                                                          stage: 'Cerrado ganado', previous_stage: 'Apartado', entered_at: Time.current)
@@ -183,13 +183,13 @@ describe RevenueIntelligence::BuildEventsJob do
       described_class.new.perform
 
       types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
-      expect(types).to contain_exactly('stage_changed', 'closed_won')
+      expect(types).to contain_exactly('stage_changed', 'visit_effective', 'closed_won')
     end
 
-    it 'creates only stage_changed for an intermediate stage with no special classification' do
+    it 'creates only stage_changed for a "sin cita" quote stage, that does not imply a visit happened' do
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
       stage_event = account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
-                                                         stage: 'Cotizado con visita', entered_at: Time.current)
+                                                         stage: 'Cotizado sin cita.', entered_at: Time.current)
 
       described_class.new.perform
 
@@ -197,15 +197,29 @@ describe RevenueIntelligence::BuildEventsJob do
       expect(types).to eq(['stage_changed'])
     end
 
-    it 'creates visit_effective for a stage in VISITA_EFECTIVA_STAGES' do
+    # reference_value real de Zoho para el display "Cotizado con visita" es "Cotizado" (confirmado
+    # 2026-09-17 vía getFields del módulo Deals) — no "Needs Analysis" (actual_value en inglés, que
+    # es lo que usa la lista de V2::Reports::SalesFunnelBuilder, una fuente de datos distinta).
+    it 'creates visit_effective for a stage in RevenueDeal::VISIT_STAGES' do
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
       stage_event = account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
-                                                         stage: 'Qualification', entered_at: Time.current)
+                                                         stage: 'Cotizado', entered_at: Time.current)
 
       described_class.new.perform
 
       types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
       expect(types).to contain_exactly('stage_changed', 'visit_effective')
+    end
+
+    it 'creates both visit_effective and reserved for a deal that reached "Apartado" without an earlier visit row' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+      stage_event = account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                                         stage: 'Apartado', entered_at: Time.current)
+
+      described_class.new.perform
+
+      types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
+      expect(types).to contain_exactly('stage_changed', 'visit_effective', 'reserved')
     end
 
     it 'creates appointment_created when a deal reaches RevenueDeal::SCHEDULED_STAGE ("Agendo cita")' do
