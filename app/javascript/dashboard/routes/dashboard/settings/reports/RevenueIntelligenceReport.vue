@@ -1079,23 +1079,20 @@ const availableDesarrollos = computed(
               <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-4">
                 {{ t('REVENUE_INTELLIGENCE_REPORTS.OVERVIEW.FUNNEL_TITLE') }}
               </h3>
-              <div class="flex flex-col gap-2">
-                <div v-for="(step, index) in funnelSteps" :key="step.stage">
-                  <div class="flex items-baseline justify-between">
-                    <span class="text-sm text-n-slate-11">{{
-                      step.label
-                    }}</span>
-                    <span class="text-lg font-semibold text-n-slate-12">
-                      {{ step.count }}
-                    </span>
-                  </div>
-                  <div
-                    v-if="index > 0"
-                    class="text-xs text-n-slate-10 pb-2 border-b border-n-container mb-1"
-                  >
-                    {{ formatPct((step.conversion ?? 0) * 100) }}
-                  </div>
-                </div>
+              <div class="flex flex-col gap-4">
+                <FunnelStageMeter
+                  v-for="step in funnelMeterSteps"
+                  :key="step.stage"
+                  :icon="step.icon"
+                  :label="step.label"
+                  :count="step.count"
+                  :actual-percent="step.actualPercent"
+                  :taper-percent="step.taperPercent"
+                  :activity-count="step.seguimientoCount"
+                  :activity-tooltip="
+                    t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
+                  "
+                />
               </div>
             </div>
 
