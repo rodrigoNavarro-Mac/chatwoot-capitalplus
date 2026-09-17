@@ -98,5 +98,17 @@ describe V2::Reports::RevenueIntelligenceLeadsExportBuilder do
 
       expect(rows.map { |r| r[:zoho_lead_id] }).to contain_exactly('lead-in-range')
     end
+
+    it 'includes a lead created outside the range if its deal was created inside the range' do
+      old_lead = account.revenue_leads.create!(zoho_lead_id: 'lead-old-converted', created_at_source: 40.days.ago)
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: old_lead.id, created_at_source: 2.days.ago)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-old-no-deal', created_at_source: 40.days.ago)
+      ranged_builder = described_class.new(account: account, params: { since: 20.days.ago.to_i.to_s, until: Time.current.to_i.to_s })
+
+      rows = ranged_builder.build
+
+      expect(rows.map { |r| r[:zoho_lead_id] }).to contain_exactly('lead-old-converted')
+      expect(rows.first[:es_deal]).to eq('Sí')
+    end
   end
 end

@@ -515,6 +515,29 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
         expect(response.headers['Content-Disposition']).to include('revenue_intelligence_leads.csv')
         expect(response.body).to include('lead-1', 'Fuego', 'Contactado')
       end
+
+      # Sin el BOM, Excel en Windows reinterpreta el UTF-8 como Windows-1252 y corrompe acentos;
+      # sin .html_safe en la vista, una celda con coma (plantillas_enviadas) se escapa como &quot;
+      # en vez de comillas reales -- ambos confirmados como bugs reales en producción (2026-09-15).
+      it 'prepends a UTF-8 BOM and does not HTML-escape quoted CSV cells' do
+        contact = create(:contact, account: account)
+        revenue_contact = account.revenue_contacts.create!(chatwoot_contact_id: contact.id, first_seen_at: Time.current,
+                                                           last_seen_at: Time.current)
+        lead = account.revenue_leads.last
+        lead.update!(revenue_contact_id: revenue_contact.id)
+        conversation = create(:conversation, account: account, contact: contact)
+        create(:message, account: account, conversation: conversation, message_type: 'outgoing',
+                         additional_attributes: { template_params: { name: 'plantilla_a' } })
+        create(:message, account: account, conversation: conversation, message_type: 'outgoing',
+                         additional_attributes: { template_params: { name: 'plantilla_b' } })
+
+        get "/api/v2/accounts/#{account.id}/reports/revenue_intelligence_leads_export",
+            headers: admin.create_new_auth_token
+
+        expect(response.body.b.byteslice(0, 3)).to eq("\xEF\xBB\xBF".b)
+        expect(response.body).to include('"plantilla_a, plantilla_b"')
+        expect(response.body).not_to include('&quot;')
+      end
     end
   end
 end

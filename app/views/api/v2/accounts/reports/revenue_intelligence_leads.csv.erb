@@ -21,7 +21,10 @@
     I18n.t('reports.revenue_intelligence_leads_csv.dias_deal_activo')
   ]
 %>
-<%= CSVSafe.generate_line headers -%>
+<%# .html_safe: CSVSafe.generate_line ya deja el CSV bien formado (comillas reales cuando una
+    celda trae comas, ej. plantillas_enviadas) -- sin esto, ActionView escapa esas comillas como
+    &quot; aunque el formato sea :csv, corrompiendo el archivo. %>
+<%= CSVSafe.generate_line(headers).html_safe -%>
 <% @report_data.each do |row| %>
-<%= CSVSafe.generate_line row.values -%>
+<%= CSVSafe.generate_line(row.values).html_safe -%>
 <% end %>

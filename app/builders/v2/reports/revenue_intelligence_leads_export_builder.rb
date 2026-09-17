@@ -24,9 +24,18 @@ class V2::Reports::RevenueIntelligenceLeadsExportBuilder
     @leads ||= begin
       scope = account.revenue_leads.includes(:revenue_contact, :revenue_deals)
       scope = scope.where(desarrollo: desarrollo_filter) if desarrollo_filter.present?
-      scope = scope.where(created_at_source: range) if range
+      scope = scope.where(id: lead_ids_in_range) if range
       scope.order(created_at_source: :desc).to_a
     end
+  end
+
+  # Un lead entra al export si SE CREÓ en el rango, O si su Deal se creó en el rango -- así un
+  # lead viejo que apenas se convirtió a Deal esta semana no se pierde del reporte de esta semana
+  # solo porque el lead en sí es de antes (pedido explícito de marketing, 2026-09-15: "quiero que
+  # si un lead se convirtió en deal pues igual salga").
+  def lead_ids_in_range
+    ids = account.revenue_leads.where(created_at_source: range).pluck(:id)
+    ids | account.revenue_deals.where(created_at_source: range).where.not(revenue_lead_id: nil).pluck(:revenue_lead_id)
   end
 
   def desarrollo_filter
