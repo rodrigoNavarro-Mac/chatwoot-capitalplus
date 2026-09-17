@@ -21,6 +21,7 @@
 #  lead_source           :string
 #  lead_type             :string
 #  lost                  :boolean          default(FALSE), not null
+#  name                  :string
 #  owner_name            :string
 #  page_name             :string
 #  pipeline              :string
@@ -79,6 +80,17 @@ class RevenueDeal < ApplicationRecord
   # visita (bug real reportado por el usuario: un deal en Cotizado con Visitas=0).
   VISIT_STAGES = ['Visita efectiva', 'Cotizado', RESERVED_STAGE, WON_STAGE].freeze
 
+  # Deals de uso interno del equipo para armar cotizaciones (ej. "Cotización Fuego", "Cotización
+  # Amura - 1 ITZA") — confirmados reales en Zoho 2026-09-17, sin cliente real detrás, uno por
+  # desarrollo. Se excluyen de Revenue Intelligence por completo (no solo de "Citas") desde
+  # RevenueIntelligence::SyncZohoDealsJob, que nunca los persiste localmente — así ningún job
+  # downstream (Stage History, Meetings, BuildEventsJob) llega a verlos.
+  INTERNAL_QUOTE_NAME_PREFIX = 'Cotización '.freeze
+
+  def self.internal_quote_name?(name)
+    name.to_s.start_with?(INTERNAL_QUOTE_NAME_PREFIX)
+  end
+
   belongs_to :account
   belongs_to :revenue_contact, optional: true
   belongs_to :revenue_lead, optional: true
@@ -90,4 +102,5 @@ class RevenueDeal < ApplicationRecord
   scope :won, -> { where(won: true) }
   scope :lost, -> { where(lost: true) }
   scope :open, -> { where(won: false, lost: false) }
+  scope :internal_quotes, -> { where('name LIKE ?', "#{INTERNAL_QUOTE_NAME_PREFIX}%") }
 end

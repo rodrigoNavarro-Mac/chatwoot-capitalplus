@@ -56,6 +56,31 @@ describe RevenueIntelligence::SyncZohoDealsJob do
       expect(account.revenue_deals.count).to eq(1)
     end
 
+    it 'does not persist a deal whose name is used internally for cotizaciones ("Cotización ...")' do
+      stub_deals([{ 'id' => 'deal-1', 'Deal_Name' => 'Cotización Fuego', 'Stage' => 'Agendo cita' }])
+
+      described_class.new.perform
+
+      expect(account.revenue_deals.where(zoho_deal_id: 'deal-1')).not_to exist
+    end
+
+    it 'purges an internal cotización deal already synced before this exclusion existed, plus its stage_events/appointments/events' do
+      revenue_contact = account.revenue_contacts.create!(first_seen_at: Time.current, last_seen_at: Time.current)
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', name: 'Cotización Fuego')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Agendo cita', entered_at: Time.current)
+      account.revenue_appointments.create!(zoho_event_id: 'evt-1', zoho_deal_id: 'deal-1', starts_at: Time.current)
+      account.revenue_events.create!(source_system: 'revenue_stage_event', event_type: 'stage_changed', source_id: 'x',
+                                     zoho_deal_id: 'deal-1', event_at: Time.current, revenue_contact_id: revenue_contact.id)
+      stub_deals([{ 'id' => 'deal-1', 'Deal_Name' => 'Cotización Fuego', 'Stage' => 'Agendo cita' }])
+
+      described_class.new.perform
+
+      expect(account.revenue_deals.where(zoho_deal_id: 'deal-1')).not_to exist
+      expect(account.revenue_stage_events.where(zoho_deal_id: 'deal-1')).not_to exist
+      expect(account.revenue_appointments.where(zoho_deal_id: 'deal-1')).not_to exist
+      expect(account.revenue_events.where(zoho_deal_id: 'deal-1')).not_to exist
+    end
+
     it 'advances the sync cursor to "ok" after a successful run' do
       stub_deals([{ 'id' => 'deal-1' }])
 

@@ -46,10 +46,32 @@ describe RevenueDeal do
     end
   end
 
+  describe '.internal_quote_name?' do
+    it 'is true for a name used internally for cotizaciones' do
+      expect(described_class.internal_quote_name?('Cotización Fuego')).to be(true)
+      expect(described_class.internal_quote_name?('Cotización Amura - 1 ITZA')).to be(true)
+    end
+
+    it 'is false for a real client deal name, even one containing the word "Cotización" mid-string' do
+      expect(described_class.internal_quote_name?('Juan Perez')).to be(false)
+      expect(described_class.internal_quote_name?('Deal de Cotización de Juan')).to be(false)
+    end
+
+    it 'is false for a blank name' do
+      expect(described_class.internal_quote_name?(nil)).to be(false)
+    end
+  end
+
   describe 'scopes' do
     let!(:won_deal) { described_class.create!(account: account, zoho_deal_id: 'deal-won', won: true) }
     let!(:lost_deal) { described_class.create!(account: account, zoho_deal_id: 'deal-lost', lost: true) }
     let!(:open_deal) { described_class.create!(account: account, zoho_deal_id: 'deal-open') }
+
+    it '.internal_quotes returns only deals whose name starts with the internal cotización prefix' do
+      internal_deal = described_class.create!(account: account, zoho_deal_id: 'deal-internal', name: 'Cotización Fuego')
+
+      expect(account.revenue_deals.internal_quotes).to contain_exactly(internal_deal)
+    end
 
     it '.won returns only won deals' do
       expect(account.revenue_deals.won).to contain_exactly(won_deal)

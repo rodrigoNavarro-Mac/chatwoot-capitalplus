@@ -69,9 +69,14 @@ class RevenueIntelligence::SyncZohoDealsJob < ApplicationJob
     time.in_time_zone(RevenueIntelligence::TIMEZONE).iso8601
   end
 
+  # Deals de uso interno para cotizar (ej. "Cotización Fuego") nunca se persisten — así ningún job
+  # downstream (Stage History, Meetings, BuildEventsJob) llega a sincronizar actividad para ellos.
+  # purge_internal_quote! limpia cualquier rastro ya sincronizado ANTES de este fix (deal, sus
+  # stage_events/appointments, y los revenue_events ya generados a partir de esas filas).
   def upsert_deal(account, payload)
     zoho_deal_id = payload['id']
     return if zoho_deal_id.blank?
+    return purge_internal_quote!(account, zoho_deal_id) if RevenueDeal.internal_quote_name?(payload['Deal_Name'])
 
     deal = account.revenue_deals.find_or_initialize_by(zoho_deal_id: zoho_deal_id)
     save_deal!(deal, payload)
@@ -90,5 +95,12 @@ class RevenueIntelligence::SyncZohoDealsJob < ApplicationJob
   def save_deal!(deal, payload)
     deal.assign_attributes(RevenueIntelligence::DealMapper.map(payload).merge(synced_at: Time.current))
     deal.save!
+  end
+
+  def purge_internal_quote!(account, zoho_deal_id)
+    account.revenue_events.where(zoho_deal_id: zoho_deal_id).delete_all
+    account.revenue_appointments.where(zoho_deal_id: zoho_deal_id).delete_all
+    account.revenue_stage_events.where(zoho_deal_id: zoho_deal_id).delete_all
+    account.revenue_deals.where(zoho_deal_id: zoho_deal_id).delete_all
   end
 end

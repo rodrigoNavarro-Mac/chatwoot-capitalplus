@@ -43,6 +43,7 @@ class RevenueIntelligence::DealMapper
   def pipeline_attrs(stage)
     {
       stage: stage,
+      name: payload['Deal_Name'],
       pipeline: payload['Pipeline'],
       probability: payload['Probability'],
       amount: payload['Amount'],
