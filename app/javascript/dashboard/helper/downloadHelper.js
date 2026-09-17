@@ -1,9 +1,19 @@
 import fromUnixTime from 'date-fns/fromUnixTime';
 import format from 'date-fns/format';
 
+// El navegador decodifica la respuesta de axios como texto UTF-8 y, al hacerlo, se traga
+// cualquier BOM que el servidor haya mandado al inicio del CSV (es el comportamiento estándar de
+// TextDecoder) -- agregar el BOM del lado del servidor no sobrevive ese paso. Sin el BOM aquí, del
+// lado del cliente, Excel en Windows reinterpreta el archivo como Windows-1252 y corrompe
+// acentos/ñ (confirmado en producción, 2026-09-17).
+const UTF8_BOM = '﻿';
+
 export const downloadCsvFile = (fileName, content) => {
   const contentType = 'data:text/csv;charset=utf-8;';
-  const blob = new Blob([content], { type: contentType });
+  const contentWithBom = content.startsWith(UTF8_BOM)
+    ? content
+    : `${UTF8_BOM}${content}`;
+  const blob = new Blob([contentWithBom], { type: contentType });
   const url = URL.createObjectURL(blob);
 
   const link = document.createElement('a');
