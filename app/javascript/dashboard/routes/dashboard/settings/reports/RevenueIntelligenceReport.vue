@@ -8,6 +8,7 @@ import ReportsAPI from 'dashboard/api/reports';
 import RevenueIntelligenceAPI from 'dashboard/api/revenueIntelligence';
 import { downloadCsvFile } from 'dashboard/helper/downloadHelper';
 import ReportHeader from './components/ReportHeader.vue';
+import FunnelStageMeter from './components/FunnelStageMeter.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -741,6 +742,39 @@ const funnelSteps = computed(() =>
   }))
 );
 
+// Mismo componente visual (FunnelStageMeter) y patrón que el reporte "Sales Funnel" (embudo
+// clásico angostándose) -- un ícono + un ancho máximo decreciente por etapa, fijo (no viene del
+// dato), solo para que las filas se lean como un embudo. actualPercent reutiliza la MISMA
+// conversión etapa-a-etapa ya calculada arriba (step.conversion) -- es la misma semántica que
+// Sales Funnel usa para su propio actual_percent (ver V2::Reports::SalesFunnelBuilder#stage_metric,
+// base_count = conteo de la etapa ANTERIOR, no el total de leads).
+const FUNNEL_STAGE_ICONS = {
+  lead_created: 'i-lucide-users',
+  lead_contacted: 'i-lucide-phone',
+  lead_qualified: 'i-lucide-clipboard-check',
+  appointment_created: 'i-lucide-calendar',
+  visit_effective: 'i-lucide-map-pin',
+  reserved: 'i-lucide-bookmark',
+  closed_won: 'i-lucide-trophy',
+};
+const FUNNEL_STAGE_TAPER = {
+  lead_created: 100,
+  lead_contacted: 94,
+  lead_qualified: 88,
+  appointment_created: 82,
+  visit_effective: 76,
+  reserved: 70,
+  closed_won: 64,
+};
+const funnelMeterSteps = computed(() =>
+  funnelSteps.value.map(step => ({
+    ...step,
+    icon: FUNNEL_STAGE_ICONS[step.stage],
+    taperPercent: FUNNEL_STAGE_TAPER[step.stage],
+    actualPercent: Math.round((step.conversion ?? 1) * 100),
+  }))
+);
+
 const funnelTrendChart = computed(() => {
   const trend = report.value?.funnel_trend ?? {};
   const dates = Object.keys(trend).sort();
@@ -1209,60 +1243,36 @@ const availableDesarrollos = computed(
             >
               {{ t('REVENUE_INTELLIGENCE_REPORTS.OVERVIEW.FUNNEL_TITLE') }}
             </h3>
-            <div class="flex flex-col items-center max-w-xs mx-auto">
-              <template v-for="(step, index) in funnelSteps" :key="step.stage">
-                <div class="text-center">
-                  <div class="text-3xl font-bold text-n-slate-12">
-                    {{ step.count }}
-                  </div>
-                  <div
-                    class="text-xs text-n-slate-11 uppercase tracking-wide mt-1"
-                  >
-                    {{ step.label }}
-                  </div>
-                  <div
-                    v-if="step.deltaPct != null"
-                    class="text-xs mt-1"
-                    :class="
-                      step.deltaPct >= 0 ? 'text-n-teal-11' : 'text-n-ruby-11'
-                    "
-                  >
-                    {{ step.deltaPct >= 0 ? '↑' : '↓' }}
-                    {{ Math.abs(step.deltaPct) }}%
-                    {{
-                      t(
-                        'REVENUE_INTELLIGENCE_REPORTS.OVERVIEW.VS_PREVIOUS_PERIOD'
-                      )
-                    }}
-                  </div>
-                  <div
-                    v-if="step.seguimientoCount > 0"
-                    v-tooltip="
-                      t(
-                        'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP'
-                      )
-                    "
-                    class="text-xs mt-1 text-n-amber-11 cursor-help"
-                  >
-                    +{{ step.seguimientoCount }}
-                    {{
-                      t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL')
-                    }}
-                  </div>
-                </div>
+            <div class="flex flex-col gap-5 max-w-md mx-auto">
+              <div v-for="step in funnelMeterSteps" :key="step.stage">
+                <FunnelStageMeter
+                  :icon="step.icon"
+                  :label="step.label"
+                  :count="step.count"
+                  :actual-percent="step.actualPercent"
+                  :taper-percent="step.taperPercent"
+                  :activity-count="step.seguimientoCount"
+                  :activity-tooltip="
+                    t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
+                  "
+                />
                 <div
-                  v-if="index < funnelSteps.length - 1"
-                  class="flex flex-col items-center py-1.5"
+                  v-if="step.deltaPct != null"
+                  class="mx-auto text-xs mt-1"
+                  :style="{ maxWidth: `${step.taperPercent}%` }"
+                  :class="
+                    step.deltaPct >= 0 ? 'text-n-teal-11' : 'text-n-ruby-11'
+                  "
                 >
-                  <div class="w-px h-3 bg-n-container" />
-                  <div class="text-xs text-n-slate-10 font-medium py-0.5">
-                    {{
-                      `${(funnelSteps[index + 1].conversion ?? 0) > 1 ? '↑' : '↓'} ${formatPct((funnelSteps[index + 1].conversion ?? 0) * 100)}`
-                    }}
-                  </div>
-                  <div class="w-px h-3 bg-n-container" />
+                  {{ step.deltaPct >= 0 ? '↑' : '↓' }}
+                  {{ Math.abs(step.deltaPct) }}%
+                  {{
+                    t(
+                      'REVENUE_INTELLIGENCE_REPORTS.OVERVIEW.VS_PREVIOUS_PERIOD'
+                    )
+                  }}
                 </div>
-              </template>
+              </div>
             </div>
           </div>
 
