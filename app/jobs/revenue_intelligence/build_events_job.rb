@@ -229,17 +229,42 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     ].compact
   end
 
+  # "Citas" es un hito del embudo (¿este deal/lead ya tiene una reunión real agendada?), no un
+  # conteo de reuniones — un mismo deal puede tener más de un Meeting real en Zoho (reagendado, o
+  # una segunda cita de seguimiento), así que se deduplica a UN evento por entidad (deal si tiene
+  # zoho_deal_id, si no por zoho_lead_id), usando la reunión MÁS ANTIGUA (cuándo se alcanzó el hito
+  # por primera vez). Bug real confirmado 2026-09-17: un deal con 2 Meetings reales (uno capturado
+  # cuando el registro todavía era Lead, sin zoho_deal_id, y otro ya ligado al Deal tras la
+  # conversión) generaba 2 eventos appointment_created, inflando "Citas" del Overview más allá del
+  # número real de deals con cita.
   def build_appointment_events(account, since, until_at)
     # :updated_at, mismo razonamiento que build_stage_events arriba.
-    appointments = account.revenue_appointments.where(window(:updated_at, since, until_at))
+    touched = account.revenue_appointments.where(window(:updated_at, since, until_at))
+    entity_keys = touched.filter_map { |appointment| appointment_entity_key(appointment) }.uniq
 
-    each_safely(account, appointments, 'appointment') do |appointment|
-      key = { source_system: 'revenue_appointment', event_type: 'appointment_created', source_id: appointment.id.to_s }
-      next delete_event(account, key) if appointment.starts_at.blank?
+    entity_keys.each { |key_type, key_value| upsert_appointment_created_event(account, key_type, key_value) }
+  end
 
-      upsert_event(account, key.merge(event_at: appointment.starts_at, revenue_contact_id: appointment.revenue_contact_id,
-                                      zoho_deal_id: appointment.zoho_deal_id, zoho_lead_id: appointment.zoho_lead_id))
-    end
+  def appointment_entity_key(appointment)
+    return [:deal, appointment.zoho_deal_id] if appointment.zoho_deal_id.present?
+    return [:lead, appointment.zoho_lead_id] if appointment.zoho_lead_id.present?
+
+    nil
+  end
+
+  def upsert_appointment_created_event(account, key_type, key_value)
+    scope = if key_type == :deal
+              account.revenue_appointments.where(zoho_deal_id: key_value)
+            else
+              account.revenue_appointments.where(zoho_deal_id: nil, zoho_lead_id: key_value)
+            end
+    earliest = scope.where.not(starts_at: nil).order(:starts_at).first
+    key = { source_system: 'revenue_appointment', event_type: 'appointment_created', source_id: "#{key_type}:#{key_value}" }
+
+    return delete_event(account, key) if earliest.nil?
+
+    upsert_event(account, key.merge(event_at: earliest.starts_at, revenue_contact_id: earliest.revenue_contact_id,
+                                    zoho_deal_id: earliest.zoho_deal_id, zoho_lead_id: earliest.zoho_lead_id))
   end
 
   # El journey solo tiene sentido para contactos ya resueltos — si no hay revenue_contact_id no se

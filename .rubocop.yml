@@ -25,6 +25,7 @@ Metrics/ClassLength:
     - 'app/builders/messages/message_builder.rb'
     - 'app/builders/v2/reports/weekly_ops_report_builder.rb'
     - 'app/builders/v2/reports/revenue_intelligence_builder.rb'
+    - 'app/jobs/revenue_intelligence/build_events_job.rb'
     - 'app/controllers/api/v1/accounts/integrations/zoho_crm_controller.rb'
     - 'app/controllers/api/v2/accounts/reports_controller.rb'
     - 'app/finders/conversation_finder.rb'
