@@ -352,52 +352,11 @@ zoho_crm:
       'required': ['client_id', 'client_secret', 'refresh_token'],
       'additionalProperties': false,
     }
-  settings_form_schema:
-    [
-      {
-        'label': 'Client ID',
-        'type': 'text',
-        'name': 'client_id',
-        'validation': 'required',
-      },
-      {
-        'label': 'Client Secret',
-        'type': 'text',
-        'name': 'client_secret',
-        'validation': 'required',
-      },
-      {
-        'label': 'Refresh Token',
-        'type': 'text',
-        'name': 'refresh_token',
-        'validation': 'required',
-      },
-      {
-        'label': 'Data Center',
-        'type': 'select',
-        'name': 'datacenter',
-        'options': ['com', 'eu', 'in', 'com.au', 'jp'],
-        'help': 'Select the Zoho data center where your account is hosted',
-      },
-      {
-        'label': 'Webhook Secret',
-        'type': 'text',
-        'name': 'webhook_secret',
-        'help': 'Secret token to verify incoming webhooks from Zoho CRM',
-      },
-      {
-        'label': 'Push Conversation Note',
-        'type': 'checkbox',
-        'name': 'enable_conversation_note',
-        'help': 'Create a note in Zoho CRM when a conversation starts',
-      },
-      {
-        'label': 'Push Transcript Note',
-        'type': 'checkbox',
-        'name': 'enable_transcript_note',
-        'help': 'Create a note in Zoho CRM with the full transcript when a conversation is resolved',
-      },
-    ]
+  # settings_form_schema eliminado -- la ruta dedicada /integrations/zoho_crm (ZohoCrm.vue) ya no
+  # pasa por el modal genérico NewHook.vue, así que este formulario quedaba inalcanzable. La
+  # conexión ahora pide Client ID/Secret/Data Center y obtiene el refresh_token vía OAuth redirect
+  # (ver Api::V1::Accounts::ZohoCrm::AuthorizationsController / ZohoCrm::CallbacksController) en vez
+  # de pedirlo a mano.
   visible_properties:
     [
       'client_id',

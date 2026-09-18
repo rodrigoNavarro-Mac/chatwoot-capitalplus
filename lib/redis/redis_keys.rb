@@ -91,6 +91,10 @@ module Redis::RedisKeys
   WHATSAPP_MESSAGE_MUTEX = 'WHATSAPP_MESSAGE_CREATE_LOCK::%<inbox_id>s::%<sender_id>s'.freeze
   CRM_PROCESS_MUTEX = 'CRM_PROCESS_MUTEX::%<hook_id>s'.freeze
   ZOHO_CRM_ACCESS_TOKEN = 'ZOHO_CRM_ACCESS_TOKEN::%<hook_id>s'.freeze
+  # Client ID/Secret/Data Center provistos en el mini-formulario previo al redirect de OAuth,
+  # antes de que exista un Hook -- el callback los recupera por `state` (mismo valor firmado que ya
+  # expira en 15 min) para completar el Hook en un solo paso junto con el refresh_token.
+  ZOHO_CRM_PENDING_OAUTH = 'ZOHO_CRM_PENDING_OAUTH::%<state>s'.freeze
   CAPTAIN_DOCUMENT_SYNC_MUTEX = 'CAPTAIN_DOCUMENT_SYNC_LOCK::%<document_id>s'.freeze
   CAPTAIN_CONVERSATION_FAQ_MUTEX = 'CAPTAIN_CONVERSATION_FAQ_LOCK::%<assistant_id>s::%<language>s'.freeze
 

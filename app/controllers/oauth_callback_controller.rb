@@ -1,4 +1,6 @@
 class OauthCallbackController < ApplicationController
+  include AccountFromSignedIdConcern
+
   def show
     @response = oauth_client.auth_code.get_token(
       oauth_code,
@@ -88,33 +90,6 @@ class OauthCallbackController < ApplicationController
   def users_data
     decoded_token = JWT.decode parsed_body[:id_token], nil, false
     decoded_token[0]
-  end
-
-  # The sgid purpose carries the onboarding return hint (see
-  # OauthAuthorizationController#state). Try the onboarding purpose first — a match
-  # both resolves the account and records the return target — then fall back to the
-  # default purpose used by every other caller.
-  def account_from_signed_id
-    raise ActionController::BadRequest, 'Missing state variable' if params[:state].blank?
-
-    if (account = GlobalID::Locator.locate_signed(params[:state], for: 'onboarding'))
-      @return_to = 'onboarding'
-    else
-      account = GlobalID::Locator.locate_signed(params[:state])
-    end
-
-    raise 'Invalid or expired state' if account.nil?
-
-    account
-  end
-
-  def account
-    @account ||= account_from_signed_id
-  end
-
-  def return_to
-    account # resolving the sgid records which purpose matched
-    @return_to
   end
 
   # Fallback name, for when name field is missing from users_data

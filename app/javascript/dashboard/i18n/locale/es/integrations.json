@@ -455,7 +455,27 @@
       "STAGE_LABEL": "Etapa",
       "STATUS_LABEL": "Estado",
       "STAGE_UPDATE_ERROR": "Error al cambiar estado",
-      "MODULE_CONTACT": "Contacto"
+      "MODULE_CONTACT": "Contacto",
+      "CONNECTION": {
+        "HEADER": "Zoho CRM",
+        "DELETE": {
+          "TITLE": "¿Seguro que quieres eliminar la integración de Zoho CRM?",
+          "MESSAGE": "Eliminar esta integración detiene toda la sincronización con Zoho CRM y la funcionalidad relacionada.",
+          "CONFIRM": "Sí, eliminar",
+          "CANCEL": "Cancelar"
+        },
+        "FORM": {
+          "CLIENT_ID": "Client ID",
+          "CLIENT_SECRET": "Client Secret",
+          "DATA_CENTER": "Data Center",
+          "HELP_TEXT": "Consigue estos valores desde un Self Client o Server-based Application en api-console.zoho.com.",
+          "SUBMIT": "Conectar",
+          "SUBMITTING": "Redirigiendo a Zoho…",
+          "MISSING_FIELDS": "Llena los tres campos para conectar."
+        },
+        "CONNECTED": "Zoho CRM conectado correctamente.",
+        "ERROR": "No se pudo conectar Zoho CRM. Intenta de nuevo."
+      }
     }
   },
   "CAPTAIN": {

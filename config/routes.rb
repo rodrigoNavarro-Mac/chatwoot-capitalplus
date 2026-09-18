@@ -437,6 +437,10 @@ Rails.application.routes.draw do
             resource :authorization, only: [:create]
           end
 
+          namespace :zoho_crm do
+            resource :authorization, only: [:create]
+          end
+
           namespace :whatsapp do
             resource :authorization, only: [:create]
           end
@@ -788,6 +792,7 @@ Rails.application.routes.draw do
   get 'instagram/callback', to: 'instagram/callbacks#show'
   get 'tiktok/callback', to: 'tiktok/callbacks#show'
   get 'notion/callback', to: 'notion/callbacks#show'
+  get 'zoho_crm/callback', to: 'zoho_crm/callbacks#show'
   # ----------------------------------------------------------------------
   # Routes for external service verifications
   get '.well-known/assetlinks.json' => 'android_app#assetlinks'

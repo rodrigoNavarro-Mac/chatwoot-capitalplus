@@ -9,6 +9,7 @@ import Slack from './Slack.vue';
 import Linear from './Linear.vue';
 import Notion from './Notion.vue';
 import Shopify from './Shopify.vue';
+import ZohoCrm from './ZohoCrm.vue';
 
 export default {
   routes: [
@@ -77,6 +78,14 @@ export default {
             permissions: ['administrator'],
           },
           props: route => ({ code: route.query.code }),
+        },
+        {
+          path: 'zoho_crm',
+          name: 'settings_integrations_zoho_crm',
+          component: ZohoCrm,
+          meta: {
+            permissions: ['administrator'],
+          },
         },
         {
           path: 'shopify',

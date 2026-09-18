@@ -455,7 +455,27 @@
       "STAGE_LABEL": "Stage",
       "STATUS_LABEL": "Status",
       "STAGE_UPDATE_ERROR": "Error changing status",
-      "MODULE_CONTACT": "Contact"
+      "MODULE_CONTACT": "Contact",
+      "CONNECTION": {
+        "HEADER": "Zoho CRM",
+        "DELETE": {
+          "TITLE": "Are you sure you want to delete the Zoho CRM integration?",
+          "MESSAGE": "Deleting this integration will stop all Zoho CRM sync and related functionality.",
+          "CONFIRM": "Yes, delete",
+          "CANCEL": "Cancel"
+        },
+        "FORM": {
+          "CLIENT_ID": "Client ID",
+          "CLIENT_SECRET": "Client Secret",
+          "DATA_CENTER": "Data Center",
+          "HELP_TEXT": "Get these from a Self Client or Server-based Application at api-console.zoho.com.",
+          "SUBMIT": "Connect",
+          "SUBMITTING": "Redirecting to Zoho…",
+          "MISSING_FIELDS": "Fill in all three fields to connect."
+        },
+        "CONNECTED": "Zoho CRM connected successfully.",
+        "ERROR": "Could not connect Zoho CRM. Please try again."
+      }
     }
   },
   "CAPTAIN": {
