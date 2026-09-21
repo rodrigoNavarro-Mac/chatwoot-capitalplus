@@ -384,6 +384,72 @@ describe RevenueIntelligence::RefreshAggregatesJob do
     end
   end
 
+  describe 'marketing dimension rollups for lead_qualified/appointment_created/visit_effective' do
+    it 'counts lead_qualified by campaign_id, keyed by qualified_at' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', qualified_at: Time.current)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_qualified')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'attributes appointment_created to the campaign of the deal referenced by the event\'s zoho_deal_id' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, campaign_id: 'camp-1')
+      add_event('appointment_created', Time.current, zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'appointment_created')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'attributes appointment_created via zoho_lead_id when the event has no deal linked yet' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
+      add_event('appointment_created', Time.current, zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'appointment_created')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'falls back to the lead_source bucket for appointment_created when no campaign_id can be resolved' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: 'Facebook Ads')
+      add_event('appointment_created', Time.current, zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'lead_source', dimension_id: 'Facebook Ads', metric: 'appointment_created')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'counts visit_effective exactly once per deal, even when it qualifies through several VISIT_STAGES rows ' \
+       '(bug real corregido 2026-09-21: antes generaba un evento por cada stage_event)' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', campaign_id: 'camp-1')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Visita efectiva', entered_at: 2.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Cotizado', entered_at: 1.day.ago)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'visit_effective')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'buckets visit_effective by the EARLIEST entered_at among the deal\'s qualifying stage_events' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', campaign_id: 'camp-1')
+      earliest = 5.days.ago
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Visita efectiva', entered_at: earliest)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Cotizado', entered_at: 1.day.ago)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'visit_effective')
+      expect(rollup.date).to eq(earliest.to_date)
+    end
+  end
+
   describe 'lead_source dimension (bucket de respaldo para leads sin campaign_id)' do
     it 'counts lead_created by lead_source when campaign_id is absent' do
       account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: 'Facebook Ads', created_at_source: Time.current)

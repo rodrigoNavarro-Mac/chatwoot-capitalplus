@@ -70,7 +70,8 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
     funnel_rows(account, since, until_at, lookups) + agent_rows(account, since, until_at, lookups) +
       agent_call_quality_rows(account, since, until_at, lookups) + campaign_rows(account, since, until_at, converted_ids) +
-      source_rows(account, since, until_at, converted_ids) + pipeline_stage_rows(account, since, until_at, lookups) +
+      source_rows(account, since, until_at, converted_ids) + marketing_appointment_rows(account, since, until_at) +
+      marketing_visit_rows(account, since, until_at) + pipeline_stage_rows(account, since, until_at, lookups) +
       call_conversion_rows(account, since, until_at, lookups) + objection_conversion_rows(account, since, until_at, lookups)
   end
 
@@ -207,6 +208,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   def campaign_rows(account, since, until_at, converted_ids)
     campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
       campaign_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
+      campaign_lead_rows(account, since, until_at, :qualified_at, 'lead_qualified') +
       campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_converted', converted_ids: converted_ids) +
       campaign_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
       campaign_deal_rows(account, since, until_at, date_column: :closing_date, metric: 'closed_won', won_only: true)
@@ -221,6 +223,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   def source_rows(account, since, until_at, converted_ids)
     source_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
       source_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
+      source_lead_rows(account, since, until_at, :qualified_at, 'lead_qualified') +
       source_lead_rows(account, since, until_at, :created_at_source, 'lead_converted', converted_ids: converted_ids) +
       source_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
       source_deal_rows(account, since, until_at, date_column: :closing_date, metric: 'closed_won', won_only: true)
@@ -290,6 +293,81 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     rows << row(account, date, 'advert', "#{campaign_id}::#{adset_id}::#{advert_id}::#{advert_name.presence || advert_id}", metric,
                 desarrollo: desarrollo)
     rows
+  end
+
+  # dimension: campaign/adset/advert (o lead_source si el deal/lead no tiene campaign_id, mismo
+  # bucket de respaldo que campaign_rows/source_rows) del deal/lead ya alcanzado. Reutiliza el
+  # evento 'appointment_created' de revenue_events, que BuildEventsJob#upsert_appointment_created_event
+  # ya deduplica a UN registro por deal (o por lead si el appointment aún no tiene deal vinculado),
+  # con la fecha MÁS ANTIGUA en que se alcanzó el hito -- no se reimplementa esa deduplicación aquí
+  # para no arriesgar reintroducir el bug real ya corregido (2026-09-17: un mismo deal con 2
+  # Meetings generaba 2 eventos).
+  def marketing_appointment_rows(account, since, until_at)
+    events = account.revenue_events.where(event_type: 'appointment_created').where(window(:event_at, since, until_at))
+    events.pluck(:zoho_deal_id, :zoho_lead_id, :event_at).flat_map do |zoho_deal_id, zoho_lead_id, event_at|
+      cols = deal_or_lead_attribution(account, zoho_deal_id: zoho_deal_id, zoho_lead_id: zoho_lead_id)
+      next [] if cols.blank?
+
+      attribution_row(account, local_date(event_at), cols, 'appointment_created')
+    end
+  end
+
+  # dimension: campaign/adset/advert del deal. A diferencia de 'appointment_created', el evento
+  # 'visit_effective' de revenue_events NO está deduplicado por deal -- BuildEventsJob emite uno
+  # por CADA revenue_stage_event que califica, y un deal puede calificar varias veces (Visita
+  # efectiva -> Cotizado -> Apartado son las 3 VISIT_STAGES, ver RevenueDeal). Por eso aquí NO se
+  # usa revenue_events: se recalcula directo desde revenue_stage_events tomando el MIN(entered_at)
+  # por revenue_deal_id -- como máximo una fila por deal, tal como pide la sección 19/22 del brief
+  # de producto ("cada Deal debe contarse máximo UNA vez como visita realizada").
+  def marketing_visit_rows(account, since, until_at)
+    in_window = earliest_visit_by_deal(account, since, until_at)
+    return [] if in_window.empty?
+
+    deals = account.revenue_deals.where(id: in_window.keys)
+                   .pluck(:id, :campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, :lead_source).index_by(&:first)
+
+    in_window.flat_map do |deal_id, entered_at|
+      cols = deals[deal_id]
+      next [] if cols.blank?
+
+      attribution_row(account, local_date(entered_at), cols[1..], 'visit_effective')
+    end
+  end
+
+  def earliest_visit_by_deal(account, since, until_at)
+    touched_deal_ids = account.revenue_stage_events.where(stage: RevenueDeal::VISIT_STAGES).where.not(revenue_deal_id: nil)
+                              .where(window(:updated_at, since, until_at)).distinct.pluck(:revenue_deal_id)
+    return {} if touched_deal_ids.empty?
+
+    earliest_by_deal = account.revenue_stage_events.where(stage: RevenueDeal::VISIT_STAGES, revenue_deal_id: touched_deal_ids)
+                              .group(:revenue_deal_id).minimum(:entered_at)
+    earliest_by_deal.select { |_deal_id, entered_at| in_window?(entered_at, since, until_at) }
+  end
+
+  def in_window?(time, since, until_at)
+    return false if time.blank?
+    return time < until_at if since.nil?
+
+    time >= since && time < until_at
+  end
+
+  def deal_or_lead_attribution(account, zoho_deal_id:, zoho_lead_id:)
+    if zoho_deal_id.present?
+      account.revenue_deals.where(zoho_deal_id: zoho_deal_id)
+             .pick(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, :lead_source)
+    elsif zoho_lead_id.present?
+      account.revenue_leads.where(zoho_lead_id: zoho_lead_id)
+             .pick(:campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, :lead_source)
+    end
+  end
+
+  # Mismo criterio de bucketing que campaign_rows/source_rows: campaign_id presente -> dimensiones
+  # campaign/adset/advert; ausente -> bucket de respaldo lead_source.
+  def attribution_row(account, date, cols, metric)
+    campaign_id, adset_id, adset_name, advert_id, advert_name, desarrollo, lead_source = cols
+    return [source_row(account, date, lead_source, desarrollo, metric)] if campaign_id.blank?
+
+    marketing_dimension_rows(account, date, [campaign_id, adset_id, adset_name, advert_id, advert_name, desarrollo], metric)
   end
 
   # dimension_id: stage. "entered" cuenta filas nuevas por fecha de entrada; "duration_seconds"

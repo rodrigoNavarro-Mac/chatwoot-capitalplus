@@ -633,6 +633,10 @@ Rails.application.routes.draw do
               patch 'identity_conflicts/:id/resolve', action: :resolve_identity_conflict, as: :resolve_identity_conflict
               post 'deals/:id/relink_lead', action: :relink_deal, as: :relink_deal
               post 'sync_now', action: :sync_now, as: :sync_now
+              get 'ad_spends', action: :ad_spends, as: :ad_spends
+              post 'ad_spends', action: :create_ad_spend, as: :create_ad_spend
+              patch 'ad_spends/:id', action: :update_ad_spend, as: :update_ad_spend
+              delete 'ad_spends/:id', action: :destroy_ad_spend, as: :destroy_ad_spend
             end
           end
           resource :year_in_review, only: [:show]

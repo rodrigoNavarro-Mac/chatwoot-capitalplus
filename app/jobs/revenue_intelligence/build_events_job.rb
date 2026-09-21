@@ -198,12 +198,15 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
 
       classify_stage_outcome(account, stage_event, verified_deal_ids)
     end
+
+    build_visit_effective_events(account)
   end
 
   # Un stage puede calificar para MÁS de un tipo a la vez (ej. Apartado es simultáneamente "visita
   # efectiva" y "reserved") — nunca es elsif, cada clasificación se evalúa independiente.
   # RevenueDeal::VISIT_STAGES (no V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES, que usa
-  # una representación en inglés de otra fuente — ver comentario en el modelo).
+  # una representación en inglés de otra fuente — ver comentario en el modelo). 'visit_effective'
+  # NO se clasifica aquí -- ver build_visit_effective_events, deduplicado aparte.
   def classify_stage_outcome(account, stage_event, verified_deal_ids)
     stage = stage_event.stage
     stage_outcome_types(stage, stage_event.zoho_deal_id, verified_deal_ids).each do |event_type|
@@ -222,11 +225,36 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
   def stage_outcome_types(stage, zoho_deal_id, verified_deal_ids)
     [
       ('appointment_created' if stage == RevenueDeal::SCHEDULED_STAGE && verified_deal_ids.exclude?(zoho_deal_id)),
-      ('visit_effective' if RevenueDeal::VISIT_STAGES.include?(stage)),
       ('reserved' if stage == RevenueDeal::RESERVED_STAGE),
       ('closed_won' if stage == RevenueDeal::WON_STAGE),
       ('closed_lost' if stage == RevenueDeal::LOST_STAGE)
     ].compact
+  end
+
+  # 'visit_effective' deduplicado a UN evento por deal -- a diferencia de los outcomes de
+  # stage_outcome_types (cada uno atado a un único stage puntual), RevenueDeal::VISIT_STAGES tiene
+  # 4 stages distintos (Visita efectiva, Cotizado, Apartado, Cerrado ganado) que un mismo deal
+  # atraviesa en su progresión normal. Clasificarlo inline por cada stage_event (como antes)
+  # generaba hasta 4 eventos 'visit_effective' para el MISMO deal, inflando "Visitas" del embudo
+  # más allá del número real de deals con visita — bug real encontrado 2026-09-21 al construir el
+  # funnel de Marketing por anuncio (ver RevenueIntelligence::RefreshAggregatesJob#earliest_visit_by_deal,
+  # que ya evitaba este mismo problema para los rollups de marketing). Recalcula TODOS los deals
+  # con algún stage_event calificado en cada corrida (no solo los tocados en la ventana incremental)
+  # -- barato al volumen actual de la cuenta, evita depender de una ventana para autosanarse, mismo
+  # criterio que RefreshAggregatesJob::RECHECK_WINDOW.
+  def build_visit_effective_events(account)
+    qualifying = account.revenue_stage_events.where(stage: RevenueDeal::VISIT_STAGES).where.not(revenue_deal_id: nil)
+    earliest_at_by_deal = qualifying.group(:revenue_deal_id).minimum(:entered_at)
+    return if earliest_at_by_deal.empty?
+
+    attrs_by_deal = qualifying.pluck(:revenue_deal_id, :zoho_deal_id, :revenue_contact_id)
+                              .each_with_object({}) { |(deal_id, zoho_deal_id, contact_id), h| h[deal_id] ||= [zoho_deal_id, contact_id] }
+
+    earliest_at_by_deal.each do |deal_id, entered_at|
+      zoho_deal_id, revenue_contact_id = attrs_by_deal[deal_id]
+      upsert_event(account, event_type: 'visit_effective', event_at: entered_at, source_system: 'revenue_stage_event',
+                            source_id: "deal:#{deal_id}", revenue_contact_id: revenue_contact_id, zoho_deal_id: zoho_deal_id)
+    end
   end
 
   # "Citas" es un hito del embudo (¿este deal/lead YA TIENE una reunión agendada?, sin importar si

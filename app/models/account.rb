@@ -101,6 +101,7 @@ class Account < ApplicationRecord
   has_many :notification_settings, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
+  has_many :revenue_ad_spends, dependent: :destroy_async
   has_many :revenue_appointments, dependent: :destroy_async
   has_many :revenue_call_features, dependent: :destroy_async
   has_many :revenue_contacts, dependent: :destroy_async

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_17_190000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_21_120100) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1638,6 +1638,24 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_17_190000) do
     t.index ["inbox_id"], name: "index_reports_inbox_brandings_on_inbox_id", unique: true
   end
 
+  create_table "revenue_ad_spends", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "desarrollo"
+    t.string "campaign_name", null: false
+    t.string "adset_name"
+    t.string "advert_name"
+    t.date "period_start", null: false
+    t.date "period_end", null: false
+    t.decimal "amount", precision: 14, scale: 2, null: false
+    t.string "currency", default: "MXN", null: false
+    t.bigint "created_by_id"
+    t.bigint "updated_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "campaign_name", "adset_name", "advert_name", "period_start", "period_end"], name: "idx_revenue_ad_spends_dedup", unique: true
+    t.index ["account_id", "period_start", "period_end"], name: "idx_on_account_id_period_start_period_end_de56c7d911"
+  end
+
   create_table "revenue_appointments", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "revenue_contact_id"
@@ -1910,8 +1928,13 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_17_190000) do
     t.string "page_id"
     t.string "page_name"
     t.string "qualification_channel"
+    t.datetime "first_human_contact_at"
+    t.string "first_human_contact_channel"
+    t.integer "first_human_response_seconds"
+    t.integer "first_human_response_business_seconds"
     t.index ["account_id", "created_at_source"], name: "index_revenue_leads_on_account_id_and_created_at_source"
     t.index ["account_id", "desarrollo"], name: "index_revenue_leads_on_account_id_and_desarrollo"
+    t.index ["account_id", "first_human_contact_at"], name: "index_revenue_leads_on_account_id_and_first_human_contact_at"
     t.index ["account_id", "lead_status"], name: "index_revenue_leads_on_account_id_and_lead_status"
     t.index ["account_id", "owner_id"], name: "index_revenue_leads_on_account_id_and_owner_id"
     t.index ["account_id", "revenue_contact_id"], name: "index_revenue_leads_on_account_id_and_revenue_contact_id"

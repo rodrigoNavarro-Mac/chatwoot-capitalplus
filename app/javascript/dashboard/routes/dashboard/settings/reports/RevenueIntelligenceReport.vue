@@ -9,6 +9,7 @@ import RevenueIntelligenceAPI from 'dashboard/api/revenueIntelligence';
 import { downloadCsvFile } from 'dashboard/helper/downloadHelper';
 import ReportHeader from './components/ReportHeader.vue';
 import FunnelStageMeter from './components/FunnelStageMeter.vue';
+import MarketingTab from './components/MarketingTab.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -49,6 +50,9 @@ const filters = ref({
   since: subtractDays(cdmxDateInputValue(new Date()), 30),
   until: cdmxDateInputValue(new Date()),
   desarrollo: '',
+  campaignId: '',
+  adsetId: '',
+  advertId: '',
 });
 
 const isLoading = ref(false);
@@ -76,6 +80,9 @@ const fetchReport = async () => {
       from: toUnixSeconds(filters.value.since),
       to: toUnixSeconds(filters.value.until, true),
       desarrollo: filters.value.desarrollo || undefined,
+      campaign_id: filters.value.campaignId || undefined,
+      adset_id: filters.value.adsetId || undefined,
+      advert_id: filters.value.advertId || undefined,
     });
     report.value = response.data;
   } catch (error) {
@@ -87,6 +94,23 @@ const fetchReport = async () => {
 
 onMounted(fetchReport);
 watch(filters, fetchReport, { deep: true });
+
+// MarketingTab emite los 3 juntos (cambiar de campaña limpia adset/advert, ver
+// MarketingTab.vue#onCampaignFilterChange) -- refetch es implícito vía el watch(filters) de arriba,
+// salvo cuando se guarda una inversión nueva (mismos filtros, pero el payload de marketing_spend/
+// marketing_ad_table sí cambió) -- ahí MarketingTab manda refetch:true para forzar el fetch aunque
+// ningún filtro haya cambiado.
+const onUpdateMarketingFilters = ({
+  campaignId,
+  adsetId,
+  advertId,
+  refetch,
+}) => {
+  filters.value.campaignId = campaignId;
+  filters.value.adsetId = adsetId;
+  filters.value.advertId = advertId;
+  if (refetch) fetchReport();
+};
 
 // Selector de periodo (Semanal/Mensual/Trimestral/Anual/Personalizado) — deriva filters.since/
 // filters.until automáticamente según el tipo elegido; 'custom' no los toca, deja los inputs de
@@ -344,101 +368,10 @@ const pipelineRows = computed(() =>
   }))
 );
 
-const MARKETING_METRIC_COLUMNS = [
-  'lead_created',
-  'lead_contacted',
-  'deal_created',
-  'closed_won',
-];
-
-const hasMarketingActivity = metrics =>
-  MARKETING_METRIC_COLUMNS.some(metric => (metrics?.[metric] || 0) > 0);
-
-// Campañas con adset/advert colapsados por default -- desplegar ese detalle no aporta en el
-// vistazo de todos los días (feedback directo: demasiada profundidad), pero sigue haciendo falta
-// para saber qué anuncio específico funcionó -- se abre por campaña, no globalmente.
-const expandedCampaigns = ref(new Set());
-const toggleCampaign = key => {
-  const next = new Set(expandedCampaigns.value);
-  if (next.has(key)) {
-    next.delete(key);
-  } else {
-    next.add(key);
-  }
-  expandedCampaigns.value = next;
-};
-
-// `marketing_by_source` llega como jerarquía fuente -> campaña (si Zoho la atribuyó) -> adset ->
-// advert (ver V2::Reports::RevenueIntelligenceBuilder#marketing_by_source) -- se aplana aquí a una
-// lista con nivel de indentación (0-3), pero adset/advert solo se incluyen si su campaña está
-// expandida (ver expandedCampaigns arriba). El residual sin campaña específica no es un renglón
-// aparte (confundía, parecía una campaña más) -- se anota como badge bajo el número de Leads de la
-// fuente, mismo patrón visual que "ya convertidos"/"seguimiento" en el resto de esta pantalla.
-const marketingRows = computed(() => {
-  const sources = report.value?.marketing_by_source ?? [];
-  const rows = [];
-  sources.forEach(source => {
-    rows.push({
-      key: `s:${source.id}`,
-      level: 0,
-      label: source.id,
-      metrics: source.metrics,
-      withoutCampaign: hasMarketingActivity(source.direct_metrics)
-        ? source.direct_metrics.lead_created || 0
-        : 0,
-    });
-    (source.campaigns ?? []).forEach(campaign => {
-      const campaignKey = `c:${source.id}:${campaign.id}`;
-      const adsets = campaign.adsets ?? [];
-      const isExpanded = expandedCampaigns.value.has(campaignKey);
-      rows.push({
-        key: campaignKey,
-        level: 1,
-        label: campaign.id,
-        metrics: campaign.metrics,
-        withoutCampaign: 0,
-        expandable: adsets.length > 0,
-        expanded: isExpanded,
-      });
-      if (adsets.length === 0 || !isExpanded) return;
-
-      adsets.forEach(adset => {
-        rows.push({
-          key: `a:${campaign.id}:${adset.id}`,
-          level: 2,
-          label: adset.name,
-          metrics: adset.metrics,
-          withoutCampaign: 0,
-        });
-        (adset.adverts ?? []).forEach(advert => {
-          rows.push({
-            key: `d:${campaign.id}:${adset.id}:${advert.id}`,
-            level: 3,
-            label: advert.name,
-            metrics: advert.metrics,
-            withoutCampaign: 0,
-          });
-        });
-      });
-    });
-  });
-  return rows;
-});
-
-// Total del tab Marketing (ya reconciliado en el backend, ver marketing_totals) -- se muestra
-// explícitamente arriba de la tabla para que el usuario pueda comparar de un vistazo contra
-// Leads/Contacted de Overview, sin tener que sumar filas a mano.
-const marketingTotals = computed(
-  () =>
-    report.value?.marketing_totals ?? {
-      lead_created: 0,
-      lead_contacted: 0,
-      lead_contacted_seguimiento: 0,
-      lead_converted: 0,
-      deal_created: 0,
-      closed_won: 0,
-    }
-);
+// El contenido del tab Marketing (cards, funnel, SLA, tabla por anuncio, captura de inversión) se
+// extrajo a MarketingTab.vue -- creció demasiado para seguir viviendo inline en este archivo (ver
+// auditoría/plan del rediseño de Marketing). marketingFilters/onUpdateMarketingFilters de abajo son
+// el único estado que sigue viviendo aquí (afecta la llamada a fetchReport).
 
 // Traduce nombres crudos del backend (event_type/signal_type/segmentos compuestos) a lenguaje de
 // negocio — se aplica en TODAS las pestañas, no solo Overview, para no dejar ningún
@@ -1343,195 +1276,13 @@ const availableDesarrollos = computed(
 
         <!-- Marketing -->
         <template v-else-if="activeTab === 'marketing'">
-          <div
-            class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 mb-6"
-          >
-            <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-4">
-              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTALS_TITLE') }}
-            </h3>
-            <div class="flex flex-wrap gap-6">
-              <div class="min-w-[7rem]">
-                <h3 class="m-0 text-sm font-medium text-n-slate-11">
-                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTAL_LEADS') }}
-                </h3>
-                <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
-                  {{ marketingTotals.lead_created }}
-                </h4>
-                <div
-                  v-if="marketingTotals.lead_converted > 0"
-                  v-tooltip="
-                    t(
-                      'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_TOOLTIP'
-                    )
-                  "
-                  class="text-xs mt-1 text-n-blue-11 cursor-help"
-                >
-                  ({{ marketingTotals.lead_converted }}
-                  {{
-                    t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL')
-                  }})
-                </div>
-              </div>
-              <div class="min-w-[7rem]">
-                <h3 class="m-0 text-sm font-medium text-n-slate-11">
-                  {{
-                    t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTAL_CONTACTED')
-                  }}
-                </h3>
-                <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
-                  {{ marketingTotals.lead_contacted }}
-                </h4>
-                <div
-                  v-if="marketingTotals.lead_contacted_seguimiento > 0"
-                  v-tooltip="
-                    t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
-                  "
-                  class="text-xs mt-1 text-n-amber-11 cursor-help"
-                >
-                  +{{ marketingTotals.lead_contacted_seguimiento }}
-                  {{
-                    t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL')
-                  }}
-                </div>
-              </div>
-              <div class="min-w-[7rem]">
-                <h3 class="m-0 text-sm font-medium text-n-slate-11">
-                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTAL_DEALS') }}
-                </h3>
-                <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
-                  {{ marketingTotals.deal_created }}
-                </h4>
-              </div>
-              <div class="min-w-[7rem]">
-                <h3 class="m-0 text-sm font-medium text-n-slate-11">
-                  {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TOTAL_WON') }}
-                </h3>
-                <h4 class="mt-1 mb-0 text-2xl text-n-slate-12">
-                  {{ marketingTotals.closed_won }}
-                </h4>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-          >
-            <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
-              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.TITLE') }}
-            </h3>
-            <p class="text-sm text-n-slate-11 mb-4">
-              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.DESCRIPTION') }}
-            </p>
-            <div
-              v-if="!marketingRows.length"
-              class="text-sm text-n-slate-11 py-4 text-center"
-            >
-              {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.EMPTY') }}
-            </div>
-            <table v-else class="woot-table w-full">
-              <thead>
-                <tr>
-                  <th>
-                    {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SOURCE') }}
-                  </th>
-                  <th v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
-                    {{ eventTypeLabel(metric) }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in marketingRows" :key="row.key">
-                  <td>
-                    <button
-                      v-if="row.expandable"
-                      type="button"
-                      class="inline-flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
-                      :style="{ paddingLeft: `${row.level * 1.25}rem` }"
-                      :class="
-                        row.level === 0
-                          ? 'font-semibold text-n-slate-12'
-                          : 'text-n-slate-11'
-                      "
-                      @click="toggleCampaign(row.key)"
-                    >
-                      <span class="text-xs w-3 inline-block">{{
-                        row.expanded ? '▾' : '▸'
-                      }}</span>
-                      {{ row.label }}
-                    </button>
-                    <span
-                      v-else
-                      :style="{ paddingLeft: `${row.level * 1.25}rem` }"
-                      :class="
-                        row.level === 0
-                          ? 'font-semibold text-n-slate-12'
-                          : 'text-n-slate-11'
-                      "
-                    >
-                      {{ row.label }}
-                    </span>
-                  </td>
-                  <td v-for="metric in MARKETING_METRIC_COLUMNS" :key="metric">
-                    {{ row.metrics[metric] || 0 }}
-                    <span
-                      v-if="
-                        metric === 'lead_created' &&
-                        row.metrics.lead_converted > 0
-                      "
-                      v-tooltip="
-                        t(
-                          'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_TOOLTIP'
-                        )
-                      "
-                      class="text-xs text-n-blue-11 cursor-help"
-                    >
-                      ({{ row.metrics.lead_converted }}
-                      {{
-                        t(
-                          'REVENUE_INTELLIGENCE_REPORTS.MARKETING.CONVERTED_LABEL'
-                        )
-                      }})
-                    </span>
-                    <span
-                      v-if="metric === 'lead_created' && row.withoutCampaign"
-                      v-tooltip="
-                        t(
-                          'REVENUE_INTELLIGENCE_REPORTS.MARKETING.WITHOUT_CAMPAIGN_TOOLTIP'
-                        )
-                      "
-                      class="text-xs text-n-slate-11 cursor-help"
-                    >
-                      ({{ row.withoutCampaign }}
-                      {{
-                        t(
-                          'REVENUE_INTELLIGENCE_REPORTS.MARKETING.WITHOUT_CAMPAIGN'
-                        )
-                      }})
-                    </span>
-                    <span
-                      v-if="
-                        metric === 'lead_contacted' &&
-                        row.metrics.lead_contacted_seguimiento > 0
-                      "
-                      v-tooltip="
-                        t(
-                          'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP'
-                        )
-                      "
-                      class="text-xs text-n-amber-11 cursor-help"
-                    >
-                      +{{ row.metrics.lead_contacted_seguimiento }}
-                      {{
-                        t(
-                          'REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_LABEL'
-                        )
-                      }}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <MarketingTab
+            :report="report"
+            :campaign-id="filters.campaignId"
+            :adset-id="filters.adsetId"
+            :advert-id="filters.advertId"
+            @update-filters="onUpdateMarketingFilters"
+          />
         </template>
 
         <!-- Sales team -->

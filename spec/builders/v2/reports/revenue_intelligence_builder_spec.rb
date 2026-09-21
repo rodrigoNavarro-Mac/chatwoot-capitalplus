@@ -155,8 +155,8 @@ describe V2::Reports::RevenueIntelligenceBuilder do
 
       source = result[:marketing_by_source].find { |s| s[:id] == 'Sin fuente' }
       expect(source[:campaigns]).to eq([])
-      expect(source[:metrics]).to eq({ 'lead_created' => 4, 'lead_contacted' => 0, 'lead_converted' => 0, 'deal_created' => 0, 'closed_won' => 0,
-                                       :lead_contacted_seguimiento => 0 })
+      expect(source[:metrics]).to eq({ 'lead_created' => 4, 'lead_contacted' => 0, 'lead_qualified' => 0, 'lead_converted' => 0, 'deal_created' => 0,
+                                       'appointment_created' => 0, 'visit_effective' => 0, 'closed_won' => 0, :lead_contacted_seguimiento => 0 })
     end
 
     it 'falls back a campaign with no resolvable source to the "_sin_atribuir" bucket instead of dropping it' do
@@ -214,8 +214,8 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = builder.build
 
       expect(result[:marketing_totals]).to eq(
-        { 'lead_created' => 15, 'lead_contacted' => 8, 'lead_converted' => 0, 'deal_created' => 2, 'closed_won' => 1,
-          'lead_contacted_seguimiento' => 0 }
+        { 'lead_created' => 15, 'lead_contacted' => 8, 'lead_qualified' => 0, 'lead_converted' => 0, 'deal_created' => 2,
+          'appointment_created' => 0, 'visit_effective' => 0, 'closed_won' => 1, 'lead_contacted_seguimiento' => 0 }
       )
     end
 
@@ -385,6 +385,158 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       result = described_class.new(account: account, params: {}).build
 
       expect(result[:funnel]['Fuego']['lead_created']).to eq(1)
+    end
+  end
+
+  describe 'marketing_funnel' do
+    it 'returns volume plus conversion vs. the previous stage and vs. total leads, in funnel order' do
+      rollup('campaign', 'camp-1', 'lead_created', count: 100)
+      rollup('campaign', 'camp-1', 'lead_contacted', count: 50)
+      rollup('campaign', 'camp-1', 'lead_qualified', count: 10)
+      rollup('campaign', 'camp-1', 'appointment_created', count: 5)
+      rollup('campaign', 'camp-1', 'visit_effective', count: 2)
+
+      result = builder.build
+
+      expect(result[:marketing_funnel]).to eq(
+        [
+          { metric: 'lead_created', count: 100, conversion_from_previous: nil, conversion_from_leads: 1.0 },
+          { metric: 'lead_contacted', count: 50, conversion_from_previous: 0.5, conversion_from_leads: 0.5 },
+          { metric: 'lead_qualified', count: 10, conversion_from_previous: 0.2, conversion_from_leads: 0.1 },
+          { metric: 'appointment_created', count: 5, conversion_from_previous: 0.5, conversion_from_leads: 0.05 },
+          { metric: 'visit_effective', count: 2, conversion_from_previous: 0.4, conversion_from_leads: 0.02 }
+        ]
+      )
+    end
+  end
+
+  describe 'marketing_sla' do
+    it 'computes avg/median/p75 and SLA buckets only from leads with a tracked response' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 5.days.ago, first_human_response_business_seconds: 120)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-2', created_at_source: 5.days.ago, first_human_response_business_seconds: 300)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-3', created_at_source: 5.days.ago, first_human_response_business_seconds: 600)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-4', created_at_source: 5.days.ago) # sin contacto humano rastreable
+
+      sla = builder.build[:marketing_sla]
+
+      expect(sla).to include(total_leads: 4, responded_count: 3, pending_count: 1, avg_seconds: 340, median_seconds: 300, p75_seconds: 600)
+      expect(sla[:buckets]).to include(under_5: { count: 1, rate: 0.3333 }, from_5_to_15: { count: 2, rate: 0.6667 })
+    end
+
+    it 'never imputes a value when there are no tracked responses (N/D, not zero)' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 5.days.ago)
+
+      sla = builder.build[:marketing_sla]
+
+      expect(sla[:avg_seconds]).to be_nil
+      expect(sla[:median_seconds]).to be_nil
+    end
+  end
+
+  describe 'marketing_spend' do
+    it 'shows N/D (nil) total investment and costs when nothing has been captured, never $0' do
+      rollup('campaign', 'camp-1', 'lead_created', count: 10)
+
+      spend = builder.build[:marketing_spend]
+
+      expect(spend[:total_amount]).to be_nil
+      expect(spend[:costs][:cost_per_lead]).to be_nil
+    end
+
+    it 'sums captured investment within the selected period and computes total costs as SUM/SUM, never an average of individual costs' do
+      rollup('campaign', 'camp-1', 'lead_created', count: 10)
+      rollup('campaign', 'camp-2', 'lead_created', count: 20)
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', period_start: 15.days.ago.to_date, period_end: 1.day.ago.to_date, amount: 1000)
+      account.revenue_ad_spends.create!(campaign_name: 'camp-2', period_start: 15.days.ago.to_date, period_end: 1.day.ago.to_date, amount: 2000)
+
+      spend = builder.build[:marketing_spend]
+
+      expect(spend[:total_amount]).to eq(3000)
+      expect(spend[:costs][:cost_per_lead]).to eq(100.0)
+    end
+
+    it 'excludes a spend record whose period falls outside the selected date range (no proration)' do
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', period_start: 100.days.ago.to_date, period_end: 90.days.ago.to_date,
+                                        amount: 500)
+
+      spend = builder.build[:marketing_spend]
+
+      expect(spend[:total_amount]).to be_nil
+    end
+
+    it 'reports coverage as ads-with-spend out of ads-with-any-activity' do
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 5)
+      rollup('advert', 'camp-1::adset-1::ad-2::Ad Dos', 'lead_created', count: 3)
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Uno',
+                                        period_start: 15.days.ago.to_date, period_end: 1.day.ago.to_date, amount: 500)
+
+      spend = builder.build[:marketing_spend]
+
+      expect(spend[:coverage]).to eq({ ads_with_leads: 2, ads_with_spend: 1 })
+    end
+  end
+
+  describe 'marketing_ad_table' do
+    it 'builds a row per advert with metrics, N/D costs when uncaptured, and computed rates' do
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_contacted', count: 5)
+
+      row = builder.build[:marketing_ad_table].first
+
+      expect(row[:campaign_name]).to eq('camp-1')
+      expect(row[:adset_name]).to eq('adset-1')
+      expect(row[:advert_name]).to eq('Ad Uno')
+      expect(row[:metrics]['lead_created']).to eq(10)
+      expect(row[:spend_amount]).to be_nil
+      expect(row[:costs][:cost_per_lead]).to be_nil
+      expect(row[:rates][:contact_rate]).to eq(0.5)
+    end
+
+    it 'matches captured investment to the ad by name (campaign+adset+advert) and computes its own cost' do
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Uno',
+                                        period_start: 15.days.ago.to_date, period_end: 1.day.ago.to_date, amount: 500)
+
+      row = builder.build[:marketing_ad_table].first
+
+      expect(row[:spend_amount].to_f).to eq(500.0)
+      expect(row[:costs][:cost_per_lead]).to eq(50.0)
+    end
+  end
+
+  describe 'marketing campaign/adset/advert filters' do
+    let(:params) { { since: 20.days.ago.to_i.to_s, until: Time.current.to_i.to_s, campaign_id: 'camp-1' } }
+
+    it 'scopes marketing_totals to only the selected campaign' do
+      rollup('campaign', 'camp-1', 'lead_created', count: 10)
+      rollup('campaign', 'camp-2', 'lead_created', count: 20)
+
+      expect(builder.build[:marketing_totals]['lead_created']).to eq(10)
+    end
+
+    it 'scopes marketing_by_source to only the selected campaign, dropping the "by source" grouping' do
+      rollup('campaign', 'camp-1', 'lead_created', count: 10)
+      rollup('campaign', 'camp-2', 'lead_created', count: 20)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', lead_source: 'Facebook Ads')
+
+      result = builder.build
+
+      expect(result[:marketing_by_source].map { |c| c[:id] }).to eq(['camp-1'])
+    end
+
+    it 'echoes back the applied filters' do
+      expect(builder.build[:marketing_filters]).to eq({ campaign_id: 'camp-1', adset_id: nil, advert_id: nil })
+    end
+
+    context 'with an adset filter on top of the campaign filter' do
+      let(:params) { { since: 20.days.ago.to_i.to_s, until: Time.current.to_i.to_s, campaign_id: 'camp-1', adset_id: 'adset-1' } }
+
+      it 'further narrows totals to that specific adset (prefix match on the composite dimension_id)' do
+        rollup('adset', 'camp-1::adset-1::Adset Uno', 'lead_created', count: 4)
+        rollup('adset', 'camp-1::adset-2::Adset Dos', 'lead_created', count: 6)
+
+        expect(builder.build[:marketing_totals]['lead_created']).to eq(4)
+      end
     end
   end
 

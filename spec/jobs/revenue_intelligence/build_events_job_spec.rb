@@ -183,7 +183,11 @@ describe RevenueIntelligence::BuildEventsJob do
       described_class.new.perform
 
       types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
-      expect(types).to contain_exactly('stage_changed', 'visit_effective', 'closed_won')
+      expect(types).to contain_exactly('stage_changed', 'closed_won')
+      # visit_effective se deduplica a un evento por deal (source_id "deal:<id>"), no por stage_event
+      # -- ver RevenueIntelligence::BuildEventsJob#build_visit_effective_events.
+      expect(account.revenue_events.where(source_system: 'revenue_stage_event', source_id: "deal:#{deal.id}",
+                                          event_type: 'visit_effective')).to exist
     end
 
     it 'creates only stage_changed for a "sin cita" quote stage, that does not imply a visit happened' do
@@ -208,7 +212,9 @@ describe RevenueIntelligence::BuildEventsJob do
       described_class.new.perform
 
       types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
-      expect(types).to contain_exactly('stage_changed', 'visit_effective')
+      expect(types).to contain_exactly('stage_changed')
+      expect(account.revenue_events.where(source_system: 'revenue_stage_event', source_id: "deal:#{deal.id}",
+                                          event_type: 'visit_effective')).to exist
     end
 
     it 'creates both visit_effective and reserved for a deal that reached "Apartado" without an earlier visit row' do
@@ -219,7 +225,28 @@ describe RevenueIntelligence::BuildEventsJob do
       described_class.new.perform
 
       types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
-      expect(types).to contain_exactly('stage_changed', 'visit_effective', 'reserved')
+      expect(types).to contain_exactly('stage_changed', 'reserved')
+      expect(account.revenue_events.where(source_system: 'revenue_stage_event', source_id: "deal:#{deal.id}",
+                                          event_type: 'visit_effective')).to exist
+    end
+
+    # Bug real corregido 2026-09-21: un deal que pasa por VARIAS VISIT_STAGES (Visita efectiva ->
+    # Cotizado -> Apartado) generaba antes un evento 'visit_effective' por cada una (source_id
+    # distinto por stage_event), inflando "Visitas" del embudo. Ahora se deduplica a UNO por deal.
+    it 'creates only ONE visit_effective event for a deal that passed through multiple VISIT_STAGES' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Visita efectiva', entered_at: 2.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Cotizado', entered_at: 1.day.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Apartado', entered_at: Time.current)
+
+      described_class.new.perform
+
+      visit_events = account.revenue_events.where(source_system: 'revenue_stage_event', event_type: 'visit_effective')
+      expect(visit_events.count).to eq(1)
+      expect(visit_events.first.event_at).to be_within(1.second).of(2.days.ago)
     end
 
     it 'creates appointment_created when a deal reaches RevenueDeal::SCHEDULED_STAGE ("Agendo cita")' do

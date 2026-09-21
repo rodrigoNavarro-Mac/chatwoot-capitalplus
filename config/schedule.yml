@@ -182,6 +182,14 @@ revenue_intelligence_build_events_job:
   class: 'RevenueIntelligence::BuildEventsJob'
   queue: scheduled_jobs
 
+# executed hourly at :35 — calcula el primer contacto humano (WhatsApp/llamada real) por lead para
+# el SLA del setter, después de que la identidad ya se resolvió a las :25 (Revenue Intelligence,
+# Marketing/Fase 6)
+revenue_intelligence_calculate_setter_response_time_job:
+  cron: '35 * * * *'
+  class: 'RevenueIntelligence::CalculateSetterResponseTimeJob'
+  queue: scheduled_jobs
+
 # executed hourly at :40 — agrega revenue_events en revenue_lead_journeys, después de que los
 # eventos de esta hora ya existen (Revenue Intelligence, Fase 2)
 revenue_intelligence_build_journeys_job:

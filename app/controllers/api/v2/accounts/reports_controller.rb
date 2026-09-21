@@ -275,7 +275,10 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     {
       since: params[:since],
       until: params[:until],
-      desarrollo: params[:desarrollo]
+      desarrollo: params[:desarrollo],
+      campaign_id: params[:campaign_id],
+      adset_id: params[:adset_id],
+      advert_id: params[:advert_id]
     }
   end
 end

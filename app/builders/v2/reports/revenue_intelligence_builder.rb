@@ -29,8 +29,6 @@ class V2::Reports::RevenueIntelligenceBuilder
       funnel_totals: totals,
       funnel_conversions: funnel_conversions(totals),
       agent: agent_summary,
-      marketing_by_source: marketing_by_source,
-      marketing_totals: marketing_totals,
       pipeline_stage: pipeline_stage_summary,
       call_conversion: conversion_summary('call_conversion'),
       objection_conversion: conversion_summary('objection_conversion'),
@@ -40,7 +38,38 @@ class V2::Reports::RevenueIntelligenceBuilder
       insights: insights,
       available_desarrollos: available_desarrollos,
       desarrollo_filter: desarrollo_filter
+    }.merge(marketing_payload)
+  end
+
+  def marketing_payload
+    {
+      marketing_by_source: marketing_by_source,
+      marketing_totals: marketing_totals,
+      marketing_funnel: marketing_funnel,
+      marketing_sla: marketing_sla,
+      marketing_spend: marketing_spend,
+      marketing_ad_table: marketing_ad_table,
+      marketing_filters: { campaign_id: marketing_campaign_filter, adset_id: marketing_adset_filter, advert_id: marketing_advert_filter },
+      marketing_filter_options: marketing_filter_options
     }
+  end
+
+  # Árbol campaña -> adset -> advert SIEMPRE completo (nunca acotado por marketing_campaign_filter/
+  # marketing_adset_filter/marketing_advert_filter) -- a diferencia de marketing_by_source, esto
+  # alimenta los selects en cascada del filtro mismo, así que si se dejara acotar por el propio
+  # filtro activo el usuario no podría navegar a OTRA campaña sin limpiar el filtro primero. Sí
+  # respeta date_range/desarrollo_filter (mismo criterio que available_desarrollos: solo opciones
+  # con actividad relevante al periodo/desarrollo ya elegidos).
+  def marketing_filter_options
+    campaigns_grouped_by_source.values.flatten.map { |campaign| { id: campaign[:id], adsets: filter_option_adsets(campaign) } }
+  end
+
+  def filter_option_adsets(campaign)
+    campaign[:adsets].map { |adset| { id: adset[:id], name: adset[:name], adverts: filter_option_adverts(adset) } }
+  end
+
+  def filter_option_adverts(adset)
+    adset[:adverts].map { |advert| { id: advert[:id], name: advert[:name] } }
   end
 
   private
@@ -63,6 +92,15 @@ class V2::Reports::RevenueIntelligenceBuilder
     time.in_time_zone(RevenueIntelligence::TIMEZONE).to_date
   end
 
+  # date_range (un Range de Date) -> Range de datetime en TIMEZONE, para consultar columnas
+  # datetime de revenue_leads directo sin pasar por revenue_rollups (mismo cuidado de zona horaria
+  # que local_date/marketing_seguimiento_counts -- la app no tiene Time.zone configurado, así que
+  # un Range de Date comparado directo contra una columna datetime usaría UTC por default).
+  def local_range(date_range_value)
+    zone = Time.find_zone!(RevenueIntelligence::TIMEZONE)
+    zone.parse(date_range_value.begin.to_s).beginning_of_day...(zone.parse(date_range_value.end.to_s).end_of_day + 1.second)
+  end
+
   def rollups_scope(dimension_type)
     scope = account.revenue_rollups.where(dimension_type: dimension_type, date: date_range)
     desarrollo_filter ? scope.where(desarrollo: desarrollo_filter) : scope
@@ -74,6 +112,29 @@ class V2::Reports::RevenueIntelligenceBuilder
   # available_desarrollos, que la excluye).
   def desarrollo_filter
     params[:desarrollo].presence
+  end
+
+  # Filtros de campaña/adset/anuncio (sección 1 del brief de Marketing) — a diferencia de
+  # desarrollo_filter, solo afectan las secciones de Marketing (funnel/totales/tabla/costos):
+  # 'funnel'/'agent'/'pipeline_stage' no tienen atribución de campaña, filtrarlos no tendría
+  # sentido. Los valores vienen ya "desenvueltos" (campaign_id/adset_id/advert_id sueltos, tal como
+  # los expone marketing_by_source) -- para dimension_type 'adset'/'advert', cuyo dimension_id es
+  # una clave compuesta con el nombre embebido (ver RefreshAggregatesJob#marketing_dimension_rows),
+  # el match es por PREFIJO, no por igualdad exacta.
+  def marketing_campaign_filter
+    params[:campaign_id].presence
+  end
+
+  def marketing_adset_filter
+    params[:adset_id].presence
+  end
+
+  def marketing_advert_filter
+    params[:advert_id].presence
+  end
+
+  def marketing_filtered?
+    marketing_campaign_filter.present?
   end
 
   # Lista para el selector global del frontend — se lee de revenue_rollups (nunca de
@@ -118,7 +179,11 @@ class V2::Reports::RevenueIntelligenceBuilder
     }
   end
 
-  MARKETING_TOTAL_METRICS = %w[lead_created lead_contacted lead_converted deal_created closed_won].freeze
+  MARKETING_TOTAL_METRICS = %w[lead_created lead_contacted lead_qualified lead_converted deal_created appointment_created
+                               visit_effective closed_won].freeze
+  # Orden real del funnel de Marketing (sección 3 del brief) -- volumen + conversión etapa-a-etapa,
+  # mismo patrón que FUNNEL_SEQUENCE/funnel_conversions para el tab Funnel general.
+  MARKETING_FUNNEL_SEQUENCE = %w[lead_created lead_contacted lead_qualified appointment_created visit_effective].freeze
   # Fuente sintética para una campaña cuyo campaign_id no se pudo resolver a ningún lead_source
   # (no debería pasar dado que LeadMapper#marketing_attrs siempre puebla ambos campos en la misma
   # fila, pero así nunca desaparece en silencio si algún día pasa).
@@ -136,12 +201,35 @@ class V2::Reports::RevenueIntelligenceBuilder
   # datos reales acumulados desde Fase 3); 'adset'/'advert' traen el nombre embebido en su
   # dimension_id (ver RefreshAggregatesJob#marketing_dimension_rows).
   def marketing_by_source
+    # Con filtro de campaña activo, "por fuente" deja de aplicar (una campaña específica ya
+    # resuelve a una sola fuente) -- solo se muestra el árbol campaña -> adset -> advert ya acotado.
+    return filtered_campaigns_grouped_by_source if marketing_filtered?
+
     direct_by_source = with_seguimiento(rollup_summary('lead_source'), marketing_seguimiento_counts['lead_source'])
     campaigns_by_source = campaigns_grouped_by_source
 
     source_ids = (direct_by_source.keys + campaigns_by_source.keys).uniq
     source_ids.map { |source_id| marketing_source_row(source_id, campaigns_by_source[source_id], direct_by_source[source_id]) }
               .sort_by { |row| -(row[:metrics]['lead_created'] || 0) }
+  end
+
+  def filtered_campaigns_grouped_by_source
+    campaigns_grouped_by_source.values.flatten.select { |campaign| campaign[:id] == marketing_campaign_filter }
+                               .map { |campaign| filter_campaign_node(campaign) }
+  end
+
+  def filter_campaign_node(campaign)
+    return campaign unless marketing_adset_filter
+
+    adsets = campaign[:adsets].select { |adset| adset[:id] == marketing_adset_filter }
+    adsets = adsets.map { |adset| filter_adset_node(adset) }
+    campaign.merge(adsets: adsets)
+  end
+
+  def filter_adset_node(adset)
+    return adset unless marketing_advert_filter
+
+    adset.merge(adverts: adset[:adverts].select { |advert| advert[:id] == marketing_advert_filter })
   end
 
   # { fuente => [{ id: campaign_id, metrics:, adsets: [...] }, ...] } -- una sola pasada, adsets/
@@ -188,12 +276,178 @@ class V2::Reports::RevenueIntelligenceBuilder
   # para verificar que Marketing cuadra con Overview -- confirmado como el origen real de la
   # confusión "no cuadra" reportada en producción (2026-09-10), no un bug de datos.
   def marketing_totals
+    return filtered_marketing_totals if marketing_filtered?
+
     seguimiento = marketing_seguimiento_counts
     campaign_metrics = rollup_summary('campaign').values
     source_metrics = rollup_summary('lead_source').values
 
     totals = MARKETING_TOTAL_METRICS.index_with { |metric| sum_metric(campaign_metrics, metric) + sum_metric(source_metrics, metric) }
     totals.merge('lead_contacted_seguimiento' => seguimiento['campaign'].values.sum + seguimiento['lead_source'].values.sum)
+  end
+
+  # Con filtro de campaña/adset/anuncio activo, el total deja de ser "todo Marketing" y pasa a ser
+  # solo la rama filtrada -- lee directo de revenue_rollups en vez de marketing_by_source para no
+  # tener que recomputar hacia arriba los metrics ya agregados por campaña/fuente.
+  # lead_contacted_seguimiento no se recalcula aquí (limitación conocida, documentada en el plan de
+  # Fase 6: marketing_seguimiento_counts no está scopeado por adset/advert) -- se expone en 0 en vez
+  # de un número engañoso.
+  def filtered_marketing_totals
+    scope = marketing_filtered_rollups_scope
+    metrics = scope.group(:metric).sum(:count)
+    MARKETING_TOTAL_METRICS.index_with { |metric| metrics[metric] || 0 }.merge('lead_contacted_seguimiento' => 0)
+  end
+
+  def marketing_filtered_rollups_scope
+    if marketing_advert_filter
+      rollups_scope('advert').where('dimension_id LIKE ?', "#{marketing_campaign_filter}::#{marketing_adset_filter}::#{marketing_advert_filter}::%")
+    elsif marketing_adset_filter
+      rollups_scope('adset').where('dimension_id LIKE ?', "#{marketing_campaign_filter}::#{marketing_adset_filter}::%")
+    else
+      rollups_scope('campaign').where(dimension_id: marketing_campaign_filter)
+    end
+  end
+
+  # Array (no hash) a propósito -- preserva el orden real del funnel para que el frontend itere
+  # directo sin depender de MARKETING_FUNNEL_SEQUENCE otra vez. conversion_from_previous es nil en
+  # el primer escalón (Leads no tiene "etapa anterior"); conversion_from_leads siempre está
+  # presente, incluida en Leads mismo (100%), tal como pide la sección 3 del brief ("conversión
+  # respecto a leads totales cuando aplique").
+  # Inversión manual (sección 10/11 del brief) -- nunca $0 cuando no hay captura, ver
+  # RevenueAdSpend#within_period. Los costos totales SIEMPRE se calculan como
+  # SUM(inversión) / SUM(resultado), nunca como promedio de costos individuales (sección 11.1).
+  def marketing_spend
+    records = spend_records_in_range
+    amount = records.any? ? records.sum(&:amount) : nil
+    totals = marketing_totals
+
+    { total_amount: amount, currency: 'MXN', records_count: records.size, coverage: spend_coverage(records),
+      costs: spend_cost_summary(amount, totals) }
+  end
+
+  def spend_records_in_range
+    scope = account.revenue_ad_spends.within_period(date_range.begin, date_range.end)
+    scope = scope.where(desarrollo: [desarrollo_filter, nil]) if desarrollo_filter.present?
+    scope = scope.where(campaign_name: marketing_campaign_filter) if marketing_campaign_filter
+    scope = scope.where(adset_name: marketing_adset_filter) if marketing_adset_filter
+    scope = scope.where(advert_name: marketing_advert_filter) if marketing_advert_filter
+    scope.to_a
+  end
+
+  # ads_with_leads: cuántos anuncios distintos tuvieron actividad (cualquier métrica) en el rango
+  # -- mismo universo que marketing_ad_table. ads_with_spend: cuántos de esos ya tienen inversión
+  # capturada a nivel anuncio (no cuenta capturas solo a nivel campaña/adset, que no resuelven a un
+  # anuncio específico). Sección 10.7/11.2: nunca presentar el total como completo si hay cobertura
+  # parcial.
+  def spend_coverage(records)
+    ads_with_leads = rollup_summary('advert').keys.size
+    ads_with_spend = records.select { |r| r.advert_name.present? }.map { |r| [r.campaign_name, r.adset_name, r.advert_name] }.uniq.size
+    { ads_with_leads: ads_with_leads, ads_with_spend: ads_with_spend }
+  end
+
+  def spend_cost_summary(amount, totals)
+    { cost_per_lead: safe_cost(amount, totals['lead_created']), cost_per_contact: safe_cost(amount, totals['lead_contacted']),
+      cost_per_qualified: safe_cost(amount, totals['lead_qualified']), cost_per_appointment: safe_cost(amount, totals['appointment_created']),
+      cost_per_visit: safe_cost(amount, totals['visit_effective']) }
+  end
+
+  def safe_cost(amount, count)
+    return nil if amount.blank? || count.to_i.zero?
+
+    (amount / count.to_f).round(2)
+  end
+
+  # Tabla de funnel + costos por anuncio (secciones 11/12 del brief) -- una sola tabla que cubre
+  # ambas capturas de pantalla de referencia (costos acumulados por etapa Y funnel por anuncio), el
+  # frontend elige qué columnas mostrar en cada tabla en vez de duplicar la agregación acá.
+  # dimension_id de 'advert' trae campaign_id/adset_id embebidos (ver
+  # RefreshAggregatesJob#marketing_dimension_rows) -- como nunca hay id real de Meta (confirmado
+  # con el usuario), campaign_id/adset_id YA SON el nombre, así que no hace falta resolver nada más
+  # para emparejar con RevenueAdSpend (que también matchea por nombre).
+  def marketing_ad_table
+    spends = ad_spend_index
+
+    rows = rollup_summary('advert').map do |dimension_id, metrics|
+      campaign_name, adset_name, _advert_id, advert_name = dimension_id.split('::', 4)
+      spend_amount = spends[[campaign_name, adset_name, advert_name]]
+      marketing_ad_row(campaign_name, adset_name, advert_name, metrics, spend_amount)
+    end
+    rows.sort_by { |row| -(row[:metrics]['lead_created'] || 0) }
+  end
+
+  def ad_spend_index
+    spend_records_in_range.select { |r| r.advert_name.present? }
+                          .group_by { |r| [r.campaign_name, r.adset_name, r.advert_name] }
+                          .transform_values { |records| records.sum(&:amount) }
+  end
+
+  def marketing_ad_row(campaign_name, adset_name, advert_name, metrics, spend_amount)
+    {
+      campaign_name: campaign_name, adset_name: adset_name, advert_name: advert_name,
+      metrics: metrics.slice(*MARKETING_TOTAL_METRICS), spend_amount: spend_amount,
+      costs: spend_cost_summary(spend_amount, metrics),
+      rates: {
+        contact_rate: safe_rate(metrics['lead_contacted'], metrics['lead_created']),
+        qualification_rate: safe_rate(metrics['lead_qualified'], metrics['lead_created']),
+        appointment_rate: safe_rate(metrics['appointment_created'], metrics['lead_created']),
+        show_rate: safe_rate(metrics['visit_effective'], metrics['appointment_created'])
+      }
+    }
+  end
+  # SLA del setter (sección 2.2 del brief). first_human_contact_at/first_human_response_business_seconds
+  # los puebla RevenueIntelligence::CalculateSetterResponseTimeJob -- cobertura limitada a leads con
+  # revenue_contact_id resuelto (ver comentario del job), así que "pending_count" incluye tanto
+  # leads todavía sin contacto humano rastreable como leads sin identidad resuelta (nunca se
+  # imputa un tiempo de respuesta que no se pudo calcular).
+  SLA_TARGET_SECONDS = 5.minutes.to_i
+  SLA_BUCKETS = { under_5: 0...300, from_5_to_15: 300...900, from_15_to_30: 900...1800, over_30: 1800...Float::INFINITY }.freeze
+
+  def marketing_sla
+    leads = sla_leads_scope
+    total = leads.count
+    seconds = leads.where.not(first_human_response_business_seconds: nil).pluck(:first_human_response_business_seconds).sort
+    responded_count = seconds.size
+
+    { total_leads: total, responded_count: responded_count, pending_count: total - responded_count,
+      target_seconds: SLA_TARGET_SECONDS,
+      avg_seconds: seconds.empty? ? nil : (seconds.sum / seconds.size.to_f).round,
+      median_seconds: percentile(seconds, 50), p75_seconds: percentile(seconds, 75),
+      buckets: sla_buckets(seconds, responded_count) }
+  end
+
+  def sla_leads_scope
+    leads = base_leads_scope.where(created_at_source: local_range(date_range))
+    leads = leads.where(campaign_id: marketing_campaign_filter) if marketing_campaign_filter
+    leads = leads.where(adset_id: marketing_adset_filter) if marketing_adset_filter
+    leads = leads.where(advert_id: marketing_advert_filter) if marketing_advert_filter
+    leads
+  end
+
+  def percentile(sorted_values, pct)
+    return nil if sorted_values.empty?
+
+    index = ((pct / 100.0) * (sorted_values.size - 1)).round
+    sorted_values[index]
+  end
+
+  def sla_buckets(seconds, responded_count)
+    SLA_BUCKETS.transform_values do |range|
+      count = seconds.count { |s| range.cover?(s) }
+      { count: count, rate: safe_rate(count, responded_count) }
+    end
+  end
+
+  def marketing_funnel
+    totals = marketing_totals
+    leads_count = totals['lead_created'] || 0
+
+    MARKETING_FUNNEL_SEQUENCE.each_with_index.map do |metric, index|
+      count = totals[metric] || 0
+      previous_metric = MARKETING_FUNNEL_SEQUENCE[index - 1] if index.positive?
+      { metric: metric, count: count,
+        conversion_from_previous: previous_metric ? safe_rate(count, totals[previous_metric] || 0) : nil,
+        conversion_from_leads: safe_rate(count, leads_count) }
+    end
   end
 
   def sum_metric(rows, metric)

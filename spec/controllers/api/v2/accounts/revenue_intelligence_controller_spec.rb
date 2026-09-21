@@ -149,4 +149,98 @@ RSpec.describe Api::V2::Accounts::RevenueIntelligenceController, type: :request 
       end
     end
   end
+
+  describe 'ad_spends (captura manual de inversión)' do
+    let(:base_path) { "/api/v2/accounts/#{account.id}/revenue_intelligence/ad_spends" }
+    let(:valid_params) do
+      { ad_spend: { campaign_name: 'Camp X', period_start: 10.days.ago.to_date, period_end: 1.day.ago.to_date, amount: 1000 } }
+    end
+
+    describe 'GET /ad_spends' do
+      it "lists the account's captured investment, most recent period first" do
+        old = account.revenue_ad_spends.create!(campaign_name: 'Camp Old', period_start: 40.days.ago.to_date,
+                                                period_end: 30.days.ago.to_date, amount: 100)
+        recent = account.revenue_ad_spends.create!(campaign_name: 'Camp Recent', period_start: 5.days.ago.to_date,
+                                                   period_end: 1.day.ago.to_date, amount: 200)
+
+        get base_path, headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body.map { |row| row['id'] }).to eq([recent.id, old.id])
+      end
+    end
+
+    describe 'POST /ad_spends' do
+      it 'creates a new investment record, stamping created_by/updated_by from the current user' do
+        post base_path, params: valid_params, headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(account.revenue_ad_spends.last).to have_attributes(campaign_name: 'Camp X', amount: 1000, created_by_id: admin.id,
+                                                                  updated_by_id: admin.id)
+      end
+
+      it 'returns validation errors for an invalid record (e.g. negative amount)' do
+        post base_path, params: { ad_spend: valid_params[:ad_spend].merge(amount: -1) }, headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'warns with a 409 on an overlapping period for the same ad, without creating it, unless force: true' do
+        account.revenue_ad_spends.create!(campaign_name: 'Camp X', period_start: 10.days.ago.to_date, period_end: 3.days.ago.to_date,
+                                          amount: 500)
+        overlapping = { ad_spend: { campaign_name: 'Camp X', period_start: 5.days.ago.to_date, period_end: 1.day.ago.to_date, amount: 700 } }
+
+        post base_path, params: overlapping, headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:conflict)
+        expect(response.parsed_body['error']).to eq('overlapping_period')
+        expect(account.revenue_ad_spends.count).to eq(1)
+      end
+
+      it 'creates the record despite an overlap when force: true is sent' do
+        account.revenue_ad_spends.create!(campaign_name: 'Camp X', period_start: 10.days.ago.to_date, period_end: 3.days.ago.to_date,
+                                          amount: 500)
+        overlapping = { ad_spend: { campaign_name: 'Camp X', period_start: 5.days.ago.to_date, period_end: 1.day.ago.to_date, amount: 700 },
+                        force: true }
+
+        post base_path, params: overlapping, headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(account.revenue_ad_spends.count).to eq(2)
+      end
+
+      context 'when the user is not an administrator' do
+        it 'returns unauthorized' do
+          post base_path, params: valid_params, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:unauthorized)
+        end
+      end
+    end
+
+    describe 'PATCH /ad_spends/:id' do
+      it 'updates the record and stamps updated_by with the current user' do
+        spend = account.revenue_ad_spends.create!(campaign_name: 'Camp X', period_start: 10.days.ago.to_date,
+                                                  period_end: 1.day.ago.to_date, amount: 1000)
+        other_admin = create(:user, account: account, role: :administrator)
+
+        patch "#{base_path}/#{spend.id}", params: { ad_spend: { amount: 2000 } }, headers: other_admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(spend.reload).to have_attributes(amount: 2000, updated_by_id: other_admin.id)
+      end
+    end
+
+    describe 'DELETE /ad_spends/:id' do
+      it 'deletes the record' do
+        spend = account.revenue_ad_spends.create!(campaign_name: 'Camp X', period_start: 10.days.ago.to_date,
+                                                  period_end: 1.day.ago.to_date, amount: 1000)
+
+        delete "#{base_path}/#{spend.id}", headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(account.revenue_ad_spends.find_by(id: spend.id)).to be_nil
+      end
+    end
+  end
 end

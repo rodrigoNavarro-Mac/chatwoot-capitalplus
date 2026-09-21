@@ -19,6 +19,26 @@ class RevenueIntelligenceAPI extends ApiClient {
   syncNow() {
     return axios.post(`${this.url}/sync_now`);
   }
+
+  // Captura manual de inversión de Meta Ads (tab Marketing) — ver RevenueAdSpend.
+  getAdSpends() {
+    return axios.get(`${this.url}/ad_spends`);
+  }
+
+  createAdSpend(adSpend, force = false) {
+    return axios.post(`${this.url}/ad_spends`, { ad_spend: adSpend, force });
+  }
+
+  updateAdSpend(id, adSpend, force = false) {
+    return axios.patch(`${this.url}/ad_spends/${id}`, {
+      ad_spend: adSpend,
+      force,
+    });
+  }
+
+  deleteAdSpend(id) {
+    return axios.delete(`${this.url}/ad_spends/${id}`);
+  }
 }
 
 export default new RevenueIntelligenceAPI();

@@ -52,7 +52,54 @@ class Api::V2::Accounts::RevenueIntelligenceController < Api::V1::Accounts::Base
     render json: { queued: true }
   end
 
+  # Captura manual de inversión de Meta Ads (sección 10 del brief de Marketing) — ver
+  # RevenueAdSpend. Listado simple, sin paginación: el volumen esperado (una fila por
+  # anuncio/periodo capturado a mano) es pequeño al tamaño actual de la cuenta.
+  def ad_spends
+    records = Current.account.revenue_ad_spends.includes(:created_by, :updated_by).order(period_start: :desc, campaign_name: :asc)
+    render json: records.map { |ad_spend| ad_spend_json(ad_spend) }
+  end
+
+  def create_ad_spend
+    ad_spend = Current.account.revenue_ad_spends.new(ad_spend_params.merge(created_by_id: current_user.id, updated_by_id: current_user.id))
+    save_ad_spend(ad_spend)
+  end
+
+  def update_ad_spend
+    ad_spend = Current.account.revenue_ad_spends.find(params[:id])
+    ad_spend.assign_attributes(ad_spend_params.merge(updated_by_id: current_user.id))
+    save_ad_spend(ad_spend)
+  end
+
+  def destroy_ad_spend
+    Current.account.revenue_ad_spends.find(params[:id]).destroy!
+    head :ok
+  end
+
   private
+
+  # Solapamientos se ADVIERTEN, nunca bloquean solos (sección 10.6) — el cliente reintenta con
+  # force=true tras mostrarle la advertencia al usuario. Duplicados exactos (mismo anuncio+periodo)
+  # sí los bloquea la validación de unicidad del modelo, eso llega aquí como error normal.
+  def save_ad_spend(ad_spend)
+    overlaps = ad_spend.valid? ? ad_spend.overlapping : RevenueAdSpend.none
+    if overlaps.exists? && params[:force].blank?
+      return render json: { error: 'overlapping_period', overlaps: overlaps.as_json(only: %i[id period_start period_end amount]) },
+                    status: :conflict
+    end
+
+    return render json: ad_spend.errors, status: :unprocessable_entity unless ad_spend.save
+
+    render json: ad_spend_json(ad_spend)
+  end
+
+  def ad_spend_json(ad_spend)
+    ad_spend.as_json.merge(created_by_name: ad_spend.created_by&.name, updated_by_name: ad_spend.updated_by&.name)
+  end
+
+  def ad_spend_params
+    params.require(:ad_spend).permit(:desarrollo, :campaign_name, :adset_name, :advert_name, :period_start, :period_end, :amount, :currency)
+  end
 
   def check_authorization
     authorize :report, :view?
