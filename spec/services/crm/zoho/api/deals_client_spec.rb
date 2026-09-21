@@ -124,5 +124,25 @@ describe Crm::Zoho::Api::DealsClient do
 
       expect(result).to eq(data: [], more_records: false)
     end
+
+    it 'sends an explicit fields param when given, instead of relying on the Zoho default field set' do
+      stub = stub_request(:get, %r{zohoapis\.com/crm/v7/Deals/search})
+             .with { |request| CGI.parse(URI(request.uri).query)['fields'].first == 'Deal_Name,Stage' }
+             .to_return(status: 200, body: { data: [] }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new(hook).search_by_criteria('(Desarollo:equals:Fuego)', fields: %w[Deal_Name Stage])
+
+      expect(stub).to have_been_requested
+    end
+
+    it 'omits the fields param entirely when none is given (unchanged behavior for other callers)' do
+      stub = stub_request(:get, %r{zohoapis\.com/crm/v7/Deals/search})
+             .with { |request| CGI.parse(URI(request.uri).query)['fields'].empty? }
+             .to_return(status: 200, body: { data: [] }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new(hook).search_by_criteria('(Desarollo:equals:Fuego)')
+
+      expect(stub).to have_been_requested
+    end
   end
 end

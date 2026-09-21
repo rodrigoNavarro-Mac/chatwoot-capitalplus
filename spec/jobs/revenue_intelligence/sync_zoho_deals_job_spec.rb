@@ -22,6 +22,17 @@ describe RevenueIntelligence::SyncZohoDealsJob do
   end
 
   describe '#perform' do
+    it 'requests an explicit Deal_Name (and the rest of DealMapper fields) instead of relying on the Zoho default set' do
+      stub = stub_request(:get, %r{zohoapis\.com/crm/v7/Deals/search})
+             .with { |request| CGI.parse(URI(request.uri).query)['fields'].first == described_class::DEAL_FIELDS.join(',') }
+             .to_return(status: 200, body: { data: [] }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new.perform
+
+      expect(stub).to have_been_requested
+      expect(described_class::DEAL_FIELDS).to include('Deal_Name')
+    end
+
     it 'creates a revenue_deal for each Zoho Deal returned, mapped via DealMapper' do
       stub_deals([{ 'id' => 'deal-1', 'Stage' => 'Cerrado ganado', 'Desarollo' => 'Fuego' }])
 

@@ -31,8 +31,20 @@ class Crm::Zoho::Api::DealsClient < Crm::Zoho::Api::BaseClient
   # criteria de un solo contacto) — usado por Crm::Zoho::DealsForPeriodService para traer todos los
   # deals de un desarrollo creados en un rango de fechas, paginando (mismo patrón que
   # Crm::Zoho::Api::LeadsClient#search_by_criteria).
-  def search_by_criteria(criteria, page: 1, per_page: 200)
-    response = get('Deals/search', criteria: criteria, page: page, per_page: per_page)
+  #
+  # `fields`: opcional -- SIN especificarlo, Zoho /search devuelve un set de campos "default" que
+  # NO es fijo ni confiable (confirmado en producción 2026-09-18: dos deals de uso interno para
+  # cotizar volvieron a sincronizarse con Deal_Name ausente del payload, pese a que ese mismo campo
+  # SÍ vino en una consulta directa contra la misma cuenta minutos después -- el /search endpoint no
+  # garantiza incluirlo). RevenueIntelligence::SyncZohoDealsJob pasa una lista explícita para que
+  # RevenueIntelligence::DealMapper nunca dependa de qué campos decida incluir Zoho por default; los
+  # demás llamadores (DealsForPeriodService, BackfillService) no pasan `fields` y mantienen el
+  # comportamiento previo sin cambios.
+  def search_by_criteria(criteria, page: 1, per_page: 200, fields: nil)
+    params = { criteria: criteria, page: page, per_page: per_page }
+    params[:fields] = fields.join(',') if fields.present?
+
+    response = get('Deals/search', params)
     data = response.is_a?(Hash) ? Array(response['data']) : []
     more_records = response.is_a?(Hash) ? response.dig('info', 'more_records') || false : false
 

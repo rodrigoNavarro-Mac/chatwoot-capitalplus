@@ -9,6 +9,18 @@ class RevenueIntelligence::SyncZohoDealsJob < ApplicationJob
   OVERLAP = 10.minutes
   INITIAL_WINDOW = 24.hours
 
+  # Pasado explícito a DealsClient#search_by_criteria -- ver el comentario ahí de por qué: el
+  # set "default" de campos que Zoho /search decide devolver no es confiable, y sin Deal_Name en
+  # el payload, RevenueDeal.internal_quote_name? nunca reconoce un deal interno de cotización ya
+  # sincronizado antes con name: nil (bug real confirmado en producción 2026-09-18). Debe incluir
+  # TODOS los campos que lee RevenueIntelligence::DealMapper -- si se agrega un campo nuevo ahí,
+  # agregarlo aquí también.
+  DEAL_FIELDS = %w[Deal_Name Owner Desarollo Stage Pipeline Probability Amount Expected_Revenue
+                   Lead_Source Campaign_Source Created_Time Stage_Modified_Time Closing_Date
+                   Reason_For_Loss__s Precio_por_m2 Superficie Descuento Enganche Plazos
+                   Meses_sin_intereses Precio_a_Meses Fecha_de_entrega Tiene_el_presupuesto
+                   Productos_de_interes].freeze
+
   # until_at: solo lo usa RevenueIntelligence::BackfillService para acotar la ventana en tramos
   # (la búsqueda de Zoho rechaza cualquier criteria que devuelva más de 2000 registros); el cron
   # nunca lo pasa, siempre sincroniza hasta el momento actual.
@@ -49,7 +61,7 @@ class RevenueIntelligence::SyncZohoDealsJob < ApplicationJob
     page = 1
 
     loop do
-      result = client.search_by_criteria(criteria, page: page, per_page: PER_PAGE)
+      result = client.search_by_criteria(criteria, page: page, per_page: PER_PAGE, fields: DEAL_FIELDS)
       result[:data].each { |payload| upsert_deal(account, payload) }
 
       if result[:more_records] && page >= MAX_PAGES
