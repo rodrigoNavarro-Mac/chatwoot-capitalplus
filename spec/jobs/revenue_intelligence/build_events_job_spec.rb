@@ -248,26 +248,24 @@ describe RevenueIntelligence::BuildEventsJob do
   end
 
   describe 'appointment_created events' do
-    it 'creates an appointment_created event at starts_at, keyed by deal' do
-      starts_at = 2.days.from_now
-      account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
-                                           starts_at: starts_at)
+    it 'creates an appointment_created event at created_at (not at the future meeting time), keyed by deal' do
+      appointment = account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
+                                                         starts_at: 2.days.from_now)
 
       described_class.new.perform
 
       event = account.revenue_events.find_by(source_system: 'revenue_appointment', source_id: 'deal:deal-1')
-      expect(event.event_at).to be_within(1.second).of(starts_at)
+      expect(event.event_at).to be_within(1.second).of(appointment.created_at)
     end
 
     it 'keys the event by lead when the appointment has no zoho_deal_id yet' do
-      starts_at = 2.days.from_now
-      account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id,
-                                           starts_at: starts_at)
+      appointment = account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id,
+                                                         starts_at: 2.days.from_now)
 
       described_class.new.perform
 
       event = account.revenue_events.find_by(source_system: 'revenue_appointment', source_id: 'lead:lead-1')
-      expect(event.event_at).to be_within(1.second).of(starts_at)
+      expect(event.event_at).to be_within(1.second).of(appointment.created_at)
     end
 
     it 'deletes a stale appointment_created event when the last starts_at for that deal is cleared back to nil' do
@@ -282,17 +280,17 @@ describe RevenueIntelligence::BuildEventsJob do
       expect(account.revenue_events.where(source_system: 'revenue_appointment', source_id: 'deal:deal-1')).not_to exist
     end
 
-    it 'deduplicates two real appointments on the same deal into a single event, using the earliest starts_at' do
-      account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
-                                           starts_at: 5.days.from_now)
+    it 'deduplicates two real appointments on the same deal into a single event, using the one synced first (earliest created_at)' do
+      first_synced = account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
+                                                          starts_at: 2.days.from_now, created_at: 2.hours.ago)
       account.revenue_appointments.create!(zoho_event_id: 'event-2', zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
-                                           starts_at: 2.days.from_now)
+                                           starts_at: 5.days.from_now, created_at: 1.hour.ago)
 
       described_class.new.perform
 
       events = account.revenue_events.where(source_system: 'revenue_appointment', event_type: 'appointment_created')
       expect(events.count).to eq(1)
-      expect(events.first.event_at).to be_within(1.second).of(2.days.from_now)
+      expect(events.first.event_at).to be_within(1.second).of(first_synced.created_at)
     end
   end
 
