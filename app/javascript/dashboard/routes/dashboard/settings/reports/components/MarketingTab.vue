@@ -709,7 +709,7 @@ const deleteSpend = async adSpend => {
           <tr
             v-for="row in marketingRows"
             :key="row.key"
-            :class="row.level === 1 ? 'border-t border-n-container' : ''"
+            :class="row.level === 1 ? 'border-t-2 border-n-slate-6' : ''"
           >
             <td>
               <button
