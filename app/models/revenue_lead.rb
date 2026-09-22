@@ -14,6 +14,7 @@
 #  created_at_source                     :datetime
 #  desarrollo                            :string
 #  discard_reason                        :string
+#  effective_qualified_at                :datetime
 #  estado_civil                          :string
 #  etapa_vida                            :string
 #  first_contact_at                      :datetime
@@ -60,6 +61,7 @@
 #
 #  index_revenue_leads_on_account_id_and_created_at_source       (account_id,created_at_source)
 #  index_revenue_leads_on_account_id_and_desarrollo              (account_id,desarrollo)
+#  index_revenue_leads_on_account_id_and_effective_qualified_at  (account_id,effective_qualified_at)
 #  index_revenue_leads_on_account_id_and_first_human_contact_at  (account_id,first_human_contact_at)
 #  index_revenue_leads_on_account_id_and_lead_status             (account_id,lead_status)
 #  index_revenue_leads_on_account_id_and_owner_id                (account_id,owner_id)

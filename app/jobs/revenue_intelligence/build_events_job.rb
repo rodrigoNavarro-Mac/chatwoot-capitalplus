@@ -14,6 +14,9 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
   queue_as :scheduled_jobs
 
   TERMINAL_CALL_STATUSES = %w[completed no_answer failed rejected].freeze
+  # Ver comentario de update_effective_qualified_at.
+  QUALIFIED_OR_LATER_STAGES = ([RevenueDeal::SCHEDULED_STAGE] + RevenueDeal::VISIT_STAGES + [RevenueDeal::RESERVED_STAGE,
+                                                                                             RevenueDeal::WON_STAGE]).uniq.freeze
 
   def perform(account_id = nil)
     hooks = Integrations::Hook.enabled.where(app_id: 'zoho_crm')
@@ -145,7 +148,49 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     each_safely(account, leads, 'lead') do |lead|
       upsert_lead_milestone(account, lead, 'lead_created', lead.created_at_source)
       upsert_lead_milestone(account, lead, 'lead_contacted', lead.first_contact_at)
-      upsert_lead_milestone(account, lead, 'lead_qualified', lead.qualified_at)
+    end
+
+    update_effective_qualified_at(account)
+  end
+
+  # Un lead cuenta como calificado si Zoho trae Fecha_de_calificación llena (qualified_at), O si su
+  # deal alcanzó "Agendo cita" o una etapa posterior según Stage_History -- confirmado con el
+  # usuario (2026-09-2X) que el equipo de ventas no siempre llena ese campo de Zoho antes de agendar
+  # una cita real, así que sin esto "Citas" podía superar a "Calificados" en el funnel, rompiendo su
+  # lectura. Mismo principio de "etapa máxima alcanzada" ya aplicado a Contactados
+  # (LeadMapper::CONTACTED_LEAD_STATUSES incluye 'Calificado') y a Visitas (RevenueDeal::VISIT_STAGES).
+  #
+  # Se persiste en una columna PROPIA (revenue_leads.effective_qualified_at), nunca sobreescribiendo
+  # qualified_at: ese campo es un mirror crudo de Zoho que LeadMapper reasigna en CADA sync, así que
+  # cualquier valor inferido ahí se perdería en la siguiente corrida de SyncZohoLeadsJob.
+  #
+  # Recalcula TODOS los leads con evidencia (no solo los tocados en la ventana incremental de este
+  # run) porque la evidencia vive en revenue_stage_events, que puede cambiar sin que el propio lead
+  # se vuelva a tocar -- mismo criterio ya usado en build_visit_effective_events/
+  # RefreshAggregatesJob::RECHECK_WINDOW, barato al volumen actual de la cuenta.
+  def update_effective_qualified_at(account)
+    inferred = inferred_qualification_lookup(account)
+    leads = account.revenue_leads.where.not(qualified_at: nil).or(account.revenue_leads.where(id: inferred.keys))
+
+    leads.find_each do |lead|
+      effective = [lead.qualified_at, inferred[lead.id]].compact.min
+      # rubocop:disable Rails/SkipsModelValidations
+      lead.update_columns(effective_qualified_at: effective) if lead.effective_qualified_at != effective
+      # rubocop:enable Rails/SkipsModelValidations
+      upsert_lead_milestone(account, lead, 'lead_qualified', effective)
+    end
+  end
+
+  # { revenue_lead_id => fecha MÁS ANTIGUA en la que su deal alcanzó QUALIFIED_OR_LATER_STAGES }
+  def inferred_qualification_lookup(account)
+    deal_lead_id_by_zoho = account.revenue_deals.where.not(revenue_lead_id: nil).pluck(:zoho_deal_id, :revenue_lead_id).to_h
+
+    account.revenue_stage_events.where(stage: QUALIFIED_OR_LATER_STAGES).where.not(zoho_deal_id: nil)
+           .pluck(:zoho_deal_id, :entered_at).each_with_object({}) do |(zoho_deal_id, entered_at), lookup|
+      lead_id = deal_lead_id_by_zoho[zoho_deal_id]
+      next unless lead_id
+
+      lookup[lead_id] = [lookup[lead_id], entered_at].compact.min
     end
   end
 

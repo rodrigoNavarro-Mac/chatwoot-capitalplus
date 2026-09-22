@@ -153,6 +153,75 @@ describe RevenueIntelligence::BuildEventsJob do
     end
   end
 
+  describe 'effective_qualified_at inference (lead_qualified sin depender de Fecha_de_calificación de Zoho)' do
+    it 'infers qualification from the linked deal reaching RevenueDeal::SCHEDULED_STAGE when qualified_at is blank' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id, created_at_source: 3.days.ago)
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Agendo cita', entered_at: 1.day.ago)
+
+      described_class.new.perform
+
+      lead.reload
+      expect(lead.effective_qualified_at).to be_within(1.second).of(1.day.ago)
+      expect(account.revenue_events.find_by(source_system: 'revenue_lead', source_id: lead.id.to_s,
+                                            event_type: 'lead_qualified')).to be_present
+    end
+
+    it 'also infers from a later stage (e.g. Visita efectiva) reached without ever passing through Agendo cita' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id, created_at_source: 3.days.ago)
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Visita efectiva', entered_at: 1.day.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.effective_qualified_at).to be_present
+    end
+
+    it 'prefers the earliest of the explicit qualified_at and the inferred date when both exist' do
+      explicit = 10.days.ago
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id, created_at_source: 15.days.ago,
+                                           qualified_at: explicit)
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Agendo cita', entered_at: 1.day.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.effective_qualified_at).to be_within(1.second).of(explicit)
+    end
+
+    it 'never sets effective_qualified_at for a lead whose deal never reached Agendo cita or later' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id, created_at_source: 3.days.ago)
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Contactado', entered_at: 1.day.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.effective_qualified_at).to be_nil
+    end
+
+    it 'never overwrites the raw qualified_at column (stays the untouched Zoho mirror)' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id, created_at_source: 3.days.ago)
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Agendo cita', entered_at: 1.day.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.qualified_at).to be_nil
+    end
+
+    it "recomputes even a lead untouched this run, because the evidence lives on its deal's stage_events" do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id, created_at_source: 10.days.ago)
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id)
+      described_class.new.perform
+      expect(lead.reload.effective_qualified_at).to be_nil
+
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Agendo cita', entered_at: 1.hour.ago)
+      described_class.new.perform
+
+      expect(lead.reload.effective_qualified_at).to be_present
+    end
+  end
+
   describe 'deal_created events' do
     it 'creates a deal_created event' do
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id, created_at_source: Time.current)

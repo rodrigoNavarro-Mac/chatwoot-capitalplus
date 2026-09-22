@@ -10,20 +10,25 @@
 #
 # Table name: revenue_ad_spends
 #
-#  id             :bigint           not null, primary key
-#  adset_name     :string
-#  advert_name    :string
-#  amount         :decimal(14, 2)   not null
-#  campaign_name  :string           not null
-#  currency       :string           default("MXN"), not null
-#  desarrollo     :string
-#  period_end     :date             not null
-#  period_start   :date             not null
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
-#  account_id     :bigint           not null
-#  created_by_id  :bigint
-#  updated_by_id  :bigint
+#  id            :bigint           not null, primary key
+#  adset_name    :string
+#  advert_name   :string
+#  amount        :decimal(14, 2)   not null
+#  campaign_name :string           not null
+#  currency      :string           default("MXN"), not null
+#  desarrollo    :string
+#  period_end    :date             not null
+#  period_start  :date             not null
+#  created_at    :datetime         not null
+#  updated_at    :datetime         not null
+#  account_id    :bigint           not null
+#  created_by_id :bigint
+#  updated_by_id :bigint
+#
+# Indexes
+#
+#  idx_on_account_id_period_start_period_end_de56c7d911  (account_id,period_start,period_end)
+#  idx_revenue_ad_spends_dedup                           (account_id,campaign_name,adset_name,advert_name,period_start,period_end) UNIQUE
 #
 class RevenueAdSpend < ApplicationRecord
   CURRENCIES = %w[MXN].freeze

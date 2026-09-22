@@ -437,17 +437,29 @@ class V2::Reports::RevenueIntelligenceBuilder
     end
   end
 
+  # lost_count/seguimiento_count reutilizan funnel_lost_counts/funnel_seguimiento_counts TAL CUAL
+  # (mismos números que ya muestra el tab Funnel/Overview para estas 5 etapas) -- esos dos métodos
+  # no son sensibles al filtro de campaña/adset/anuncio (calculan sobre TODO el desarrollo
+  # seleccionado), así que con un filtro de marketing activo se muestran en 0 en vez de mezclar un
+  # numerador filtrado con un denominador de cuenta completa -- mismo criterio ya aplicado a
+  # lead_contacted_seguimiento en filtered_marketing_totals.
   def marketing_funnel
     totals = marketing_totals
-    leads_count = totals['lead_created'] || 0
+    lost = marketing_filtered? ? {} : funnel_lost_counts
+    seguimiento = marketing_filtered? ? {} : funnel_seguimiento_counts
 
-    MARKETING_FUNNEL_SEQUENCE.each_with_index.map do |metric, index|
-      count = totals[metric] || 0
-      previous_metric = MARKETING_FUNNEL_SEQUENCE[index - 1] if index.positive?
-      { metric: metric, count: count,
-        conversion_from_previous: previous_metric ? safe_rate(count, totals[previous_metric] || 0) : nil,
-        conversion_from_leads: safe_rate(count, leads_count) }
+    previous_metrics = [nil, *MARKETING_FUNNEL_SEQUENCE[0..-2]]
+    MARKETING_FUNNEL_SEQUENCE.zip(previous_metrics).map do |metric, previous_metric|
+      marketing_funnel_step(metric: metric, previous_metric: previous_metric, totals: totals, lost: lost, seguimiento: seguimiento)
     end
+  end
+
+  def marketing_funnel_step(metric:, previous_metric:, totals:, lost:, seguimiento:)
+    count = totals[metric] || 0
+    { metric: metric, count: count,
+      conversion_from_previous: previous_metric && safe_rate(count, totals[previous_metric] || 0),
+      conversion_from_leads: safe_rate(count, totals['lead_created'] || 0),
+      lost_count: lost[metric] || 0, seguimiento_count: seguimiento[metric] || 0 }
   end
 
   def sum_metric(rows, metric)
@@ -683,15 +695,17 @@ class V2::Reports::RevenueIntelligenceBuilder
   # para justificar un solo builder en vez de 8, ver comentario de clase); revisar si el volumen
   # crece mucho.
   def funnel_seguimiento_counts
-    cohort_by_lead_id, cohort_by_deal_id = funnel_cohort_lookups
-    range_start = Time.find_zone!(RevenueIntelligence::TIMEZONE).parse(date_range.begin.to_s)
+    @funnel_seguimiento_counts ||= begin
+      cohort_by_lead_id, cohort_by_deal_id = funnel_cohort_lookups
+      range_start = Time.find_zone!(RevenueIntelligence::TIMEZONE).parse(date_range.begin.to_s)
 
-    events = account.revenue_events.where(event_type: RevenueIntelligence::RefreshAggregatesJob::FUNNEL_EVENT_TYPES, event_at: date_range)
-    events.pluck(:event_type, :zoho_lead_id, :zoho_deal_id).each_with_object(Hash.new(0)) do |(event_type, zoho_lead_id, zoho_deal_id), acc|
-      created_at, desarrollo = cohort_by_lead_id[zoho_lead_id] || cohort_by_deal_id[zoho_deal_id] || [nil, nil]
-      next unless seguimiento?(created_at, desarrollo, range_start)
+      events = account.revenue_events.where(event_type: RevenueIntelligence::RefreshAggregatesJob::FUNNEL_EVENT_TYPES, event_at: date_range)
+      events.pluck(:event_type, :zoho_lead_id, :zoho_deal_id).each_with_object(Hash.new(0)) do |(event_type, zoho_lead_id, zoho_deal_id), acc|
+        created_at, desarrollo = cohort_by_lead_id[zoho_lead_id] || cohort_by_deal_id[zoho_deal_id] || [nil, nil]
+        next unless seguimiento?(created_at, desarrollo, range_start)
 
-      acc[event_type] += 1
+        acc[event_type] += 1
+      end
     end
   end
 
@@ -718,16 +732,19 @@ class V2::Reports::RevenueIntelligenceBuilder
   #
   # closed_won es terminal (no hay "siguiente etapa" de la que caerse) — nunca aparece aquí.
   def funnel_lost_counts
-    counts = Hash.new(0)
-    lead_lost_counts(counts)
-    deal_lost_counts(counts)
-    counts
+    @funnel_lost_counts ||= begin
+      counts = Hash.new(0)
+      lead_lost_counts(counts)
+      deal_lost_counts(counts)
+      counts
+    end
   end
 
   def lead_lost_counts(counts)
     leads_with_deal = account.revenue_deals.where.not(revenue_lead_id: nil).select(:revenue_lead_id)
     base_leads_scope.where.not(discard_reason: nil).where.not(id: leads_with_deal)
-                    .pluck(:qualified_at, :first_contact_at, :created_at_source).each do |qualified_at, first_contact_at, created_at_source|
+                    .pluck(:effective_qualified_at, :first_contact_at,
+                           :created_at_source).each do |qualified_at, first_contact_at, created_at_source|
       stage, event_at = highest_lead_stage(qualified_at, first_contact_at, created_at_source)
       next unless event_at && date_range.cover?(local_date(event_at))
 

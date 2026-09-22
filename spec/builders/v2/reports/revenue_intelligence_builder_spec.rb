@@ -400,13 +400,35 @@ describe V2::Reports::RevenueIntelligenceBuilder do
 
       expect(result[:marketing_funnel]).to eq(
         [
-          { metric: 'lead_created', count: 100, conversion_from_previous: nil, conversion_from_leads: 1.0 },
-          { metric: 'lead_contacted', count: 50, conversion_from_previous: 0.5, conversion_from_leads: 0.5 },
-          { metric: 'lead_qualified', count: 10, conversion_from_previous: 0.2, conversion_from_leads: 0.1 },
-          { metric: 'appointment_created', count: 5, conversion_from_previous: 0.5, conversion_from_leads: 0.05 },
-          { metric: 'visit_effective', count: 2, conversion_from_previous: 0.4, conversion_from_leads: 0.02 }
+          { metric: 'lead_created', count: 100, conversion_from_previous: nil, conversion_from_leads: 1.0, lost_count: 0, seguimiento_count: 0 },
+          { metric: 'lead_contacted', count: 50, conversion_from_previous: 0.5, conversion_from_leads: 0.5, lost_count: 0, seguimiento_count: 0 },
+          { metric: 'lead_qualified', count: 10, conversion_from_previous: 0.2, conversion_from_leads: 0.1, lost_count: 0, seguimiento_count: 0 },
+          { metric: 'appointment_created', count: 5, conversion_from_previous: 0.5, conversion_from_leads: 0.05, lost_count: 0,
+            seguimiento_count: 0 },
+          { metric: 'visit_effective', count: 2, conversion_from_previous: 0.4, conversion_from_leads: 0.02, lost_count: 0,
+            seguimiento_count: 0 }
         ]
       )
+    end
+
+    it 'surfaces lost_count from the same account-wide computation the Funnel tab uses' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', qualified_at: 5.days.ago, effective_qualified_at: 5.days.ago,
+                                    discard_reason: 'no interesado')
+
+      result = builder.build
+
+      qualified_step = result[:marketing_funnel].find { |s| s[:metric] == 'lead_qualified' }
+      expect(qualified_step[:lost_count]).to eq(1)
+    end
+
+    it 'shows lost_count/seguimiento_count as 0 when a campaign/adset/advert filter is active (not scoped by ad, avoids a misleading mix)' do
+      rollup('campaign', 'camp-1', 'lead_created', count: 10)
+      params_with_filter = { since: 20.days.ago.to_i.to_s, until: Time.current.to_i.to_s, campaign_id: 'camp-1' }
+
+      result = described_class.new(account: account, params: params_with_filter).build
+
+      expect(result[:marketing_funnel].first[:lost_count]).to eq(0)
+      expect(result[:marketing_funnel].first[:seguimiento_count]).to eq(0)
     end
   end
 

@@ -160,6 +160,8 @@ const funnelMeterSteps = computed(() =>
     count: step.count,
     taperPercent: FUNNEL_STAGE_TAPER[step.metric],
     actualPercent: Math.round((step.conversion_from_previous ?? 1) * 100),
+    seguimientoCount: step.seguimiento_count,
+    lostCount: step.lost_count,
   }))
 );
 
@@ -587,6 +589,12 @@ const deleteSpend = async adSpend => {
           :count="step.count"
           :actual-percent="step.actualPercent"
           :taper-percent="step.taperPercent"
+          :activity-count="step.seguimientoCount"
+          :activity-tooltip="
+            t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
+          "
+          :lost-count="step.lostCount"
+          :lost-tooltip="t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.LOST_TOOLTIP')"
         />
       </div>
     </div>
@@ -698,7 +706,11 @@ const deleteSpend = async adSpend => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in marketingRows" :key="row.key">
+          <tr
+            v-for="row in marketingRows"
+            :key="row.key"
+            :class="row.level === 1 ? 'border-t border-n-container' : ''"
+          >
             <td>
               <button
                 v-if="row.expandable"

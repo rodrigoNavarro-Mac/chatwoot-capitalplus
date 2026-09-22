@@ -385,13 +385,25 @@ describe RevenueIntelligence::RefreshAggregatesJob do
   end
 
   describe 'marketing dimension rollups for lead_qualified/appointment_created/visit_effective' do
-    it 'counts lead_qualified by campaign_id, keyed by qualified_at' do
-      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', qualified_at: Time.current)
+    it 'counts lead_qualified by campaign_id, keyed by effective_qualified_at (NOT the raw qualified_at column)' do
+      # effective_qualified_at es la columna que BuildEventsJob#update_effective_qualified_at
+      # mantiene (qualified_at crudo O fecha inferida de "Agendo cita" en adelante) -- este spec
+      # prueba RefreshAggregatesJob de forma aislada, así que la fija directo como lo haría ese job.
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', qualified_at: Time.current,
+                                    effective_qualified_at: Time.current)
 
       described_class.new.perform
 
       rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_qualified')
       expect(rollup.count).to eq(1)
+    end
+
+    it 'does not count lead_qualified when only the raw qualified_at is set but effective_qualified_at was never computed' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1', qualified_at: Time.current)
+
+      described_class.new.perform
+
+      expect(account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_qualified')).to be_nil
     end
 
     it 'attributes appointment_created to the campaign of the deal referenced by the event\'s zoho_deal_id' do

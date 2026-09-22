@@ -195,7 +195,11 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
 
   # dimension_id: campaign_id (y, en paralelo, adset/advert — ver marketing_dimension_rows).
   # lead_created/lead_contacted desde revenue_leads directo (no vía eventos, el campaign_id no
-  # viaja en el evento); lead_converted = de los leads CREADOS en el periodo, cuántos ya tienen un
+  # viaja en el evento); lead_qualified usa effective_qualified_at (NO qualified_at crudo) — un
+  # lead cuenta como calificado también si su deal alcanzó "Agendo cita" o después, aunque Zoho
+  # nunca haya llenado Fecha_de_calificación (ver BuildEventsJob#update_effective_qualified_at,
+  # mismo bug real que hacía que "Citas" superara a "Calificados" en el funnel); lead_converted =
+  # de los leads CREADOS en el periodo, cuántos ya tienen un
   # revenue_deal asociado (ver converted_lead_ids) -- misma cohorte que lead_created, para que la
   # UI pueda anotar "X ya convertidos" junto al conteo de Leads; deal_created/closed_won heredados
   # del campaign_id del lead de origen del deal (best-effort, ver revenue_deals.revenue_lead_id en
@@ -208,7 +212,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   def campaign_rows(account, since, until_at, converted_ids)
     campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
       campaign_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
-      campaign_lead_rows(account, since, until_at, :qualified_at, 'lead_qualified') +
+      campaign_lead_rows(account, since, until_at, :effective_qualified_at, 'lead_qualified') +
       campaign_lead_rows(account, since, until_at, :created_at_source, 'lead_converted', converted_ids: converted_ids) +
       campaign_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
       campaign_deal_rows(account, since, until_at, date_column: :closing_date, metric: 'closed_won', won_only: true)
@@ -223,7 +227,7 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   def source_rows(account, since, until_at, converted_ids)
     source_lead_rows(account, since, until_at, :created_at_source, 'lead_created') +
       source_lead_rows(account, since, until_at, :first_contact_at, 'lead_contacted') +
-      source_lead_rows(account, since, until_at, :qualified_at, 'lead_qualified') +
+      source_lead_rows(account, since, until_at, :effective_qualified_at, 'lead_qualified') +
       source_lead_rows(account, since, until_at, :created_at_source, 'lead_converted', converted_ids: converted_ids) +
       source_deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
       source_deal_rows(account, since, until_at, date_column: :closing_date, metric: 'closed_won', won_only: true)
