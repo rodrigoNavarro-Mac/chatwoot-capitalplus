@@ -212,6 +212,15 @@ revenue_intelligence_refresh_aggregates_job:
   class: 'RevenueIntelligence::RefreshAggregatesJob'
   queue: scheduled_jobs
 
+# executed hourly at :55 — trae el gasto por anuncio desde Meta Marketing API (revenue_ad_spends,
+# source: meta_api). Independiente de revenue_rollups/refresh_aggregates (esa tabla no participa
+# del rebuild horario), el orden respecto a los jobs anteriores no importa (Revenue Intelligence,
+# integración Meta Ads, Fase 2/3, 2026-09-22).
+revenue_intelligence_sync_meta_ads_spend_job:
+  cron: '55 * * * *'
+  class: 'RevenueIntelligence::SyncMetaAdsSpendJob'
+  queue: scheduled_jobs
+
 # executed daily at 0610 UTC — reglas determinísticas de riesgo de negocio (deals estancados,
 # leads sin contactar, citas sin visita verificada) sobre lo ya sincronizado/agregado (Revenue
 # Intelligence, Fase 4). Diario, no horario: son señales de reconciliación periódica, no

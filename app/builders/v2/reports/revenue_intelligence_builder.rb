@@ -331,7 +331,19 @@ class V2::Reports::RevenueIntelligenceBuilder
     scope = scope.where(campaign_name: marketing_campaign_filter) if marketing_campaign_filter
     scope = scope.where(adset_name: marketing_adset_filter) if marketing_adset_filter
     scope = scope.where(advert_name: marketing_advert_filter) if marketing_advert_filter
-    scope.to_a
+    apply_meta_api_precedence(scope.to_a)
+  end
+
+  # "Automático manda" (decisión explícita del usuario, Fase 2 del plan de integración Meta Ads,
+  # 2026-09-22): si ya existe AL MENOS UN registro source=meta_api para una campaña en el rango
+  # consultado, se descartan los registros manual de esa MISMA campaña en ese rango -- evita doble
+  # conteo cuando la granularidad no coincide (ej. una captura manual semanal a nivel campaña
+  # conviviendo con filas automáticas diarias a nivel anuncio, ver RevenueIntelligence::
+  # SyncMetaAdsSpendJob). Campañas sin ningún dato meta_api todavía conservan su captura manual
+  # tal cual -- nunca se pierde histórico previo a conectar la API.
+  def apply_meta_api_precedence(records)
+    campaigns_with_meta_api = records.select { |r| r.source == 'meta_api' }.to_set(&:campaign_name)
+    records.reject { |r| r.source == 'manual' && campaigns_with_meta_api.include?(r.campaign_name) }
   end
 
   # ads_with_leads: cuántos anuncios distintos tuvieron actividad (cualquier métrica) en el rango
@@ -369,23 +381,26 @@ class V2::Reports::RevenueIntelligenceBuilder
 
     rows = rollup_summary('advert').map do |dimension_id, metrics|
       campaign_name, adset_name, _advert_id, advert_name = dimension_id.split('::', 4)
-      spend_amount = spends[[campaign_name, adset_name, advert_name]]
-      marketing_ad_row(campaign_name, adset_name, advert_name, metrics, spend_amount)
+      spend = spends[[campaign_name, adset_name, advert_name]] || { amount: nil, source: nil }
+      marketing_ad_row(campaign_name, adset_name, advert_name, metrics, spend)
     end
     rows.sort_by { |row| -(row[:metrics]['lead_created'] || 0) }
   end
 
+  # spend[:source] es homogéneo dentro de cada grupo -- apply_meta_api_precedence ya garantiza
+  # que nunca conviven filas manual y meta_api para la misma campaña en spend_records_in_range,
+  # así que basta con leer la fuente de cualquier registro del grupo (el primero).
   def ad_spend_index
     spend_records_in_range.select { |r| r.advert_name.present? }
                           .group_by { |r| [r.campaign_name, r.adset_name, r.advert_name] }
-                          .transform_values { |records| records.sum(&:amount) }
+                          .transform_values { |records| { amount: records.sum(&:amount), source: records.first.source } }
   end
 
-  def marketing_ad_row(campaign_name, adset_name, advert_name, metrics, spend_amount)
+  def marketing_ad_row(campaign_name, adset_name, advert_name, metrics, spend)
     {
       campaign_name: campaign_name, adset_name: adset_name, advert_name: advert_name,
-      metrics: metrics.slice(*MARKETING_TOTAL_METRICS), spend_amount: spend_amount,
-      costs: spend_cost_summary(spend_amount, metrics),
+      metrics: metrics.slice(*MARKETING_TOTAL_METRICS), spend_amount: spend[:amount], spend_source: spend[:source],
+      costs: spend_cost_summary(spend[:amount], metrics),
       rates: {
         contact_rate: safe_rate(metrics['lead_contacted'], metrics['lead_created']),
         qualification_rate: safe_rate(metrics['lead_qualified'], metrics['lead_created']),

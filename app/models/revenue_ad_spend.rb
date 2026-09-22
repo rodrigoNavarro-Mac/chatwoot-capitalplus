@@ -1,11 +1,16 @@
-# Inversión de Meta Ads capturada manualmente por el equipo (ver auditoría de Fase 1 del tab
-# Marketing: no existe ninguna integración de costos de Meta). Nunca se llena por sync automático
-# ni vive en revenue_rollups (esa tabla se borra/reconstruye cada hora vía RefreshAggregatesJob).
+# Inversión de Meta Ads: captura manual del equipo (source: manual, ver Fase 1 original del tab
+# Marketing) O sincronizada automáticamente desde Meta Marketing API (source: meta_api, ver
+# RevenueIntelligence::SyncMetaAdsSpendJob). Nunca vive en revenue_rollups (esa tabla se borra/
+# reconstruye cada hora vía RefreshAggregatesJob) -- por eso esta tabla existe aparte.
 #
 # El match contra revenue_leads/revenue_deals es por NOMBRE (campaign_name/adset_name/
 # advert_name), nunca por id: confirmado que Zoho/Meta nunca entrega un id real para esta cuenta
 # (ver RevenueIntelligence::LeadMapper). adset_name/advert_name son opcionales a propósito — la
-# captura puede ser solo a nivel campaña o campaña+adset.
+# captura manual puede ser solo a nivel campaña o campaña+adset (los registros meta_api siempre
+# traen los tres, vienen de la Insights API a nivel anuncio).
+#
+# Precedencia cuando conviven ambas fuentes para la misma campaña: "automático manda" (decisión
+# explícita del usuario) -- ver RevenueIntelligenceBuilder#spend_records_in_range.
 # == Schema Information
 #
 # Table name: revenue_ad_spends
@@ -19,6 +24,7 @@
 #  desarrollo    :string
 #  period_end    :date             not null
 #  period_start  :date             not null
+#  source        :string           default("manual"), not null
 #  created_at    :datetime         not null
 #  updated_at    :datetime         not null
 #  account_id    :bigint           not null
@@ -27,11 +33,13 @@
 #
 # Indexes
 #
+#  idx_on_account_id_campaign_name_source_15eb13a608     (account_id,campaign_name,source)
 #  idx_on_account_id_period_start_period_end_de56c7d911  (account_id,period_start,period_end)
 #  idx_revenue_ad_spends_dedup                           (account_id,campaign_name,adset_name,advert_name,period_start,period_end) UNIQUE
 #
 class RevenueAdSpend < ApplicationRecord
   CURRENCIES = %w[MXN].freeze
+  SOURCES = %w[manual meta_api].freeze
 
   belongs_to :account
   belongs_to :created_by, class_name: 'User', optional: true
@@ -41,8 +49,12 @@ class RevenueAdSpend < ApplicationRecord
   validates :period_start, :period_end, presence: true
   validates :amount, numericality: { greater_than_or_equal_to: 0 }
   validates :currency, inclusion: { in: CURRENCIES }
+  validates :source, inclusion: { in: SOURCES }
   validates :campaign_name, uniqueness: { scope: [:account_id, :adset_name, :advert_name, :period_start, :period_end] }
   validate :period_start_before_period_end
+
+  scope :meta_api, -> { where(source: 'meta_api') }
+  scope :manual, -> { where(source: 'manual') }
 
   # Contenido, no solapado: mismo criterio que RevenueIntelligence::RevenueIntelligenceBuilder
   # para decidir si un registro de inversión aplica al rango de fechas filtrado en el dashboard.

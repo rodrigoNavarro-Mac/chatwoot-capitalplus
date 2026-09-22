@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_21_130000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_22_173000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1652,7 +1652,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_21_130000) do
     t.bigint "updated_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "source", default: "manual", null: false
     t.index ["account_id", "campaign_name", "adset_name", "advert_name", "period_start", "period_end"], name: "idx_revenue_ad_spends_dedup", unique: true
+    t.index ["account_id", "campaign_name", "source"], name: "idx_on_account_id_campaign_name_source_15eb13a608"
     t.index ["account_id", "period_start", "period_end"], name: "idx_on_account_id_period_start_period_end_de56c7d911"
   end
 

@@ -990,6 +990,8 @@
       "AD_TABLE_EMPTY": "No ad-level activity in this period",
       "AD_COLUMN": "Ad",
       "SPEND_COLUMN": "Investment",
+      "SPEND_SOURCE_META_API": "Meta",
+      "SPEND_SOURCE_META_API_TOOLTIP": "Synced automatically from Meta Marketing API — not editable, it updates on its own every hour",
       "FILTER_ALL_CAMPAIGNS": "All campaigns",
       "FILTER_ALL_ADSETS": "All ad sets",
       "FILTER_ALL_ADVERTS": "All ads",

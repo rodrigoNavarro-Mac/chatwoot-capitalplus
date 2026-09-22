@@ -802,12 +802,30 @@ const deleteSpend = async adSpend => {
             </td>
             <td>
               <button
+                v-if="row.spend_source !== 'meta_api'"
                 type="button"
                 class="cursor-pointer bg-transparent border-0 p-0 underline"
                 @click="openNewSpend"
               >
                 {{ formatCurrency(row.spend_amount) }}
               </button>
+              <span v-else class="inline-flex items-center gap-1">
+                {{ formatCurrency(row.spend_amount) }}
+                <span
+                  class="text-xxs px-1 rounded bg-n-teal-3 text-n-teal-11"
+                  :title="
+                    t(
+                      'REVENUE_INTELLIGENCE_REPORTS.MARKETING.SPEND_SOURCE_META_API_TOOLTIP'
+                    )
+                  "
+                >
+                  {{
+                    t(
+                      'REVENUE_INTELLIGENCE_REPORTS.MARKETING.SPEND_SOURCE_META_API'
+                    )
+                  }}
+                </span>
+              </span>
             </td>
             <td v-for="metric in AD_TABLE_METRICS" :key="metric">
               {{ row.metrics[metric] || 0 }}

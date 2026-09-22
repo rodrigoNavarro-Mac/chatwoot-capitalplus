@@ -33,6 +33,12 @@ describe RevenueAdSpend do
       expect(build_spend(currency: 'MXN')).to be_valid
     end
 
+    it 'defaults source to manual and only accepts manual/meta_api' do
+      expect(build_spend.source).to eq('manual')
+      expect(build_spend(source: 'meta_api')).to be_valid
+      expect(build_spend(source: 'zoho')).to be_invalid
+    end
+
     it 'rejects an exact duplicate (same campaign/adset/advert/period), even when adset/advert are both nil' do
       build_spend.save!
 
@@ -96,6 +102,16 @@ describe RevenueAdSpend do
       result = account.revenue_ad_spends.within_period(20.days.ago.to_date, Date.current)
 
       expect(result).to contain_exactly(contained)
+    end
+  end
+
+  describe '.manual / .meta_api scopes' do
+    it 'splits records by source' do
+      manual = build_spend.tap(&:save!)
+      auto = build_spend(campaign_name: 'Camp Y', source: 'meta_api').tap(&:save!)
+
+      expect(account.revenue_ad_spends.manual).to contain_exactly(manual)
+      expect(account.revenue_ad_spends.meta_api).to contain_exactly(auto)
     end
   end
 end

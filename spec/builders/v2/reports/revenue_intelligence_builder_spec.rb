@@ -522,7 +522,44 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       row = builder.build[:marketing_ad_table].first
 
       expect(row[:spend_amount].to_f).to eq(500.0)
+      expect(row[:spend_source]).to eq('manual')
       expect(row[:costs][:cost_per_lead]).to eq(50.0)
+    end
+
+    it 'flags spend_source as meta_api for spend synced from Meta Marketing API' do
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Uno',
+                                        period_start: 5.days.ago.to_date, period_end: 5.days.ago.to_date, amount: 300, source: 'meta_api')
+
+      row = builder.build[:marketing_ad_table].first
+
+      expect(row[:spend_amount].to_f).to eq(300.0)
+      expect(row[:spend_source]).to eq('meta_api')
+    end
+
+    it '"automatico manda": ignores a coarser manual capture once meta_api spend exists for the same campaign' do
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
+      # Captura manual histórica a nivel campaña (sin adset/advert), previa a conectar la API.
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: nil, advert_name: nil,
+                                        period_start: 15.days.ago.to_date, period_end: 10.days.ago.to_date, amount: 5000, source: 'manual')
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Uno',
+                                        period_start: 5.days.ago.to_date, period_end: 5.days.ago.to_date, amount: 300, source: 'meta_api')
+
+      result = builder.build
+
+      expect(result[:marketing_spend][:total_amount].to_f).to eq(300.0)
+      expect(result[:marketing_ad_table].first[:spend_source]).to eq('meta_api')
+    end
+
+    it 'keeps the manual capture for a campaign that has no meta_api spend at all' do
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Uno',
+                                        period_start: 5.days.ago.to_date, period_end: 5.days.ago.to_date, amount: 300, source: 'manual')
+
+      result = builder.build
+
+      expect(result[:marketing_spend][:total_amount].to_f).to eq(300.0)
+      expect(result[:marketing_ad_table].first[:spend_source]).to eq('manual')
     end
   end
 
