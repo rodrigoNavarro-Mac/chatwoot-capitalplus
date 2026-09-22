@@ -15,9 +15,14 @@ describe RevenueIntelligence::SyncMetaAdsSpendJob do
     collection
   end
 
+  def stub_currency(a_client, ad_account_id, currency: 'MXN')
+    allow(a_client).to receive(:get_object).with(ad_account_id, { fields: 'currency' }, { api_version: described_class::GRAPH_API_VERSION })
+                                           .and_return({ 'currency' => currency })
+  end
+
   before do
     allow(Koala::Facebook::API).to receive(:new).with(hook.access_token).and_return(client)
-    allow(client).to receive(:get_object).with('act_123456789', fields: 'currency').and_return({ 'currency' => 'MXN' })
+    stub_currency(client, 'act_123456789')
   end
 
   it 'creates a meta_api-sourced revenue_ad_spend row per insight row' do
@@ -31,6 +36,26 @@ describe RevenueIntelligence::SyncMetaAdsSpendJob do
       amount: 123.45, currency: 'MXN', source: 'meta_api',
       period_start: Date.parse('2026-09-20'), period_end: Date.parse('2026-09-20')
     )
+  end
+
+  it 'normalizes an ad_account_id missing the act_ prefix (real production incident: Graph API error_subcode 33 without it)' do
+    hook.update!(settings: { 'ad_account_id' => '123456789' })
+    allow(client).to receive(:api).and_return(page_of([insight_row]))
+
+    described_class.new.perform(account.id)
+
+    expect(client).to have_received(:get_object).with('act_123456789', anything, anything)
+    expect(client).to have_received(:api).with('act_123456789/insights', anything, anything, anything)
+    expect(account.revenue_ad_spends.count).to eq(1)
+  end
+
+  it 'always pins an explicit Graph API version, never the unversioned default Meta now rejects (production incident: OAuthException 2635)' do
+    allow(client).to receive(:api).and_return(page_of([insight_row]))
+
+    described_class.new.perform(account.id)
+
+    expect(client).to have_received(:get_object).with(anything, anything, { api_version: 'v25.0' })
+    expect(client).to have_received(:api).with(anything, anything, 'get', { api_version: 'v25.0' })
   end
 
   it 'follows pagination until next_page is nil' do
@@ -77,7 +102,7 @@ describe RevenueIntelligence::SyncMetaAdsSpendJob do
   end
 
   it 'aborts the sync for a hook whose ad account currency is not MXN, without raising' do
-    allow(client).to receive(:get_object).with('act_123456789', fields: 'currency').and_return({ 'currency' => 'USD' })
+    stub_currency(client, 'act_123456789', currency: 'USD')
     expect(client).not_to receive(:api)
 
     expect { described_class.new.perform(account.id) }.not_to raise_error
@@ -100,7 +125,7 @@ describe RevenueIntelligence::SyncMetaAdsSpendJob do
     other_client = instance_double(Koala::Facebook::API)
     allow(Koala::Facebook::API).to receive(:new).with(other_hook.access_token).and_return(other_client)
     allow(client).to receive(:get_object).and_raise(Koala::Facebook::ClientError.new(400, '', {}))
-    allow(other_client).to receive(:get_object).with('act_987654321', fields: 'currency').and_return({ 'currency' => 'MXN' })
+    stub_currency(other_client, 'act_987654321')
     allow(other_client).to receive(:api).and_return(page_of([insight_row]))
 
     expect { described_class.new.perform }.not_to raise_error

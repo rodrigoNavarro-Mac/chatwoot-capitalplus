@@ -13,6 +13,13 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
   # que ya usa RevenueIntelligence::RefreshAggregatesJob para autocorregirse.
   RECHECK_WINDOW = 7.days
   EXPECTED_CURRENCY = 'MXN'.freeze
+  # Koala nunca fija una versión de Graph API por defecto (ni Koala.config.api_version ni un
+  # default propio del gem) -- sin especificarla, Meta la resuelve a una versión histórica ya
+  # deprecada y rechaza la llamada (visto en producción: OAuthException code 2635 "calling a
+  # deprecated version of the Ads API"). Se pasa explícito por llamada (no vía Koala.config
+  # global) para no afectar el canal de Messenger, que también usa Koala en este mismo código base
+  # sin haber tenido este problema hasta ahora.
+  GRAPH_API_VERSION = 'v25.0'.freeze
 
   def perform(account_id = nil)
     hooks = Integrations::Hook.enabled.where(app_id: 'meta_ads')
@@ -28,8 +35,19 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
 
   private
 
+  # La Graph API exige el prefijo "act_" para referenciar una cuenta publicitaria (ver error real
+  # de producción: sin el prefijo, Meta responde error_subcode 33 "Object ... does not exist" en
+  # vez de un 404 claro). El Business Manager muestra el ID solo con dígitos en varias pantallas,
+  # así que es fácil pegarlo sin el prefijo al configurar el Hook -- normalizarlo acá evita
+  # depender de que quede bien tecleado a mano.
+  def normalize_ad_account_id(ad_account_id)
+    return nil if ad_account_id.blank?
+
+    ad_account_id.start_with?('act_') ? ad_account_id : "act_#{ad_account_id}"
+  end
+
   def sync_hook(hook)
-    ad_account_id = hook.settings['ad_account_id']
+    ad_account_id = normalize_ad_account_id(hook.settings['ad_account_id'])
     return if ad_account_id.blank?
 
     client = Koala::Facebook::API.new(hook.access_token)
@@ -45,7 +63,7 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
   # publicitaria. Aborta en vez de guardar un monto en la moneda equivocada silenciosamente
   # (RevenueAdSpend::CURRENCIES solo acepta MXN hoy).
   def currency_supported?(client, ad_account_id, account)
-    currency = client.get_object(ad_account_id, fields: 'currency')['currency']
+    currency = client.get_object(ad_account_id, { fields: 'currency' }, { api_version: GRAPH_API_VERSION })['currency']
     return true if currency == EXPECTED_CURRENCY
 
     Rails.logger.error("[RevenueIntelligence::SyncMetaAdsSpendJob] account=#{account.id} " \
@@ -58,7 +76,7 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
     page = client.api("#{ad_account_id}/insights", {
       level: 'ad', time_increment: 1, time_range: time_range,
       fields: 'campaign_name,adset_name,ad_name,spend,date_start'
-    }.compact)
+    }.compact, 'get', { api_version: GRAPH_API_VERSION })
 
     loop do
       page.each(&)
