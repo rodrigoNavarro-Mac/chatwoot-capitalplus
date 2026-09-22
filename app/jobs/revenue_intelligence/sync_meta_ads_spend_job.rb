@@ -71,9 +71,13 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
     false
   end
 
+  # graph_call, no api: #api es la capa HTTP cruda (devuelve un Koala::HTTPService::Response sin
+  # parsear, ni error-checking ni GraphCollection -- visto en producción: NoMethodError "undefined
+  # method 'each'"). #graph_call es lo que parsea el JSON, revisa errores, y envuelve resultados
+  # paginables en GraphCollection -- es lo que get_object/get_page usan internamente.
   def each_insight_row(client, ad_account_id, since, until_date, &)
     time_range = { since: since.iso8601, until: until_date.iso8601 }.to_json
-    page = client.api("#{ad_account_id}/insights", {
+    page = client.graph_call("#{ad_account_id}/insights", {
       level: 'ad', time_increment: 1, time_range: time_range,
       fields: 'campaign_name,adset_name,ad_name,spend,date_start'
     }.compact, 'get', { api_version: GRAPH_API_VERSION })
