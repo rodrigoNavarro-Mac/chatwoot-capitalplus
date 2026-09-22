@@ -364,3 +364,25 @@ zoho_crm:
       'enable_conversation_note',
       'enable_transcript_note',
     ]
+meta_ads:
+  id: meta_ads
+  logo: meta.png
+  i18n_key: meta_ads
+  hook_type: account
+  allow_multiple_hooks: false
+  # access_token vive en la columna dedicada (cifrada) de Integrations::Hook, no en settings --
+  # es un token de System User de Meta Business Manager, generado a mano (sin flujo OAuth propio,
+  # a diferencia de Zoho). settings solo guarda los identificadores necesarios para las llamadas
+  # a la Graph API (Marketing API Insights), sin PII ni secretos.
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'ad_account_id': { 'type': 'string' },
+          'business_account_id': { 'type': 'string' },
+        },
+      'required': ['ad_account_id'],
+      'additionalProperties': false,
+    }
+  visible_properties: ['ad_account_id', 'business_account_id']
