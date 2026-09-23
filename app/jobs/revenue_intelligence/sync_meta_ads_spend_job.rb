@@ -21,12 +21,16 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
   # sin haber tenido este problema hasta ahora.
   GRAPH_API_VERSION = 'v25.0'.freeze
 
-  def perform(account_id = nil)
+  # since/until_date: nil en la corrida horaria normal (usa la ventana móvil de RECHECK_WINDOW).
+  # Se exponen para permitir un backfill histórico manual desde consola -- Meta guarda insights
+  # hasta ~37 meses atrás -- reutilizando este mismo job/lógica en vez de duplicar código, mismo
+  # criterio que RevenueIntelligence::SyncZohoLeadsJob con su parámetro until_at.
+  def perform(account_id = nil, since: nil, until_date: nil)
     hooks = Integrations::Hook.enabled.where(app_id: 'meta_ads')
     hooks = hooks.where(account_id: account_id) if account_id
 
     hooks.find_each do |hook|
-      sync_hook(hook)
+      sync_hook(hook, since: since, until_date: until_date)
     rescue StandardError => e
       Rails.logger.error("[RevenueIntelligence::SyncMetaAdsSpendJob] hook=#{hook.id} error=#{e.message}")
       ChatwootExceptionTracker.new(e, account: hook.account).capture_exception
@@ -46,15 +50,15 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
     ad_account_id.start_with?('act_') ? ad_account_id : "act_#{ad_account_id}"
   end
 
-  def sync_hook(hook)
+  def sync_hook(hook, since: nil, until_date: nil)
     ad_account_id = normalize_ad_account_id(hook.settings['ad_account_id'])
     return if ad_account_id.blank?
 
     client = Koala::Facebook::API.new(hook.access_token)
     return unless currency_supported?(client, ad_account_id, hook.account)
 
-    since = RECHECK_WINDOW.ago.to_date
-    until_date = Time.current.in_time_zone(RevenueIntelligence::TIMEZONE).to_date
+    since ||= RECHECK_WINDOW.ago.to_date
+    until_date ||= Time.current.in_time_zone(RevenueIntelligence::TIMEZONE).to_date
     desarrollo = hook.settings['desarrollo'].presence
 
     each_insight_row(client, ad_account_id, since, until_date) { |row| upsert_spend(hook.account, row, desarrollo) }

@@ -551,6 +551,24 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       expect(result[:marketing_ad_table].first[:spend_source]).to eq('meta_api')
     end
 
+    it '"automatico manda" es por anuncio, no por campaña completa: conserva lo manual de un anuncio sin dato de Meta aunque otro sí tenga' do
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
+      rollup('advert', 'camp-1::adset-1::ad-2::Ad Dos', 'lead_created', count: 5)
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Uno',
+                                        period_start: 5.days.ago.to_date, period_end: 5.days.ago.to_date, amount: 300, source: 'meta_api')
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Dos',
+                                        period_start: 5.days.ago.to_date, period_end: 5.days.ago.to_date, amount: 150, source: 'manual')
+
+      rows = builder.build[:marketing_ad_table]
+      ad_uno = rows.find { |r| r[:advert_name] == 'Ad Uno' }
+      ad_dos = rows.find { |r| r[:advert_name] == 'Ad Dos' }
+
+      expect(ad_uno[:spend_amount].to_f).to eq(300.0)
+      expect(ad_uno[:spend_source]).to eq('meta_api')
+      expect(ad_dos[:spend_amount].to_f).to eq(150.0)
+      expect(ad_dos[:spend_source]).to eq('manual')
+    end
+
     it 'keeps the manual capture for a campaign that has no meta_api spend at all' do
       rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
       account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Uno',

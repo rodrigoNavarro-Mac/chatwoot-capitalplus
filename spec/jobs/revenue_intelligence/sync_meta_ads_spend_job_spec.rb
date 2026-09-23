@@ -39,6 +39,16 @@ describe RevenueIntelligence::SyncMetaAdsSpendJob do
       )
     end
 
+    it 'accepts an explicit since/until_date for historical backfill instead of the default rolling window' do
+      expect(client).to receive(:graph_call).with(
+        'act_123456789/insights',
+        hash_including(time_range: { since: '2026-01-01', until: '2026-01-31' }.to_json),
+        'get', { api_version: described_class::GRAPH_API_VERSION }
+      ).and_return(page_of([insight_row]))
+
+      described_class.new.perform(account.id, since: Date.parse('2026-01-01'), until_date: Date.parse('2026-01-31'))
+    end
+
     it 'tags the saved spend with the desarrollo configured on the hook (multi-desarrollo: un hook por cuenta/desarrollo)' do
       hook.update!(settings: hook.settings.merge('desarrollo' => 'Fuego'))
       allow(client).to receive(:graph_call).and_return(page_of([insight_row]))

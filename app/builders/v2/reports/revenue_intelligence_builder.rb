@@ -335,15 +335,29 @@ class V2::Reports::RevenueIntelligenceBuilder
   end
 
   # "Automático manda" (decisión explícita del usuario, Fase 2 del plan de integración Meta Ads,
-  # 2026-09-22): si ya existe AL MENOS UN registro source=meta_api para una campaña en el rango
-  # consultado, se descartan los registros manual de esa MISMA campaña en ese rango -- evita doble
-  # conteo cuando la granularidad no coincide (ej. una captura manual semanal a nivel campaña
-  # conviviendo con filas automáticas diarias a nivel anuncio, ver RevenueIntelligence::
-  # SyncMetaAdsSpendJob). Campañas sin ningún dato meta_api todavía conservan su captura manual
-  # tal cual -- nunca se pierde histórico previo a conectar la API.
+  # 2026-09-22; afinado 2026-09-23 tras ver en producción que ocultaba capturas manuales de
+  # anuncios que Meta todavía no cubre): la precedencia se decide por el anuncio EXACTO, no por
+  # toda la campaña --
+  #   - Captura manual a nivel anuncio (adset_name/advert_name presentes): se descarta SOLO si
+  #     existe un registro meta_api para ese mismo [campaña, adset, anuncio]. Un anuncio sin dato
+  #     de Meta conserva su captura manual, aunque otro anuncio de la misma campaña sí tenga.
+  #   - Captura manual solo a nivel campaña (adset/advert nil, no resuelve a un anuncio
+  #     específico): se descarta si la campaña tiene CUALQUIER dato meta_api -- no hay forma de
+  #     saber a qué anuncio le corresponde, y sumarla aparte de las filas automáticas granulares
+  #     duplicaría el gasto.
   def apply_meta_api_precedence(records)
+    meta_tuples = records.select { |r| r.source == 'meta_api' }.to_set { |r| [r.campaign_name, r.adset_name, r.advert_name] }
     campaigns_with_meta_api = records.select { |r| r.source == 'meta_api' }.to_set(&:campaign_name)
-    records.reject { |r| r.source == 'manual' && campaigns_with_meta_api.include?(r.campaign_name) }
+
+    records.reject do |r|
+      next false unless r.source == 'manual'
+
+      if r.adset_name.present? && r.advert_name.present?
+        meta_tuples.include?([r.campaign_name, r.adset_name, r.advert_name])
+      else
+        campaigns_with_meta_api.include?(r.campaign_name)
+      end
+    end
   end
 
   # ads_with_leads: cuántos anuncios distintos tuvieron actividad (cualquier métrica) en el rango
