@@ -80,8 +80,13 @@ const copySecret = async () => {
       </div>
     </div>
 
-    <!-- Webhook secret -->
-    <div v-if="hasConnectedHooks" class="mt-4 border-t border-n-weak pt-4">
+    <!-- Webhook secret: solo zoho_crm usa este campo (settings.webhook_secret) -- otras
+    integraciones sin webhook (ej. meta_ads, que solo tiene ad_account_id/access_token) no deben
+    mostrar este bloque ni sus instrucciones hardcodeadas para Zoho. -->
+    <div
+      v-if="hasConnectedHooks && integrationId === 'zoho_crm'"
+      class="mt-4 border-t border-n-weak pt-4"
+    >
       <p class="text-xs font-semibold text-n-slate-11 mb-1.5">Webhook Secret</p>
 
       <!-- Sin secret configurado -->

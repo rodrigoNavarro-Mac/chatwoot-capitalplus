@@ -461,6 +461,10 @@ en:
       name: 'Zoho CRM'
       short_description: 'Sync your contacts and conversations with Zoho CRM.'
       description: 'Connect Zoho CRM to automatically sync contacts, enrich conversation context with CRM data, and log conversations as notes in Zoho. Supports bidirectional sync via Zoho Workflow webhooks.'
+    meta_ads:
+      name: 'Meta Ads'
+      short_description: 'Sync ad spend from Meta Marketing API into Revenue Intelligence.'
+      description: 'Connect a Meta Business Manager System User token to automatically bring in daily ad spend by campaign, ad set, and ad, matched by name against your Meta Ads leads in Revenue Intelligence. Read-only, never creates or modifies campaigns.'
   captain:
     copilot_message_required: Message is required
     copilot_error: 'Please connect an assistant to this inbox to use Copilot'

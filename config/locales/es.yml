@@ -442,6 +442,10 @@ es:
       name: 'Zoho CRM'
       short_description: 'Sincroniza tus contactos y conversaciones con Zoho CRM.'
       description: 'Conecta Zoho CRM para sincronizar contactos automáticamente, enriquecer el contexto de las conversaciones con datos del CRM y registrar conversaciones como notas en Zoho. Soporta sincronización bidireccional mediante webhooks de Zoho Workflow.'
+    meta_ads:
+      name: 'Meta Ads'
+      short_description: 'Sincroniza el gasto publicitario desde Meta Marketing API a Revenue Intelligence.'
+      description: 'Conecta un token de System User de Meta Business Manager para traer automáticamente el gasto diario por campaña, adset y anuncio, cruzado por nombre contra tus leads de Meta Ads en Revenue Intelligence. Solo lectura, nunca crea ni modifica campañas.'
   captain:
     copilot_message_required: El mensaje es obligatorio
     copilot_error: 'Conecte un asistente a esta bandeja de entrada para utilizar Copilot'
