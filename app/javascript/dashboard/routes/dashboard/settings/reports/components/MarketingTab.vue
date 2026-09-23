@@ -614,25 +614,25 @@ const deleteSpend = async adSpend => {
       <div v-if="sla && sla.responded_count > 0" class="flex flex-wrap gap-6">
         <div class="min-w-[6rem]">
           <h4 class="m-0 text-xs font-medium text-n-slate-11">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_AVG') }}
+            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_MEDIAN') }}
           </h4>
           <p
             class="mt-1 mb-0 text-xl"
             :class="
               statusClass(
-                targetStatus(sla.avg_seconds, { max: sla.target_seconds })
+                targetStatus(sla.median_seconds, { max: sla.target_seconds })
               )
             "
           >
-            {{ formatSeconds(sla.avg_seconds) }}
+            {{ formatSeconds(sla.median_seconds) }}
           </p>
         </div>
         <div class="min-w-[6rem]">
           <h4 class="m-0 text-xs font-medium text-n-slate-11">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_MEDIAN') }}
+            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_AVG') }}
           </h4>
           <p class="mt-1 mb-0 text-xl text-n-slate-12">
-            {{ formatSeconds(sla.median_seconds) }}
+            {{ formatSeconds(sla.avg_seconds) }}
           </p>
         </div>
         <div class="min-w-[6rem]">
@@ -672,6 +672,23 @@ const deleteSpend = async adSpend => {
           </h4>
           <p class="mt-1 mb-0 text-xl text-n-slate-12">
             {{ sla.pending_count }}
+          </p>
+        </div>
+        <div v-if="sla.outliers_excluded_count > 0" class="min-w-[6rem]">
+          <h4 class="m-0 text-xs font-medium text-n-slate-11">
+            {{
+              t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_OUTLIERS_EXCLUDED')
+            }}
+          </h4>
+          <p
+            class="mt-1 mb-0 text-xl text-n-slate-9"
+            :title="
+              t(
+                'REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_OUTLIERS_EXCLUDED_TOOLTIP'
+              )
+            "
+          >
+            {{ sla.outliers_excluded_count }}
           </p>
         </div>
       </div>

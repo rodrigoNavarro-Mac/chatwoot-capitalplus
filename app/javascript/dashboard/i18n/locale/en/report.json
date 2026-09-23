@@ -963,6 +963,8 @@
       "SLA_P75": "P75",
       "SLA_RESPONDED": "Responded",
       "SLA_PENDING": "Still without human contact",
+      "SLA_OUTLIERS_EXCLUDED": "Excluded (outliers)",
+      "SLA_OUTLIERS_EXCLUDED_TOOLTIP": "Leads whose first contact took more than 7 days — almost always a late identity resolution or backfill artifact, not a real setter response. Excluded from the average/median/buckets so they don't skew them.",
       "SLA_NO_DATA": "No trackable responses yet in this period",
       "SLA_BUCKET_UNDER_5": "< 5 min",
       "SLA_BUCKET_FROM_5_TO_15": "5-15 min",

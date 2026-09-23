@@ -433,15 +433,21 @@ describe V2::Reports::RevenueIntelligenceBuilder do
   end
 
   describe 'marketing_sla' do
+    def sla_lead(zoho_lead_id, clock_seconds: nil, business_seconds: nil)
+      account.revenue_leads.create!(zoho_lead_id: zoho_lead_id, created_at_source: 5.days.ago,
+                                    first_human_response_seconds: clock_seconds, first_human_response_business_seconds: business_seconds)
+    end
+
     it 'computes avg/median/p75 and SLA buckets only from leads with a tracked response' do
-      account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 5.days.ago, first_human_response_business_seconds: 120)
-      account.revenue_leads.create!(zoho_lead_id: 'lead-2', created_at_source: 5.days.ago, first_human_response_business_seconds: 300)
-      account.revenue_leads.create!(zoho_lead_id: 'lead-3', created_at_source: 5.days.ago, first_human_response_business_seconds: 600)
+      sla_lead('lead-1', clock_seconds: 120, business_seconds: 120)
+      sla_lead('lead-2', clock_seconds: 300, business_seconds: 300)
+      sla_lead('lead-3', clock_seconds: 600, business_seconds: 600)
       account.revenue_leads.create!(zoho_lead_id: 'lead-4', created_at_source: 5.days.ago) # sin contacto humano rastreable
 
       sla = builder.build[:marketing_sla]
 
-      expect(sla).to include(total_leads: 4, responded_count: 3, pending_count: 1, avg_seconds: 340, median_seconds: 300, p75_seconds: 600)
+      expect(sla).to include(total_leads: 4, responded_count: 3, pending_count: 1, outliers_excluded_count: 0,
+                             avg_seconds: 340, median_seconds: 300, p75_seconds: 600)
       expect(sla[:buckets]).to include(under_5: { count: 1, rate: 0.3333 }, from_5_to_15: { count: 2, rate: 0.6667 })
     end
 
@@ -452,6 +458,38 @@ describe V2::Reports::RevenueIntelligenceBuilder do
 
       expect(sla[:avg_seconds]).to be_nil
       expect(sla[:median_seconds]).to be_nil
+    end
+
+    # Bug real confirmado 2026-09-23: leads de octubre 2025 cuyo first_human_contact_at cayó el
+    # mismo minuto de un proceso por lotes en agosto 2026 (10 meses de brecha) inflaban el
+    # promedio a 158min cuando la mediana real era 44min -- la huella de una resolución de
+    # identidad tardía, no un setter respondiendo.
+    it 'excludes a lead whose clock-time gap exceeds MAX_CONTACT_GAP_SECONDS (7 días) from avg/median/buckets' do
+      sla_lead('lead-1', clock_seconds: 120, business_seconds: 120)
+      sla_lead('lead-2', clock_seconds: 300, business_seconds: 300)
+      sla_lead('lead-outlier', clock_seconds: 300.days.to_i, business_seconds: 150.days.to_i)
+
+      sla = builder.build[:marketing_sla]
+
+      expect(sla).to include(responded_count: 3, outliers_excluded_count: 1, avg_seconds: 210, median_seconds: 300)
+      expect(sla[:buckets].values.sum { |b| b[:count] }).to eq(2)
+    end
+
+    it 'still counts an excluded outlier as "responded", never lumped into pending_count' do
+      sla_lead('lead-outlier', clock_seconds: 300.days.to_i, business_seconds: 150.days.to_i)
+
+      sla = builder.build[:marketing_sla]
+
+      expect(sla).to include(total_leads: 1, responded_count: 1, pending_count: 0, outliers_excluded_count: 1)
+    end
+
+    it 'includes a lead right at the MAX_CONTACT_GAP_SECONDS boundary (7 días exactos), only excludes beyond it' do
+      sla_lead('lead-boundary', clock_seconds: described_class::MAX_CONTACT_GAP_SECONDS, business_seconds: 100)
+      sla_lead('lead-over', clock_seconds: described_class::MAX_CONTACT_GAP_SECONDS + 1, business_seconds: 100)
+
+      sla = builder.build[:marketing_sla]
+
+      expect(sla).to include(responded_count: 2, outliers_excluded_count: 1)
     end
   end
 

@@ -430,18 +430,29 @@ class V2::Reports::RevenueIntelligenceBuilder
   # imputa un tiempo de respuesta que no se pudo calcular).
   SLA_TARGET_SECONDS = 5.minutes.to_i
   SLA_BUCKETS = { under_5: 0...300, from_5_to_15: 300...900, from_15_to_30: 900...1800, over_30: 1800...Float::INFINITY }.freeze
+  # Mismo umbral y mismo criterio que V2::Reports::WeeklyOpsReportBuilder::MAX_CONTACT_GAP (tiempo
+  # de reloj real, no horario laboral): un contacto con más de 7 días de brecha casi seguro no es
+  # un setter respondiendo, es la huella de una resolución de identidad/backfill tardía. Bug real
+  # confirmado 2026-09-23: leads de octubre 2025 cuyo first_human_contact_at cayó todos el mismo
+  # minuto de agosto 2026 (un proceso por lotes) inflaban el promedio a 158min cuando la mediana
+  # real era 44min. Se excluyen del cálculo (nunca se promedian ni entran a los buckets), pero
+  # siguen contando como "contactados" -- sí hubo un contacto real, solo no representa el ritmo de
+  # atención normal -- para no mezclarlos con "pending_count" (nunca contactados).
+  MAX_CONTACT_GAP_SECONDS = 7.days.to_i
 
   def marketing_sla
     leads = sla_leads_scope
     total = leads.count
-    seconds = leads.where.not(first_human_response_business_seconds: nil).pluck(:first_human_response_business_seconds).sort
-    responded_count = seconds.size
+    responded = leads.where.not(first_human_response_business_seconds: nil)
+                     .pluck(:first_human_response_seconds, :first_human_response_business_seconds)
+    seconds = responded.filter_map { |clock, business| business if clock <= MAX_CONTACT_GAP_SECONDS }.sort
 
-    { total_leads: total, responded_count: responded_count, pending_count: total - responded_count,
+    { total_leads: total, responded_count: responded.size, pending_count: total - responded.size,
+      outliers_excluded_count: responded.size - seconds.size,
       target_seconds: SLA_TARGET_SECONDS,
       avg_seconds: seconds.empty? ? nil : (seconds.sum / seconds.size.to_f).round,
       median_seconds: percentile(seconds, 50), p75_seconds: percentile(seconds, 75),
-      buckets: sla_buckets(seconds, responded_count) }
+      buckets: sla_buckets(seconds, seconds.size) }
   end
 
   def sla_leads_scope
