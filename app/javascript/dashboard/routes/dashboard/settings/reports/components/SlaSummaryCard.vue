@@ -3,6 +3,10 @@ import { useI18n } from 'vue-i18n';
 
 defineProps({
   titleKey: { type: String, required: true },
+  pendingKey: {
+    type: String,
+    default: 'REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_PENDING',
+  },
   sla: { type: Object, default: null },
 });
 
@@ -106,7 +110,7 @@ const statusClass = status => STATUS_CLASSES[status] || STATUS_CLASSES.unknown;
       </div>
       <div class="min-w-[6rem]">
         <h4 class="m-0 text-xs font-medium text-n-slate-11">
-          {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_PENDING') }}
+          {{ t(pendingKey) }}
         </h4>
         <p class="mt-1 mb-0 text-xl text-n-slate-12">
           {{ sla.pending_count }}

@@ -607,6 +607,7 @@ const deleteSpend = async adSpend => {
       <SlaSummaryCard
         class="flex-1"
         title-key="REVENUE_INTELLIGENCE_REPORTS.MARKETING.CALL_SLA_TITLE"
+        pending-key="REVENUE_INTELLIGENCE_REPORTS.MARKETING.CALL_SLA_PENDING"
         :sla="callSla"
       />
     </div>
