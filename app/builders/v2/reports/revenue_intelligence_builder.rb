@@ -183,7 +183,7 @@ class V2::Reports::RevenueIntelligenceBuilder
                                visit_effective closed_won].freeze
   # Orden real del funnel de Marketing (sección 3 del brief) -- volumen + conversión etapa-a-etapa,
   # mismo patrón que FUNNEL_SEQUENCE/funnel_conversions para el tab Funnel general.
-  MARKETING_FUNNEL_SEQUENCE = %w[lead_created lead_contacted lead_qualified appointment_created visit_effective].freeze
+  MARKETING_FUNNEL_SEQUENCE = %w[lead_created lead_contacted lead_qualified appointment_created visit_effective closed_won].freeze
   # Fuente sintética para una campaña cuyo campaign_id no se pudo resolver a ningún lead_source
   # (no debería pasar dado que LeadMapper#marketing_attrs siempre puebla ambos campos en la misma
   # fila, pero así nunca desaparece en silencio si algún día pasa).

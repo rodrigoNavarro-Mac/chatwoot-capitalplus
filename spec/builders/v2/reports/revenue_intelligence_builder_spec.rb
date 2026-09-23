@@ -395,6 +395,7 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       rollup('campaign', 'camp-1', 'lead_qualified', count: 10)
       rollup('campaign', 'camp-1', 'appointment_created', count: 5)
       rollup('campaign', 'camp-1', 'visit_effective', count: 2)
+      rollup('campaign', 'camp-1', 'closed_won', count: 1)
 
       result = builder.build
 
@@ -406,9 +407,23 @@ describe V2::Reports::RevenueIntelligenceBuilder do
           { metric: 'appointment_created', count: 5, conversion_from_previous: 0.5, conversion_from_leads: 0.05, lost_count: 0,
             seguimiento_count: 0 },
           { metric: 'visit_effective', count: 2, conversion_from_previous: 0.4, conversion_from_leads: 0.02, lost_count: 0,
+            seguimiento_count: 0 },
+          { metric: 'closed_won', count: 1, conversion_from_previous: 0.5, conversion_from_leads: 0.01, lost_count: 0,
             seguimiento_count: 0 }
         ]
       )
+    end
+
+    it 'includes closed_won as the sixth and final funnel step' do
+      rollup('campaign', 'camp-1', 'lead_created', count: 10)
+      rollup('campaign', 'camp-1', 'closed_won', count: 1)
+
+      result = builder.build
+
+      expect(result[:marketing_funnel].map { |s| s[:metric] }).to eq(
+        %w[lead_created lead_contacted lead_qualified appointment_created visit_effective closed_won]
+      )
+      expect(result[:marketing_funnel].last).to include(metric: 'closed_won', count: 1)
     end
 
     it 'surfaces lost_count from the same account-wide computation the Funnel tab uses' do
