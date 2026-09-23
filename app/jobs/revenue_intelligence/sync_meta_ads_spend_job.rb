@@ -55,8 +55,9 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
 
     since = RECHECK_WINDOW.ago.to_date
     until_date = Time.current.in_time_zone(RevenueIntelligence::TIMEZONE).to_date
+    desarrollo = hook.settings['desarrollo'].presence
 
-    each_insight_row(client, ad_account_id, since, until_date) { |row| upsert_spend(hook.account, row) }
+    each_insight_row(client, ad_account_id, since, until_date) { |row| upsert_spend(hook.account, row, desarrollo) }
   end
 
   # Meta no expone la moneda en cada fila de insights -- se lee una sola vez de la cuenta
@@ -90,7 +91,7 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
     end
   end
 
-  def upsert_spend(account, row)
+  def upsert_spend(account, row, desarrollo)
     return if row['spend'].blank?
 
     date = Date.parse(row['date_start'])
@@ -98,7 +99,7 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
       campaign_name: row['campaign_name'], adset_name: row['adset_name'], advert_name: row['ad_name'],
       period_start: date, period_end: date
     )
-    spend.assign_attributes(amount: row['spend'].to_f, currency: EXPECTED_CURRENCY, source: 'meta_api')
+    spend.assign_attributes(amount: row['spend'].to_f, currency: EXPECTED_CURRENCY, source: 'meta_api', desarrollo: desarrollo)
     spend.save!
   end
 end

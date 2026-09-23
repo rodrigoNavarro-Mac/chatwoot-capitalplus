@@ -374,6 +374,10 @@ meta_ads:
   # es un token de System User de Meta Business Manager, generado a mano (sin flujo OAuth propio,
   # a diferencia de Zoho). settings solo guarda los identificadores necesarios para las llamadas
   # a la Graph API (Marketing API Insights), sin PII ni secretos.
+  # desarrollo: un solo Hook cubre por ahora una sola cuenta publicitaria/desarrollo (ver plan de
+  # extensión a multi-desarrollo, sesión 2026-09-23) -- se guarda desde ya para que el gasto
+  # sincronizado quede etiquetado igual que la captura manual (revenue_ad_spends.desarrollo) y no
+  # haga falta migrar histórico cuando se agregue soporte para varias cuentas.
   settings_json_schema:
     {
       'type': 'object',
@@ -381,8 +385,9 @@ meta_ads:
         {
           'ad_account_id': { 'type': 'string' },
           'business_account_id': { 'type': 'string' },
+          'desarrollo': { 'type': 'string' },
         },
       'required': ['ad_account_id'],
       'additionalProperties': false,
     }
-  visible_properties: ['ad_account_id', 'business_account_id']
+  visible_properties: ['ad_account_id', 'business_account_id', 'desarrollo']

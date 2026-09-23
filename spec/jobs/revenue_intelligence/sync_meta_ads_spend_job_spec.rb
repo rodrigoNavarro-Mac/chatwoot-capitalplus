@@ -39,6 +39,23 @@ describe RevenueIntelligence::SyncMetaAdsSpendJob do
       )
     end
 
+    it 'tags the saved spend with the desarrollo configured on the hook (multi-desarrollo: un hook por cuenta/desarrollo)' do
+      hook.update!(settings: hook.settings.merge('desarrollo' => 'Fuego'))
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row]))
+
+      described_class.new.perform(account.id)
+
+      expect(account.revenue_ad_spends.sole.desarrollo).to eq('Fuego')
+    end
+
+    it 'leaves desarrollo nil when the hook does not have one configured' do
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row]))
+
+      described_class.new.perform(account.id)
+
+      expect(account.revenue_ad_spends.sole.desarrollo).to be_nil
+    end
+
     it 'normalizes an ad_account_id missing the act_ prefix (real production incident: Graph API error_subcode 33 without it)' do
       hook.update!(settings: { 'ad_account_id' => '123456789' })
       allow(client).to receive(:graph_call).and_return(page_of([insight_row]))
