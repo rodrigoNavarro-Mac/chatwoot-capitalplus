@@ -59,9 +59,9 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
 
     since ||= RECHECK_WINDOW.ago.to_date
     until_date ||= Time.current.in_time_zone(RevenueIntelligence::TIMEZONE).to_date
-    desarrollo = hook.settings['desarrollo'].presence
+    hook_desarrollo = hook.settings['desarrollo'].presence
 
-    each_insight_row(client, ad_account_id, since, until_date) { |row| upsert_spend(hook.account, row, desarrollo) }
+    each_insight_row(client, ad_account_id, since, until_date) { |row| upsert_spend(hook.account, row, hook_desarrollo) }
   end
 
   # Meta no expone la moneda en cada fila de insights -- se lee una sola vez de la cuenta
@@ -95,10 +95,18 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
     end
   end
 
-  def upsert_spend(account, row, desarrollo)
+  # Se resuelve el desarrollo POR CAMPAÑA (RevenueIntelligence::MetaAdsDesarrolloResolver), nunca
+  # un valor fijo por Hook/cuenta -- una sola cuenta publicitaria puede correr campañas de varios
+  # desarrollos a la vez (confirmado en producción: la cuenta "Fuego Cancún" también trae Amura y
+  # P. Quintana Roo). hook_desarrollo solo se usa como respaldo si el nombre de campaña no matchea
+  # ningún alias conocido -- útil para una cuenta que de verdad sea de un solo desarrollo, pero
+  # nunca debe usarse en una cuenta ya confirmada como multi-desarrollo (ahí mejor dejarlo sin
+  # configurar en el Hook, para que lo no resuelto quede en nil/N-D visible, no mal etiquetado).
+  def upsert_spend(account, row, hook_desarrollo)
     return if row['spend'].blank?
 
     date = Date.parse(row['date_start'])
+    desarrollo = RevenueIntelligence::MetaAdsDesarrolloResolver.resolve(row['campaign_name']) || hook_desarrollo
     spend = account.revenue_ad_spends.find_or_initialize_by(
       campaign_name: row['campaign_name'], adset_name: row['adset_name'], advert_name: row['ad_name'],
       period_start: date, period_end: date

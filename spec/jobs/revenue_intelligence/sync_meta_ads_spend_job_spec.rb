@@ -49,17 +49,34 @@ describe RevenueIntelligence::SyncMetaAdsSpendJob do
       described_class.new.perform(account.id, since: Date.parse('2026-01-01'), until_date: Date.parse('2026-01-31'))
     end
 
-    it 'tags the saved spend with the desarrollo configured on the hook (multi-desarrollo: un hook por cuenta/desarrollo)' do
-      hook.update!(settings: hook.settings.merge('desarrollo' => 'Fuego'))
-      allow(client).to receive(:graph_call).and_return(page_of([insight_row]))
+    it 'resolves desarrollo from the campaign name via MetaAdsDesarrolloResolver (una cuenta puede correr varios desarrollos)' do
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(campaign_name: 'AMURA Refresh Creativos 29 Abril 2026')]))
+
+      described_class.new.perform(account.id)
+
+      expect(account.revenue_ad_spends.sole.desarrollo).to eq('Amura')
+    end
+
+    it 'prefers the campaign-resolved desarrollo over the hook fallback when both would apply' do
+      hook.update!(settings: hook.settings.merge('desarrollo' => 'Amura'))
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(campaign_name: '✅ Fuego 11 Abril (Refresh Creativos) - DC')]))
 
       described_class.new.perform(account.id)
 
       expect(account.revenue_ad_spends.sole.desarrollo).to eq('Fuego')
     end
 
-    it 'leaves desarrollo nil when the hook does not have one configured' do
-      allow(client).to receive(:graph_call).and_return(page_of([insight_row]))
+    it 'falls back to the desarrollo configured on the hook when the campaign name does not resolve to any known desarrollo' do
+      hook.update!(settings: hook.settings.merge('desarrollo' => 'Fuego'))
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(campaign_name: 'Campaña genérica sin desarrollo conocido')]))
+
+      described_class.new.perform(account.id)
+
+      expect(account.revenue_ad_spends.sole.desarrollo).to eq('Fuego')
+    end
+
+    it 'leaves desarrollo nil when neither the campaign name nor the hook resolve to a known desarrollo' do
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(campaign_name: 'Campaña genérica sin desarrollo conocido')]))
 
       described_class.new.perform(account.id)
 
