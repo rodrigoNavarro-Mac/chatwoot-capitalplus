@@ -241,35 +241,30 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
                             zoho_deal_id: stage_event.zoho_deal_id,
                             metadata: { 'stage' => stage_event.stage, 'previous_stage' => stage_event.previous_stage })
 
-      classify_stage_outcome(account, stage_event, verified_deal_ids)
+      classify_stage_outcome(account, stage_event)
     end
 
     build_visit_effective_events(account)
+    build_appointment_created_from_stage_events(account, verified_deal_ids)
   end
 
   # Un stage puede calificar para MÁS de un tipo a la vez (ej. Apartado es simultáneamente "visita
   # efectiva" y "reserved") — nunca es elsif, cada clasificación se evalúa independiente.
   # RevenueDeal::VISIT_STAGES (no V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES, que usa
-  # una representación en inglés de otra fuente — ver comentario en el modelo). 'visit_effective'
-  # NO se clasifica aquí -- ver build_visit_effective_events, deduplicado aparte.
-  def classify_stage_outcome(account, stage_event, verified_deal_ids)
+  # una representación en inglés de otra fuente — ver comentario en el modelo). 'visit_effective' y
+  # 'appointment_created' por stage NO se clasifican aquí -- ver build_visit_effective_events y
+  # build_appointment_created_from_stage_events, deduplicados aparte por deal (ver su comentario).
+  def classify_stage_outcome(account, stage_event)
     stage = stage_event.stage
-    stage_outcome_types(stage, stage_event.zoho_deal_id, verified_deal_ids).each do |event_type|
+    stage_outcome_types(stage).each do |event_type|
       upsert_event(account, event_type: event_type, event_at: stage_event.entered_at, source_system: 'revenue_stage_event',
                             source_id: stage_event.id.to_s, revenue_contact_id: stage_event.revenue_contact_id,
                             zoho_deal_id: stage_event.zoho_deal_id)
     end
   end
 
-  # appointment_created por stage es una señal débil (el deal entró a "Agendo cita" en Zoho, sin
-  # que necesariamente exista un Zoho Event/Meeting real sincronizado) — confirmado con el usuario
-  # que, para esta cuenta, esta ES la fuente de verdad de "hubo cita" (el sync de Meetings vía
-  # Zoho casi no trae datos reales, ver riesgo ya documentado en el plan de Fase 1 sobre
-  # MeetingsClient/scope ZohoCRM.coql.READ). Se omite solo si ESE deal ya tiene una cita
-  # verificada real, para no contar la misma cita dos veces.
-  def stage_outcome_types(stage, zoho_deal_id, verified_deal_ids)
+  def stage_outcome_types(stage)
     [
-      ('appointment_created' if stage == RevenueDeal::SCHEDULED_STAGE && verified_deal_ids.exclude?(zoho_deal_id)),
       ('reserved' if stage == RevenueDeal::RESERVED_STAGE),
       ('closed_won' if stage == RevenueDeal::WON_STAGE),
       ('closed_lost' if stage == RevenueDeal::LOST_STAGE)
@@ -298,6 +293,33 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     earliest_at_by_deal.each do |deal_id, entered_at|
       zoho_deal_id, revenue_contact_id = attrs_by_deal[deal_id]
       upsert_event(account, event_type: 'visit_effective', event_at: entered_at, source_system: 'revenue_stage_event',
+                            source_id: "deal:#{deal_id}", revenue_contact_id: revenue_contact_id, zoho_deal_id: zoho_deal_id)
+    end
+  end
+
+  # 'appointment_created' por stage (señal débil: el deal entró a "Agendo cita" en Zoho, sin que
+  # necesariamente exista un Zoho Event/Meeting real sincronizado -- confirmado con el usuario que
+  # para esta cuenta ESTA es la fuente de verdad de "hubo cita", el sync de Meetings vía Zoho casi
+  # no trae datos reales) deduplicado a UN evento por deal, con el mismo criterio de "etapa máxima
+  # alcanzada" que ya usa build_visit_effective_events -- QUALIFIED_OR_LATER_STAGES es Agendo cita
+  # UNION VISIT_STAGES: un deal cuyo historial de stage_events sincronizado desde Zoho SALTA
+  # directo a Visita efectiva/Cotizado/Apartado/Cerrado ganado (sin una fila explícita de "Agendo
+  # cita" -- pasa cuando el registro de Zoho no capturó esa transición puntual) también cuenta como
+  # "tuvo cita". Bug real confirmado 2026-09-23: solo se emitía si stage == SCHEDULED_STAGE
+  # exacto, así que deals ya avanzados a etapas posteriores sin ese stage_event puntual quedaban
+  # sin contar en "Citas" aunque el embudo ya los mostrara en Visitas.
+  def build_appointment_created_from_stage_events(account, verified_deal_ids)
+    qualifying = account.revenue_stage_events.where(stage: QUALIFIED_OR_LATER_STAGES).where.not(revenue_deal_id: nil)
+                        .where.not(zoho_deal_id: verified_deal_ids.to_a)
+    earliest_at_by_deal = qualifying.group(:revenue_deal_id).minimum(:entered_at)
+    return if earliest_at_by_deal.empty?
+
+    attrs_by_deal = qualifying.pluck(:revenue_deal_id, :zoho_deal_id, :revenue_contact_id)
+                              .each_with_object({}) { |(deal_id, zoho_deal_id, contact_id), h| h[deal_id] ||= [zoho_deal_id, contact_id] }
+
+    earliest_at_by_deal.each do |deal_id, entered_at|
+      zoho_deal_id, revenue_contact_id = attrs_by_deal[deal_id]
+      upsert_event(account, event_type: 'appointment_created', event_at: entered_at, source_system: 'revenue_stage_event',
                             source_id: "deal:#{deal_id}", revenue_contact_id: revenue_contact_id, zoho_deal_id: zoho_deal_id)
     end
   end

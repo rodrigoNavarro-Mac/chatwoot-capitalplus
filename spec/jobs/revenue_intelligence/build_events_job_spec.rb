@@ -325,21 +325,57 @@ describe RevenueIntelligence::BuildEventsJob do
 
       described_class.new.perform
 
-      types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
-      expect(types).to contain_exactly('stage_changed', 'appointment_created')
+      stage_changed_types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
+      expect(stage_changed_types).to eq(['stage_changed'])
+      appointment = account.revenue_events.find_by(source_system: 'revenue_stage_event', event_type: 'appointment_created',
+                                                   source_id: "deal:#{deal.id}")
+      expect(appointment).to be_present
+    end
+
+    # Bug real confirmado 2026-09-23: un deal cuyo historial de stage_events sincronizado desde
+    # Zoho SALTA directo a una etapa posterior a "Agendo cita" (sin una fila explícita para esa
+    # etapa puntual -- pasa cuando Zoho no capturó esa transición) no contaba en "Citas" aunque el
+    # embudo ya lo mostrara en Visitas/Cotizado. Mismo criterio de "etapa máxima alcanzada" que
+    # visit_effective, extendido a Agendo cita.
+    it 'creates appointment_created for a deal whose stage history skips "Agendo cita" and jumps straight to a later stage' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Cotizado', entered_at: Time.current)
+
+      described_class.new.perform
+
+      appointment = account.revenue_events.find_by(source_system: 'revenue_stage_event', event_type: 'appointment_created',
+                                                   source_id: "deal:#{deal.id}")
+      expect(appointment).to be_present
+    end
+
+    it 'creates only ONE appointment_created event for a deal that passed through Agendo cita AND a later stage' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Agendo cita', entered_at: 2.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Cotizado', entered_at: 1.day.ago)
+
+      described_class.new.perform
+
+      appointments = account.revenue_events.where(source_system: 'revenue_stage_event', event_type: 'appointment_created',
+                                                  source_id: "deal:#{deal.id}")
+      expect(appointments.count).to eq(1)
+      expect(appointments.first.event_at).to be_within(1.second).of(2.days.ago)
     end
 
     it 'does not duplicate appointment_created by stage when the deal already has a verified revenue_appointment' do
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
       account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
                                            starts_at: Time.current)
-      stage_event = account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
-                                                         stage: 'Agendo cita', entered_at: Time.current)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Agendo cita', entered_at: Time.current)
 
       described_class.new.perform
 
-      types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
-      expect(types).to eq(['stage_changed'])
+      appointment = account.revenue_events.find_by(source_system: 'revenue_stage_event', event_type: 'appointment_created',
+                                                   source_id: "deal:#{deal.id}")
+      expect(appointment).to be_nil
     end
   end
 
