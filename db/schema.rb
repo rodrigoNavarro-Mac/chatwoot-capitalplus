@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_22_173000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_23_220000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1935,6 +1935,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_22_173000) do
     t.integer "first_human_response_seconds"
     t.integer "first_human_response_business_seconds"
     t.datetime "effective_qualified_at"
+    t.datetime "first_call_attempt_at"
+    t.integer "first_call_attempt_seconds"
+    t.integer "first_call_attempt_business_seconds"
     t.index ["account_id", "created_at_source"], name: "index_revenue_leads_on_account_id_and_created_at_source"
     t.index ["account_id", "desarrollo"], name: "index_revenue_leads_on_account_id_and_desarrollo"
     t.index ["account_id", "effective_qualified_at"], name: "index_revenue_leads_on_account_id_and_effective_qualified_at"
@@ -1943,6 +1946,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_22_173000) do
     t.index ["account_id", "owner_id"], name: "index_revenue_leads_on_account_id_and_owner_id"
     t.index ["account_id", "revenue_contact_id"], name: "index_revenue_leads_on_account_id_and_revenue_contact_id"
     t.index ["account_id", "zoho_lead_id"], name: "index_revenue_leads_on_account_id_and_zoho_lead_id", unique: true
+    t.index ["first_call_attempt_at"], name: "index_revenue_leads_on_first_call_attempt_at"
   end
 
   create_table "revenue_risk_signals", force: :cascade do |t|

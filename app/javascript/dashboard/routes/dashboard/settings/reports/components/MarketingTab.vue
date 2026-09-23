@@ -7,6 +7,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import FunnelStageMeter from './FunnelStageMeter.vue';
 import MarketingSpendModal from './MarketingSpendModal.vue';
+import SlaSummaryCard from './SlaSummaryCard.vue';
 
 const props = defineProps({
   report: { type: Object, default: null },
@@ -91,13 +92,6 @@ const formatPercent = value =>
   value === null || value === undefined
     ? t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.NA')
     : `${(value * 100).toFixed(1)}%`;
-const formatSeconds = seconds => {
-  if (seconds === null || seconds === undefined)
-    return t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.NA');
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.round(seconds % 60);
-  return minutes > 0 ? `${minutes}m ${remaining}s` : `${remaining}s`;
-};
 
 // -- Semáforo de objetivo (sección 9: "no colores arbitrarios") -----------------------------------
 // min/max ausentes = sin límite de ese lado. NEAR_MARGIN = qué tan cerca del límite incumplido
@@ -189,6 +183,7 @@ const spend = computed(
     }
 );
 const sla = computed(() => props.report?.marketing_sla ?? null);
+const callSla = computed(() => props.report?.marketing_call_sla ?? null);
 
 function safeRate(numerator, denominator) {
   if (!denominator) return null;
@@ -603,101 +598,17 @@ const deleteSpend = async adSpend => {
     </div>
 
     <!-- SLA del setter -->
-    <div
-      class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
-    >
-      <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
-        {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_TITLE') }}
-      </h3>
-      <p class="text-xs text-n-slate-11 mb-4">
-        {{
-          t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_TARGET', { minutes: 5 })
-        }}
-      </p>
-      <div v-if="sla && sla.responded_count > 0" class="flex flex-wrap gap-6">
-        <div class="min-w-[6rem]">
-          <h4 class="m-0 text-xs font-medium text-n-slate-11">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_MEDIAN') }}
-          </h4>
-          <p
-            class="mt-1 mb-0 text-xl"
-            :class="
-              statusClass(
-                targetStatus(sla.median_seconds, { max: sla.target_seconds })
-              )
-            "
-          >
-            {{ formatSeconds(sla.median_seconds) }}
-          </p>
-        </div>
-        <div class="min-w-[6rem]">
-          <h4 class="m-0 text-xs font-medium text-n-slate-11">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_AVG') }}
-          </h4>
-          <p class="mt-1 mb-0 text-xl text-n-slate-12">
-            {{ formatSeconds(sla.avg_seconds) }}
-          </p>
-        </div>
-        <div class="min-w-[6rem]">
-          <h4 class="m-0 text-xs font-medium text-n-slate-11">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_P75') }}
-          </h4>
-          <p class="mt-1 mb-0 text-xl text-n-slate-12">
-            {{ formatSeconds(sla.p75_seconds) }}
-          </p>
-        </div>
-        <div
-          v-for="bucketKey in [
-            'under_5',
-            'from_5_to_15',
-            'from_15_to_30',
-            'over_30',
-          ]"
-          :key="bucketKey"
-          class="min-w-[6rem]"
-        >
-          <h4 class="m-0 text-xs font-medium text-n-slate-11">
-            {{
-              t(
-                `REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_BUCKET_${bucketKey.toUpperCase()}`
-              )
-            }}
-          </h4>
-          <p class="mt-1 mb-0 text-xl text-n-slate-12">
-            {{ sla.buckets[bucketKey].count }} ({{
-              formatPercent(sla.buckets[bucketKey].rate)
-            }})
-          </p>
-        </div>
-        <div class="min-w-[6rem]">
-          <h4 class="m-0 text-xs font-medium text-n-slate-11">
-            {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_PENDING') }}
-          </h4>
-          <p class="mt-1 mb-0 text-xl text-n-slate-12">
-            {{ sla.pending_count }}
-          </p>
-        </div>
-        <div v-if="sla.outliers_excluded_count > 0" class="min-w-[6rem]">
-          <h4 class="m-0 text-xs font-medium text-n-slate-11">
-            {{
-              t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_OUTLIERS_EXCLUDED')
-            }}
-          </h4>
-          <p
-            class="mt-1 mb-0 text-xl text-n-slate-9"
-            :title="
-              t(
-                'REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_OUTLIERS_EXCLUDED_TOOLTIP'
-              )
-            "
-          >
-            {{ sla.outliers_excluded_count }}
-          </p>
-        </div>
-      </div>
-      <p v-else class="text-sm text-n-slate-11">
-        {{ t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_NO_DATA') }}
-      </p>
+    <div class="flex flex-col md:flex-row gap-4">
+      <SlaSummaryCard
+        class="flex-1"
+        title-key="REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_TITLE"
+        :sla="sla"
+      />
+      <SlaSummaryCard
+        class="flex-1"
+        title-key="REVENUE_INTELLIGENCE_REPORTS.MARKETING.CALL_SLA_TITLE"
+        :sla="callSla"
+      />
     </div>
 
     <!-- Por fuente (jerarquía existente) -->

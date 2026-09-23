@@ -121,4 +121,75 @@ describe RevenueIntelligence::CalculateSetterResponseTimeJob do
 
     expect(lead.reload.first_human_contact_channel).to eq('call')
   end
+
+  # "Tiempo hasta marcar" (pedido del equipo de marketing, 2026-09-23): a diferencia de
+  # first_human_contact_at, cuenta CUALQUIER llamada saliente sin importar si conectó.
+  describe 'first_call_attempt (tiempo hasta marcar)' do
+    it 'counts an outgoing call attempt even when it went to voicemail/no_answer/failed' do
+      lead = create_lead
+      create(:call, account: account, conversation: conversation, contact: contact, direction: :outgoing, status: 'no_answer',
+                    started_at: 1.day.ago)
+
+      described_class.new.perform
+
+      lead.reload
+      expect(lead.first_call_attempt_at).to be_present
+      expect(lead.first_call_attempt_seconds).to be_present
+      expect(lead.first_call_attempt_business_seconds).to be_present
+    end
+
+    it 'never counts an incoming call as a call attempt (that is the lead calling in, not the setter dialing)' do
+      lead = create_lead
+      create(:call, account: account, conversation: conversation, contact: contact, direction: :incoming, status: 'completed',
+                    started_at: 1.day.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.first_call_attempt_at).to be_nil
+    end
+
+    it 'picks the earliest outgoing call regardless of its status' do
+      lead = create_lead
+      earlier = create(:call, account: account, conversation: conversation, contact: contact, direction: :outgoing, status: 'no_answer',
+                              started_at: 20.hours.ago)
+      create(:call, account: account, conversation: conversation, contact: contact, direction: :outgoing, status: 'completed',
+                    started_at: 5.hours.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.first_call_attempt_at).to be_within(1.second).of(earlier.started_at)
+    end
+
+    it 'is independent from first_human_contact_at: a resolved lead still gets first_call_attempt_at computed' do
+      lead = create_lead(first_human_contact_at: 1.day.ago, first_human_contact_channel: 'whatsapp_message',
+                         first_human_response_seconds: 10, first_human_response_business_seconds: 10)
+      create(:call, account: account, conversation: conversation, contact: contact, direction: :outgoing, status: 'no_answer',
+                    started_at: 1.day.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.first_call_attempt_at).to be_present
+    end
+
+    it 'never recomputes a lead that already has first_call_attempt_at set' do
+      original_time = 3.days.ago
+      lead = create_lead(first_call_attempt_at: original_time, first_call_attempt_seconds: 10, first_call_attempt_business_seconds: 10)
+      create(:call, account: account, conversation: conversation, contact: contact, direction: :outgoing, status: 'completed',
+                    started_at: 1.hour.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.first_call_attempt_at).to be_within(1.second).of(original_time)
+    end
+
+    it 'skips leads without a resolved Chatwoot identity -- same coverage limitation as first_human_contact_at' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-2', created_at_source: 2.days.ago)
+      create(:call, account: account, conversation: conversation, contact: contact, direction: :outgoing, status: 'no_answer',
+                    started_at: 1.day.ago)
+
+      described_class.new.perform
+
+      expect(lead.reload.first_call_attempt_at).to be_nil
+    end
+  end
 end

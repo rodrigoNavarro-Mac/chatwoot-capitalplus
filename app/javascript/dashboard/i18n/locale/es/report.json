@@ -952,6 +952,7 @@
       "OF_CONTACTED": "de contactados",
       "OF_QUALIFIED": "de calificados",
       "SLA_TITLE": "Tiempo de respuesta del setter",
+      "CALL_SLA_TITLE": "Tiempo hasta el primer intento de llamada",
       "SLA_TARGET": "Objetivo: < {minutes} min",
       "SLA_AVG": "Promedio",
       "SLA_MEDIAN": "Mediana",

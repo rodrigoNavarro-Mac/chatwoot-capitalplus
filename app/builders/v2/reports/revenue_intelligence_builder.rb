@@ -47,6 +47,7 @@ class V2::Reports::RevenueIntelligenceBuilder
       marketing_totals: marketing_totals,
       marketing_funnel: marketing_funnel,
       marketing_sla: marketing_sla,
+      marketing_call_sla: marketing_call_sla,
       marketing_spend: marketing_spend,
       marketing_ad_table: marketing_ad_table,
       marketing_filters: { campaign_id: marketing_campaign_filter, adset_id: marketing_adset_filter, advert_id: marketing_advert_filter },
@@ -441,10 +442,21 @@ class V2::Reports::RevenueIntelligenceBuilder
   MAX_CONTACT_GAP_SECONDS = 7.days.to_i
 
   def marketing_sla
+    sla_summary(clock_column: :first_human_response_seconds, business_column: :first_human_response_business_seconds)
+  end
+
+  # "Tiempo hasta marcar" (pedido explícito del equipo de marketing, sesión 2026-09-23): distinto
+  # de marketing_sla -- cuenta el primer INTENTO de llamada saliente del setter, sin importar si
+  # conectó o fue a buzón (ver RevenueIntelligence::CalculateSetterResponseTimeJob#process_call_attempt).
+  # Mide velocidad de intento, no de contacto logrado.
+  def marketing_call_sla
+    sla_summary(clock_column: :first_call_attempt_seconds, business_column: :first_call_attempt_business_seconds)
+  end
+
+  def sla_summary(clock_column:, business_column:)
     leads = sla_leads_scope
     total = leads.count
-    responded = leads.where.not(first_human_response_business_seconds: nil)
-                     .pluck(:first_human_response_seconds, :first_human_response_business_seconds)
+    responded = leads.where.not(business_column => nil).pluck(clock_column, business_column)
     seconds = responded.filter_map { |clock, business| business if clock <= MAX_CONTACT_GAP_SECONDS }.sort
 
     { total_leads: total, responded_count: responded.size, pending_count: total - responded.size,

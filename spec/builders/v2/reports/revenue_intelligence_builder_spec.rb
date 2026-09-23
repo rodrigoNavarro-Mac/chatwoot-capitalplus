@@ -508,6 +508,44 @@ describe V2::Reports::RevenueIntelligenceBuilder do
     end
   end
 
+  # "Tiempo hasta marcar" (pedido del equipo de marketing, 2026-09-23): misma forma que
+  # marketing_sla, pero sobre first_call_attempt_* -- deliberadamente independiente y sin ninguna
+  # relación con si el lead tuvo un contacto humano REAL (first_human_contact_at).
+  describe 'marketing_call_sla' do
+    def call_attempt_lead(zoho_lead_id, clock_seconds: nil, business_seconds: nil)
+      account.revenue_leads.create!(zoho_lead_id: zoho_lead_id, created_at_source: 5.days.ago,
+                                    first_call_attempt_seconds: clock_seconds, first_call_attempt_business_seconds: business_seconds)
+    end
+
+    it 'computes avg/median/p75 and buckets only from leads with a tracked call attempt' do
+      call_attempt_lead('lead-1', clock_seconds: 60, business_seconds: 60)
+      call_attempt_lead('lead-2', clock_seconds: 600, business_seconds: 600)
+      account.revenue_leads.create!(zoho_lead_id: 'lead-3', created_at_source: 5.days.ago) # sin intento de llamada rastreado
+
+      call_sla = builder.build[:marketing_call_sla]
+
+      expect(call_sla).to include(total_leads: 3, responded_count: 2, pending_count: 1, avg_seconds: 330, median_seconds: 600)
+    end
+
+    it 'is independent from marketing_sla: a lead with a call attempt but no tracked human contact still counts here' do
+      call_attempt_lead('lead-1', clock_seconds: 60, business_seconds: 60)
+
+      result = builder.build
+
+      expect(result[:marketing_call_sla][:responded_count]).to eq(1)
+      expect(result[:marketing_sla][:responded_count]).to eq(0)
+    end
+
+    it 'also excludes outliers beyond MAX_CONTACT_GAP_SECONDS from its own avg/median/buckets' do
+      call_attempt_lead('lead-1', clock_seconds: 60, business_seconds: 60)
+      call_attempt_lead('lead-outlier', clock_seconds: 300.days.to_i, business_seconds: 150.days.to_i)
+
+      call_sla = builder.build[:marketing_call_sla]
+
+      expect(call_sla).to include(responded_count: 2, outliers_excluded_count: 1, avg_seconds: 60, median_seconds: 60)
+    end
+  end
+
   describe 'marketing_spend' do
     it 'shows N/D (nil) total investment and costs when nothing has been captured, never $0' do
       rollup('campaign', 'camp-1', 'lead_created', count: 10)

@@ -16,9 +16,14 @@
 # sesión previa: solo ~17.5% de los leads de esta cuenta tienen identidad resuelta en Chatwoot, la
 # mayoría del contacto real es telefónico fuera de este sistema.
 #
-# Idempotente y sin cursor: solo procesa leads con first_human_contact_at todavía nil -- una vez
-# encontrado el primer contacto, ya no cambia (es un hecho histórico), así que no hace falta
-# recalcular leads ya resueltos en corridas futuras.
+# También puebla first_call_attempt_at/first_call_attempt_seconds/first_call_attempt_business_seconds
+# -- "tiempo hasta marcar" (pedido del equipo de marketing, sesión 2026-09-23), un concepto
+# distinto: cuenta CUALQUIER llamada saliente sin importar si conectó o fue a buzón, ver
+# process_call_attempt.
+#
+# Idempotente y sin cursor: cada campo se procesa con su propio scope "todavía nil" -- una vez
+# encontrado, ya no cambia (es un hecho histórico), así que no hace falta recalcular leads ya
+# resueltos en corridas futuras.
 class RevenueIntelligence::CalculateSetterResponseTimeJob < ApplicationJob
   queue_as :scheduled_jobs
 
@@ -37,9 +42,17 @@ class RevenueIntelligence::CalculateSetterResponseTimeJob < ApplicationJob
   private
 
   def process_account(account)
-    account.revenue_leads.where(first_human_contact_at: nil).where.not(revenue_contact_id: nil).where.not(created_at_source: nil)
+    eligible_leads(account).where(first_human_contact_at: nil).find_each { |lead| process_lead(lead) }
+    # Scope propio (no first_human_contact_at: nil) -- un lead cuyo contacto real ya se resolvió
+    # en una corrida anterior nunca vuelve a pasar por el where de arriba, pero puede seguir sin
+    # first_call_attempt_at si nunca hubo un intento de llamada hasta ahora, o si este campo se
+    # agregó después de que ese lead ya quedó resuelto.
+    eligible_leads(account).where(first_call_attempt_at: nil).find_each { |lead| process_call_attempt(lead) }
+  end
+
+  def eligible_leads(account)
+    account.revenue_leads.where.not(revenue_contact_id: nil).where.not(created_at_source: nil)
            .joins(:revenue_contact).where.not(revenue_contacts: { chatwoot_contact_id: nil })
-           .find_each { |lead| process_lead(lead) }
   end
 
   def process_lead(lead)
@@ -70,10 +83,29 @@ class RevenueIntelligence::CalculateSetterResponseTimeJob < ApplicationJob
   end
 
   def persist_response_time(lead, contact_at, channel, inbox)
-    clock_seconds = [(contact_at - lead.created_at_source).round, 0].max
-    business_seconds = RevenueIntelligence::BusinessElapsedTimeCalculator.new(inbox).elapsed_seconds(lead.created_at_source, contact_at)
-
+    clock_seconds, business_seconds = elapsed_seconds(lead, contact_at, inbox)
     lead.update!(first_human_contact_at: contact_at, first_human_contact_channel: channel,
                  first_human_response_seconds: clock_seconds, first_human_response_business_seconds: business_seconds)
+  end
+
+  # "Tiempo hasta marcar" (pedido explícito del equipo de marketing, sesión 2026-09-23):
+  # DELIBERADAMENTE distinto de earliest_real_call_candidate -- cuenta cualquier llamada SALIENTE
+  # del setter sin importar status (completed/no_answer/failed/voicemail), porque la pregunta de
+  # negocio es "¿qué tan rápido INTENTA el setter el contacto?", no si logró conectar. Nunca cuenta
+  # llamadas entrantes (esas las inicia el lead, no miden la velocidad del setter).
+  def process_call_attempt(lead)
+    contact_id = lead.revenue_contact.chatwoot_contact_id
+    call = Call.where(contact_id: contact_id, direction: Call.directions['outgoing']).order(started_at: :asc).first
+    return if call.blank? || call.started_at.blank?
+
+    clock_seconds, business_seconds = elapsed_seconds(lead, call.started_at, call.inbox)
+    lead.update!(first_call_attempt_at: call.started_at, first_call_attempt_seconds: clock_seconds,
+                 first_call_attempt_business_seconds: business_seconds)
+  end
+
+  def elapsed_seconds(lead, event_at, inbox)
+    clock_seconds = [(event_at - lead.created_at_source).round, 0].max
+    business_seconds = RevenueIntelligence::BusinessElapsedTimeCalculator.new(inbox).elapsed_seconds(lead.created_at_source, event_at)
+    [clock_seconds, business_seconds]
   end
 end
