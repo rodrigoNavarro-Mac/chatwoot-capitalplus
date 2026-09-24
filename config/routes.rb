@@ -305,6 +305,11 @@ Rails.application.routes.draw do
               get :skip_logs
             end
           end
+          resources :quotes, only: [:index, :show] do
+            member do
+              get :pdf
+            end
+          end
           resources :csat_survey_responses, only: [:index] do
             collection do
               get :metrics
@@ -479,6 +484,7 @@ Rails.application.routes.draw do
                 post :create_crm_note
                 post :push_to_crm
                 post :sync_deals
+                post :generate_quote
               end
             end
             resource :linear, controller: 'linear', only: [] do
@@ -765,6 +771,7 @@ Rails.application.routes.draw do
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
   post 'webhooks/zoho_crm/:account_id', to: 'webhooks/zoho_crm#process_payload'
   post 'webhooks/zoho_crm/:account_id/send_template', to: 'webhooks/zoho_crm#send_template'
+  post 'webhooks/zoho_crm/:account_id/generate_quote', to: 'webhooks/zoho_crm#generate_quote'
   post 'webhooks/aircall/:account_id/:secret_token', to: 'webhooks/aircall#process_payload'
 
   namespace :twitter do

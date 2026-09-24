@@ -794,6 +794,19 @@ const menuItems = computed(() => {
       ],
     },
     {
+      name: 'Quotes',
+      label: t('SIDEBAR.QUOTES'),
+      icon: 'i-lucide-file-text',
+      children: [
+        {
+          name: 'All Quotes',
+          label: t('SIDEBAR.ALL_QUOTES'),
+          to: accountScopedRoute('quotes_dashboard_index'),
+          activeOn: ['quotes_dashboard_index', 'quotes_dashboard_show'],
+        },
+      ],
+    },
+    {
       name: 'Portals',
       label: t('SIDEBAR.HELP_CENTER.TITLE'),
       icon: 'i-lucide-library-big',

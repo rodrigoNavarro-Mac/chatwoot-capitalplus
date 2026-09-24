@@ -13,6 +13,17 @@
 # COQL no funciona sin ese scope. El endpoint /search sí funciona con los scopes de módulo
 # normales, que es justo lo que ya usan LeadsClient/ContactsClient con éxito.
 class Crm::Zoho::Api::DealsClient < Crm::Zoho::Api::BaseClient
+  # `fields`: igual razón que en #search_by_criteria — sin especificarlo, GET Deals/{id} devuelve
+  # un set de campos "default" que no garantiza incluir campos custom (ej. los de cotización), así
+  # que los llamadores que los necesitan deben pedirlos explícitos.
+  def find(zoho_id, fields: nil)
+    params = fields.present? ? { fields: fields.join(',') } : {}
+    response = get("Deals/#{zoho_id}", params)
+    response.is_a?(Hash) ? response.dig('data', 0) : nil
+  rescue Crm::Zoho::Api::BaseClient::ApiError
+    nil
+  end
+
   # contacts: [{ id:, phone:, email: }, ...] — id es el id del Contact de Chatwoot (no de Zoho).
   # Devuelve { chatwoot_contact_id => { deal_id:, stage:, modified_time: } }.
   def deals_for_contacts(contacts)

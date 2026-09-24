@@ -55,6 +55,10 @@ const isCreatingDeal = ref(false);
 const createDealError = ref(null);
 const dealCreated = ref(null);
 
+const isGeneratingQuote = ref(false);
+const generateQuoteError = ref(null);
+const quoteGenerated = ref(null);
+
 const isLead = computed(() => zohoModuleRef.value === 'Leads');
 const isDeal = computed(() => zohoModuleRef.value === 'Deals');
 const isContact = computed(() => zohoModuleRef.value === 'Contacts');
@@ -240,6 +244,31 @@ const saveDeal = async () => {
       t('INTEGRATION_SETTINGS.ZOHO_CRM.CREATE_DEAL_ERROR');
   } finally {
     isCreatingDeal.value = false;
+  }
+};
+
+const generateQuote = async () => {
+  isGeneratingQuote.value = true;
+  generateQuoteError.value = null;
+  quoteGenerated.value = null;
+  try {
+    const response = await ZohoCrmAPI.generateQuote(
+      props.contactId,
+      props.conversationId
+    );
+    if (response.data.status === 'completed') {
+      quoteGenerated.value = response.data.quote_id;
+    } else {
+      generateQuoteError.value =
+        response.data.error ||
+        t('INTEGRATION_SETTINGS.ZOHO_CRM.GENERATE_QUOTE_ERROR');
+    }
+  } catch (e) {
+    generateQuoteError.value =
+      e.response?.data?.error ||
+      t('INTEGRATION_SETTINGS.ZOHO_CRM.GENERATE_QUOTE_ERROR');
+  } finally {
+    isGeneratingQuote.value = false;
   }
 };
 
@@ -527,6 +556,40 @@ const priorityLabel = priority => {
               </span>
             </div>
           </template>
+        </div>
+
+        <!-- Generar cotización (solo cuando es Deal) -->
+        <div v-if="isDeal" class="mb-3">
+          <div
+            v-if="quoteGenerated"
+            class="rounded-lg border border-n-teal-5 bg-n-teal-2 px-3 py-2 text-xs text-n-teal-11 flex items-center justify-between"
+          >
+            <span>
+              {{ $t('INTEGRATION_SETTINGS.ZOHO_CRM.QUOTE_GENERATED') }}
+            </span>
+            <button
+              class="ml-2 text-n-teal-9 hover:text-n-teal-11"
+              @click="quoteGenerated = null"
+            >
+              {{ $t('INTEGRATION_SETTINGS.ZOHO_CRM.DISMISS') }}
+            </button>
+          </div>
+          <div v-else class="flex items-center justify-between gap-2">
+            <p v-if="generateQuoteError" class="text-n-ruby-11 text-xs">
+              {{ generateQuoteError }}
+            </p>
+            <span v-else class="text-xs text-n-slate-9">
+              {{ $t('INTEGRATION_SETTINGS.ZOHO_CRM.GENERATE_QUOTE_HINT') }}
+            </span>
+            <button
+              class="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-n-brand border border-n-brand hover:bg-n-brand/5 disabled:opacity-50 transition-colors shrink-0"
+              :disabled="isGeneratingQuote"
+              @click="generateQuote"
+            >
+              <Spinner v-if="isGeneratingQuote" size="10" />
+              {{ $t('INTEGRATION_SETTINGS.ZOHO_CRM.GENERATE_QUOTE') }}
+            </button>
+          </div>
         </div>
 
         <!-- Crear Deal (solo cuando es Contacto) -->

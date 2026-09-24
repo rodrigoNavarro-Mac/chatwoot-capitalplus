@@ -18,6 +18,22 @@ class Webhooks::ZohoCrmController < ActionController::API
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  # Permite disparar la generación de una cotización directamente desde un botón/función en Zoho
+  # CRM (reemplazo del antiguo botón Deluge `crearCotizacionYEnviar` + Zoho Creator), pasando el
+  # id del Deal. El mismo Quotes::GenerateFromZohoDealService lo usa también el botón dentro de
+  # Chatwoot (Api::V1::Accounts::Integrations::ZohoCrmController#generate_quote).
+  def generate_quote
+    return render json: { error: 'deal_id_required' }, status: :unprocessable_entity if params[:deal_id].blank?
+
+    quote = Quotes::GenerateFromZohoDealService.call(
+      account: @account, zoho_deal_id: params[:deal_id], trigger_source: 'zoho_webhook'
+    )
+    render json: { status: quote.status, quote_id: quote.id, error: quote.error_message },
+           status: quote.completed? ? :ok : :unprocessable_entity
+  rescue StandardError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   private
 
   def send_template_params

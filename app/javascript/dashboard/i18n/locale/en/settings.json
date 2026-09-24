@@ -368,6 +368,8 @@
     "SMS": "SMS",
     "WHATSAPP": "WhatsApp",
     "CAMPAIGNS": "Campaigns",
+    "QUOTES": "Quotes",
+    "ALL_QUOTES": "All Quotes",
     "ONGOING": "Ongoing",
     "ONE_OFF": "One off",
     "REPORTS_SLA": "SLA",

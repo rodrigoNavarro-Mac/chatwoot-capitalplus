@@ -1,0 +1,37 @@
+{
+  "QUOTES": {
+    "HEADER": "Quotes",
+    "DESCRIPTION": "Payment plan quotes generated from Zoho CRM deals",
+    "EMPTY": "No quotes generated yet",
+    "TABLE": {
+      "LOTE": "Lot",
+      "DESARROLLO": "Development",
+      "PRECIO_TOTAL": "Total price",
+      "STATUS": "Status",
+      "CREATED_AT": "Created",
+      "ACTIONS": "Actions",
+      "VIEW": "View",
+      "DOWNLOAD_PDF": "Download PDF"
+    },
+    "DETAIL": {
+      "TITLE": "{nombre} — {lote}",
+      "PLAZOS": "Term (months)",
+      "ENGANCHE": "Down payment",
+      "ENGANCHE_VALUE": "{pct} ({monto})",
+      "INTERES": "Interest rate",
+      "PRECIO_TOTAL": "Total price",
+      "SCHEDULE_TITLE": "Payment schedule",
+      "PERIODO": "Period",
+      "FECHA": "Date",
+      "SALDO_INICIAL": "Starting balance",
+      "INTERES_COL": "Interest",
+      "CAPITAL": "Principal",
+      "PAGO": "Payment",
+      "SALDO_FINAL": "Ending balance"
+    },
+    "ERRORS": {
+      "FETCH": "Could not load quotes",
+      "DOWNLOAD": "Could not download the PDF"
+    }
+  }
+}

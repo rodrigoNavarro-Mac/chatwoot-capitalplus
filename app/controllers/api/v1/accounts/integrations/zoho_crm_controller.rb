@@ -20,10 +20,10 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
     'desarrollo'  => 'Desarollo'
   }.freeze
   before_action :authorize_crm_view!, only: [:contact_data]
-  before_action :authorize_crm_manage!, only: %i[create_lead create_deal push_to_crm update_stage create_crm_note sync_deals]
+  before_action :authorize_crm_manage!, only: %i[create_lead create_deal push_to_crm update_stage create_crm_note sync_deals generate_quote]
   before_action :fetch_hook
   before_action :load_contact, except: [:sync_deals]
-  before_action :require_zoho_link, only: %i[contact_data update_stage create_crm_note create_deal push_to_crm]
+  before_action :require_zoho_link, only: %i[contact_data update_stage create_crm_note create_deal push_to_crm generate_quote]
 
   # Encola Crm::Zoho::DealsSyncJob solo para esta cuenta (a diferencia de la corrida del cron,
   # que sincroniza todas las cuentas con Zoho CRM habilitado) — botón "Sincronizar ahora" del
@@ -153,6 +153,21 @@ class Api::V1::Accounts::Integrations::ZohoCrmController < Api::V1::Accounts::Ba
       content:     params[:content].to_s
     )
     render json: { success: true }
+  rescue StandardError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # Genera una cotización de plan de pago para el Deal vinculado a este contacto, desde el panel
+  # de Zoho CRM de la conversación. Mismo servicio que usa el webhook de Zoho
+  # (Webhooks::ZohoCrmController#generate_quote) — ver Quotes::GenerateFromZohoDealService.
+  def generate_quote
+    return render json: { error: 'not_a_deal' }, status: :unprocessable_entity unless @zoho_module == 'Deals'
+
+    quote = Quotes::GenerateFromZohoDealService.call(
+      account: Current.account, zoho_deal_id: @zoho_id, trigger_source: 'chatwoot_ui',
+      contact: @contact, generated_by: current_user
+    )
+    render json: { quote_id: quote.id, status: quote.status, error: quote.error_message }
   rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end

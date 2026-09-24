@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_23_220000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_24_130000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1563,6 +1563,42 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_23_220000) do
     t.index ["portal_id", "user_id"], name: "index_portals_members_on_portal_id_and_user_id", unique: true
     t.index ["portal_id"], name: "index_portals_members_on_portal_id"
     t.index ["user_id"], name: "index_portals_members_on_user_id"
+  end
+
+  create_table "quotes", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "contact_id"
+    t.bigint "generated_by_id"
+    t.string "zoho_deal_id", null: false
+    t.string "trigger_source", null: false
+    t.string "status", default: "pending", null: false
+    t.string "error_message"
+    t.string "nombre"
+    t.string "lote"
+    t.string "desarrollo"
+    t.integer "plazos"
+    t.integer "meses_sin_intereses"
+    t.decimal "superficie", precision: 12, scale: 2
+    t.decimal "precio_m2", precision: 12, scale: 2
+    t.date "fecha_entrega"
+    t.decimal "monto_base", precision: 14, scale: 2
+    t.decimal "descuento_aplicado", precision: 14, scale: 2
+    t.decimal "monto", precision: 14, scale: 2
+    t.decimal "enganche_pct", precision: 6, scale: 3
+    t.decimal "enganche_monto", precision: 14, scale: 2
+    t.decimal "interes_pct", precision: 6, scale: 3
+    t.decimal "pago_mensual", precision: 14, scale: 2
+    t.decimal "precio_total", precision: 14, scale: 2
+    t.decimal "precio_m2_final", precision: 14, scale: 2
+    t.jsonb "schedule", default: [], null: false
+    t.jsonb "deal_snapshot", default: {}, null: false
+    t.jsonb "render_payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "contact_id"], name: "index_quotes_on_account_id_and_contact_id"
+    t.index ["account_id", "created_at"], name: "index_quotes_on_account_id_and_created_at"
+    t.index ["account_id", "status"], name: "index_quotes_on_account_id_and_status"
+    t.index ["account_id", "zoho_deal_id"], name: "index_quotes_on_account_id_and_zoho_deal_id"
   end
 
   create_table "record_shares", force: :cascade do |t|

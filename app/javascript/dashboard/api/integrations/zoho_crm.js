@@ -54,6 +54,13 @@ class ZohoCrmAPI extends ApiClient {
   syncDeals() {
     return axios.post(`${this.url}/sync_deals`);
   }
+
+  generateQuote(contactId, conversationId) {
+    return axios.post(`${this.url}/generate_quote`, {
+      contact_id: contactId,
+      conversation_id: conversationId,
+    });
+  }
 }
 
 export default new ZohoCrmAPI();
