@@ -11,6 +11,12 @@ class QuotesAPI extends ApiClient {
     return axios.get(`${this.url}/${id}/pdf`, { responseType: 'blob' });
   }
 
+  downloadAmortizationPdf(id) {
+    return axios.get(`${this.url}/${id}/amortization_pdf`, {
+      responseType: 'blob',
+    });
+  }
+
   getDevelopments() {
     return axios.get(`${this.url}/developments`);
   }

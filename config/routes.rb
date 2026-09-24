@@ -308,6 +308,7 @@ Rails.application.routes.draw do
           resources :quotes, only: [:index, :show, :create, :update] do
             member do
               get :pdf
+              get :amortization_pdf
             end
             collection do
               get :products

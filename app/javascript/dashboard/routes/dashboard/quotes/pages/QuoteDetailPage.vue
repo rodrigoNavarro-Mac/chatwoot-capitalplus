@@ -15,6 +15,7 @@ const route = useRoute();
 const quote = ref(null);
 const isFetching = ref(false);
 const isDownloading = ref(false);
+const isDownloadingAmortization = ref(false);
 
 const isEditing = ref(false);
 const isSaving = ref(false);
@@ -97,6 +98,22 @@ const downloadPdf = async () => {
     useAlert(t('QUOTES.ERRORS.DOWNLOAD'));
   } finally {
     isDownloading.value = false;
+  }
+};
+
+const downloadAmortizationPdf = async () => {
+  if (!quote.value) return;
+  isDownloadingAmortization.value = true;
+  try {
+    const response = await QuotesAPI.downloadAmortizationPdf(quote.value.id);
+    downloadBlobFile(
+      `amortizacion-${quote.value.lote || quote.value.id}.pdf`,
+      response.data
+    );
+  } catch (error) {
+    useAlert(t('QUOTES.ERRORS.DOWNLOAD'));
+  } finally {
+    isDownloadingAmortization.value = false;
   }
 };
 
@@ -226,9 +243,19 @@ onMounted(fetchQuote);
             />
           </div>
 
-          <h2 class="text-sm font-semibold text-n-slate-12 mb-2">
-            {{ t('QUOTES.DETAIL.SCHEDULE_TITLE') }}
-          </h2>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-sm font-semibold text-n-slate-12">
+              {{ t('QUOTES.DETAIL.SCHEDULE_TITLE') }}
+            </h2>
+            <Button
+              size="xs"
+              variant="outline"
+              icon="i-lucide-download"
+              :is-loading="isDownloadingAmortization"
+              :label="t('QUOTES.DETAIL.DOWNLOAD_AMORTIZATION')"
+              @click="downloadAmortizationPdf"
+            />
+          </div>
           <div class="border border-n-weak rounded-lg overflow-hidden mb-8">
             <table class="w-full text-sm">
               <thead class="bg-n-slate-2 text-n-slate-11">

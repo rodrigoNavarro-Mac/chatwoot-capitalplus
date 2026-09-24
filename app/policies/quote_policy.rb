@@ -11,6 +11,10 @@ class QuotePolicy < ApplicationPolicy
     @account_user.administrator? || @account_user.agent?
   end
 
+  def amortization_pdf?
+    @account_user.administrator? || @account_user.agent?
+  end
+
   def create?
     @account_user.administrator? || @account_user.agent?
   end

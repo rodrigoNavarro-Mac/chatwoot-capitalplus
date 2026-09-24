@@ -7,6 +7,7 @@ class Quotes::HtmlRendererService
   include ERB::Util
 
   TEMPLATE_PATH = Rails.root.join('app/views/quotes/pdf.html.erb')
+  AMORTIZATION_TEMPLATE_PATH = Rails.root.join('app/views/quotes/amortization_pdf.html.erb')
 
   # El diseño original (tier 0) está pensado para ~12 meses. Con financiamientos más largos
   # (hasta 48 meses, el máximo que soporta Quotes::CalculatorService) la tabla no cabe en una
@@ -47,6 +48,14 @@ class Quotes::HtmlRendererService
     ERB.new(File.read(TEMPLATE_PATH), trim_mode: '-').result_with_hash(locals)
   end
 
+  # Versión "interna" con el desglose completo (interés/capital/saldo por periodo) — a diferencia
+  # de #render, esta no intenta caber en una sola página: son documentos de consulta/contabilidad,
+  # no el PDF que se le entrega al cliente, así que se deja fluir a varias páginas con el thead
+  # repitiéndose (ver `thead{display:table-header-group}` en la plantilla).
+  def render_amortization
+    ERB.new(File.read(AMORTIZATION_TEMPLATE_PATH), trim_mode: '-').result_with_hash(amortization_locals)
+  end
+
   private
 
   attr_reader :quote
@@ -55,15 +64,26 @@ class Quotes::HtmlRendererService
   # ventas) — se escapan explícitamente porque este HTML no solo se manda a Gotenberg, también se
   # muestra embebido (iframe) en el módulo de Cotizaciones del dashboard.
   def locals
+    quote_summary_locals.merge(schedule: schedule_rows, compact_style: compact_style)
+  end
+
+  def amortization_locals
+    quote_summary_locals.merge(
+      nombre: h(quote.nombre),
+      interes_pct: number_with_precision(quote.interes_pct, precision: 2),
+      pago_mensual: currency(quote.pago_mensual),
+      schedule: amortization_schedule_rows
+    )
+  end
+
+  def quote_summary_locals
     text_locals.merge(
       superficie: number_with_precision(quote.superficie, precision: 2, delimiter: ','),
       precio_m2: currency(quote.precio_m2),
       importe: currency(quote.monto),
       enganche_pct: number_with_precision(quote.enganche_pct, precision: 2),
       plazos: quote.plazos,
-      schedule: schedule_rows,
-      total: currency(quote.precio_total),
-      compact_style: compact_style
+      total: currency(quote.precio_total)
     )
   end
 
@@ -73,12 +93,28 @@ class Quotes::HtmlRendererService
 
   def schedule_rows
     @schedule_rows ||= Array(quote.schedule).map do |row|
+      { periodo: row_value(row, :periodo), fecha: format_date(row_value(row, :fecha)), pago: currency(row_value(row, :pago)) }
+    end
+  end
+
+  def amortization_schedule_rows
+    Array(quote.schedule).map do |row|
       {
-        periodo: row['periodo'] || row[:periodo],
-        fecha: format_date(row['fecha'] || row[:fecha]),
-        pago: currency(row['pago'] || row[:pago])
+        periodo: row_value(row, :periodo),
+        fecha: format_date(row_value(row, :fecha)),
+        saldo_inicial: currency(row_value(row, :saldo_inicial)),
+        interes: currency(row_value(row, :interes)),
+        capital: currency(row_value(row, :capital)),
+        pago: currency(row_value(row, :pago)),
+        saldo_final: currency(row_value(row, :saldo_final))
       }
     end
+  end
+
+  # `quote.schedule` es jsonb: llega con llaves string desde la base, pero symbol cuando se arma
+  # en memoria justo después de calcular (antes del primer save) — se soportan ambas.
+  def row_value(row, key)
+    row[key.to_s] || row[key]
   end
 
   def compact_style

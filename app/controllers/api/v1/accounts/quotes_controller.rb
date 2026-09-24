@@ -1,6 +1,6 @@
 class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   before_action :check_authorization
-  before_action :fetch_quote, only: [:show, :update, :pdf]
+  before_action :fetch_quote, only: [:show, :update, :pdf, :amortization_pdf]
 
   # Sin el permiso custom 'quote_sensitive_fields_manage' (o ser administrador), estos tres campos
   # quedan bloqueados server-side sin importar qué mande el request — el frontend también los
@@ -76,6 +76,21 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
               filename: "#{"cotizacion-#{@quote.lote.presence || @quote.id}".parameterize}.pdf",
               type: 'application/pdf',
               disposition: 'attachment'
+  end
+
+  # Tabla de amortización completa (interés/capital/saldo por periodo), con el mismo estilo Fuego
+  # que el PDF simple — se genera al vuelo en cada descarga (no se guarda, ya que sale directo de
+  # `quote.schedule`) y puede ocupar varias páginas a diferencia del PDF que se le entrega al
+  # cliente.
+  def amortization_pdf
+    html = Quotes::HtmlRendererService.new(@quote).render_amortization
+    pdf_bytes = Quotes::PdfGeneratorService.new(html).generate
+    send_data pdf_bytes,
+              filename: "#{"amortizacion-#{@quote.lote.presence || @quote.id}".parameterize}.pdf",
+              type: 'application/pdf',
+              disposition: 'attachment'
+  rescue Quotes::PdfGeneratorService::ConversionError => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private
