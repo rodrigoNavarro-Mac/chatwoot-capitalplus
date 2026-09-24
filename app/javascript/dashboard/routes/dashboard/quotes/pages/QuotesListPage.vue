@@ -10,7 +10,11 @@ import Spinner from 'shared/components/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import QuoteFieldsForm from '../components/QuoteFieldsForm.vue';
-import { mapZohoProductToFields, productLabel } from '../helpers/productMapper';
+import {
+  mapZohoProductToFields,
+  productAvailabilityWarning,
+  productLabel,
+} from '../helpers/productMapper';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -101,6 +105,16 @@ const selectProduct = product => {
   fields.value = { ...fields.value, ...mapZohoProductToFields(product) };
 };
 
+const AVAILABILITY_LABELS = {
+  BLOCKED: () => t('QUOTES.GENERATE.AVAILABILITY.BLOCKED'),
+  RESERVED: () => t('QUOTES.GENERATE.AVAILABILITY.RESERVED'),
+};
+
+const availabilityLabel = product => {
+  const warning = productAvailabilityWarning(product);
+  return warning ? AVAILABILITY_LABELS[warning]() : null;
+};
+
 const clearProduct = () => {
   selectedProduct.value = null;
   productQuery.value = '';
@@ -179,10 +193,16 @@ onMounted(fetchQuotes);
               v-for="product in productResults"
               :key="product.id"
               type="button"
-              class="w-full text-start px-3 py-2 text-sm hover:bg-n-slate-3"
+              class="w-full flex items-center justify-between gap-2 text-start px-3 py-2 text-sm hover:bg-n-slate-3"
               @click="selectProduct(product)"
             >
-              {{ productLabel(product) }}
+              <span>{{ productLabel(product) }}</span>
+              <span
+                v-if="availabilityLabel(product)"
+                class="shrink-0 px-1.5 py-0.5 rounded text-xs font-medium bg-n-ruby-3 text-n-ruby-11"
+              >
+                {{ availabilityLabel(product) }}
+              </span>
             </button>
           </div>
           <p v-if="isSearchingProducts" class="text-xs text-n-slate-10 mt-1">

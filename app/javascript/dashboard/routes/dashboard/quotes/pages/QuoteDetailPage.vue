@@ -33,7 +33,7 @@ const fieldsFromQuote = q => ({
   nombre: q.nombre,
   lote: q.lote,
   desarrollo: q.desarrollo,
-  color: '',
+  color: q.raw_color,
   superficie: q.superficie,
   precio_m2: q.precio_m2,
   plazos: q.plazos,

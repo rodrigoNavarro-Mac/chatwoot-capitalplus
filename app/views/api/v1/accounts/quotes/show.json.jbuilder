@@ -26,6 +26,7 @@ json.precio_total @quote.precio_total
 json.precio_m2_final @quote.precio_m2_final
 json.schedule @quote.schedule
 json.raw_descuento @quote.deal_snapshot['Descuento']
+json.raw_color @quote.deal_snapshot['Color']
 json.html @quote.render_payload['html']
 json.pdf_attached @quote.pdf.attached?
 json.created_at @quote.created_at

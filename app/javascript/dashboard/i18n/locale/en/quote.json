@@ -8,7 +8,11 @@
       "PRODUCT_PLACEHOLDER": "Search a product (lot)…",
       "CLEAR_PRODUCT": "Change",
       "SEARCHING": "Searching…",
-      "SUBMIT": "Generate"
+      "SUBMIT": "Generate",
+      "AVAILABILITY": {
+        "BLOCKED": "Blocked",
+        "RESERVED": "Reserved"
+      }
     },
     "FORM": {
       "NOMBRE": "Client name",
