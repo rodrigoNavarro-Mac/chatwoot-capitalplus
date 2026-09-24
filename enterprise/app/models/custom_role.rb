@@ -27,6 +27,10 @@
 # - 'weekly_ops_report_view' / 'weekly_ops_report_manage': Read-only vs full access to the weekly ops report.
 # - 'campaign_view' / 'campaign_manage': Read-only vs full access to campaigns.
 # - 'crm_view' / 'crm_manage': Read-only vs full access to the CRM integration panel (push/create/sync).
+# - 'quote_sensitive_fields_manage': Can edit discount, interest rate and interest-free months
+#   when generating/editing a quote. Without it, agents can still generate/edit quotes but those
+#   three fields are locked server-side to their default (create) or current (edit) value,
+#   regardless of what they submit. Administrators always have this, with or without the flag.
 #
 # For most modules 'manage' implies 'view' (enforced client-side when building the role).
 
@@ -58,6 +62,7 @@ class CustomRole < ApplicationRecord
     campaign_manage
     crm_view
     crm_manage
+    quote_sensitive_fields_manage
   ].freeze
 
   validates :name, presence: true

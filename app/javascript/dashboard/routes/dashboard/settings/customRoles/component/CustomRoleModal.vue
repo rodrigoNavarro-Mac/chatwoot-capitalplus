@@ -10,6 +10,7 @@ import {
   MANAGE_ALL_CONVERSATION_PERMISSIONS,
   CONVERSATION_UNASSIGNED_PERMISSIONS,
   CONVERSATION_PARTICIPATING_PERMISSIONS,
+  QUOTE_SENSITIVE_FIELDS_PERMISSION,
 } from 'dashboard/constants/permissions.js';
 
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -278,6 +279,19 @@ const isSubmitDisabled = computed(
                 }}
               </label>
             </div>
+          </div>
+
+          <!-- Permiso independiente (no es un nivel view/manage): habilita editar
+               descuento/interés/meses sin intereses al generar o editar una cotización. -->
+          <div class="flex flex-col gap-1.5 pt-3 border-t border-n-weak">
+            <label class="flex items-center gap-1.5 text-sm font-normal">
+              <input
+                v-model="selectedPermissions"
+                type="checkbox"
+                :value="QUOTE_SENSITIVE_FIELDS_PERMISSION"
+              />
+              {{ $t('CUSTOM_ROLE.PERMISSIONS.QUOTE_SENSITIVE_FIELDS_MANAGE') }}
+            </label>
           </div>
         </div>
       </div>

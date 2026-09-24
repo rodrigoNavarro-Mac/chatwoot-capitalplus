@@ -1,5 +1,8 @@
 <script setup>
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { usePolicy } from 'dashboard/composables/usePolicy';
+import { QUOTE_SENSITIVE_FIELDS_PERMISSION } from 'dashboard/constants/permissions.js';
 import Input from 'dashboard/components-next/input/Input.vue';
 
 const props = defineProps({
@@ -9,6 +12,16 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 
 const { t } = useI18n();
+const { checkPermissions } = usePolicy();
+
+// Solo UX: el backend (Api::V1::Accounts::QuotesController) es quien realmente bloquea estos tres
+// campos para quien no tenga el permiso — aquí solo evitamos que parezcan editables.
+const canEditSensitiveFields = computed(() =>
+  checkPermissions(['administrator', QUOTE_SENSITIVE_FIELDS_PERMISSION])
+);
+const sensitiveFieldDisabled = computed(
+  () => props.disabled || !canEditSensitiveFields.value
+);
 
 const update = (key, value) => {
   emit('update:modelValue', { ...props.modelValue, [key]: value });
@@ -77,24 +90,33 @@ const update = (key, value) => {
       :model-value="modelValue.interes"
       type="number"
       min="0"
-      :disabled="disabled"
+      :disabled="sensitiveFieldDisabled"
       :label="t('QUOTES.FORM.INTERES')"
+      :message="
+        !canEditSensitiveFields ? t('QUOTES.FORM.SENSITIVE_FIELD_LOCKED') : ''
+      "
       @update:model-value="v => update('interes', v)"
     />
     <Input
       :model-value="modelValue.meses_sin_intereses"
       type="number"
       min="0"
-      :disabled="disabled"
+      :disabled="sensitiveFieldDisabled"
       :label="t('QUOTES.FORM.MSI')"
+      :message="
+        !canEditSensitiveFields ? t('QUOTES.FORM.SENSITIVE_FIELD_LOCKED') : ''
+      "
       @update:model-value="v => update('meses_sin_intereses', v)"
     />
     <Input
       :model-value="modelValue.descuento"
       type="number"
       min="0"
-      :disabled="disabled"
+      :disabled="sensitiveFieldDisabled"
       :label="t('QUOTES.FORM.DESCUENTO')"
+      :message="
+        !canEditSensitiveFields ? t('QUOTES.FORM.SENSITIVE_FIELD_LOCKED') : ''
+      "
       @update:model-value="v => update('descuento', v)"
     />
     <Input

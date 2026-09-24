@@ -27,7 +27,8 @@
       "INTERES": "Tasa de interés (%)",
       "MSI": "Meses sin intereses",
       "DESCUENTO": "Descuento (% o monto fijo)",
-      "FECHA_ENTREGA": "Fecha de firma (pago de enganche)"
+      "FECHA_ENTREGA": "Fecha de firma (pago de enganche)",
+      "SENSITIVE_FIELD_LOCKED": "Solo administradores o roles con permiso pueden cambiar esto"
     },
     "TABLE": {
       "LOTE": "Lote",

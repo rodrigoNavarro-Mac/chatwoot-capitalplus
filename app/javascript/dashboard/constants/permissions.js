@@ -18,7 +18,14 @@ export const AVAILABLE_CUSTOM_ROLE_PERMISSIONS = [
   'campaign_manage',
   'crm_view',
   'crm_manage',
+  'quote_sensitive_fields_manage',
 ];
+
+// Permiso independiente (no es un módulo view/manage): controla si el agente puede editar
+// descuento/interés/meses sin intereses al generar o editar una cotización. Sin acceso al modulo
+// de administrador, se pide explicito desde Roles personalizados.
+export const QUOTE_SENSITIVE_FIELDS_PERMISSION =
+  'quote_sensitive_fields_manage';
 
 // Matriz de módulos para la UI de Custom Roles: cada fila es un módulo con sus permisos
 // "ver"/"administrar" (o, para conversaciones, su jerarquía especial de 3 niveles ya existente).

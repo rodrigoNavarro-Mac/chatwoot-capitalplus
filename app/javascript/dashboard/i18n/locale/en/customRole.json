@@ -52,6 +52,7 @@
       "CAMPAIGN_MANAGE": "Manage campaigns",
       "CRM_VIEW": "View CRM panel",
       "CRM_MANAGE": "Manage CRM panel",
+      "QUOTE_SENSITIVE_FIELDS_MANAGE": "Edit discount, interest rate and interest-free months on quotes",
       "MODULE_LABELS": {
         "CONVERSATION": "Conversations",
         "CONTACT": "Contacts",

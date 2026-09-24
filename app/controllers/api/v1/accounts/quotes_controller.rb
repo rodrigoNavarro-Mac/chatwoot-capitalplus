@@ -2,6 +2,12 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   before_action :check_authorization
   before_action :fetch_quote, only: [:show, :update, :pdf]
 
+  # Sin el permiso custom 'quote_sensitive_fields_manage' (o ser administrador), estos tres campos
+  # quedan bloqueados server-side sin importar qué mande el request — el frontend también los
+  # deshabilita (QuoteFieldsForm.vue) pero eso es solo UX, la fuente de verdad es este check.
+  SENSITIVE_FIELDS = %i[descuento interes meses_sin_intereses].freeze
+  DEFAULT_INTERES = '8'.freeze
+
   def index
     @quotes = Current.account.quotes.filter_by_contact_id(params[:contact_id]).recent_first.limit(50)
   end
@@ -34,10 +40,11 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   def create
     return render json: { error: 'zoho_product_id_required' }, status: :unprocessable_entity if params[:zoho_product_id].blank?
 
+    fields = lock_sensitive_fields(quote_fields_params, descuento: 0, interes: DEFAULT_INTERES, meses_sin_intereses: 0)
     @quote = Quotes::GenerateFromProductService.call(
       account: Current.account,
       zoho_product_id: params[:zoho_product_id],
-      fields: quote_fields_params,
+      fields: fields,
       contact: fetch_contact,
       generated_by: current_user
     )
@@ -47,9 +54,15 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   end
 
   # Recalcula y regenera el PDF de una cotización existente con los campos editados desde el
-  # detalle — los campos no enviados conservan su último valor (edición parcial).
+  # detalle — los campos no enviados conservan su último valor (edición parcial). Sin el permiso
+  # de campos sensibles, descuento/interés/MSI se fuerzan a su valor actual sin importar qué se
+  # haya mandado (edición parcial "de mentiras" para esos tres campos específicamente).
   def update
-    payload = Quotes::PayloadBuilder.build(quote_fields_with_current_defaults)
+    fields = lock_sensitive_fields(
+      quote_fields_with_current_defaults,
+      descuento: @quote.deal_snapshot['Descuento'], interes: @quote.interes_pct, meses_sin_intereses: @quote.meses_sin_intereses
+    )
+    payload = Quotes::PayloadBuilder.build(fields)
     Quotes::CalculateAndAttachService.call(quote: @quote, payload: payload)
     render :show
   rescue StandardError => e
@@ -79,6 +92,19 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
     return nil if params[:contact_id].blank?
 
     Current.account.contacts.find_by(id: params[:contact_id])
+  end
+
+  def can_manage_sensitive_fields?
+    Current.account_user.administrator? || Current.account_user.custom_role&.permissions&.include?('quote_sensitive_fields_manage')
+  end
+
+  # `locked_values` gana sobre lo que haya en `fields` para SENSITIVE_FIELDS cuando el usuario no
+  # tiene el permiso — no basta con quitar la llave (interes es obligatorio para calcular un plan
+  # financiado), hay que forzar un valor válido.
+  def lock_sensitive_fields(fields, locked_values)
+    return fields if can_manage_sensitive_fields?
+
+    fields.merge(locked_values.slice(*SENSITIVE_FIELDS))
   end
 
   def quote_fields_params
