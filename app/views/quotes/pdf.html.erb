@@ -11,6 +11,26 @@
   --row:#efefec;
   --ink:#1a241c;
   --line:#353c36;
+
+  /* Todo lo que depende del número de meses se ajusta desde estas variables (ver
+     Quotes::HtmlRendererService#layout_vars) para que un plazo largo (hasta 48 meses) siempre
+     quepa en una sola página, encogiendo primero el header y luego el resto del espaciado. */
+  --header-h:207px;
+  --header-pad:30px 72px 30px 78px;
+  --header-copy-size:17px;
+  --logo-wrap-w:260px;
+  --logo-wrap-h:132px;
+  --logo-w:250px;
+  --logo-h:125px;
+  --content-pad:48px 66px 42px 66px;
+  --top-data-mb:35px;
+  --table-title-pad:20px 22px 10px;
+  --th-pad:8px 22px;
+  --td-pad:4px 22px;
+  --table-font:12px;
+  --total-mt:20px;
+  --total-pad:5px 22px 5px;
+  --total-font:22px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -26,16 +46,17 @@ body{background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
 }
 
 .header{
-  height:207px;
+  height:var(--header-h);
   background:var(--green);
   display:grid;
   grid-template-columns:1fr 1.2fr;
   align-items:center;
-  padding:30px 72px 30px 78px;
+  padding:var(--header-pad);
+  overflow:hidden;
 }
 .logo-wrap{
-  width:260px;
-  height:132px;
+  width:var(--logo-wrap-w);
+  height:var(--logo-wrap-h);
   display:flex;
   align-items:center;
   justify-content:flex-start;
@@ -43,8 +64,8 @@ body{background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
 }
 .logo-wrap img{
   display:block;
-  width:250px;
-  height:125px;
+  width:var(--logo-w);
+  height:var(--logo-h);
   object-fit:contain;
   object-position:left center;
 }
@@ -52,7 +73,7 @@ body{background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
   justify-self:end;
   max-width:335px;
   color:#ded2a3;
-  font-size:17px;
+  font-size:var(--header-copy-size);
   line-height:1.32;
 }
 
@@ -60,7 +81,7 @@ body{background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
   display:grid;
   grid-template-columns:185px 1fr;
   column-gap:48px;
-  padding:48px 66px 42px 66px;
+  padding:var(--content-pad);
   flex:1;
 }
 .left-col{
@@ -87,7 +108,7 @@ body{background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
   display:grid;
   grid-template-columns:1.05fr 1fr;
   gap:18px 45px;
-  margin-bottom:35px;
+  margin-bottom:var(--top-data-mb);
 }
 .stack-fields .field{margin-bottom:5px}
 .field{
@@ -129,14 +150,14 @@ body{background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
 .table-wrap{border-top:1.4px solid var(--line)}
 .table-title{
   background:var(--row);
-  padding:20px 22px 10px;
+  padding:var(--table-title-pad);
   font-size:14px;
 }
-table{width:100%;border-collapse:collapse;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:var(--table-font)}
 thead{background:var(--row);border-bottom:1px solid var(--line)}
-th{text-align:left;padding:8px 22px;font-size:11px}
+th{text-align:left;padding:var(--th-pad);font-size:11px}
 th:last-child{text-align:center}
-td{padding:4px 22px;height:21px}
+td{padding:var(--td-pad)}
 tbody tr:nth-child(odd){background:var(--row)}
 td.amount{text-align:right}
 
@@ -144,9 +165,9 @@ td.amount{text-align:right}
   display:grid;
   grid-template-columns:1fr 180px;
   border-bottom:1.4px solid var(--line);
-  margin-top:20px;
-  padding:5px 22px 5px;
-  font-size:22px;
+  margin-top:var(--total-mt);
+  padding:var(--total-pad);
+  font-size:var(--total-font);
   font-weight:700;
 }
 .total-row span:last-child{text-align:right}
@@ -163,6 +184,7 @@ td.amount{text-align:right}
 }
 .footer b{color:var(--gold)}
 </style>
+<% if compact_style.present? %><style><%= compact_style %></style><% end %>
 </head>
 <body>
 
