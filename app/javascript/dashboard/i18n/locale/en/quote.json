@@ -1,8 +1,29 @@
 {
   "QUOTES": {
     "HEADER": "Quotes",
-    "DESCRIPTION": "Payment plan quotes generated from Zoho CRM deals",
+    "DESCRIPTION": "Payment plan quotes generated from Zoho CRM products",
     "EMPTY": "No quotes generated yet",
+    "GENERATE": {
+      "TITLE": "Generate a quote",
+      "PRODUCT_PLACEHOLDER": "Search a product (lot)…",
+      "CLEAR_PRODUCT": "Change",
+      "SEARCHING": "Searching…",
+      "SUBMIT": "Generate"
+    },
+    "FORM": {
+      "NOMBRE": "Client name",
+      "LOTE": "Lot",
+      "DESARROLLO": "Development",
+      "COLOR": "Color",
+      "SUPERFICIE": "Surface (m²)",
+      "PRECIO_M2": "Price per m²",
+      "PLAZOS": "Term (months)",
+      "ENGANCHE": "Down payment (%)",
+      "INTERES": "Interest rate (%)",
+      "MSI": "Interest-free months",
+      "DESCUENTO": "Discount (% or fixed amount)",
+      "FECHA_ENTREGA": "Delivery date"
+    },
     "TABLE": {
       "LOTE": "Lot",
       "DESARROLLO": "Development",
@@ -21,6 +42,10 @@
       "INTERES": "Interest rate",
       "PRECIO_TOTAL": "Total price",
       "SCHEDULE_TITLE": "Payment schedule",
+      "PREVIEW_TITLE": "Quote preview",
+      "EDIT": "Edit",
+      "CANCEL_EDIT": "Cancel",
+      "SAVE_AND_RECALCULATE": "Save and recalculate",
       "PERIODO": "Period",
       "FECHA": "Date",
       "SALDO_INICIAL": "Starting balance",
@@ -31,7 +56,9 @@
     },
     "ERRORS": {
       "FETCH": "Could not load quotes",
-      "DOWNLOAD": "Could not download the PDF"
+      "DOWNLOAD": "Could not download the PDF",
+      "GENERATE": "Could not generate the quote",
+      "UPDATE": "Could not save the changes"
     }
   }
 }

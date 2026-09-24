@@ -4,6 +4,7 @@
 # quede "tonta" (solo interpolación, sin lógica).
 class Quotes::HtmlRendererService
   include ActionView::Helpers::NumberHelper
+  include ERB::Util
 
   TEMPLATE_PATH = Rails.root.join('app/views/quotes/pdf.html.erb')
 
@@ -19,10 +20,11 @@ class Quotes::HtmlRendererService
 
   attr_reader :quote
 
+  # `lote`/`desarrollo` vienen del payload de Zoho (Deal_Name/Desarollo, texto libre capturado por
+  # ventas) — se escapan explícitamente porque este HTML no solo se manda a Gotenberg, también se
+  # muestra embebido (iframe) en el módulo de Cotizaciones del dashboard.
   def locals
-    {
-      lote: quote.lote.presence || quote.nombre,
-      desarrollo: quote.desarrollo,
+    text_locals.merge(
       superficie: number_with_precision(quote.superficie, precision: 2, delimiter: ','),
       precio_m2: currency(quote.precio_m2),
       importe: currency(quote.monto),
@@ -30,7 +32,11 @@ class Quotes::HtmlRendererService
       plazos: quote.plazos,
       schedule: schedule_rows,
       total: currency(quote.precio_total)
-    }
+    )
+  end
+
+  def text_locals
+    { lote: h(quote.lote.presence || quote.nombre), desarrollo: h(quote.desarrollo) }
   end
 
   def schedule_rows

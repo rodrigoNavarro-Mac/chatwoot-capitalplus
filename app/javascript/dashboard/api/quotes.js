@@ -10,6 +10,10 @@ class QuotesAPI extends ApiClient {
   downloadPdf(id) {
     return axios.get(`${this.url}/${id}/pdf`, { responseType: 'blob' });
   }
+
+  searchProducts(query) {
+    return axios.get(`${this.url}/products`, { params: { q: query } });
+  }
 }
 
 export default new QuotesAPI();

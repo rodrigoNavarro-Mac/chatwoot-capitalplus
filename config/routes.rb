@@ -305,9 +305,12 @@ Rails.application.routes.draw do
               get :skip_logs
             end
           end
-          resources :quotes, only: [:index, :show] do
+          resources :quotes, only: [:index, :show, :create, :update] do
             member do
               get :pdf
+            end
+            collection do
+              get :products
             end
           end
           resources :csat_survey_responses, only: [:index] do

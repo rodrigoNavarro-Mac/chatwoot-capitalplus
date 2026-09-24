@@ -12,12 +12,6 @@ class Quotes::GenerateFromZohoDealService
     Precio_por_m2 Meses_sin_intereses Descuento Color Stage
   ].freeze
 
-  CALCULATION_FIELDS = %i[
-    nombre lote desarrollo plazos meses_sin_intereses superficie precio_m2 fecha_entrega
-    monto_base descuento_aplicado monto enganche_pct enganche_monto interes_pct
-    pago_mensual precio_total precio_m2_final schedule
-  ].freeze
-
   def self.call(...)
     new(...).call
   end
@@ -45,6 +39,7 @@ class Quotes::GenerateFromZohoDealService
 
   def create_pending_quote
     account.quotes.create!(
+      source_type: 'deal',
       zoho_deal_id: zoho_deal_id,
       trigger_source: trigger_source,
       contact: contact || resolve_contact,
@@ -69,18 +64,8 @@ class Quotes::GenerateFromZohoDealService
     payload = fetch_deal_payload
     raise DealNotFoundError, 'No se encontró el trato en Zoho CRM.' if payload.blank?
 
-    calculation = Quotes::CalculatorService.calculate(payload)
-    persist_calculation(payload, calculation)
-
-    html = Quotes::HtmlRendererService.new(quote).render
-    pdf_bytes = Quotes::PdfGeneratorService.new(html).generate
-    attach_pdf(pdf_bytes)
-
-    quote.update!(status: 'completed', render_payload: { html: html })
-  rescue Quotes::CalculatorService::ValidationError, DealNotFoundError => e
-    quote.update!(status: 'failed', error_message: e.message)
-  rescue StandardError => e
-    ChatwootExceptionTracker.new(e, account: account).capture_exception
+    Quotes::CalculateAndAttachService.call(quote: quote, payload: payload)
+  rescue DealNotFoundError => e
     quote.update!(status: 'failed', error_message: e.message)
   end
 
@@ -89,18 +74,5 @@ class Quotes::GenerateFromZohoDealService
     raise DealNotFoundError, 'Zoho CRM no está conectado en esta cuenta.' if hook.blank?
 
     Crm::Zoho::Api::DealsClient.new(hook).find(zoho_deal_id, fields: REQUIRED_ZOHO_FIELDS)
-  end
-
-  def persist_calculation(payload, calc)
-    quote.update!(calc.slice(*CALCULATION_FIELDS).merge(deal_snapshot: payload))
-  end
-
-  def attach_pdf(pdf_bytes)
-    filename = "cotizacion-#{quote.lote.presence || quote.id}".parameterize
-    quote.pdf.attach(
-      io: StringIO.new(pdf_bytes),
-      filename: "#{filename}.pdf",
-      content_type: 'application/pdf'
-    )
   end
 end

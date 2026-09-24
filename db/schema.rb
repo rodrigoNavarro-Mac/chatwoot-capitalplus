@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_24_130000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_24_140000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1569,7 +1569,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_24_130000) do
     t.bigint "account_id", null: false
     t.bigint "contact_id"
     t.bigint "generated_by_id"
-    t.string "zoho_deal_id", null: false
+    t.string "zoho_deal_id"
     t.string "trigger_source", null: false
     t.string "status", default: "pending", null: false
     t.string "error_message"
@@ -1595,10 +1595,13 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_24_130000) do
     t.jsonb "render_payload", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "zoho_product_id"
+    t.string "source_type", default: "deal", null: false
     t.index ["account_id", "contact_id"], name: "index_quotes_on_account_id_and_contact_id"
     t.index ["account_id", "created_at"], name: "index_quotes_on_account_id_and_created_at"
     t.index ["account_id", "status"], name: "index_quotes_on_account_id_and_status"
     t.index ["account_id", "zoho_deal_id"], name: "index_quotes_on_account_id_and_zoho_deal_id"
+    t.index ["account_id", "zoho_product_id"], name: "index_quotes_on_account_id_and_zoho_product_id"
   end
 
   create_table "record_shares", force: :cascade do |t|

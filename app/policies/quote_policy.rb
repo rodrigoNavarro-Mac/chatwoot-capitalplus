@@ -10,6 +10,18 @@ class QuotePolicy < ApplicationPolicy
   def pdf?
     @account_user.administrator? || @account_user.agent?
   end
+
+  def create?
+    @account_user.administrator? || @account_user.agent?
+  end
+
+  def update?
+    @account_user.administrator? || @account_user.agent?
+  end
+
+  def products?
+    @account_user.administrator? || @account_user.agent?
+  end
 end
 
 QuotePolicy.prepend_mod_with('QuotePolicy')

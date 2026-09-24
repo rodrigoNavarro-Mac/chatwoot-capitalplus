@@ -2,6 +2,8 @@ json.id @quote.id
 json.contact_id @quote.contact_id
 json.generated_by_id @quote.generated_by_id
 json.zoho_deal_id @quote.zoho_deal_id
+json.zoho_product_id @quote.zoho_product_id
+json.source_type @quote.source_type
 json.trigger_source @quote.trigger_source
 json.status @quote.status
 json.error_message @quote.error_message
@@ -23,5 +25,7 @@ json.pago_mensual @quote.pago_mensual
 json.precio_total @quote.precio_total
 json.precio_m2_final @quote.precio_m2_final
 json.schedule @quote.schedule
+json.raw_descuento @quote.deal_snapshot['Descuento']
+json.html @quote.render_payload['html']
 json.pdf_attached @quote.pdf.attached?
 json.created_at @quote.created_at
