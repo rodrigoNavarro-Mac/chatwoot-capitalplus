@@ -441,6 +441,16 @@ class V2::Reports::RevenueIntelligenceBuilder
   # atención normal -- para no mezclarlos con "pending_count" (nunca contactados).
   MAX_CONTACT_GAP_SECONDS = 7.days.to_i
 
+  # Investigación sesión 2026-09-24: el equipo de marketing reportó un promedio implausible
+  # (406min) en "tiempo hasta marcar". Causa raíz distinta al outlier de arriba -- no es duración,
+  # es cobertura: Aircall (la fuente de Call#started_at) recién empezó a tener volumen real de
+  # llamadas el 2026-08-01 (de ~0 a decenas/día); de los leads creados antes de esa fecha, solo
+  # 72/2705 (2.7%) tienen algún first_call_attempt_at, y esos pocos inflaban el promedio porque su
+  # "primera llamada registrada" llegó semanas después de creados por pura falta de tracking, no
+  # por lentitud real del setter. Se excluyen del universo de esta métrica -- no como "pendientes"
+  # (nunca se intentó medir), igual que MAX_CONTACT_GAP_SECONDS nunca los mezcla con pending_count.
+  CALL_ATTEMPT_TRACKING_START_AT = Time.zone.parse('2026-08-01').freeze
+
   def marketing_sla
     sla_summary(clock_column: :first_human_response_seconds, business_column: :first_human_response_business_seconds)
   end
@@ -450,11 +460,11 @@ class V2::Reports::RevenueIntelligenceBuilder
   # conectó o fue a buzón (ver RevenueIntelligence::CalculateSetterResponseTimeJob#process_call_attempt).
   # Mide velocidad de intento, no de contacto logrado.
   def marketing_call_sla
-    sla_summary(clock_column: :first_call_attempt_seconds, business_column: :first_call_attempt_business_seconds)
+    leads = sla_leads_scope.where(created_at_source: CALL_ATTEMPT_TRACKING_START_AT..)
+    sla_summary(clock_column: :first_call_attempt_seconds, business_column: :first_call_attempt_business_seconds, leads: leads)
   end
 
-  def sla_summary(clock_column:, business_column:)
-    leads = sla_leads_scope
+  def sla_summary(clock_column:, business_column:, leads: sla_leads_scope)
     total = leads.count
     responded = leads.where.not(business_column => nil).pluck(clock_column, business_column)
     seconds = responded.filter_map { |clock, business| business if clock <= MAX_CONTACT_GAP_SECONDS }.sort

@@ -544,6 +544,19 @@ describe V2::Reports::RevenueIntelligenceBuilder do
 
       expect(call_sla).to include(responded_count: 2, outliers_excluded_count: 1, avg_seconds: 60, median_seconds: 60)
     end
+
+    it 'excludes leads created before CALL_ATTEMPT_TRACKING_START_AT (Aircall solo tiene cobertura real desde el 2026-08-01)' do
+      wide_params = { since: Date.new(2026, 7, 1).to_time.to_i.to_s, until: Time.current.to_i.to_s }
+      wide_range_builder = described_class.new(account: account, params: wide_params)
+      account.revenue_leads.create!(zoho_lead_id: 'pre-coverage', created_at_source: Date.new(2026, 7, 15),
+                                    first_call_attempt_seconds: 60, first_call_attempt_business_seconds: 60)
+      account.revenue_leads.create!(zoho_lead_id: 'post-coverage', created_at_source: Date.new(2026, 8, 2),
+                                    first_call_attempt_seconds: 120, first_call_attempt_business_seconds: 120)
+
+      call_sla = wide_range_builder.build[:marketing_call_sla]
+
+      expect(call_sla).to include(total_leads: 1, responded_count: 1, avg_seconds: 120)
+    end
   end
 
   describe 'marketing_spend' do
