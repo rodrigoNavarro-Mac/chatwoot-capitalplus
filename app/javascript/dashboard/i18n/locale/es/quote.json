@@ -1,0 +1,69 @@
+{
+  "QUOTES": {
+    "HEADER": "Cotizaciones",
+    "DESCRIPTION": "Cotizaciones de plan de pago generadas desde productos de Zoho CRM",
+    "EMPTY": "Todavía no se han generado cotizaciones",
+    "GENERATE": {
+      "TITLE": "Generar cotización",
+      "DESARROLLO_PLACEHOLDER": "Selecciona un desarrollo…",
+      "PRODUCT_PLACEHOLDER": "Buscar un lote en este desarrollo…",
+      "CLEAR_PRODUCT": "Cambiar",
+      "SEARCHING": "Buscando…",
+      "SUBMIT": "Generar",
+      "AVAILABILITY": {
+        "BLOCKED": "Bloqueado",
+        "RESERVED": "Apartado"
+      }
+    },
+    "FORM": {
+      "NOMBRE": "Nombre del cliente",
+      "LOTE": "Lote",
+      "DESARROLLO": "Desarrollo",
+      "COLOR": "Color",
+      "SUPERFICIE": "Superficie (m²)",
+      "PRECIO_M2": "Precio por m²",
+      "PLAZOS": "Plazo (meses)",
+      "ENGANCHE": "Enganche (%)",
+      "INTERES": "Tasa de interés (%)",
+      "MSI": "Meses sin intereses",
+      "DESCUENTO": "Descuento (% o monto fijo)",
+      "FECHA_ENTREGA": "Fecha de firma (pago de enganche)"
+    },
+    "TABLE": {
+      "LOTE": "Lote",
+      "DESARROLLO": "Desarrollo",
+      "PRECIO_TOTAL": "Precio total",
+      "STATUS": "Estado",
+      "CREATED_AT": "Creada",
+      "ACTIONS": "Acciones",
+      "VIEW": "Ver",
+      "DOWNLOAD_PDF": "Descargar PDF"
+    },
+    "DETAIL": {
+      "TITLE": "{nombre} — {lote}",
+      "PLAZOS": "Plazo (meses)",
+      "ENGANCHE": "Enganche",
+      "ENGANCHE_VALUE": "{pct} ({monto})",
+      "INTERES": "Tasa de interés",
+      "PRECIO_TOTAL": "Precio total",
+      "SCHEDULE_TITLE": "Plan de pagos",
+      "PREVIEW_TITLE": "Vista previa de la cotización",
+      "EDIT": "Editar",
+      "CANCEL_EDIT": "Cancelar",
+      "SAVE_AND_RECALCULATE": "Guardar y recalcular",
+      "PERIODO": "Periodo",
+      "FECHA": "Fecha",
+      "SALDO_INICIAL": "Saldo inicial",
+      "INTERES_COL": "Interés",
+      "CAPITAL": "Capital",
+      "PAGO": "Pago",
+      "SALDO_FINAL": "Saldo final"
+    },
+    "ERRORS": {
+      "FETCH": "No se pudieron cargar las cotizaciones",
+      "DOWNLOAD": "No se pudo descargar el PDF",
+      "GENERATE": "No se pudo generar la cotización",
+      "UPDATE": "No se pudieron guardar los cambios"
+    }
+  }
+}

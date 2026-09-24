@@ -20,6 +20,10 @@ import {
 const { t } = useI18n();
 const router = useRouter();
 
+// Interés por defecto: 8% — sigue siendo editable, solo evita que quede vacío por accidente ya
+// que casi siempre se cotiza con esa tasa.
+const DEFAULT_INTERES = '8';
+
 const EMPTY_FIELDS = () => ({
   nombre: '',
   lote: '',
@@ -29,7 +33,7 @@ const EMPTY_FIELDS = () => ({
   precio_m2: '',
   plazos: '',
   enganche: '',
-  interes: '',
+  interes: DEFAULT_INTERES,
   meses_sin_intereses: '',
   descuento: '',
   fecha_entrega: '',

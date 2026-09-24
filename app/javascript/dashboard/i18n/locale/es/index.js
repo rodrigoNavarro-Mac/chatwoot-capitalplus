@@ -30,6 +30,7 @@ import login from './login.json';
 import macros from './macros.json';
 import mfa from './mfa.json';
 import onboarding from './onboarding.json';
+import quote from './quote.json';
 import recordShare from './recordShare.json';
 import report from './report.json';
 import resetPassword from './resetPassword.json';
@@ -76,6 +77,7 @@ export default {
   ...macros,
   ...mfa,
   ...onboarding,
+  ...quote,
   ...recordShare,
   ...report,
   ...resetPassword,

@@ -27,7 +27,7 @@
       "INTERES": "Interest rate (%)",
       "MSI": "Interest-free months",
       "DESCUENTO": "Discount (% or fixed amount)",
-      "FECHA_ENTREGA": "Delivery date"
+      "FECHA_ENTREGA": "Signing date (down payment paid)"
     },
     "TABLE": {
       "LOTE": "Lot",

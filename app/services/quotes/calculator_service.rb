@@ -1,8 +1,8 @@
-# Puerto literal a Ruby de la función Deluge `crearCotizacionYEnviar` (Zoho CRM → Zoho Creator)
-# que hoy calcula el plan de pago de una cotización. Puro — sin I/O, sin ActiveRecord — recibe el
-# payload crudo de un Deal de Zoho (mismas llaves que devuelve la API) y devuelve los campos ya
-# calculados. No "corrige" ninguna regla de negocio del script original (ej. el ajuste de fecha
-# lunes+1/domingo-1), aunque parezca arbitraria: ya está validada en producción.
+# Puerto a Ruby de la función Deluge `crearCotizacionYEnviar` (Zoho CRM → Zoho Creator) que
+# calculaba el plan de pago de una cotización. Puro — sin I/O, sin ActiveRecord — recibe un payload
+# con forma de Deal de Zoho (mismas llaves que devuelve la API) y devuelve los campos ya
+# calculados. Ver payment_date para el ajuste de fin de semana y el desfase de un mes del primer
+# pago — confirmados con el negocio 2026-09-24, difieren del script original.
 class Quotes::CalculatorService
   class ValidationError < StandardError; end
 
@@ -161,7 +161,7 @@ class Quotes::CalculatorService
       pago = (capital + interes).round(2)
       saldo_final = (saldo - capital).round(2)
 
-      row = { periodo: periodo, fecha: payment_date(periodo - 1).iso8601, saldo_inicial: saldo.round(2),
+      row = { periodo: periodo, fecha: payment_date(periodo).iso8601, saldo_inicial: saldo.round(2),
               interes: interes, capital: capital, pago: pago, saldo_final: saldo_final }
       saldo = saldo_final
       row
@@ -175,13 +175,19 @@ class Quotes::CalculatorService
     [interes, (pago_mensual - interes).round(2)]
   end
 
-  # Ajuste de negocio del script original: si el pago cae lunes se recorre a martes, si cae
-  # domingo se recorre a sábado. No tocar sin confirmar contra Zoho.
+  # `fecha_entrega` es la fecha de firma/pago de enganche — el primer pago mensual cae un mes
+  # después de esa fecha (por eso `payment_date` se llama con `periodo`, no `periodo - 1`).
+  #
+  # Los pagos nunca caen en fin de semana: se mueven al día hábil más cercano (sábado -> viernes,
+  # domingo -> lunes). Esto reemplaza el ajuste que traía el script original de Deluge — ese
+  # ajuste resultó ser el mismo cálculo mal portado a Ruby (Deluge's getDayOfWeek() numera
+  # domingo=1..sábado=7, no lunes=1..domingo=7 como asumí al portarlo, así que el resultado
+  # anterior quedaba invertido) — confirmado con el negocio 2026-09-24.
   def payment_date(months_ahead)
     date = fecha_entrega >> months_ahead
-    case date.cwday
-    when 1 then date + 1
-    when 7 then date - 1
+    case date.wday
+    when 0 then date + 1 # domingo -> lunes
+    when 6 then date - 1 # sábado -> viernes
     else date
     end
   end

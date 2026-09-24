@@ -368,6 +368,8 @@
     "SMS": "SMS",
     "WHATSAPP": "WhatsApp",
     "CAMPAIGNS": "Campañas",
+    "QUOTES": "Cotizaciones",
+    "ALL_QUOTES": "Todas las cotizaciones",
     "ONGOING": "En Curso",
     "ONE_OFF": "One Off",
     "REPORTS_SLA": "SLA",
