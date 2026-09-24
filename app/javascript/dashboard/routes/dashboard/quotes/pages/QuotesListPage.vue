@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { debounce } from '@chatwoot/utils';
@@ -9,6 +9,7 @@ import QuotesAPI from 'dashboard/api/quotes';
 import Spinner from 'shared/components/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
 import QuoteFieldsForm from '../components/QuoteFieldsForm.vue';
 import {
   mapZohoProductToFields,
@@ -38,6 +39,8 @@ const quotes = ref([]);
 const isFetching = ref(false);
 const downloadingId = ref(null);
 
+const desarrollos = ref([]);
+const selectedDesarrollo = ref('');
 const productQuery = ref('');
 const productResults = ref([]);
 const isSearchingProducts = ref(false);
@@ -45,6 +48,10 @@ const selectedProduct = ref(null);
 const fields = ref(EMPTY_FIELDS());
 const isGenerating = ref(false);
 const generateError = ref(null);
+
+const desarrolloOptions = computed(() =>
+  desarrollos.value.map(name => ({ value: name, label: name }))
+);
 
 const statusClass = status => {
   if (status === 'completed') return 'bg-n-teal-3 text-n-teal-11';
@@ -83,13 +90,16 @@ const downloadPdf = async quote => {
 };
 
 const searchProducts = debounce(async () => {
-  if (!productQuery.value.trim()) {
+  if (!selectedDesarrollo.value) {
     productResults.value = [];
     return;
   }
   isSearchingProducts.value = true;
   try {
-    const response = await QuotesAPI.searchProducts(productQuery.value.trim());
+    const response = await QuotesAPI.searchProducts({
+      desarrollo: selectedDesarrollo.value,
+      q: productQuery.value.trim(),
+    });
     productResults.value = response.data;
   } catch (error) {
     productResults.value = [];
@@ -97,6 +107,13 @@ const searchProducts = debounce(async () => {
     isSearchingProducts.value = false;
   }
 }, 300);
+
+const onDesarrolloChange = () => {
+  selectedProduct.value = null;
+  productQuery.value = '';
+  fields.value = EMPTY_FIELDS();
+  searchProducts();
+};
 
 const selectProduct = product => {
   selectedProduct.value = product;
@@ -147,7 +164,19 @@ const generateQuote = async () => {
   }
 };
 
-onMounted(fetchQuotes);
+const fetchDesarrollos = async () => {
+  try {
+    const response = await QuotesAPI.getDevelopments();
+    desarrollos.value = response.data;
+  } catch (error) {
+    desarrollos.value = [];
+  }
+};
+
+onMounted(() => {
+  fetchQuotes();
+  fetchDesarrollos();
+});
 </script>
 
 <template>
@@ -169,7 +198,17 @@ onMounted(fetchQuotes);
           {{ t('QUOTES.GENERATE.TITLE') }}
         </p>
 
-        <div class="relative max-w-sm mb-4">
+        <div class="max-w-sm mb-4">
+          <Select
+            v-model="selectedDesarrollo"
+            :options="desarrolloOptions"
+            :placeholder="t('QUOTES.GENERATE.DESARROLLO_PLACEHOLDER')"
+            :disabled="isGenerating"
+            @update:model-value="onDesarrolloChange"
+          />
+        </div>
+
+        <div v-if="selectedDesarrollo" class="relative max-w-sm mb-4">
           <Input
             v-model="productQuery"
             class="mb-0"

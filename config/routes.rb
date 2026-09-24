@@ -311,6 +311,7 @@ Rails.application.routes.draw do
             end
             collection do
               get :products
+              get :developments
             end
           end
           resources :csat_survey_responses, only: [:index] do

@@ -11,8 +11,12 @@ class QuotesAPI extends ApiClient {
     return axios.get(`${this.url}/${id}/pdf`, { responseType: 'blob' });
   }
 
-  searchProducts(query) {
-    return axios.get(`${this.url}/products`, { params: { q: query } });
+  getDevelopments() {
+    return axios.get(`${this.url}/developments`);
+  }
+
+  searchProducts({ desarrollo, q } = {}) {
+    return axios.get(`${this.url}/products`, { params: { desarrollo, q } });
   }
 }
 

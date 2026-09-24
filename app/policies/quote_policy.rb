@@ -22,6 +22,10 @@ class QuotePolicy < ApplicationPolicy
   def products?
     @account_user.administrator? || @account_user.agent?
   end
+
+  def developments?
+    @account_user.administrator? || @account_user.agent?
+  end
 end
 
 QuotePolicy.prepend_mod_with('QuotePolicy')

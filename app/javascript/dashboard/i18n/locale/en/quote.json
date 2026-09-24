@@ -5,7 +5,8 @@
     "EMPTY": "No quotes generated yet",
     "GENERATE": {
       "TITLE": "Generate a quote",
-      "PRODUCT_PLACEHOLDER": "Search a product (lot)…",
+      "DESARROLLO_PLACEHOLDER": "Select a development…",
+      "PRODUCT_PLACEHOLDER": "Search a lot in this development…",
       "CLEAR_PRODUCT": "Change",
       "SEARCHING": "Searching…",
       "SUBMIT": "Generate",

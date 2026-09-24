@@ -8,15 +8,24 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
 
   def show; end
 
-  # Autocomplete del módulo Products de Zoho CRM para el formulario "Generar cotización" —
-  # devuelve el registro completo de Zoho tal cual (no se asume el nombre exacto de los campos
-  # custom de superficie/precio/desarrollo en esta cuenta), el frontend intenta mapear las llaves
-  # conocidas y el usuario puede corregir cualquier campo antes de generar.
+  # Autocomplete del módulo Products de Zoho CRM para el formulario "Generar cotización" — se
+  # filtra primero por Desarrollo (Pick List) y opcionalmente por nombre de lote dentro de ese
+  # desarrollo. Devuelve el registro completo de Zoho tal cual, el frontend intenta mapear las
+  # llaves conocidas y el usuario puede corregir cualquier campo antes de generar.
   def products
     hook = Current.account.hooks.find_by(app_id: 'zoho_crm', status: 'enabled')
     return render json: [] if hook.blank?
 
-    render json: Crm::Zoho::Api::ProductsClient.new(hook).search(params[:q].to_s)
+    render json: Crm::Zoho::Api::ProductsClient.new(hook).search(word: params[:q], desarrollo: params[:desarrollo])
+  end
+
+  # Valores del Pick List "Desarrollo" de Products, para el selector que se muestra antes de
+  # buscar el lote.
+  def developments
+    hook = Current.account.hooks.find_by(app_id: 'zoho_crm', status: 'enabled')
+    return render json: [] if hook.blank?
+
+    render json: Crm::Zoho::Api::ProductsClient.new(hook).desarrollos
   end
 
   # Genera una cotización nueva a partir de un Producto de Zoho (no de un Deal) — `fields` es el
