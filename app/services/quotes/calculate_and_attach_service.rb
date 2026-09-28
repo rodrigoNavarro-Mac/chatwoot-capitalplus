@@ -10,6 +10,11 @@
 # donde cae el plazo, la cotización se recalcula a meses sin intereses por todo el plazo
 # automáticamente (sin importar qué haya mandado el usuario) y/o queda `authorization_status:
 # pending` (su PDF no se puede descargar hasta que se apruebe).
+#
+# Reemplaza también al correo que mandaba el botón viejo de Zoho (crearCotizacionYEnviar): se
+# encola Quotes::NotifyOwnerJob solo en la generación inicial exitosa (`quote` entra en estado
+# `pending`, ver Quotes::GenerateFromZohoDealService/GenerateFromProductService), nunca en
+# ediciones/recálculos posteriores desde Api::V1::Accounts::QuotesController#update.
 class Quotes::CalculateAndAttachService
   CALCULATION_FIELDS = %i[
     nombre lote desarrollo plazos meses_sin_intereses superficie precio_m2 fecha_entrega
@@ -27,7 +32,9 @@ class Quotes::CalculateAndAttachService
   end
 
   def call
+    initial_generation = quote.pending?
     generate!
+    Quotes::NotifyOwnerJob.perform_later(quote.id) if initial_generation && quote.completed?
     quote
   rescue Quotes::CalculatorService::ValidationError => e
     fail!(e.message)
