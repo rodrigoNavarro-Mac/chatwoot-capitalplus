@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_28_120100) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_28_190100) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1565,10 +1565,20 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_28_120100) do
     t.index ["user_id"], name: "index_portals_members_on_user_id"
   end
 
+  create_table "quote_development_rule_tiers", force: :cascade do |t|
+    t.bigint "quote_development_rule_id", null: false
+    t.integer "hasta_meses"
+    t.boolean "msi", default: false, null: false
+    t.boolean "requires_authorization", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["quote_development_rule_id", "hasta_meses"], name: "index_quote_dev_rule_tiers_on_rule_id_and_hasta_meses", unique: true
+    t.index ["quote_development_rule_id"], name: "index_quote_dev_rule_tiers_on_rule_id"
+  end
+
   create_table "quote_development_rules", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "desarrollo", null: false
-    t.integer "msi_auto_max_plazo", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id", "desarrollo"], name: "index_quote_development_rules_on_account_id_and_desarrollo", unique: true

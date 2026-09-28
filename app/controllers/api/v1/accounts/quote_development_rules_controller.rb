@@ -3,7 +3,7 @@ class Api::V1::Accounts::QuoteDevelopmentRulesController < Api::V1::Accounts::Ba
   before_action :fetch_quote_development_rule, only: [:update, :destroy]
 
   def index
-    @quote_development_rules = Current.account.quote_development_rules.ordered
+    @quote_development_rules = Current.account.quote_development_rules.ordered.includes(:quote_development_rule_tiers)
   end
 
   def create
@@ -36,6 +36,6 @@ class Api::V1::Accounts::QuoteDevelopmentRulesController < Api::V1::Accounts::Ba
   end
 
   def quote_development_rule_params
-    params.permit(:desarrollo, :msi_auto_max_plazo)
+    params.permit(:desarrollo, quote_development_rule_tiers_attributes: [:id, :hasta_meses, :msi, :requires_authorization, :_destroy])
   end
 end

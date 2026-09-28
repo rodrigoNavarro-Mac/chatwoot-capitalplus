@@ -6,10 +6,10 @@
 # mano a partir de un Producto + edición manual) — así ninguno duplica esta cola de pasos.
 #
 # También aplica aquí la regla de negocio por desarrollo (QuoteDevelopmentRule), porque corre
-# tanto en la generación inicial como en cada edición/recálculo: si el plazo cae dentro del umbral
-# configurado, la cotización se recalcula a meses sin intereses por todo el plazo
-# automáticamente (sin importar qué haya mandado el usuario); si lo excede, queda
-# `authorization_status: pending` y su PDF no se puede descargar hasta que se apruebe.
+# tanto en la generación inicial como en cada edición/recálculo: según el tramo (QuoteDevelopmentRuleTier)
+# donde cae el plazo, la cotización se recalcula a meses sin intereses por todo el plazo
+# automáticamente (sin importar qué haya mandado el usuario) y/o queda `authorization_status:
+# pending` (su PDF no se puede descargar hasta que se apruebe).
 class Quotes::CalculateAndAttachService
   CALCULATION_FIELDS = %i[
     nombre lote desarrollo plazos meses_sin_intereses superficie precio_m2 fecha_entrega
@@ -57,14 +57,12 @@ class Quotes::CalculateAndAttachService
     quote
   end
 
-  # Fuerza meses_sin_intereses = plazos (todo el plazo) cuando el plazo cae dentro del umbral de
-  # la regla del desarrollo — no aplica a contado (Plazos == 0), que no tiene financiamiento.
+  # Fuerza meses_sin_intereses = plazos (todo el plazo) cuando el tramo que cubre este plazo tiene
+  # msi: true — no aplica a contado (Plazos == 0), que no tiene financiamiento.
   def apply_development_rule(original_payload)
-    rule = development_rule
-    return original_payload unless rule
-
     plazos = original_payload['Plazos'].to_i
-    return original_payload unless plazos.positive? && plazos <= rule.msi_auto_max_plazo
+    tier = matching_tier(plazos)
+    return original_payload unless plazos.positive? && tier&.msi?
 
     original_payload.merge('Meses_sin_intereses' => plazos)
   end
@@ -74,17 +72,26 @@ class Quotes::CalculateAndAttachService
   end
 
   def authorization_status_for(effective_payload)
-    rule = development_rule
-    return 'not_required' unless rule
-
     plazos = effective_payload['Plazos'].to_i
-    plazos > rule.msi_auto_max_plazo ? 'pending' : 'not_required'
+    tier = matching_tier(plazos)
+    return 'not_required' unless tier
+
+    tier.requires_authorization? ? 'pending' : 'not_required'
+  end
+
+  def matching_tier(plazos)
+    rule = development_rule
+    return nil unless rule && plazos.positive?
+
+    rule.tier_for(plazos)
   end
 
   def development_rule
     return @development_rule if defined?(@development_rule)
 
-    @development_rule = quote.account.quote_development_rules.find_by(desarrollo: payload['Desarollo'])
+    @development_rule = quote.account.quote_development_rules
+                             .includes(:quote_development_rule_tiers)
+                             .find_by(desarrollo: payload['Desarollo'])
   end
 
   def persist_calculation(source_payload, calc)

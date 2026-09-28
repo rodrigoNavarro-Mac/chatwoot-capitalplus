@@ -7,6 +7,7 @@ import QuoteDevelopmentRulesAPI from 'dashboard/api/quoteDevelopmentRules';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
+import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 
 const props = defineProps({
   mode: {
@@ -26,17 +27,43 @@ const { t } = useI18n();
 
 const desarrollos = ref([]);
 const desarrollo = ref('');
-const msiAutoMaxPlazo = ref('');
 const isSaving = ref(false);
 const error = ref(null);
+
+// Cada tramo: { id, hasta_meses, msi, requires_authorization, markedForDestroy }. `hasta_meses`
+// vacío significa "sin límite superior" — solo un tramo puede tener este valor. `markedForDestroy`
+// se traduce a la llave `_destroy` que espera accepts_nested_attributes_for solo al armar el payload
+// en save(), para no meter ese nombre en todo el resto del componente.
+const emptyTier = () => ({
+  id: null,
+  hasta_meses: '',
+  msi: false,
+  requires_authorization: false,
+  markedForDestroy: false,
+});
+
+const tiers = ref([emptyTier()]);
 
 const desarrolloOptions = computed(() =>
   desarrollos.value.map(name => ({ value: name, label: name }))
 );
 
 const isEdit = computed(() => props.mode === 'edit');
+
+const visibleTiers = computed(() =>
+  tiers.value.filter(tier => !tier.markedForDestroy)
+);
+
+const openEndedCount = computed(
+  () => visibleTiers.value.filter(tier => tier.hasta_meses === '').length
+);
+
 const isSubmitDisabled = computed(
-  () => !desarrollo.value || !msiAutoMaxPlazo.value || isSaving.value
+  () =>
+    !desarrollo.value ||
+    !visibleTiers.value.length ||
+    openEndedCount.value > 1 ||
+    isSaving.value
 );
 
 const fetchDesarrollos = async () => {
@@ -52,9 +79,31 @@ onMounted(() => {
   fetchDesarrollos();
   if (isEdit.value) {
     desarrollo.value = props.selectedRule.desarrollo;
-    msiAutoMaxPlazo.value = props.selectedRule.msi_auto_max_plazo;
+    tiers.value = (props.selectedRule.quote_development_rule_tiers || []).map(
+      tier => ({
+        id: tier.id,
+        hasta_meses: tier.hasta_meses ?? '',
+        msi: tier.msi,
+        requires_authorization: tier.requires_authorization,
+        markedForDestroy: false,
+      })
+    );
+    if (!tiers.value.length) tiers.value = [emptyTier()];
   }
 });
+
+const addTier = () => {
+  tiers.value.push(emptyTier());
+};
+
+const removeTier = index => {
+  const tier = tiers.value[index];
+  if (tier.id) {
+    tier.markedForDestroy = true;
+  } else {
+    tiers.value.splice(index, 1);
+  }
+};
 
 const save = async () => {
   isSaving.value = true;
@@ -62,7 +111,18 @@ const save = async () => {
   try {
     const data = {
       desarrollo: desarrollo.value,
-      msi_auto_max_plazo: msiAutoMaxPlazo.value,
+      quote_development_rule_tiers_attributes: tiers.value.map(tier =>
+        // eslint-disable-next-line no-underscore-dangle -- llave requerida por
+        // accepts_nested_attributes_for en el backend
+        ({
+          id: tier.id || undefined,
+          hasta_meses:
+            tier.hasta_meses === '' ? null : Number(tier.hasta_meses),
+          msi: tier.msi,
+          requires_authorization: tier.requires_authorization,
+          _destroy: tier.markedForDestroy,
+        })
+      ),
     };
     if (isEdit.value) {
       await QuoteDevelopmentRulesAPI.update(props.selectedRule.id, data);
@@ -108,16 +168,82 @@ const save = async () => {
         />
       </div>
 
-      <Input
-        v-model="msiAutoMaxPlazo"
-        type="number"
-        min="0"
-        :label="t('QUOTE_DEVELOPMENT_RULES.FORM.MSI_AUTO_MAX_PLAZO.LABEL')"
-        :placeholder="
-          t('QUOTE_DEVELOPMENT_RULES.FORM.MSI_AUTO_MAX_PLAZO.PLACEHOLDER')
-        "
-        :disabled="isSaving"
-      />
+      <div class="w-full">
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-sm font-medium text-n-slate-12">
+            {{ t('QUOTE_DEVELOPMENT_RULES.FORM.TIERS.LABEL') }}
+          </label>
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            icon="i-lucide-plus"
+            :label="t('QUOTE_DEVELOPMENT_RULES.FORM.TIERS.ADD')"
+            :disabled="isSaving"
+            @click="addTier"
+          />
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <template v-for="(tier, index) in tiers" :key="index">
+            <div
+              v-if="!tier.markedForDestroy"
+              class="flex items-end gap-3 border border-n-weak rounded-lg p-3"
+            >
+              <div class="w-32 shrink-0">
+                <Input
+                  v-model="tier.hasta_meses"
+                  type="number"
+                  min="1"
+                  :label="
+                    t('QUOTE_DEVELOPMENT_RULES.FORM.TIERS.HASTA_MESES.LABEL')
+                  "
+                  :placeholder="
+                    t(
+                      'QUOTE_DEVELOPMENT_RULES.FORM.TIERS.HASTA_MESES.PLACEHOLDER'
+                    )
+                  "
+                  :disabled="isSaving"
+                />
+              </div>
+              <label
+                class="flex items-center gap-2 text-sm text-n-slate-12 pb-2"
+              >
+                <Checkbox v-model="tier.msi" :disabled="isSaving" />
+                {{ t('QUOTE_DEVELOPMENT_RULES.FORM.TIERS.MSI') }}
+              </label>
+              <label
+                class="flex items-center gap-2 text-sm text-n-slate-12 pb-2"
+              >
+                <Checkbox
+                  v-model="tier.requires_authorization"
+                  :disabled="isSaving"
+                />
+                {{
+                  t('QUOTE_DEVELOPMENT_RULES.FORM.TIERS.REQUIRES_AUTHORIZATION')
+                }}
+              </label>
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                color="ruby"
+                icon="i-lucide-trash-2"
+                class="ms-auto mb-2"
+                :disabled="isSaving || visibleTiers.length <= 1"
+                @click="removeTier(index)"
+              />
+            </div>
+          </template>
+        </div>
+
+        <p v-if="openEndedCount > 1" class="text-n-ruby-11 text-xs mt-2">
+          {{ t('QUOTE_DEVELOPMENT_RULES.FORM.TIERS.OPEN_ENDED_ERROR') }}
+        </p>
+        <p v-else class="text-n-slate-10 text-xs mt-2">
+          {{ t('QUOTE_DEVELOPMENT_RULES.FORM.TIERS.HASTA_MESES.HINT') }}
+        </p>
+      </div>
 
       <p v-if="error" class="text-n-ruby-11 text-xs">{{ error }}</p>
 

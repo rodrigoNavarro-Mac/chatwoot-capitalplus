@@ -83,7 +83,7 @@
   },
   "QUOTE_DEVELOPMENT_RULES": {
     "HEADER": "Quote rules",
-    "DESCRIPTION": "Configure, per development, the maximum term that is automatically financed with no interest. Quotes with a longer term will require authorization before their PDF can be downloaded or sent.",
+    "DESCRIPTION": "Configure, per development, term tiers that decide whether a quote is automatically interest-free and/or requires authorization before its PDF can be downloaded or sent.",
     "COUNT": "{n} rule | {n} rules",
     "HEADER_BTN_TXT": "Add rule",
     "LOADING": "Fetching rules...",
@@ -91,19 +91,31 @@
       "404": "There are no quote rules configured yet.",
       "TABLE_HEADER": {
         "DESARROLLO": "Development",
-        "MSI_AUTO_MAX_PLAZO": "Auto interest-free up to (months)",
+        "TIERS": "Tiers",
         "ACTIONS": "Actions"
+      },
+      "TIER_RANGE": {
+        "BOUNDED": "{from}–{to}",
+        "OPEN_ENDED": "{from}+"
       }
     },
     "FORM": {
-      "DESC": "Below this term, quotes are generated automatically as interest-free. Above it, they require authorization.",
+      "DESC": "Add as many term tiers as you need. Each tier decides whether that range of months is quoted automatically interest-free and/or requires authorization.",
       "DESARROLLO": {
         "LABEL": "Development",
         "PLACEHOLDER": "Select a development…"
       },
-      "MSI_AUTO_MAX_PLAZO": {
-        "LABEL": "Auto interest-free up to (months)",
-        "PLACEHOLDER": "Example: 24"
+      "TIERS": {
+        "LABEL": "Term tiers",
+        "ADD": "Add tier",
+        "MSI": "Interest-free",
+        "REQUIRES_AUTHORIZATION": "Requires authorization",
+        "OPEN_ENDED_ERROR": "Only one tier can be left without an upper limit (the last one).",
+        "HASTA_MESES": {
+          "LABEL": "Up to (months)",
+          "PLACEHOLDER": "Blank = no limit",
+          "HINT": "Leave the last tier's \"Up to\" blank so it covers every longer term."
+        }
       },
       "CANCEL_BUTTON_TEXT": "Cancel",
       "SUBMIT": "Save",

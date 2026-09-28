@@ -83,7 +83,7 @@
   },
   "QUOTE_DEVELOPMENT_RULES": {
     "HEADER": "Reglas de cotización",
-    "DESCRIPTION": "Configura, por desarrollo, el plazo máximo que se financia automáticamente sin intereses. Las cotizaciones con un plazo mayor requerirán autorización antes de poder descargar o enviar su PDF.",
+    "DESCRIPTION": "Configura, por desarrollo, tramos de plazo que deciden si una cotización se genera automáticamente sin intereses y/o requiere autorización antes de poder descargar o enviar su PDF.",
     "COUNT": "{n} regla | {n} reglas",
     "HEADER_BTN_TXT": "Agregar regla",
     "LOADING": "Cargando reglas...",
@@ -91,19 +91,31 @@
       "404": "Todavía no hay reglas de cotización configuradas.",
       "TABLE_HEADER": {
         "DESARROLLO": "Desarrollo",
-        "MSI_AUTO_MAX_PLAZO": "Sin intereses automático hasta (meses)",
+        "TIERS": "Tramos",
         "ACTIONS": "Acciones"
+      },
+      "TIER_RANGE": {
+        "BOUNDED": "{from}–{to}",
+        "OPEN_ENDED": "{from}+"
       }
     },
     "FORM": {
-      "DESC": "Por debajo de este plazo, las cotizaciones se generan automáticamente sin intereses. Por encima, requieren autorización.",
+      "DESC": "Agrega tantos tramos de plazo como necesites. Cada tramo decide si ese rango de meses se cotiza automáticamente sin intereses y/o requiere autorización.",
       "DESARROLLO": {
         "LABEL": "Desarrollo",
         "PLACEHOLDER": "Selecciona un desarrollo…"
       },
-      "MSI_AUTO_MAX_PLAZO": {
-        "LABEL": "Sin intereses automático hasta (meses)",
-        "PLACEHOLDER": "Ejemplo: 24"
+      "TIERS": {
+        "LABEL": "Tramos de plazo",
+        "ADD": "Agregar tramo",
+        "MSI": "Sin intereses",
+        "REQUIRES_AUTHORIZATION": "Requiere autorización",
+        "OPEN_ENDED_ERROR": "Solo un tramo puede quedar sin límite superior (el último).",
+        "HASTA_MESES": {
+          "LABEL": "Hasta (meses)",
+          "PLACEHOLDER": "Vacío = sin límite",
+          "HINT": "Deja el \"Hasta\" del último tramo vacío para que cubra cualquier plazo mayor."
+        }
       },
       "CANCEL_BUTTON_TEXT": "Cancelar",
       "SUBMIT": "Guardar",

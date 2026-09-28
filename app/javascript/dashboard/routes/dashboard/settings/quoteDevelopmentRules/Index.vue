@@ -22,11 +22,29 @@ const deleting = ref({});
 
 const tableHeaders = computed(() => [
   t('QUOTE_DEVELOPMENT_RULES.LIST.TABLE_HEADER.DESARROLLO'),
-  t('QUOTE_DEVELOPMENT_RULES.LIST.TABLE_HEADER.MSI_AUTO_MAX_PLAZO'),
+  t('QUOTE_DEVELOPMENT_RULES.LIST.TABLE_HEADER.TIERS'),
   t('QUOTE_DEVELOPMENT_RULES.LIST.TABLE_HEADER.ACTIONS'),
 ]);
 
 const deleteMessage = computed(() => ` ${activeRule.value.desarrollo} ? `);
+
+// Los tramos ya llegan ordenados por hasta_meses ascendente (nulls al final) desde el backend —
+// solo hace falta llevar el límite anterior para armar el rango "13–24" de cada tramo.
+const tierRanges = rule => {
+  let previousMax = 0;
+  return (rule.quote_development_rule_tiers || []).map(tier => {
+    const from = previousMax + 1;
+    const range =
+      tier.hasta_meses === null
+        ? t('QUOTE_DEVELOPMENT_RULES.LIST.TIER_RANGE.OPEN_ENDED', { from })
+        : t('QUOTE_DEVELOPMENT_RULES.LIST.TIER_RANGE.BOUNDED', {
+            from,
+            to: tier.hasta_meses,
+          });
+    previousMax = tier.hasta_meses;
+    return { ...tier, range };
+  });
+};
 
 const fetchRules = async () => {
   isFetching.value = true;
@@ -125,11 +143,39 @@ const confirmDeletion = async () => {
             :key="rule.id"
             class="border-b border-n-weak"
           >
-            <td class="py-2 px-4 text-n-slate-12">{{ rule.desarrollo }}</td>
-            <td class="py-2 px-4 text-n-slate-12">
-              {{ rule.msi_auto_max_plazo }}
+            <td class="py-2 px-4 text-n-slate-12 align-top">
+              {{ rule.desarrollo }}
             </td>
-            <td class="py-2 px-4">
+            <td class="py-2 px-4 text-n-slate-12">
+              <ul class="flex flex-col gap-1">
+                <li
+                  v-for="tier in tierRanges(rule)"
+                  :key="tier.id"
+                  class="flex items-center gap-2 text-xs"
+                >
+                  <span class="font-medium text-n-slate-12 w-16 shrink-0">
+                    {{ tier.range }}
+                  </span>
+                  <span
+                    v-if="tier.msi"
+                    class="px-1.5 py-0.5 rounded-full bg-n-teal-3 text-n-teal-11"
+                  >
+                    {{ t('QUOTE_DEVELOPMENT_RULES.FORM.TIERS.MSI') }}
+                  </span>
+                  <span
+                    v-if="tier.requires_authorization"
+                    class="px-1.5 py-0.5 rounded-full bg-n-amber-3 text-n-amber-11"
+                  >
+                    {{
+                      t(
+                        'QUOTE_DEVELOPMENT_RULES.FORM.TIERS.REQUIRES_AUTHORIZATION'
+                      )
+                    }}
+                  </span>
+                </li>
+              </ul>
+            </td>
+            <td class="py-2 px-4 align-top">
               <div class="flex gap-2">
                 <Button
                   icon="i-lucide-pen"
