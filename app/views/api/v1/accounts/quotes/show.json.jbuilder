@@ -29,4 +29,7 @@ json.raw_descuento @quote.deal_snapshot['Descuento']
 json.raw_color @quote.deal_snapshot['Color']
 json.html @quote.render_payload['html']
 json.pdf_attached @quote.pdf.attached?
+json.authorization_status @quote.authorization_status
+json.authorized_by_id @quote.authorized_by_id
+json.authorized_at @quote.authorized_at
 json.created_at @quote.created_at

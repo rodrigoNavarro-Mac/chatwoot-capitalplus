@@ -1,0 +1,3 @@
+json.id @quote_development_rule.id
+json.desarrollo @quote_development_rule.desarrollo
+json.msi_auto_max_plazo @quote_development_rule.msi_auto_max_plazo

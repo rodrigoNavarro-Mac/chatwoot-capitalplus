@@ -321,6 +321,12 @@ onMounted(() => {
                 >
                   {{ quote.status }}
                 </span>
+                <span
+                  v-if="quote.authorization_status === 'pending'"
+                  class="ms-1 px-2 py-0.5 rounded-full text-xs font-medium bg-n-amber-3 text-n-amber-11"
+                >
+                  {{ t('QUOTES.AUTHORIZATION.STATUS.PENDING') }}
+                </span>
               </td>
               <td class="px-4 py-2 text-n-slate-11">
                 {{ new Date(quote.created_at).toLocaleDateString('es-MX') }}
@@ -336,7 +342,10 @@ onMounted(() => {
                   {{ t('QUOTES.TABLE.VIEW') }}
                 </RouterLink>
                 <Button
-                  v-if="quote.pdf_attached"
+                  v-if="
+                    quote.pdf_attached &&
+                    quote.authorization_status !== 'pending'
+                  "
                   size="xs"
                   variant="outline"
                   icon="i-lucide-download"

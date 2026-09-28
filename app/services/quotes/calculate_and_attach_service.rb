@@ -4,6 +4,12 @@
 # Quotes::GenerateFromZohoDealService (payload viene de un Deal real) como por
 # Quotes::GenerateFromProductService y Api::V1::Accounts::QuotesController#update (payload armado a
 # mano a partir de un Producto + edición manual) — así ninguno duplica esta cola de pasos.
+#
+# También aplica aquí la regla de negocio por desarrollo (QuoteDevelopmentRule), porque corre
+# tanto en la generación inicial como en cada edición/recálculo: si el plazo cae dentro del umbral
+# configurado, la cotización se recalcula a meses sin intereses por todo el plazo
+# automáticamente (sin importar qué haya mandado el usuario); si lo excede, queda
+# `authorization_status: pending` y su PDF no se puede descargar hasta que se apruebe.
 class Quotes::CalculateAndAttachService
   CALCULATION_FIELDS = %i[
     nombre lote desarrollo plazos meses_sin_intereses superficie precio_m2 fecha_entrega
@@ -21,30 +27,68 @@ class Quotes::CalculateAndAttachService
   end
 
   def call
-    calculation = Quotes::CalculatorService.calculate(payload)
-    persist_calculation(calculation)
-
-    html = Quotes::HtmlRendererService.new(quote).render
-    pdf_bytes = Quotes::PdfGeneratorService.new(html).generate
-    attach_pdf(pdf_bytes)
-
-    quote.update!(status: 'completed', render_payload: { html: html })
+    generate!
     quote
   rescue Quotes::CalculatorService::ValidationError => e
-    quote.update!(status: 'failed', error_message: e.message)
-    quote
+    fail!(e.message)
   rescue StandardError => e
     ChatwootExceptionTracker.new(e, account: quote.account).capture_exception
-    quote.update!(status: 'failed', error_message: e.message)
-    quote
+    fail!(e.message)
   end
 
   private
 
   attr_reader :quote, :payload
 
-  def persist_calculation(calc)
-    quote.update!(calc.slice(*CALCULATION_FIELDS).merge(deal_snapshot: payload))
+  def generate!
+    effective_payload = apply_development_rule(payload)
+    calculation = Quotes::CalculatorService.calculate(effective_payload)
+    persist_calculation(effective_payload, calculation)
+
+    html = Quotes::HtmlRendererService.new(quote).render
+    pdf_bytes = Quotes::PdfGeneratorService.new(html).generate
+    attach_pdf(pdf_bytes)
+
+    quote.update!(completion_attrs(html, effective_payload))
+  end
+
+  def fail!(message)
+    quote.update!(status: 'failed', error_message: message)
+    quote
+  end
+
+  # Fuerza meses_sin_intereses = plazos (todo el plazo) cuando el plazo cae dentro del umbral de
+  # la regla del desarrollo — no aplica a contado (Plazos == 0), que no tiene financiamiento.
+  def apply_development_rule(original_payload)
+    rule = development_rule
+    return original_payload unless rule
+
+    plazos = original_payload['Plazos'].to_i
+    return original_payload unless plazos.positive? && plazos <= rule.msi_auto_max_plazo
+
+    original_payload.merge('Meses_sin_intereses' => plazos)
+  end
+
+  def completion_attrs(html, effective_payload)
+    { status: 'completed', render_payload: { html: html }, authorization_status: authorization_status_for(effective_payload) }
+  end
+
+  def authorization_status_for(effective_payload)
+    rule = development_rule
+    return 'not_required' unless rule
+
+    plazos = effective_payload['Plazos'].to_i
+    plazos > rule.msi_auto_max_plazo ? 'pending' : 'not_required'
+  end
+
+  def development_rule
+    return @development_rule if defined?(@development_rule)
+
+    @development_rule = quote.account.quote_development_rules.find_by(desarrollo: payload['Desarollo'])
+  end
+
+  def persist_calculation(source_payload, calc)
+    quote.update!(calc.slice(*CALCULATION_FIELDS).merge(deal_snapshot: source_payload))
   end
 
   def attach_pdf(pdf_bytes)

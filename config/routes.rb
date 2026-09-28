@@ -309,12 +309,14 @@ Rails.application.routes.draw do
             member do
               get :pdf
               get :amortization_pdf
+              post :authorize, action: :authorize_quote
             end
             collection do
               get :products
               get :developments
             end
           end
+          resources :quote_development_rules, only: [:index, :create, :update, :destroy]
           resources :csat_survey_responses, only: [:index] do
             collection do
               get :metrics

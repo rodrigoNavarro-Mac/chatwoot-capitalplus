@@ -996,6 +996,12 @@ const menuItems = computed(() => {
           to: accountScopedRoute('custom_roles_list'),
         },
         {
+          name: 'Settings Quote Development Rules',
+          label: t('SIDEBAR.QUOTE_DEVELOPMENT_RULES'),
+          icon: 'i-lucide-file-cog',
+          to: accountScopedRoute('quote_development_rules_list'),
+        },
+        {
           name: 'Settings Sla',
           label: t('SIDEBAR.SLA'),
           icon: 'i-lucide-clock-alert',

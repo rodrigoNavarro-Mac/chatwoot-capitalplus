@@ -24,6 +24,10 @@ class QuotesAPI extends ApiClient {
   searchProducts({ desarrollo, q } = {}) {
     return axios.get(`${this.url}/products`, { params: { desarrollo, q } });
   }
+
+  authorize(id) {
+    return axios.post(`${this.url}/${id}/authorize`);
+  }
 }
 
 export default new QuotesAPI();

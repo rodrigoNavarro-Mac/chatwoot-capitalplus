@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { downloadBlobFile } from 'dashboard/helper/downloadHelper';
+import { usePolicy } from 'dashboard/composables/usePolicy';
+import { QUOTE_SENSITIVE_FIELDS_PERMISSION } from 'dashboard/constants/permissions.js';
 import QuotesAPI from 'dashboard/api/quotes';
 import Spinner from 'shared/components/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -11,11 +13,17 @@ import QuoteFieldsForm from '../components/QuoteFieldsForm.vue';
 
 const { t } = useI18n();
 const route = useRoute();
+const { checkPermissions } = usePolicy();
+
+const canAuthorize = computed(() =>
+  checkPermissions(['administrator', QUOTE_SENSITIVE_FIELDS_PERMISSION])
+);
 
 const quote = ref(null);
 const isFetching = ref(false);
 const isDownloading = ref(false);
 const isDownloadingAmortization = ref(false);
+const isAuthorizing = ref(false);
 
 const isEditing = ref(false);
 const isSaving = ref(false);
@@ -117,6 +125,30 @@ const downloadAmortizationPdf = async () => {
   }
 };
 
+const isAuthorizationPending = computed(
+  () => quote.value?.authorization_status === 'pending'
+);
+
+const canDownload = computed(
+  () => quote.value?.pdf_attached && !isAuthorizationPending.value
+);
+
+const authorizeQuote = async () => {
+  if (!quote.value) return;
+  isAuthorizing.value = true;
+  try {
+    const response = await QuotesAPI.authorize(quote.value.id);
+    quote.value = response.data;
+    useAlert(t('QUOTES.AUTHORIZATION.API.SUCCESS_MESSAGE'));
+  } catch (error) {
+    useAlert(
+      error.response?.data?.error || t('QUOTES.AUTHORIZATION.API.ERROR_MESSAGE')
+    );
+  } finally {
+    isAuthorizing.value = false;
+  }
+};
+
 const previewSrcdoc = computed(() => quote.value?.html || '');
 
 onMounted(fetchQuote);
@@ -152,7 +184,15 @@ onMounted(fetchQuote);
               @click="startEditing"
             />
             <Button
-              v-if="quote.pdf_attached"
+              v-if="isAuthorizationPending && canAuthorize"
+              size="sm"
+              icon="i-lucide-check"
+              :is-loading="isAuthorizing"
+              :label="t('QUOTES.AUTHORIZATION.APPROVE')"
+              @click="authorizeQuote"
+            />
+            <Button
+              v-if="canDownload"
               size="sm"
               variant="outline"
               icon="i-lucide-download"
@@ -165,6 +205,24 @@ onMounted(fetchQuote);
 
         <p v-if="quote.status === 'failed'" class="text-n-ruby-11 text-sm mb-4">
           {{ quote.error_message }}
+        </p>
+
+        <div
+          v-if="isAuthorizationPending"
+          class="border border-n-amber-6 bg-n-amber-2 text-n-amber-11 rounded-lg p-3 text-sm mb-4"
+        >
+          {{
+            t('QUOTES.AUTHORIZATION.PENDING_BANNER', {
+              desarrollo: quote.desarrollo,
+            })
+          }}
+        </div>
+
+        <p
+          v-else-if="quote.authorization_status === 'approved'"
+          class="text-n-slate-11 text-xs mb-4"
+        >
+          {{ t('QUOTES.AUTHORIZATION.STATUS.APPROVED') }}
         </p>
 
         <div v-if="isEditing" class="border border-n-weak rounded-lg p-4 mb-8">

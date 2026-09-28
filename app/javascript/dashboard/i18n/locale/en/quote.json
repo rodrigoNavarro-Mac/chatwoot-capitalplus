@@ -66,6 +66,69 @@
       "DOWNLOAD": "Could not download the PDF",
       "GENERATE": "Could not generate the quote",
       "UPDATE": "Could not save the changes"
+    },
+    "AUTHORIZATION": {
+      "PENDING_BANNER": "This quote requires authorization because its term exceeds the automatic interest-free months allowed for {desarrollo}. The PDF cannot be downloaded or sent until it is approved.",
+      "APPROVE": "Approve quote",
+      "APPROVED_BY": "Approved by {name} on {date}",
+      "STATUS": {
+        "PENDING": "Pending authorization",
+        "APPROVED": "Approved"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Quote approved successfully.",
+        "ERROR_MESSAGE": "Could not approve the quote."
+      }
+    }
+  },
+  "QUOTE_DEVELOPMENT_RULES": {
+    "HEADER": "Quote rules",
+    "DESCRIPTION": "Configure, per development, the maximum term that is automatically financed with no interest. Quotes with a longer term will require authorization before their PDF can be downloaded or sent.",
+    "COUNT": "{n} rule | {n} rules",
+    "HEADER_BTN_TXT": "Add rule",
+    "LOADING": "Fetching rules...",
+    "LIST": {
+      "404": "There are no quote rules configured yet.",
+      "TABLE_HEADER": {
+        "DESARROLLO": "Development",
+        "MSI_AUTO_MAX_PLAZO": "Auto interest-free up to (months)",
+        "ACTIONS": "Actions"
+      }
+    },
+    "FORM": {
+      "DESC": "Below this term, quotes are generated automatically as interest-free. Above it, they require authorization.",
+      "DESARROLLO": {
+        "LABEL": "Development",
+        "PLACEHOLDER": "Select a development…"
+      },
+      "MSI_AUTO_MAX_PLAZO": {
+        "LABEL": "Auto interest-free up to (months)",
+        "PLACEHOLDER": "Example: 24"
+      },
+      "CANCEL_BUTTON_TEXT": "Cancel",
+      "SUBMIT": "Save",
+      "API": {
+        "SUCCESS_MESSAGE": "Rule saved successfully.",
+        "ERROR_MESSAGE": "Could not save the rule."
+      }
+    },
+    "ADD": {
+      "TITLE": "Add quote rule"
+    },
+    "EDIT": {
+      "TITLE": "Edit quote rule"
+    },
+    "DELETE": {
+      "CONFIRM": {
+        "TITLE": "Confirm deletion",
+        "MESSAGE": "Are you sure to delete the rule for ",
+        "YES": "Yes, delete",
+        "NO": "No, keep"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Rule deleted successfully.",
+        "ERROR_MESSAGE": "Could not delete the rule."
+      }
     }
   }
 }

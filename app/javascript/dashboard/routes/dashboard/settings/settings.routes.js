@@ -29,6 +29,7 @@ import security from './security/security.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
 import captain from './captain/captain.routes';
 import data from './data/data.routes';
+import quoteDevelopmentRules from './quoteDevelopmentRules/quoteDevelopmentRules.routes';
 
 export default {
   routes: [
@@ -73,5 +74,6 @@ export default {
     ...security.routes,
     ...conversationWorkflow.routes,
     ...captain.routes,
+    ...quoteDevelopmentRules.routes,
   ],
 };

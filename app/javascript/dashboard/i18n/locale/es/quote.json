@@ -66,6 +66,69 @@
       "DOWNLOAD": "No se pudo descargar el PDF",
       "GENERATE": "No se pudo generar la cotización",
       "UPDATE": "No se pudieron guardar los cambios"
+    },
+    "AUTHORIZATION": {
+      "PENDING_BANNER": "Esta cotización requiere autorización porque su plazo supera los meses sin intereses automáticos permitidos para {desarrollo}. El PDF no se puede descargar ni enviar hasta que se apruebe.",
+      "APPROVE": "Aprobar cotización",
+      "APPROVED_BY": "Aprobada por {name} el {date}",
+      "STATUS": {
+        "PENDING": "Pendiente de autorización",
+        "APPROVED": "Aprobada"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Cotización aprobada correctamente.",
+        "ERROR_MESSAGE": "No se pudo aprobar la cotización."
+      }
+    }
+  },
+  "QUOTE_DEVELOPMENT_RULES": {
+    "HEADER": "Reglas de cotización",
+    "DESCRIPTION": "Configura, por desarrollo, el plazo máximo que se financia automáticamente sin intereses. Las cotizaciones con un plazo mayor requerirán autorización antes de poder descargar o enviar su PDF.",
+    "COUNT": "{n} regla | {n} reglas",
+    "HEADER_BTN_TXT": "Agregar regla",
+    "LOADING": "Cargando reglas...",
+    "LIST": {
+      "404": "Todavía no hay reglas de cotización configuradas.",
+      "TABLE_HEADER": {
+        "DESARROLLO": "Desarrollo",
+        "MSI_AUTO_MAX_PLAZO": "Sin intereses automático hasta (meses)",
+        "ACTIONS": "Acciones"
+      }
+    },
+    "FORM": {
+      "DESC": "Por debajo de este plazo, las cotizaciones se generan automáticamente sin intereses. Por encima, requieren autorización.",
+      "DESARROLLO": {
+        "LABEL": "Desarrollo",
+        "PLACEHOLDER": "Selecciona un desarrollo…"
+      },
+      "MSI_AUTO_MAX_PLAZO": {
+        "LABEL": "Sin intereses automático hasta (meses)",
+        "PLACEHOLDER": "Ejemplo: 24"
+      },
+      "CANCEL_BUTTON_TEXT": "Cancelar",
+      "SUBMIT": "Guardar",
+      "API": {
+        "SUCCESS_MESSAGE": "Regla guardada correctamente.",
+        "ERROR_MESSAGE": "No se pudo guardar la regla."
+      }
+    },
+    "ADD": {
+      "TITLE": "Agregar regla de cotización"
+    },
+    "EDIT": {
+      "TITLE": "Editar regla de cotización"
+    },
+    "DELETE": {
+      "CONFIRM": {
+        "TITLE": "Confirmar eliminación",
+        "MESSAGE": "¿Seguro que quieres eliminar la regla de ",
+        "YES": "Sí, eliminar",
+        "NO": "No, mantener"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Regla eliminada correctamente.",
+        "ERROR_MESSAGE": "No se pudo eliminar la regla."
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   before_action :check_authorization
-  before_action :fetch_quote, only: [:show, :update, :pdf, :amortization_pdf]
+  before_action :fetch_quote, only: [:show, :update, :pdf, :amortization_pdf, :authorize_quote]
 
   # Sin el permiso custom 'quote_sensitive_fields_manage' (o ser administrador), estos tres campos
   # quedan bloqueados server-side sin importar qué mande el request — el frontend también los
@@ -70,6 +70,7 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   end
 
   def pdf
+    return render json: { error: 'authorization_pending' }, status: :forbidden if @quote.authorization_status_pending?
     return render json: { error: 'pdf_not_available' }, status: :not_found unless @quote.pdf.attached?
 
     send_data @quote.pdf.download,
@@ -83,6 +84,8 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   # `quote.schedule`) y puede ocupar varias páginas a diferencia del PDF que se le entrega al
   # cliente.
   def amortization_pdf
+    return render json: { error: 'authorization_pending' }, status: :forbidden if @quote.authorization_status_pending?
+
     html = Quotes::HtmlRendererService.new(@quote).render_amortization
     pdf_bytes = Quotes::PdfGeneratorService.new(html).generate
     send_data pdf_bytes,
@@ -91,6 +94,17 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
               disposition: 'attachment'
   rescue Quotes::PdfGeneratorService::ConversionError => e
     render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # Aprueba una cotización cuyo plazo excede el umbral configurado para su desarrollo (ver
+  # QuoteDevelopmentRule) — a partir de aquí ya se puede descargar el PDF. No recalcula nada, solo
+  # desbloquea la descarga; si se vuelve a editar la cotización, Quotes::CalculateAndAttachService
+  # la regresa a "pending" automáticamente.
+  def authorize_quote
+    return render json: { error: 'not_pending' }, status: :unprocessable_entity unless @quote.authorization_status_pending?
+
+    @quote.update!(authorization_status: 'approved', authorized_by: current_user, authorized_at: Time.current)
+    render :show
   end
 
   private
