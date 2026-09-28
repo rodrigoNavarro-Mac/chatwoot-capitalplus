@@ -106,6 +106,7 @@ class Account < ApplicationRecord
   has_many :revenue_call_features, dependent: :destroy_async
   has_many :revenue_contacts, dependent: :destroy_async
   has_many :quotes, dependent: :destroy_async
+  has_many :quote_development_rules, dependent: :destroy_async
   has_many :revenue_deals, dependent: :destroy_async
   has_many :revenue_events, dependent: :destroy_async
   has_many :revenue_identity_conflicts, dependent: :destroy_async
