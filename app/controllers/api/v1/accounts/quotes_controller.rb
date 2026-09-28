@@ -1,6 +1,6 @@
 class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   before_action :check_authorization
-  before_action :fetch_quote, only: [:show, :update, :pdf, :amortization_pdf, :authorize_quote]
+  before_action :fetch_quote, only: [:show, :update, :destroy, :pdf, :amortization_pdf, :authorize_quote]
 
   # Sin el permiso custom 'quote_sensitive_fields_manage' (o ser administrador), estos tres campos
   # quedan bloqueados server-side sin importar qué mande el request — el frontend también los
@@ -9,7 +9,7 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   DEFAULT_INTERES = '8'.freeze
 
   def index
-    @quotes = Current.account.quotes.filter_by_contact_id(params[:contact_id]).recent_first.limit(50)
+    @quotes = Current.account.quotes.filter_by_contact_id(params[:contact_id]).recent_first.limit(50).includes(:generated_by)
   end
 
   def show; end
@@ -67,6 +67,15 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
     render :show
   rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # Solo se pueden borrar cotizaciones que fallaron al generarse — una completada es un registro
+  # financiero (puede tener PDF ya enviado al cliente) y no debe desaparecer del historial.
+  def destroy
+    return render json: { error: 'only_failed_quotes_can_be_deleted' }, status: :unprocessable_entity unless @quote.failed?
+
+    @quote.destroy!
+    head :no_content
   end
 
   def pdf

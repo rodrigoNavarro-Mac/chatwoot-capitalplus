@@ -23,6 +23,12 @@ class QuotePolicy < ApplicationPolicy
     @account_user.administrator? || @account_user.agent?
   end
 
+  # El controller además exige status: 'failed' — solo se puede borrar un intento fallido, nunca
+  # una cotización completada (es un registro financiero).
+  def destroy?
+    @account_user.administrator? || @account_user.agent?
+  end
+
   def products?
     @account_user.administrator? || @account_user.agent?
   end

@@ -42,6 +42,9 @@ const EMPTY_FIELDS = () => ({
 const quotes = ref([]);
 const isFetching = ref(false);
 const downloadingId = ref(null);
+const deletingId = ref(null);
+const showDeleteConfirmationPopup = ref(false);
+const activeQuote = ref({});
 
 const desarrollos = ref([]);
 const selectedDesarrollo = ref('');
@@ -90,6 +93,36 @@ const downloadPdf = async quote => {
     useAlert(t('QUOTES.ERRORS.DOWNLOAD'));
   } finally {
     downloadingId.value = null;
+  }
+};
+
+const deleteMessageValue = computed(
+  () =>
+    ` ${activeQuote.value.lote || activeQuote.value.nombre || activeQuote.value.id} ? `
+);
+
+const openDeletePopup = quote => {
+  activeQuote.value = quote;
+  showDeleteConfirmationPopup.value = true;
+};
+
+const closeDeletePopup = () => {
+  showDeleteConfirmationPopup.value = false;
+};
+
+const confirmDeletion = async () => {
+  const quote = activeQuote.value;
+  closeDeletePopup();
+  deletingId.value = quote.id;
+  try {
+    await QuotesAPI.delete(quote.id);
+    quotes.value = quotes.value.filter(q => q.id !== quote.id);
+    useAlert(t('QUOTES.DELETE.API.SUCCESS_MESSAGE'));
+  } catch (error) {
+    useAlert(t('QUOTES.DELETE.API.ERROR_MESSAGE'));
+  } finally {
+    deletingId.value = null;
+    activeQuote.value = {};
   }
 };
 
@@ -281,6 +314,9 @@ onMounted(() => {
         <table class="w-full text-sm">
           <thead class="bg-n-slate-2 text-n-slate-11">
             <tr>
+              <th class="text-start px-4 py-2">
+                {{ t('QUOTES.TABLE.NOMBRE') }}
+              </th>
               <th class="text-start px-4 py-2">{{ t('QUOTES.TABLE.LOTE') }}</th>
               <th class="text-start px-4 py-2">
                 {{ t('QUOTES.TABLE.DESARROLLO') }}
@@ -290,6 +326,9 @@ onMounted(() => {
               </th>
               <th class="text-start px-4 py-2">
                 {{ t('QUOTES.TABLE.STATUS') }}
+              </th>
+              <th class="text-start px-4 py-2">
+                {{ t('QUOTES.TABLE.GENERATED_BY') }}
               </th>
               <th class="text-start px-4 py-2">
                 {{ t('QUOTES.TABLE.CREATED_AT') }}
@@ -305,6 +344,9 @@ onMounted(() => {
               :key="quote.id"
               class="border-t border-n-weak"
             >
+              <td class="px-4 py-2 text-n-slate-12">
+                {{ quote.nombre || '-' }}
+              </td>
               <td class="px-4 py-2 text-n-slate-12 font-medium">
                 {{ quote.lote || '-' }}
               </td>
@@ -327,6 +369,9 @@ onMounted(() => {
                 >
                   {{ t('QUOTES.AUTHORIZATION.STATUS.PENDING') }}
                 </span>
+              </td>
+              <td class="px-4 py-2 text-n-slate-11">
+                {{ quote.generated_by_name || '-' }}
               </td>
               <td class="px-4 py-2 text-n-slate-11">
                 {{ new Date(quote.created_at).toLocaleDateString('es-MX') }}
@@ -352,11 +397,32 @@ onMounted(() => {
                   :is-loading="downloadingId === quote.id"
                   @click="downloadPdf(quote)"
                 />
+                <Button
+                  v-if="quote.status === 'failed'"
+                  size="xs"
+                  variant="outline"
+                  color="ruby"
+                  icon="i-lucide-trash-2"
+                  class="ms-2"
+                  :is-loading="deletingId === quote.id"
+                  @click="openDeletePopup(quote)"
+                />
               </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
+
+    <woot-delete-modal
+      v-model:show="showDeleteConfirmationPopup"
+      :on-close="closeDeletePopup"
+      :on-confirm="confirmDeletion"
+      :title="t('QUOTES.DELETE.CONFIRM.TITLE')"
+      :message="t('QUOTES.DELETE.CONFIRM.MESSAGE')"
+      :message-value="deleteMessageValue"
+      :confirm-text="t('QUOTES.DELETE.CONFIRM.YES')"
+      :reject-text="t('QUOTES.DELETE.CONFIRM.NO')"
+    />
   </div>
 </template>

@@ -305,7 +305,7 @@ Rails.application.routes.draw do
               get :skip_logs
             end
           end
-          resources :quotes, only: [:index, :show, :create, :update] do
+          resources :quotes, only: [:index, :show, :create, :update, :destroy] do
             member do
               get :pdf
               get :amortization_pdf

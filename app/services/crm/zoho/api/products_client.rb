@@ -13,19 +13,27 @@ class Crm::Zoho::Api::ProductsClient < Crm::Zoho::Api::BaseClient
   # string simple): Zoho lo devuelve como {id:, name:}.
   SEARCH_FIELDS = %w[Product_Name Desarrollo m2 x_m2_estimado Colometria Fecha_de_entrega Apartado Bloqueado].freeze
 
+  # Tope de páginas a recorrer cuando se filtra por texto (ver más abajo) — evita jalar el
+  # catálogo completo de un desarrollo enorme, manteniendo la búsqueda rápida.
+  WORD_SEARCH_MAX_PAGES = 5
+  WORD_SEARCH_PAGE_SIZE = 200
+  WORD_SEARCH_MAX_RESULTS = 50
+
   # `word`/`desarrollo` son opcionales pero al menos uno debe venir — filtrar solo por desarrollo
   # (sin texto) lista todos los lotes de ese desarrollo, que es el flujo principal: primero elegir
   # el desarrollo, luego el lote dentro de él.
+  #
+  # El filtro por texto NO usa el criteria `Product_Name:contains` de Zoho: ese operador busca por
+  # token completo y falla con búsquedas parciales o puramente numéricas (ej. escribir "46" no
+  # encuentra "46 PRIV. KRAKATOA"). En vez de eso, se trae el catálogo del desarrollo (paginado) y
+  # se filtra por substring en Ruby, que sí encuentra cualquier coincidencia parcial.
   def search(word: nil, desarrollo: nil, page: 1, per_page: 100)
-    criteria = build_criteria(word: word, desarrollo: desarrollo)
+    return search_by_word(word: word, desarrollo: desarrollo) if word.present?
+
+    criteria = build_criteria(desarrollo: desarrollo)
     return [] if criteria.blank?
 
-    response = get('Products/search', criteria: criteria, fields: SEARCH_FIELDS.join(','), page: page, per_page: per_page)
-    response.is_a?(Hash) ? Array(response['data']) : []
-  rescue Crm::Zoho::Api::BaseClient::ApiError => e
-    return [] if e.code == 204
-
-    raise
+    fetch_page(criteria: criteria, page: page, per_page: per_page)
   end
 
   # Valores del Pick List "Desarrollo" configurados en Zoho — mismo patrón que
@@ -57,12 +65,37 @@ class Crm::Zoho::Api::ProductsClient < Crm::Zoho::Api::BaseClient
     fields.find { |f| f.is_a?(Hash) && f['api_name'] == api_name }
   end
 
-  def build_criteria(word:, desarrollo:)
-    clauses = []
-    clauses << "(Desarrollo:equals:#{desarrollo})" if desarrollo.present?
-    clauses << "(Product_Name:contains:#{word})" if word.present?
-    return nil if clauses.empty?
+  # Recorre el catálogo del desarrollo página por página (hasta WORD_SEARCH_MAX_PAGES) filtrando
+  # por substring case-insensitive en Product_Name — se detiene apenas junta WORD_SEARCH_MAX_RESULTS
+  # coincidencias o se acaban las páginas.
+  def search_by_word(word:, desarrollo:)
+    criteria = build_criteria(desarrollo: desarrollo)
+    return [] if criteria.blank?
 
-    clauses.join('and')
+    needle = word.strip.downcase
+    matches = []
+
+    WORD_SEARCH_MAX_PAGES.times do |i|
+      page_records = fetch_page(criteria: criteria, page: i + 1, per_page: WORD_SEARCH_PAGE_SIZE)
+      matches.concat(page_records.select { |record| record['Product_Name'].to_s.downcase.include?(needle) })
+      break if page_records.size < WORD_SEARCH_PAGE_SIZE || matches.size >= WORD_SEARCH_MAX_RESULTS
+    end
+
+    matches.first(WORD_SEARCH_MAX_RESULTS)
+  end
+
+  def fetch_page(criteria:, page:, per_page:)
+    response = get('Products/search', criteria: criteria, fields: SEARCH_FIELDS.join(','), page: page, per_page: per_page)
+    response.is_a?(Hash) ? Array(response['data']) : []
+  rescue Crm::Zoho::Api::BaseClient::ApiError => e
+    return [] if e.code == 204
+
+    raise
+  end
+
+  def build_criteria(desarrollo:)
+    return nil if desarrollo.blank?
+
+    "(Desarrollo:equals:#{desarrollo})"
   end
 end

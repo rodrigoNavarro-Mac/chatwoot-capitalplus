@@ -1,6 +1,7 @@
 json.id @quote.id
 json.contact_id @quote.contact_id
 json.generated_by_id @quote.generated_by_id
+json.generated_by_name @quote.generated_by&.available_name
 json.zoho_deal_id @quote.zoho_deal_id
 json.zoho_product_id @quote.zoho_product_id
 json.source_type @quote.source_type

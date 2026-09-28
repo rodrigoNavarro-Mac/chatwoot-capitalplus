@@ -31,10 +31,12 @@
       "SENSITIVE_FIELD_LOCKED": "Solo administradores o roles con permiso pueden cambiar esto"
     },
     "TABLE": {
+      "NOMBRE": "Cliente",
       "LOTE": "Lote",
       "DESARROLLO": "Desarrollo",
       "PRECIO_TOTAL": "Precio total",
       "STATUS": "Estado",
+      "GENERATED_BY": "Generada por",
       "CREATED_AT": "Creada",
       "ACTIONS": "Acciones",
       "VIEW": "Ver",
@@ -66,6 +68,18 @@
       "DOWNLOAD": "No se pudo descargar el PDF",
       "GENERATE": "No se pudo generar la cotización",
       "UPDATE": "No se pudieron guardar los cambios"
+    },
+    "DELETE": {
+      "CONFIRM": {
+        "TITLE": "Confirmar eliminación",
+        "MESSAGE": "¿Seguro que quieres eliminar esta cotización fallida?",
+        "YES": "Sí, eliminar",
+        "NO": "No, mantener"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Cotización eliminada correctamente.",
+        "ERROR_MESSAGE": "No se pudo eliminar la cotización."
+      }
     },
     "AUTHORIZATION": {
       "PENDING_BANNER": "Esta cotización requiere autorización porque su plazo supera los meses sin intereses automáticos permitidos para {desarrollo}. El PDF no se puede descargar ni enviar hasta que se apruebe.",

@@ -12,5 +12,6 @@ json.array! @quotes do |quote|
   json.precio_total quote.precio_total
   json.pdf_attached quote.pdf.attached?
   json.authorization_status quote.authorization_status
+  json.generated_by_name quote.generated_by&.available_name
   json.created_at quote.created_at
 end
