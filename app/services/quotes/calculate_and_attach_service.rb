@@ -12,9 +12,13 @@
 # pending` (su PDF no se puede descargar hasta que se apruebe).
 #
 # Reemplaza también al correo que mandaba el botón viejo de Zoho (crearCotizacionYEnviar): se
-# encola Quotes::NotifyOwnerJob solo en la generación inicial exitosa (`quote` entra en estado
-# `pending`, ver Quotes::GenerateFromZohoDealService/GenerateFromProductService), nunca en
-# ediciones/recálculos posteriores desde Api::V1::Accounts::QuotesController#update.
+# encola Quotes::NotifyOwnerJob apenas la cotización queda en un estado "entregable" — completada
+# y sin autorización pendiente. Nunca se manda mientras authorization_status quede en `pending`
+# (el PDF adjunto todavía no se puede descargar, así que tampoco debe salir por correo); en ese
+# caso el aviso se dispara hasta la aprobación explícita (ver
+# Api::V1::Accounts::QuotesController#authorize_quote). También cubre el caso de una edición que
+# haga que el plazo vuelva a caer bajo el umbral automático (pending -> not_required sin pasar por
+# el botón de aprobar) — pero nunca reenvía en una edición que ya era entregable desde antes.
 class Quotes::CalculateAndAttachService
   CALCULATION_FIELDS = %i[
     nombre lote desarrollo plazos meses_sin_intereses superficie precio_m2 fecha_entrega
@@ -32,9 +36,9 @@ class Quotes::CalculateAndAttachService
   end
 
   def call
-    initial_generation = quote.pending?
+    was_deliverable = quote.completed? && !quote.authorization_status_pending?
     generate!
-    Quotes::NotifyOwnerJob.perform_later(quote.id) if initial_generation && quote.completed?
+    notify_owner unless was_deliverable
     quote
   rescue Quotes::CalculatorService::ValidationError => e
     fail!(e.message)
@@ -46,6 +50,12 @@ class Quotes::CalculateAndAttachService
   private
 
   attr_reader :quote, :payload
+
+  def notify_owner
+    return unless quote.completed? && !quote.authorization_status_pending?
+
+    Quotes::NotifyOwnerJob.perform_later(quote.id)
+  end
 
   def generate!
     effective_payload = apply_development_rule(payload)

@@ -37,6 +37,7 @@
       "PRECIO_TOTAL": "Precio total",
       "STATUS": "Estado",
       "GENERATED_BY": "Generada por",
+      "GENERATED_BY_ZOHO_WEBHOOK": "Botón de Zoho (Deal)",
       "CREATED_AT": "Creada",
       "ACTIONS": "Acciones",
       "VIEW": "Ver",

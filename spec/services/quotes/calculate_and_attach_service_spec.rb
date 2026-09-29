@@ -33,4 +33,40 @@ RSpec.describe Quotes::CalculateAndAttachService do
       .not_to have_enqueued_job(Quotes::NotifyOwnerJob)
     expect(quote.reload).to be_failed
   end
+
+  context 'when the development rule requires authorization for this term' do
+    before do
+      create(:quote_development_rule, account: account, desarrollo: 'Fuego', quote_development_rule_tiers_attributes: [
+               { hasta_meses: 12, msi: false, requires_authorization: false },
+               { hasta_meses: nil, msi: false, requires_authorization: true }
+             ])
+    end
+
+    it 'does not notify the owner on initial generation while authorization is pending' do
+      quote = create(:quote, account: account, status: 'pending')
+
+      expect { described_class.call(quote: quote, payload: payload('Plazos' => 24)) }
+        .not_to have_enqueued_job(Quotes::NotifyOwnerJob)
+      expect(quote.reload).to be_authorization_status_pending
+    end
+
+    it 'notifies the owner once an edit brings the term back under the automatic threshold' do
+      quote = create(:quote, account: account, status: 'pending')
+      described_class.call(quote: quote, payload: payload('Plazos' => 24))
+      expect(quote.reload).to be_authorization_status_pending
+
+      expect { described_class.call(quote: quote.reload, payload: payload('Plazos' => 6)) }
+        .to have_enqueued_job(Quotes::NotifyOwnerJob).with(quote.id).exactly(1).times
+      expect(quote.reload).to be_authorization_status_not_required
+    end
+
+    it 'does not re-notify when an edit keeps an already-deliverable quote deliverable' do
+      quote = create(:quote, account: account, status: 'pending')
+      described_class.call(quote: quote, payload: payload('Plazos' => 6))
+      expect(quote.reload).to be_authorization_status_not_required
+
+      expect { described_class.call(quote: quote.reload, payload: payload('Plazos' => 8)) }
+        .not_to have_enqueued_job(Quotes::NotifyOwnerJob)
+    end
+  end
 end

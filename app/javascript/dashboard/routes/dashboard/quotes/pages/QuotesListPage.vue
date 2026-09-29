@@ -72,6 +72,17 @@ const currency = value =>
     currency: 'MXN',
   });
 
+// El botón dentro de un Deal en Zoho (trigger_source: 'zoho_webhook') genera la cotización sin
+// ningún usuario de Chatwoot de por medio, así que generated_by_name siempre viene vacío ahí —
+// no es un dato faltante, es evidencia de por dónde entró.
+const generatedByLabel = quote => {
+  if (quote.generated_by_name) return quote.generated_by_name;
+  if (quote.trigger_source === 'zoho_webhook') {
+    return t('QUOTES.TABLE.GENERATED_BY_ZOHO_WEBHOOK');
+  }
+  return '-';
+};
+
 const fetchQuotes = async () => {
   isFetching.value = true;
   try {
@@ -371,7 +382,7 @@ onMounted(() => {
                 </span>
               </td>
               <td class="px-4 py-2 text-n-slate-11">
-                {{ quote.generated_by_name || '-' }}
+                {{ generatedByLabel(quote) }}
               </td>
               <td class="px-4 py-2 text-n-slate-11">
                 {{ new Date(quote.created_at).toLocaleDateString('es-MX') }}

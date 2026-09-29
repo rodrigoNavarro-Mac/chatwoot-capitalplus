@@ -108,11 +108,13 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   # Aprueba una cotización cuyo plazo excede el umbral configurado para su desarrollo (ver
   # QuoteDevelopmentRule) — a partir de aquí ya se puede descargar el PDF. No recalcula nada, solo
   # desbloquea la descarga; si se vuelve a editar la cotización, Quotes::CalculateAndAttachService
-  # la regresa a "pending" automáticamente.
+  # la regresa a "pending" automáticamente. El correo al dueño del Deal (ver Quotes::NotifyOwnerJob)
+  # no se manda al generar mientras esté pendiente — se manda hasta aquí, justo cuando se aprueba.
   def authorize_quote
     return render json: { error: 'not_pending' }, status: :unprocessable_entity unless @quote.authorization_status_pending?
 
     @quote.update!(authorization_status: 'approved', authorized_by: current_user, authorized_at: Time.current)
+    Quotes::NotifyOwnerJob.perform_later(@quote.id)
     render :show
   end
 
