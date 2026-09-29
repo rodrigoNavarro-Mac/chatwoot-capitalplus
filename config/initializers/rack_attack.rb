@@ -280,6 +280,18 @@ class Rack::Attack
     match_data[:account_id] if match_data.present?
   end
 
+  ## Prevent abuse of the Zoho CRM "generate quote" webhook (público, gateado solo por
+  ## webhook_secret) — ahora también dispara un correo real al dueño del Deal en cada llamada
+  ## exitosa (ver Quotes::NotifyOwnerJob), así que un abuso aquí no solo gasta cómputo sino que
+  ## spamea correos a agentes reales.
+  throttle('/webhooks/zoho_crm/:account_id/generate_quote',
+           limit: ENV.fetch('RATE_LIMIT_ZOHO_GENERATE_QUOTE', '30').to_i, period: 1.hour) do |req|
+    next unless req.post?
+
+    match_data = %r{\A/webhooks/zoho_crm/(?<account_id>\d+)/generate_quote/?\z}.match(req.path_without_extensions)
+    match_data[:account_id] if match_data.present?
+  end
+
   reports_api_user_level_limit = ENV.fetch('RATE_LIMIT_REPORTS_API_USER_LEVEL', '100').to_i
   reports_drilldown_api_user_level_limit = ENV.fetch(
     'RATE_LIMIT_REPORTS_DRILLDOWN_API_USER_LEVEL',
