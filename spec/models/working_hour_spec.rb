@@ -3,6 +3,12 @@
 require 'rails_helper'
 
 RSpec.describe WorkingHour do
+  # Every context below sets Time.zone directly (not just travel_to, which auto-resets via
+  # ActiveSupport::Testing::TimeHelpers) — without this, Time.zone leaks into whichever spec
+  # file happens to run next in the same process/shard, corrupting unrelated timezone-sensitive
+  # date math there.
+  after { Time.zone = 'UTC' }
+
   context 'when on monday 10am' do
     before do
       Time.zone = 'UTC'
