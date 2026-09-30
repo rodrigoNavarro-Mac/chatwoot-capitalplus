@@ -1,5 +1,6 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
+import Button from 'dashboard/components-next/button/Button.vue';
 
 defineProps({
   titleKey: { type: String, required: true },
@@ -8,7 +9,13 @@ defineProps({
     default: 'REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_PENDING',
   },
   sla: { type: Object, default: null },
+  // Métrica que la pestaña de Auditoría debe preseleccionar al hacer clic en "Ver detalle" -- ver
+  // AuditTab.vue AUDIT_METRICS. null = no mostrar el botón (uso genérico de esta tarjeta fuera de
+  // las 2 métricas SLA auditables).
+  metric: { type: String, default: null },
 });
+
+defineEmits(['viewDetail']);
 
 const { t } = useI18n();
 
@@ -45,9 +52,18 @@ const statusClass = status => STATUS_CLASSES[status] || STATUS_CLASSES.unknown;
   <div
     class="p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
   >
-    <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
-      {{ t(titleKey) }}
-    </h3>
+    <div class="flex items-start justify-between gap-2 mb-1">
+      <h3 class="text-base font-semibold text-n-slate-12 mt-0">
+        {{ t(titleKey) }}
+      </h3>
+      <Button
+        v-if="metric"
+        size="xs"
+        variant="link"
+        :label="t('REVENUE_INTELLIGENCE_REPORTS.AUDIT.VIEW_DETAIL')"
+        @click="$emit('viewDetail', metric)"
+      />
+    </div>
     <p class="text-xs text-n-slate-11 mb-4">
       {{
         t('REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_TARGET', { minutes: 5 })

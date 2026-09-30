@@ -854,7 +854,8 @@
       "CALLS": "Llamadas",
       "OBJECTIONS": "Objeciones",
       "PIPELINE": "Pipeline",
-      "DATA_QUALITY": "Calidad de datos"
+      "DATA_QUALITY": "Calidad de datos",
+      "AUDIT": "Auditoría"
     },
     "OVERVIEW": {
       "KPI": {
@@ -1098,6 +1099,31 @@
       "TYPE": "Tipo",
       "SUBJECT": "Sujeto",
       "DETECTED": "Detectado por primera vez"
+    },
+    "AUDIT": {
+      "TITLE": "Auditoría de tiempos SLA",
+      "DESCRIPTION": "Desglose lead por lead detrás de las tarjetas SLA de Marketing, para verificar qué leads específicos producen el promedio/mediana/P75 mostrado. Respeta el rango de fechas, desarrollo y campaña seleccionados arriba.",
+      "VIEW_DETAIL": "Ver detalle",
+      "METRIC_LABEL": "Métrica",
+      "METRIC_OPTIONS": {
+        "SETTER": "Tiempo de respuesta del setter",
+        "CALL_ATTEMPT": "Tiempo hasta el primer intento de llamada"
+      },
+      "SUMMARY": "{shown} de {total} leads respondidos mostrados · {excluded} excluidos del promedio/mediana (brecha > 7 días)",
+      "EMPTY": "No hay leads respondidos para esta métrica en el periodo seleccionado",
+      "ERROR": "No se pudo obtener el detalle de auditoría",
+      "TABLE": {
+        "LEAD": "Lead",
+        "PHONE": "Teléfono",
+        "CAMPAIGN": "Campaña / adset / anuncio",
+        "DEVELOPMENT": "Desarrollo",
+        "CREATED_AT": "Creado",
+        "EVENT_AT": "Fecha del evento",
+        "CLOCK_MINUTES": "Min. (reloj)",
+        "BUSINESS_MINUTES": "Min. (hábiles)",
+        "EXCLUDED": "Excluido"
+      },
+      "TRUNCATED": "Mostrando los {shown} más altos de {total} — hay más leads de los que caben en esta tabla"
     },
     "ERRORS": {
       "FETCH": "No se pudo obtener el reporte de inteligencia de ingresos"

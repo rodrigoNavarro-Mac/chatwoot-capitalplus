@@ -132,6 +132,15 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     generate_csv('revenue_intelligence_leads', 'api/v2/accounts/reports/revenue_intelligence_leads')
   end
 
+  # Desglose por lead de una métrica SLA (pestaña "Auditoría" de Revenue Intelligence) -- ver
+  # V2::Reports::RevenueIntelligenceBuilder#sla_audit_rows.
+  def revenue_intelligence_sla_audit
+    return render json: { error: 'metric inválido' }, status: :unprocessable_entity unless %w[setter call_attempt].include?(params[:metric])
+
+    builder = V2::Reports::RevenueIntelligenceBuilder.new(account: Current.account, params: revenue_intelligence_params)
+    render json: builder.sla_audit_rows(metric: params[:metric])
+  end
+
   private
 
   # BOM (\xEF\xBB\xBF) al inicio: sin él, Excel en Windows reinterpreta el UTF-8 como

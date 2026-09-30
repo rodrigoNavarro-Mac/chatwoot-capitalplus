@@ -73,6 +73,25 @@ class V2::Reports::RevenueIntelligenceBuilder
     adset[:adverts].map { |advert| { id: advert[:id], name: advert[:name] } }
   end
 
+  # Desglose por lead de una métrica SLA (pestaña "Auditoría") -- mismo universo/exclusiones que
+  # sla_summary (ver su comentario), pero sin agregar: una fila por lead respondido, para que un
+  # admin pueda ver EXACTAMENTE qué leads están empujando el promedio/mediana de la tarjeta SLA
+  # correspondiente, sin depender de un script por SSH (ver script/diag_call_sla.rb, la versión
+  # ad-hoc de esto). Endpoint aparte (no viaja en el payload principal de #build) porque trae datos
+  # por-lead (nombre/teléfono), a diferencia del resto del reporte que solo expone agregados.
+  def sla_audit_rows(metric:)
+    case metric
+    when 'setter'
+      audit_rows(clock_column: :first_human_response_seconds, business_column: :first_human_response_business_seconds,
+                 event_column: :first_human_contact_at, leads: sla_leads_scope)
+    when 'call_attempt'
+      audit_rows(clock_column: :first_call_attempt_seconds, business_column: :first_call_attempt_business_seconds,
+                 event_column: :first_call_attempt_at, leads: sla_leads_scope.where(created_at_source: CALL_ATTEMPT_TRACKING_START_AT..))
+    else
+      raise ArgumentError, "metric desconocido: #{metric}"
+    end
+  end
+
   private
 
   # DateRangeHelper#range es nil si since/until no vienen en params — se usa un default de 30 días
@@ -483,6 +502,32 @@ class V2::Reports::RevenueIntelligenceBuilder
     leads = leads.where(adset_id: marketing_adset_filter) if marketing_adset_filter
     leads = leads.where(advert_id: marketing_advert_filter) if marketing_advert_filter
     leads
+  end
+
+  # Tope defensivo -- al volumen actual de la cuenta nunca se acerca a esto (mismo criterio ya
+  # documentado en el resto del builder), pero la pestaña de Auditoría trae datos por-lead que
+  # sla_summary nunca trae, así que conviene un límite explícito en vez de confiar en que el
+  # volumen se mantenga chico para siempre.
+  MAX_SLA_AUDIT_ROWS = 500
+
+  def audit_rows(clock_column:, business_column:, event_column:, leads:)
+    responded = leads.where.not(business_column => nil)
+                     .pluck(:id, :zoho_lead_id, :raw_payload, :created_at_source, event_column, clock_column, business_column,
+                            :campaign_name, :adset_name, :advert_name, :desarrollo, :lead_status)
+
+    rows = responded.map { |row| audit_row(row) }.sort_by { |row| -row[:business_seconds] }
+    { total_matching_count: rows.size, rows: rows.first(MAX_SLA_AUDIT_ROWS) }
+  end
+
+  def audit_row(row)
+    id, zoho_lead_id, raw_payload, created_at_source, event_at, clock_seconds, business_seconds,
+      campaign_name, adset_name, advert_name, desarrollo, lead_status = row
+    payload = raw_payload || {}
+
+    { id: id, zoho_lead_id: zoho_lead_id, name: lead_label(payload), phone: payload['Phone'].presence || payload['Mobile'].presence,
+      created_at_source: created_at_source, event_at: event_at, clock_seconds: clock_seconds, business_seconds: business_seconds,
+      excluded: clock_seconds > MAX_CONTACT_GAP_SECONDS,
+      campaign_name: campaign_name, adset_name: adset_name, advert_name: advert_name, desarrollo: desarrollo, lead_status: lead_status }
   end
 
   def percentile(sorted_values, pct)

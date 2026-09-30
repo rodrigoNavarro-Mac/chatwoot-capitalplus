@@ -16,7 +16,7 @@ const props = defineProps({
   advertId: { type: String, default: '' },
 });
 
-const emit = defineEmits(['updateFilters']);
+const emit = defineEmits(['updateFilters', 'viewSlaDetail']);
 
 const { t } = useI18n();
 
@@ -603,12 +603,16 @@ const deleteSpend = async adSpend => {
         class="flex-1"
         title-key="REVENUE_INTELLIGENCE_REPORTS.MARKETING.SLA_TITLE"
         :sla="sla"
+        metric="setter"
+        @view-detail="emit('viewSlaDetail', $event)"
       />
       <SlaSummaryCard
         class="flex-1"
         title-key="REVENUE_INTELLIGENCE_REPORTS.MARKETING.CALL_SLA_TITLE"
         pending-key="REVENUE_INTELLIGENCE_REPORTS.MARKETING.CALL_SLA_PENDING"
         :sla="callSla"
+        metric="call_attempt"
+        @view-detail="emit('viewSlaDetail', $event)"
       />
     </div>
 

@@ -559,6 +559,70 @@ describe V2::Reports::RevenueIntelligenceBuilder do
     end
   end
 
+  # Desglose por lead detrás de marketing_sla/marketing_call_sla (pestaña "Auditoría") -- mismas
+  # exclusiones/universo que sla_summary, pero una fila por lead en vez de un agregado.
+  describe 'sla_audit_rows' do
+    def sla_lead(zoho_lead_id, clock_seconds: nil, business_seconds: nil, raw_payload: {})
+      account.revenue_leads.create!(zoho_lead_id: zoho_lead_id, created_at_source: 5.days.ago, raw_payload: raw_payload,
+                                    first_human_response_seconds: clock_seconds, first_human_response_business_seconds: business_seconds)
+    end
+
+    def call_attempt_lead(zoho_lead_id, clock_seconds: nil, business_seconds: nil, created_at_source: 5.days.ago)
+      account.revenue_leads.create!(zoho_lead_id: zoho_lead_id, created_at_source: created_at_source,
+                                    first_call_attempt_seconds: clock_seconds, first_call_attempt_business_seconds: business_seconds)
+    end
+
+    it 'returns one row per responded lead with clock/business seconds and excluded: false for a normal lead' do
+      sla_lead('lead-1', clock_seconds: 120, business_seconds: 120, raw_payload: { 'First_Name' => 'Ana', 'Phone' => '555' })
+
+      rows = builder.sla_audit_rows(metric: 'setter')[:rows]
+
+      expect(rows.size).to eq(1)
+      expect(rows.first).to include(zoho_lead_id: 'lead-1', name: 'Ana', phone: '555', clock_seconds: 120, business_seconds: 120,
+                                    excluded: false)
+    end
+
+    it 'never includes a lead without a tracked response (pending, not auditable yet)' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-pending', created_at_source: 5.days.ago)
+
+      rows = builder.sla_audit_rows(metric: 'setter')[:rows]
+
+      expect(rows).to be_empty
+    end
+
+    it 'flags a lead whose clock-time gap exceeds MAX_CONTACT_GAP_SECONDS as excluded (same boundary as marketing_sla)' do
+      sla_lead('lead-outlier', clock_seconds: described_class::MAX_CONTACT_GAP_SECONDS + 1, business_seconds: 100)
+
+      rows = builder.sla_audit_rows(metric: 'setter')[:rows]
+
+      expect(rows.first).to include(excluded: true)
+    end
+
+    it 'sorts rows by business_seconds descending, worst first' do
+      sla_lead('lead-fast', clock_seconds: 60, business_seconds: 60)
+      sla_lead('lead-slow', clock_seconds: 600, business_seconds: 600)
+
+      rows = builder.sla_audit_rows(metric: 'setter')[:rows]
+
+      expect(rows.map { |row| row[:zoho_lead_id] }).to eq(%w[lead-slow lead-fast])
+    end
+
+    it 'for metric: call_attempt, excludes leads created before CALL_ATTEMPT_TRACKING_START_AT' do
+      wide_params = { since: Date.new(2026, 7, 1).to_time.to_i.to_s, until: Time.current.to_i.to_s }
+      wide_range_builder = described_class.new(account: account, params: wide_params)
+      call_attempt_lead('pre-coverage', clock_seconds: 60, business_seconds: 60, created_at_source: Date.new(2026, 7, 15))
+      call_attempt_lead('post-coverage', clock_seconds: 120, business_seconds: 120, created_at_source: Date.new(2026, 8, 2))
+
+      rows = wide_range_builder.sla_audit_rows(metric: 'call_attempt')[:rows]
+
+      expect(rows.map { |row| row[:zoho_lead_id] }).to eq(['post-coverage'])
+    end
+
+    it 'raises for an unknown metric' do
+      expect { builder.sla_audit_rows(metric: 'bogus') }.to raise_error(ArgumentError)
+    end
+  end
+
   describe 'marketing_spend' do
     it 'shows N/D (nil) total investment and costs when nothing has been captured, never $0' do
       rollup('campaign', 'camp-1', 'lead_created', count: 10)
