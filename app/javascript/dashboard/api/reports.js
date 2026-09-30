@@ -187,9 +187,23 @@ class ReportsAPI extends ApiClient {
     });
   }
 
-  getRevenueIntelligenceReport({ from: since, to: until, desarrollo } = {}) {
+  getRevenueIntelligenceReport({
+    from: since,
+    to: until,
+    desarrollo,
+    campaign_id: campaignId,
+    adset_id: adsetId,
+    advert_id: advertId,
+  } = {}) {
     return axios.get(`${this.url}/revenue_intelligence`, {
-      params: { since, until, desarrollo },
+      params: {
+        since,
+        until,
+        desarrollo,
+        campaign_id: campaignId,
+        adset_id: adsetId,
+        advert_id: advertId,
+      },
     });
   }
 
@@ -200,6 +214,28 @@ class ReportsAPI extends ApiClient {
   } = {}) {
     return axios.get(`${this.url}/revenue_intelligence_leads_export`, {
       params: { since, until, desarrollo },
+    });
+  }
+
+  getRevenueIntelligenceSlaAudit({
+    from: since,
+    to: until,
+    desarrollo,
+    campaign_id: campaignId,
+    adset_id: adsetId,
+    advert_id: advertId,
+    metric,
+  } = {}) {
+    return axios.get(`${this.url}/revenue_intelligence_sla_audit`, {
+      params: {
+        since,
+        until,
+        desarrollo,
+        campaign_id: campaignId,
+        adset_id: adsetId,
+        advert_id: advertId,
+        metric,
+      },
     });
   }
 }

@@ -10,6 +10,7 @@ import { downloadCsvFile } from 'dashboard/helper/downloadHelper';
 import ReportHeader from './components/ReportHeader.vue';
 import FunnelStageMeter from './components/FunnelStageMeter.vue';
 import MarketingTab from './components/MarketingTab.vue';
+import AuditTab from './components/AuditTab.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -210,6 +211,7 @@ const TABS = [
     key: 'data_quality',
     label: t('REVENUE_INTELLIGENCE_REPORTS.TABS.DATA_QUALITY'),
   },
+  { key: 'audit', label: t('REVENUE_INTELLIGENCE_REPORTS.TABS.AUDIT') },
 ];
 const activeTab = ref('overview');
 const activeTabIndex = computed(() =>
@@ -217,6 +219,26 @@ const activeTabIndex = computed(() =>
 );
 const onTabChanged = tab => {
   activeTab.value = tab.key;
+};
+
+// Filtros ya en el formato que espera AuditTab/ReportsAPI.getRevenueIntelligenceSlaAudit (mismo
+// toUnixSeconds ya usado para el reporte principal, para no duplicar esa conversión en el hijo).
+const auditMetric = ref('setter');
+const auditFilters = computed(() => ({
+  from: hasValidDateRange.value ? toUnixSeconds(filters.value.since) : null,
+  to: hasValidDateRange.value ? toUnixSeconds(filters.value.until, true) : null,
+  desarrollo: filters.value.desarrollo || undefined,
+  campaignId: filters.value.campaignId || undefined,
+  adsetId: filters.value.adsetId || undefined,
+  advertId: filters.value.advertId || undefined,
+}));
+
+// Botón "Ver detalle" de una tarjeta SLA (SlaSummaryCard -> MarketingTab) -- salta directo a la
+// pestaña de Auditoría con la métrica correspondiente preseleccionada, en vez de obligar al
+// usuario a encontrar la pestaña nueva y elegir la métrica ahí manualmente.
+const onViewSlaDetail = metric => {
+  auditMetric.value = metric;
+  activeTab.value = 'audit';
 };
 
 // { desarrollo/campaign_id/agent_id/... => { metric => count } } -> filas para una tabla genérica.
@@ -1282,6 +1304,7 @@ const availableDesarrollos = computed(
             :adset-id="filters.adsetId"
             :advert-id="filters.advertId"
             @update-filters="onUpdateMarketingFilters"
+            @view-sla-detail="onViewSlaDetail"
           />
         </template>
 
@@ -1658,6 +1681,11 @@ const availableDesarrollos = computed(
             }}
           </p>
         </div>
+
+        <!-- Auditoría -->
+        <template v-if="activeTab === 'audit'">
+          <AuditTab :filters="auditFilters" :initial-metric="auditMetric" />
+        </template>
       </template>
     </div>
   </div>

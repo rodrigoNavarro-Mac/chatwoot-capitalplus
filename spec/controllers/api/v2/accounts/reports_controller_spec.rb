@@ -540,4 +540,34 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
       end
     end
   end
+
+  describe 'GET /api/v2/accounts/{account.id}/reports/revenue_intelligence_sla_audit' do
+    context 'when unauthenticated' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/reports/revenue_intelligence_sla_audit", params: { metric: 'setter' }
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated as admin' do
+      it 'returns the per-lead SLA breakdown for a valid metric' do
+        account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 3.days.ago,
+                                      first_human_response_seconds: 120, first_human_response_business_seconds: 120)
+
+        get "/api/v2/accounts/#{account.id}/reports/revenue_intelligence_sla_audit",
+            params: { metric: 'setter' }, headers: admin.create_new_auth_token
+
+        expect(response).to have_http_status(:success)
+        body = response.parsed_body
+        expect(body['rows'].first).to include('zoho_lead_id' => 'lead-1', 'business_seconds' => 120)
+      end
+
+      it 'returns unprocessable_entity for an unknown metric' do
+        get "/api/v2/accounts/#{account.id}/reports/revenue_intelligence_sla_audit",
+            params: { metric: 'bogus' }, headers: admin.create_new_auth_token
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+  end
 end
