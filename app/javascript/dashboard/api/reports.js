@@ -187,6 +187,26 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  getCallIntelligenceExport({
+    from: since,
+    to: until,
+    inboxId,
+    agentId,
+    confidence,
+    conversationType,
+  } = {}) {
+    return axios.get(`${this.url}/call_intelligence_export`, {
+      params: {
+        since,
+        until,
+        inbox_id: inboxId,
+        agent_id: agentId,
+        confidence,
+        conversation_type: conversationType,
+      },
+    });
+  }
+
   getRevenueIntelligenceReport({
     from: since,
     to: until,

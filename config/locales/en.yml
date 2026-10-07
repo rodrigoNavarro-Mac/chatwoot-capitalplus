@@ -252,6 +252,24 @@ en:
       ganado: Won
       dias_lead_a_deal: Days lead to deal
       dias_deal_activo: Days as deal
+    call_intelligence_csv:
+      call_id: Call ID
+      provider_call_id: Provider call ID
+      contact_name: Contact name
+      contact_phone: Contact phone
+      agent: Agent
+      role: Role
+      started_at: Started at
+      duration_seconds: Duration (s)
+      conversation_type: Conversation type
+      intent_level: Intent level
+      confidence: Confidence
+      outcome_type: Outcome
+      outcome_at: Outcome at
+      top_objection: Top objection
+      top_risk: Top risk
+      zoho_deal_stage: Zoho deal stage
+      analyzed_at: Analyzed at
     inbox_csv:
       inbox_name: Inbox name
       inbox_type: Inbox type

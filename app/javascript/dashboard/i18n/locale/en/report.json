@@ -720,6 +720,7 @@
   "CALL_INTELLIGENCE_REPORTS": {
     "HEADER": "Call intelligence",
     "DESCRIPTION": "AI-scored analysis of Aircall calls — objections, risk flags, and scorecards by agent and development.",
+    "EXPORT_CALLS": "Export calls (CSV)",
     "FILTERS": {
       "SINCE": "Since",
       "UNTIL": "Until",
@@ -811,7 +812,8 @@
     "ERRORS": {
       "FETCH": "Could not fetch the call intelligence report",
       "FETCH_QUEUE": "Could not fetch the review queue",
-      "FETCH_RECENT": "Could not fetch the recent calls"
+      "FETCH_RECENT": "Could not fetch the recent calls",
+      "EXPORT": "Could not export the calls"
     }
   },
   "REVENUE_INTELLIGENCE_REPORTS": {

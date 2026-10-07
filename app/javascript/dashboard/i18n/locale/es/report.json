@@ -715,6 +715,7 @@
   "CALL_INTELLIGENCE_REPORTS": {
     "HEADER": "Inteligencia de llamadas",
     "DESCRIPTION": "Análisis de llamadas de Aircall calificado por IA — objeciones, riesgos y scorecards por agente y desarrollo.",
+    "EXPORT_CALLS": "Exportar llamadas (CSV)",
     "FILTERS": {
       "SINCE": "Desde",
       "UNTIL": "Hasta",
@@ -806,7 +807,8 @@
     "ERRORS": {
       "FETCH": "No se pudo obtener el reporte de inteligencia de llamadas",
       "FETCH_QUEUE": "No se pudo obtener la cola de revisión",
-      "FETCH_RECENT": "No se pudo obtener las llamadas recientes"
+      "FETCH_RECENT": "No se pudo obtener las llamadas recientes",
+      "EXPORT": "No se pudo exportar las llamadas"
     }
   },
   "REVENUE_INTELLIGENCE_REPORTS": {

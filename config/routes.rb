@@ -638,6 +638,7 @@ Rails.application.routes.draw do
               get :sales_funnel
               get :call_intelligence_agents
               get :call_intelligence_project
+              get :call_intelligence_export
               get :revenue_intelligence
               get :revenue_intelligence_leads_export
               get :revenue_intelligence_sla_audit

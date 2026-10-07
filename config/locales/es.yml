@@ -234,6 +234,24 @@ es:
       ganado: Ganado
       dias_lead_a_deal: Días de lead a Deal
       dias_deal_activo: Días activo como Deal
+    call_intelligence_csv:
+      call_id: ID de llamada
+      provider_call_id: ID del proveedor
+      contact_name: Nombre del contacto
+      contact_phone: Teléfono del contacto
+      agent: Asesor
+      role: Rol
+      started_at: Inicio de la llamada
+      duration_seconds: Duración (s)
+      conversation_type: Tipo de conversación
+      intent_level: Nivel de intención
+      confidence: Confianza
+      outcome_type: Resultado
+      outcome_at: Fecha del resultado
+      top_objection: Objeción principal
+      top_risk: Riesgo principal
+      zoho_deal_stage: Etapa en Zoho
+      analyzed_at: Fecha de análisis
     inbox_csv:
       inbox_name: Nombre de la bandeja de entrada
       inbox_type: Tipo de bandeja de entrada

@@ -1,0 +1,27 @@
+<% headers = [
+    I18n.t('reports.call_intelligence_csv.call_id'),
+    I18n.t('reports.call_intelligence_csv.provider_call_id'),
+    I18n.t('reports.call_intelligence_csv.contact_name'),
+    I18n.t('reports.call_intelligence_csv.contact_phone'),
+    I18n.t('reports.call_intelligence_csv.started_at'),
+    I18n.t('reports.call_intelligence_csv.duration_seconds'),
+    I18n.t('reports.call_intelligence_csv.agent'),
+    I18n.t('reports.call_intelligence_csv.role'),
+    I18n.t('reports.call_intelligence_csv.conversation_type'),
+    I18n.t('reports.call_intelligence_csv.intent_level'),
+    I18n.t('reports.call_intelligence_csv.confidence'),
+    I18n.t('reports.call_intelligence_csv.outcome_type'),
+    I18n.t('reports.call_intelligence_csv.outcome_at'),
+    I18n.t('reports.call_intelligence_csv.top_objection'),
+    I18n.t('reports.call_intelligence_csv.top_risk'),
+    I18n.t('reports.call_intelligence_csv.zoho_deal_stage'),
+    I18n.t('reports.call_intelligence_csv.analyzed_at')
+  ]
+%>
+<%# .html_safe: CSVSafe.generate_line ya deja el CSV bien formado (comillas reales cuando una
+    celda trae comas) -- sin esto, ActionView escapa esas comillas como &quot; aunque el formato
+    sea :csv, corrompiendo el archivo (mismo fix que revenue_intelligence_leads.csv.erb). %>
+<%= CSVSafe.generate_line(headers).html_safe -%>
+<% @report_data.each do |row| %>
+<%= CSVSafe.generate_line(row.values).html_safe -%>
+<% end %>
