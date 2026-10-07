@@ -1,9 +1,10 @@
 class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseController
   include DateRangeHelper
+  include CsvExportHelper
 
   before_action :fetch_inbox
   before_action :check_authorization
-  before_action :fetch_weekly_ops_report, only: [:show, :pdf]
+  before_action :fetch_weekly_ops_report, only: [:show, :pdf, :leads_export]
 
   def index
     @weekly_ops_reports = @inbox.weekly_ops_reports.recent_first.limit(26)
@@ -30,6 +31,18 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
               disposition: 'attachment'
   rescue Reports::DocxToPdfConverterService::ConversionError => e
     render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # Desglose completo de leads/deals de Zoho del PERIODO EXACTO de este reporte -- para que quien
+  # audita un reporte (ej. un asesor que reporta un número distinto al que ve en pantalla, como el
+  # caso de Eunice/Fuego septiembre 2026) pueda verificar fila por fila contra el CRM, no solo
+  # contra el total agregado. Reusa V2::Reports::RevenueIntelligenceLeadsExportBuilder -- misma
+  # fuente que ya usa el dashboard de Revenue Intelligence (el data mart local de Leads/Deals, no
+  # una llamada en vivo a Zoho), así que el número de este export y el de esa pantalla siempre
+  # coinciden entre sí.
+  def leads_export
+    @report_data = V2::Reports::RevenueIntelligenceLeadsExportBuilder.new(account: Current.account, params: leads_export_params).build
+    generate_csv("leads-deals-#{@inbox.name.parameterize}-#{@weekly_ops_report.period_start}", 'api/v2/accounts/reports/revenue_intelligence_leads')
   end
 
   private
@@ -89,5 +102,20 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
 
   def chart_images_params
     Array(params[:chart_images]).map { |chart| { title: chart[:title], data_url: chart[:data_url], key: chart[:key] } }
+  end
+
+  # since/until en unix (mismo formato que DateRangeHelper#range espera) -- reconstruidos a partir
+  # de period_start/period_end (fechas, no datetimes) en la zona horaria del inbox, con el mismo
+  # criterio exclusivo-por-la-derecha que usa V2::Reports::WeeklyOpsReportBuilder#date_bounds: el
+  # rango real termina al INICIO del día siguiente a period_end, no al final de period_end mismo.
+  def leads_export_params
+    since = @weekly_ops_report.period_start.in_time_zone(@inbox.timezone).beginning_of_day
+    until_time = (@weekly_ops_report.period_end + 1.day).in_time_zone(@inbox.timezone).beginning_of_day
+
+    { since: since.to_i, until: until_time.to_i, desarrollo: development_key }
+  end
+
+  def development_key
+    @inbox.agent_bot&.bot_config&.dig('variables', 'desarrollo')
   end
 end

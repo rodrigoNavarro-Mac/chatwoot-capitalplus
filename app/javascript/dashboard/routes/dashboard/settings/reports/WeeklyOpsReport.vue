@@ -4,7 +4,10 @@ import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import WeeklyOpsReportsAPI from 'dashboard/api/weeklyOpsReports';
-import { downloadBlobFile } from 'dashboard/helper/downloadHelper';
+import {
+  downloadBlobFile,
+  downloadCsvFile,
+} from 'dashboard/helper/downloadHelper';
 import ReportHeader from './components/ReportHeader.vue';
 import FunnelStageMeter from './components/FunnelStageMeter.vue';
 import ReportMetricCard from './components/ReportMetricCard.vue';
@@ -107,6 +110,7 @@ watch([quarterYear, quarterNumber], () => {
 const isLoading = ref(false);
 const report = ref(null);
 const isDownloading = ref(false);
+const isDownloadingLeadsExport = ref(false);
 
 const contactTimeChartRef = ref(null);
 const cadenceChartRef = ref(null);
@@ -514,6 +518,29 @@ const downloadPdf = async () => {
     isDownloading.value = false;
   }
 };
+
+// Leads/deals de Zoho del periodo EXACTO de este reporte, uno por fila -- para auditar contra el
+// CRM cuando el número mostrado se cuestiona (ver V2::Reports::RevenueIntelligenceLeadsExportBuilder,
+// mismo builder/data mart que ya usa el dashboard de Revenue Intelligence).
+const downloadLeadsExport = async () => {
+  if (!report.value) return;
+
+  isDownloadingLeadsExport.value = true;
+  try {
+    const response = await WeeklyOpsReportsAPI.downloadLeadsExport(
+      filters.value.inboxId,
+      report.value.id
+    );
+    downloadCsvFile(
+      `leads-deals-${report.value.inbox_id}-${report.value.period_start}.csv`,
+      response.data
+    );
+  } catch (error) {
+    useAlert(t('WEEKLY_OPS_REPORTS.ERRORS.LEADS_EXPORT'));
+  } finally {
+    isDownloadingLeadsExport.value = false;
+  }
+};
 </script>
 
 <template>
@@ -531,6 +558,15 @@ const downloadPdf = async () => {
           :disabled="!report || report.status !== 'completed'"
           :label="t('WEEKLY_OPS_REPORTS.DOWNLOAD_PDF')"
           @click="downloadPdf"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          icon="i-lucide-table"
+          :is-loading="isDownloadingLeadsExport"
+          :disabled="!report"
+          :label="t('WEEKLY_OPS_REPORTS.LEADS_EXPORT')"
+          @click="downloadLeadsExport"
         />
       </ReportHeader>
 

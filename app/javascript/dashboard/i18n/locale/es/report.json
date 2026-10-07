@@ -1190,6 +1190,7 @@
     "DESCRIPTION": "Tiempos de contacto, embudo de ventas, desempeño de cadencias y resultados de campañas de un desarrollo, con un análisis ejecutivo redactado por IA.",
     "GENERATE": "Generar reporte",
     "DOWNLOAD_PDF": "Descargar PDF",
+    "LEADS_EXPORT": "Exportar leads/deals (CSV)",
     "EMPTY": "Selecciona un desarrollo y un periodo, luego genera el reporte",
     "GENERATING": "Generando el reporte con inteligencia artificial — puede tardar unos segundos…",
     "FILTERS": {
@@ -1336,7 +1337,8 @@
     "ERRORS": {
       "GENERATE": "No se pudo generar el reporte",
       "DOWNLOAD": "No se pudo descargar el PDF",
-      "FAILED": "La generación del reporte falló — intenta de nuevo"
+      "FAILED": "La generación del reporte falló — intenta de nuevo",
+      "LEADS_EXPORT": "No se pudo exportar los leads/deals"
     }
   },
   "SUMMARY_REPORTS": {

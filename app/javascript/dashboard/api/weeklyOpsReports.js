@@ -30,6 +30,16 @@ class WeeklyOpsReportsAPI extends ApiClient {
     );
   }
 
+  // CSV con todos los leads/deals de Zoho del periodo exacto de este reporte (data mart local de
+  // Revenue Intelligence) -- para auditar fila por fila cuando el número mostrado se cuestiona.
+  // Sin responseType: 'blob' -- downloadCsvFile (ver downloadHelper.js) espera el CSV como string
+  // para poder revisar/forzar el BOM, mismo patrón que RevenueIntelligenceReport.vue#downloadLeadsExport.
+  downloadLeadsExport(inboxId, id) {
+    return axios.get(
+      `${this.url}/${inboxId}/weekly_ops_reports/${id}/leads_export`
+    );
+  }
+
   getBranding(inboxId) {
     return axios.get(`${this.url}/${inboxId}/report_branding`);
   }
