@@ -157,9 +157,52 @@ const contactTimeChartData = computed(() => {
   };
 });
 
-const discardReasonsTotal = computed(() => {
-  const reasons = kpis.value?.zoho_leads?.discard_reasons || {};
-  return Object.values(reasons).reduce((sum, count) => sum + count, 0);
+const sumCounts = counts =>
+  Object.values(counts || {}).reduce((sum, count) => sum + count, 0);
+
+const discardReasonsTotal = computed(() =>
+  sumCounts(kpis.value?.zoho_leads?.discard_reasons)
+);
+
+// Los descartes se muestran en dos poblaciones (leads que llegaron en el periodo vs. leads de
+// periodos anteriores que se descartaron dentro de él) — ver
+// V2::Reports::ZohoLeadsMetrics#discard_breakdown: mezclarlos infla el descarte "del periodo" con
+// limpieza de base vieja. Un reporte generado antes del cambio no trae las llaves separadas, así
+// que en ese caso se cae a una sola tabla con el total combinado de siempre.
+const discardSections = computed(() => {
+  const zohoLeads = kpis.value?.zoho_leads || {};
+  const newReasons = zohoLeads.discard_reasons_new;
+  const followUpReasons = zohoLeads.discard_reasons_follow_up;
+
+  if (!newReasons && !followUpReasons) {
+    return [
+      {
+        key: 'all',
+        title: null,
+        reasons: zohoLeads.discard_reasons || {},
+        total: discardReasonsTotal.value,
+      },
+    ];
+  }
+
+  return [
+    {
+      key: 'new',
+      title: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.DISCARD_NEW_TITLE', {
+        count: sumCounts(newReasons),
+      }),
+      reasons: newReasons || {},
+      total: sumCounts(newReasons),
+    },
+    {
+      key: 'follow_up',
+      title: t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.DISCARD_FOLLOW_UP_TITLE', {
+        count: sumCounts(followUpReasons),
+      }),
+      reasons: followUpReasons || {},
+      total: sumCounts(followUpReasons),
+    },
+  ];
 });
 
 const percentOf = (count, total) =>
@@ -1018,6 +1061,9 @@ const downloadPdf = async () => {
             {{ t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.TITLE') }}
           </h3>
           <CardAnalysisNote :text="report.card_analyses?.conversion_totals" />
+          <p class="text-xs text-n-slate-11 mb-4">
+            {{ t('WEEKLY_OPS_REPORTS.CONVERSION_BY_OWNER.HINT') }}
+          </p>
           <div class="h-64">
             <BarChart
               ref="conversionTotalsChartRef"
@@ -1150,32 +1196,52 @@ const downloadPdf = async () => {
             {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.DISCARD_TITLE') }}
           </h3>
           <CardAnalysisNote :text="report.card_analyses?.discard_reasons" />
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-n-slate-11">
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.REASON') }}
-                </th>
-                <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
-                </th>
-                <th class="py-1 font-medium">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(count, reason) in kpis.zoho_leads.discard_reasons"
-                :key="reason"
-                class="border-t border-n-container text-n-slate-12"
-              >
-                <td class="py-1.5 pr-3">{{ reason }}</td>
-                <td class="py-1.5 pr-3">{{ count }}</td>
-                <td class="py-1.5">
-                  {{ percentOf(count, discardReasonsTotal) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <p
+            v-if="discardSections.length > 1"
+            class="text-xs text-n-slate-11 mb-4"
+          >
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.DISCARD_HINT') }}
+          </p>
+          <template v-for="section in discardSections" :key="section.key">
+            <h4
+              v-if="section.title"
+              class="text-sm font-semibold text-n-slate-12 mb-2"
+            >
+              {{ section.title }}
+            </h4>
+            <p
+              v-if="!Object.keys(section.reasons).length"
+              class="text-sm text-n-slate-11 mb-5"
+            >
+              {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.DISCARD_EMPTY') }}
+            </p>
+            <table v-else class="w-full text-sm mb-5 last:mb-0">
+              <thead>
+                <tr class="text-left text-n-slate-11">
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.REASON') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                  </th>
+                  <th class="py-1 font-medium">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(count, reason) in section.reasons"
+                  :key="reason"
+                  class="border-t border-n-container text-n-slate-12"
+                >
+                  <td class="py-1.5 pr-3">{{ reason }}</td>
+                  <td class="py-1.5 pr-3">{{ count }}</td>
+                  <td class="py-1.5">
+                    {{ percentOf(count, section.total) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
         </div>
 
         <div

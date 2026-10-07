@@ -1260,6 +1260,10 @@
       "PIPELINE_STATUS_FOLLOW_UP_TITLE": "Follow-up — older leads touched this period ({count})",
       "SOURCE_TITLE": "Lead sources",
       "DISCARD_TITLE": "Discard reasons",
+      "DISCARD_NEW_TITLE": "Discarded among new leads this period ({count})",
+      "DISCARD_FOLLOW_UP_TITLE": "Discarded among leads from earlier periods ({count})",
+      "DISCARD_HINT": "Both populations are shown separately: a lead that arrived before this period and was discarded within it is not a new loss, it is cleanup of the older base. Only the first table is comparable against this period’s new leads.",
+      "DISCARD_EMPTY": "No discards in this population.",
       "OWNER_TITLE": "Breakdown by advisor",
       "QUALITY_BY_SOURCE_TITLE": "Lead quality by channel",
       "CHANNEL_COMPARISON_TITLE": "Weekly comparison by channel",
@@ -1274,7 +1278,8 @@
     "CONVERSION_BY_OWNER": {
       "TITLE": "Conversion and discard by advisor",
       "CONVERTED": "Converted",
-      "LOST": "Discarded"
+      "LOST": "Discarded",
+      "HINT": "Both bars cover only the cohort of leads that arrived in this period; discards of leads from earlier periods are shown under “Discard reasons”."
     },
     "SCHEDULE_DISTRIBUTION": {
       "TITLE": "Schedule distribution",

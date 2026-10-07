@@ -18,6 +18,10 @@ class V2::Reports::ZohoLeadsMetrics
   # semana, ninguno con el valor en inglés.
   LOST_LEAD_STATUS = 'Cliente perdido/Descartado'.freeze
   CONTACTED_STATUS = 'Contactado'.freeze
+  # Los leads descartados sin `Raz_n_de_descarte` capturado en Zoho se agrupan bajo esta etiqueta en
+  # vez de desaparecer de la tabla: el tally los omitía y la suma de motivos no cuadraba contra el
+  # número de descartados del periodo.
+  UNSPECIFIED_DISCARD_REASON = 'Sin motivo registrado'.freeze
 
   def initialize(account:, development_key:, range:, inbox:)
     @account = account
@@ -36,13 +40,15 @@ class V2::Reports::ZohoLeadsMetrics
   # distribución del pipeline salía ~5x más grande que el embudo para el mismo periodo nominal.
   # `by_status` se separa en `by_status_new`/`by_status_follow_up` (mismo criterio de "nuevo" que el
   # embudo: Created_Time dentro del rango) para que se pueda comparar 1:1 contra el embudo sin ese
-  # sesgo. El resto de los desgloses (fuente, dueño, motivo de descarte) se dejan sobre el total
-  # combinado a propósito: no tienen un equivalente en el embudo contra el cual generen la misma
-  # comparación engañosa.
+  # sesgo, y los motivos de descarte en `discard_reasons_new`/`discard_reasons_follow_up` por la
+  # misma razón (ver #discard_breakdown). Los desgloses por fuente y por dueño se dejan sobre el
+  # total combinado a propósito: no tienen un equivalente en el embudo contra el cual generen la
+  # misma comparación engañosa.
   def summary
     return nil if leads.blank?
 
-    volume_counts.merge(status_breakdown).merge(source_and_owner_breakdown).merge(quality_breakdown)
+    volume_counts.merge(status_breakdown).merge(source_and_owner_breakdown)
+                 .merge(discard_breakdown).merge(quality_breakdown)
   end
 
   # Deals de Zoho CREADOS en este periodo (no "tiene deal" acumulado, como el embudo de ventas) y
@@ -149,9 +155,37 @@ class V2::Reports::ZohoLeadsMetrics
   def source_and_owner_breakdown
     {
       by_source: count_by(leads, 'Lead_Source'),
-      discard_reasons: count_by(lost_leads, 'Raz_n_de_descarte'),
       by_owner: count_by(leads) { |lead| lead.dig('Owner', 'name') }
     }
+  end
+
+  # Los descartes se separan en las dos mismas poblaciones que `by_status` (ver #new_leads): un lead
+  # que llegó hace meses y que un asesor marcó como descartado apenas este periodo aparecía sumado
+  # junto a los descartes de leads nuevos, inflando el total de "Motivos de descarte" frente a los
+  # leads nuevos del periodo y frente a `conversion_totals[:lost]` del reporte (que siempre contó
+  # solo nuevos, ver #lost_count). `discard_reasons` se conserva como el total combinado para no
+  # romper los reportes ya persistidos ni el prompt del LLM, pero el reporte muestra las dos
+  # tablas separadas (ver Reports::ReportSummaryRows#discard_reason_new_rows).
+  def discard_breakdown
+    new_lost = lost_leads(new_leads)
+    follow_up_lost = lost_leads(follow_up_leads)
+
+    {
+      discarded_count: new_lost.size + follow_up_lost.size,
+      discarded_new_count: new_lost.size,
+      discarded_follow_up_count: follow_up_lost.size,
+      discard_reasons: discard_reasons_for(new_lost + follow_up_lost),
+      discard_reasons_new: discard_reasons_for(new_lost),
+      discard_reasons_follow_up: discard_reasons_for(follow_up_lost)
+    }
+  end
+
+  def discard_reasons_for(lost)
+    counts = count_by(lost, 'Raz_n_de_descarte')
+    missing = lost.size - counts.values.sum
+    return counts unless missing.positive?
+
+    counts.merge(UNSPECIFIED_DISCARD_REASON => missing)
   end
 
   def quality_breakdown
@@ -164,8 +198,8 @@ class V2::Reports::ZohoLeadsMetrics
     }
   end
 
-  def lost_leads
-    leads.select { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
+  def lost_leads(scope = leads)
+    scope.select { |lead| lead['Lead_Status'] == LOST_LEAD_STATUS }
   end
 
   def deals

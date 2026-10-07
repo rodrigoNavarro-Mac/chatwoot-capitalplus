@@ -159,6 +159,30 @@ describe Reports::WeeklyOpsReportDocxService do
     expect(document_xml.scan('<w:tbl>').size).to eq(6)
   end
 
+  # Reporte generado después de separar los descartes (ver V2::Reports::ZohoLeadsMetrics
+  # #discard_breakdown): dos tablas en vez de la combinada, que mezclaba leads de periodos
+  # anteriores descartados dentro del periodo con los descartes de la cosecha nueva.
+  it 'splits the discard reasons table into new leads and leads from earlier periods' do
+    report.kpis = report.kpis.merge(
+      'zoho_leads' => {
+        'total' => 3,
+        'discarded_new_count' => 1,
+        'discarded_follow_up_count' => 2,
+        'discard_reasons' => { 'NO TUVO PRESUPUESTO' => 1, 'NO CONTESTÓ' => 2 },
+        'discard_reasons_new' => { 'NO TUVO PRESUPUESTO' => 1 },
+        'discard_reasons_follow_up' => { 'NO CONTESTÓ' => 2 }
+      }
+    )
+
+    io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
+
+    document_xml = unzip_entries(io)['word/document.xml']
+    expect(document_xml).to include('Motivos de descarte — leads nuevos del periodo (1)')
+    expect(document_xml).to include('Motivos de descarte — leads de periodos anteriores (2)')
+    # tabla de resumen + desglose por asesor + las 2 de descarte = 4 (no hay pipeline/fuentes aquí)
+    expect(document_xml.scan('<w:tbl>').size).to eq(4)
+  end
+
   it 'omits the zoho_leads tables when there is no data' do
     io = described_class.new(weekly_ops_report: report, branding: branding, chart_images: []).generate
 

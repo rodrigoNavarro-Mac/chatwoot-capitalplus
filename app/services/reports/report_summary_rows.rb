@@ -95,13 +95,6 @@ module Reports::ReportSummaryRows
     distribution_rows(kpis, :by_source)
   end
 
-  # Filas [motivo, cantidad, % del total de leads descartados] — el % es sobre la suma de motivos,
-  # no sobre el total de leads (mismo criterio que usaba el reporte semanal anterior en Python).
-  def discard_reason_rows(kpis)
-    reasons = (kpis[:zoho_leads] || {})[:discard_reasons] || {}
-    rows_from_counts(reasons, reasons.values.sum)
-  end
-
   # Filas [nombre, llamadas, % contestadas, duración promedio] del desglose de llamadas de Aircall
   # por asesor — ver V2::Reports::WeeklyOpsReportBuilder#calls_by_advisor.
   def call_advisor_rows(kpis)

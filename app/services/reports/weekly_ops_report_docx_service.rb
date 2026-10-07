@@ -84,9 +84,7 @@ class Reports::WeeklyOpsReportDocxService
     insert_lead_source_table(sect_pr)
     insert_quality_by_source_table(sect_pr)
     insert_owner_table(sect_pr)
-    insert_distribution_table_with_analysis(
-      sect_pr, 'Motivos de descarte', DISTRIBUTION_TABLE_HEADERS[:discard_reason], discard_reason_rows(kpis), :discard_reasons
-    )
+    insert_discard_reasons_tables(sect_pr)
     insert_schedule_distribution_line(sect_pr)
     insert_calls_table(sect_pr)
   end
@@ -108,6 +106,27 @@ class Reports::WeeklyOpsReportDocxService
     insert_distribution_table(sect_pr, 'Distribución del pipeline — leads nuevos', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], new_rows)
     insert_distribution_table(sect_pr, 'Distribución del pipeline — seguimiento', DISTRIBUTION_TABLE_HEADERS[:pipeline_status], follow_up_rows)
     insert_card_analysis_line(sect_pr, :zoho_pipeline_status)
+  end
+
+  # Dos tablas (descartes de leads nuevos del periodo / de leads que llegaron antes) bajo la misma
+  # card de análisis — ver V2::Reports::ZohoLeadsMetrics#discard_breakdown. Un reporte generado
+  # antes del cambio no trae las llaves separadas: en ese caso cae a la tabla combinada de siempre.
+  def insert_discard_reasons_tables(sect_pr)
+    header = DISTRIBUTION_TABLE_HEADERS[:discard_reason]
+    new_rows = discard_reason_new_rows(kpis)
+    follow_up_rows = discard_reason_follow_up_rows(kpis)
+    return insert_legacy_discard_reasons_table(sect_pr) if new_rows.blank? && follow_up_rows.blank?
+
+    counts = discard_counts(kpis)
+    insert_distribution_table(sect_pr, "Motivos de descarte — leads nuevos del periodo (#{counts[:new]})", header, new_rows)
+    insert_distribution_table(sect_pr, "Motivos de descarte — leads de periodos anteriores (#{counts[:follow_up]})", header, follow_up_rows)
+    insert_card_analysis_line(sect_pr, :discard_reasons)
+  end
+
+  def insert_legacy_discard_reasons_table(sect_pr)
+    insert_distribution_table_with_analysis(
+      sect_pr, 'Motivos de descarte', DISTRIBUTION_TABLE_HEADERS[:discard_reason], discard_reason_rows(kpis), :discard_reasons
+    )
   end
 
   def insert_by_advisor_table(sect_pr)
