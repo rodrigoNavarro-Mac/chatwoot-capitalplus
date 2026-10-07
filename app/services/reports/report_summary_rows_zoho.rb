@@ -2,8 +2,8 @@
 # conversión por asesor, deals creados, horario laboral) — separado de Reports::ReportSummaryRows
 # solo para no pasar el límite de tamaño de módulo; se incluye junto a él en los mismos servicios
 # (Reports::WeeklyOpsReportPdfService / Reports::WeeklyOpsReportDocxService) y reusa sus helpers
-# privados (`distribution_rows`), disponibles porque ambos módulos terminan mezclados en la misma
-# clase.
+# privados (`distribution_rows`/`rows_from_counts`), disponibles porque ambos módulos terminan
+# mezclados en la misma clase.
 module Reports::ReportSummaryRowsZoho
   # Filas [asesor, leads, % del total] — dueño del lead EN ZOHO (no asignación de conversación en
   # Chatwoot), ver V2::Reports::ZohoLeadsMetrics#summary[:by_owner].
@@ -52,6 +52,30 @@ module Reports::ReportSummaryRowsZoho
       "#{activity[:closed_won]} cerrados ganados"
   end
 
+  # Filas [motivo, cantidad, % del total de leads descartados] — el % es sobre la suma de motivos,
+  # no sobre el total de leads (mismo criterio que usaba el reporte semanal anterior en Python).
+  # Separadas en las dos mismas poblaciones que la distribución del pipeline (ver
+  # V2::Reports::ZohoLeadsMetrics#discard_breakdown): un lead que llegó antes del periodo y se
+  # descartó dentro de él no es un descarte "del periodo" comparable contra los leads nuevos.
+  def discard_reason_new_rows(kpis)
+    discard_rows(kpis, :discard_reasons_new)
+  end
+
+  def discard_reason_follow_up_rows(kpis)
+    discard_rows(kpis, :discard_reasons_follow_up)
+  end
+
+  # Total combinado — solo se usa como respaldo al exportar un reporte generado ANTES de que los
+  # descartes se separaran (esos kpis persistidos no traen las dos llaves nuevas).
+  def discard_reason_rows(kpis)
+    discard_rows(kpis, :discard_reasons)
+  end
+
+  def discard_counts(kpis)
+    zoho_leads = kpis[:zoho_leads] || {}
+    { new: zoho_leads[:discarded_new_count].to_i, follow_up: zoho_leads[:discarded_follow_up_count].to_i }
+  end
+
   def schedule_distribution_line_text(kpis)
     schedule = kpis[:schedule_distribution]
     return nil if schedule.blank?
@@ -59,5 +83,12 @@ module Reports::ReportSummaryRowsZoho
     within = schedule[:within_business_hours]
     outside = schedule[:outside_business_hours]
     "Leads en horario laboral: #{within} — fuera de horario: #{outside} (de #{schedule[:total]} totales)"
+  end
+
+  private
+
+  def discard_rows(kpis, key)
+    reasons = (kpis[:zoho_leads] || {})[key] || {}
+    rows_from_counts(reasons, reasons.values.sum)
   end
 end

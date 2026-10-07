@@ -65,6 +65,14 @@ describe V2::Reports::ZohoLeadsMetrics do
         expect(summary[:by_status_follow_up]).to eq('Intento de contacto' => 1, 'Cliente perdido/Descartado' => 1)
       end
 
+      it 'splits discard reasons into new leads vs leads created before the period' do
+        expect(summary[:discarded_count]).to eq(1)
+        expect(summary[:discarded_new_count]).to eq(0)
+        expect(summary[:discarded_follow_up_count]).to eq(1)
+        expect(summary[:discard_reasons_new]).to eq({})
+        expect(summary[:discard_reasons_follow_up]).to eq('NO TUVO PRESUPUESTO' => 1)
+      end
+
       it 'summarizes leads by owner' do
         expect(summary[:by_owner]).to eq('Eunice' => 3, 'Carlos' => 1)
       end
@@ -74,6 +82,43 @@ describe V2::Reports::ZohoLeadsMetrics do
           'Facebook Ads' => { total: 3, quality: 2 },
           'Google Ads' => { total: 1, quality: 0 }
         )
+      end
+    end
+
+    # El motivo de descarte mezclado (nuevos + seguimiento) inflaba la tabla del reporte frente a
+    # los leads nuevos del periodo: un lead de hace meses descartado hoy contaba igual que uno que
+    # llegó esta semana.
+    context 'with discarded leads in both populations' do
+      subject(:summary) do
+        stub_leads([
+                     { 'Lead_Status' => 'Cliente perdido/Descartado', 'Raz_n_de_descarte' => 'NO CONTESTÓ',
+                       'Created_Time' => '2026-08-04T10:00:00Z' },
+                     { 'Lead_Status' => 'Cliente perdido/Descartado', 'Raz_n_de_descarte' => 'NO CONTESTÓ',
+                       'Created_Time' => '2026-06-01T10:00:00Z' },
+                     { 'Lead_Status' => 'Cliente perdido/Descartado', 'Raz_n_de_descarte' => 'NO TUVO PRESUPUESTO',
+                       'Created_Time' => '2026-06-02T10:00:00Z' },
+                     { 'Lead_Status' => 'Cliente perdido/Descartado', 'Created_Time' => '2026-08-05T10:00:00Z' }
+                   ])
+        metrics.summary
+      end
+
+      it 'keeps each population separate and the combined total unchanged' do
+        expect(summary[:discard_reasons_new]).to eq('NO CONTESTÓ' => 1, 'Sin motivo registrado' => 1)
+        expect(summary[:discard_reasons_follow_up]).to eq('NO CONTESTÓ' => 1, 'NO TUVO PRESUPUESTO' => 1)
+        expect(summary[:discard_reasons]).to eq('NO CONTESTÓ' => 2, 'NO TUVO PRESUPUESTO' => 1, 'Sin motivo registrado' => 1)
+      end
+
+      it 'counts the discarded leads of each population' do
+        expect(summary[:discarded_count]).to eq(4)
+        expect(summary[:discarded_new_count]).to eq(2)
+        expect(summary[:discarded_follow_up_count]).to eq(2)
+      end
+
+      # Mismo criterio que #lost_count, el numerador de "descartados" en conversion_totals.
+      it 'matches lost_count against the new-leads population only' do
+        summary
+
+        expect(metrics.lost_count).to eq(summary[:discarded_new_count])
       end
     end
 

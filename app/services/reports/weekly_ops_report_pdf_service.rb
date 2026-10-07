@@ -174,7 +174,24 @@ class Reports::WeeklyOpsReportPdfService
     pdf.move_down(15)
   end
 
+  # Dos tablas (descartes de leads nuevos del periodo / de leads que llegaron antes) bajo la misma
+  # card de análisis — ver V2::Reports::ZohoLeadsMetrics#discard_breakdown para el porqué de la
+  # separación. Un reporte generado antes del cambio no trae las llaves separadas: en ese caso cae
+  # a la tabla combinada de siempre.
   def render_discard_reasons_table(pdf)
+    new_rows = discard_reason_new_rows(kpis)
+    follow_up_rows = discard_reason_follow_up_rows(kpis)
+    return render_legacy_discard_reasons_table(pdf) if new_rows.blank? && follow_up_rows.blank?
+
+    counts = discard_counts(kpis)
+    render_distribution_table(pdf, "Motivos de descarte — leads nuevos del periodo (#{counts[:new]})", %w[Motivo Leads %], new_rows)
+    render_distribution_table(
+      pdf, "Motivos de descarte — leads de periodos anteriores (#{counts[:follow_up]})", %w[Motivo Leads %], follow_up_rows
+    )
+    render_card_analysis_line(pdf, :discard_reasons)
+  end
+
+  def render_legacy_discard_reasons_table(pdf)
     rows = discard_reason_rows(kpis)
     return if rows.blank?
 

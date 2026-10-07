@@ -1281,6 +1281,10 @@
       "PIPELINE_STATUS_FOLLOW_UP_TITLE": "Seguimiento — leads de antes tocados este periodo ({count})",
       "SOURCE_TITLE": "Fuentes de prospectos",
       "DISCARD_TITLE": "Motivos de descarte",
+      "DISCARD_NEW_TITLE": "Descartados de leads nuevos del periodo ({count})",
+      "DISCARD_FOLLOW_UP_TITLE": "Descartados de leads de periodos anteriores ({count})",
+      "DISCARD_HINT": "Se separan las dos poblaciones: un lead que llegó antes del periodo y se descartó dentro de él no es una pérdida nueva, es limpieza de base vieja. Solo la primera tabla es comparable contra los leads nuevos del periodo.",
+      "DISCARD_EMPTY": "Sin descartes en esta población.",
       "OWNER_TITLE": "Distribución por asesor",
       "QUALITY_BY_SOURCE_TITLE": "Calidad de leads por canal",
       "CHANNEL_COMPARISON_TITLE": "Comparativo semanal por canal",
@@ -1295,7 +1299,8 @@
     "CONVERSION_BY_OWNER": {
       "TITLE": "Conversión y descarte por asesor",
       "CONVERTED": "Convertidos",
-      "LOST": "Descartados"
+      "LOST": "Descartados",
+      "HINT": "Ambas barras son solo la cohorte de leads que llegaron en el periodo; los descartes de leads de periodos anteriores se ven en “Motivos de descarte”."
     },
     "SCHEDULE_DISTRIBUTION": {
       "TITLE": "Distribución por horario",

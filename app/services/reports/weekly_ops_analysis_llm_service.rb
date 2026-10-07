@@ -105,8 +105,10 @@ class Reports::WeeklyOpsAnalysisLlmService < Llm::BaseAiService
       - "by_advisor": kpis.by_advisor — cruza conversations_count contra contact_time por asesor
         (¿el que más atiende es también el más lento?) o contra kpis.zoho_leads.by_owner si un
         asesor no aparece ahí pero sí en Chatwoot.
-      - "conversion_totals": kpis.conversion_totals — cruza la proporción convertidos/descartados
-        contra kpis.zoho_leads.discard_reasons (motivo principal) o contra kpis.contact_time
+      - "conversion_totals": kpis.conversion_totals — ojo: "descartados" aquí cuenta SOLO leads
+        nuevos del periodo, así que el motivo principal comparable es
+        kpis.zoho_leads.discard_reasons_new (no el total). Cruza esa proporción
+        convertidos/descartados contra ese motivo principal o contra kpis.contact_time
         (¿el tiempo de respuesta explica parte del descarte?).
       - "zoho_source": kpis.zoho_leads.by_source — cruza el volumen por fuente contra
         kpis.zoho_leads.quality_by_source: ¿la fuente con más leads es también la de mejor calidad,
@@ -119,15 +121,19 @@ class Reports::WeeklyOpsAnalysisLlmService < Llm::BaseAiService
         calidad, o el crecimiento es "ruido"?).
       - "zoho_owner": kpis.zoho_leads.by_owner — cruza la concentración de leads por dueño contra
         kpis.by_advisor (¿la carga en Zoho coincide con quién realmente atiende en Chatwoot?).
-      - "discard_reasons": kpis.zoho_leads.discard_reasons — cruza el motivo principal contra
-        kpis.zoho_leads.by_source o kpis.schedule_distribution (¿ese motivo se concentra en una
-        fuente o en leads que llegan fuera de horario?).
+      - "discard_reasons": kpis.zoho_leads.discard_reasons_new (descartes de leads que LLEGARON en
+        el periodo) y kpis.zoho_leads.discard_reasons_follow_up (leads de periodos anteriores que se
+        descartaron dentro de este; no son pérdida nueva, son limpieza de base vieja) — cruza el
+        motivo principal de los nuevos contra kpis.zoho_leads.by_source o
+        kpis.schedule_distribution (¿ese motivo se concentra en una fuente o en leads que llegan
+        fuera de horario?), y señala si el bulto del descarte viene del seguimiento y no de la
+        cosecha nueva. Nunca sumes las dos poblaciones en una sola cifra.
       - "schedule_distribution": kpis.schedule_distribution — cruza el % fuera de horario contra
         kpis.contact_time_by_period_of_week (¿el fin de semana ya es lento Y además llega ahí buena
         parte del volumen?) en vez de solo dar el porcentaje.
       - "aircall_calls": kpis.aircall_calls — cruza la tasa de contestación contra kpis.contact_time
         o kpis.by_advisor si hay desglose por asesor en esta sección.
-      - "cadences": kpis.cadences — cruza response_rate contra kpis.zoho_leads.discard_reasons o
+      - "cadences": kpis.cadences — cruza response_rate contra kpis.zoho_leads.discard_reasons_new o
         kpis.conversion_totals (¿los leads que no responden a la cadencia terminan descartados?).
 
       Nunca inventes cifras que no estén en el JSON de entrada — si el cruce que quieres hacer
