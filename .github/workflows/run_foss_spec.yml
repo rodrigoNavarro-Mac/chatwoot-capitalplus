@@ -36,9 +36,18 @@ jobs:
         continue-on-error: true
         run: bundle exec brakeman -q --no-pager
       - name: Run bundle-audit
+        # --ignore CVE-2026-67987/-67989: dos ReDoS en ruby_llm 1.15.0 sin backport a la serie 1.x
+        # (el fix es ruby_llm >= 2.0.0, que elimina la API legacy "acts_as" que usan todos los
+        # servicios LLM de esta app -- subir ahi no es un bump de rutina). Verificado que ninguna
+        # ruta vulnerable aplica aqui: CVE-67987 (parseo de tags <think>) es polinomial en Ruby
+        # 3.1.x pero mide LINEAL en Ruby 3.4.x (este repo corre 3.4.4, ver Gemfile); CVE-67989
+        # (matching de capacidades de Mistral) solo se alcanza listando modelos del proveedor
+        # Mistral, y este repo NUNCA configura una api_key de Mistral (ver lib/llm/config.rb --
+        # solo openai_api_key). Mismo criterio ya aplicado por el propio Chatwoot upstream y otros
+        # forks con este mismo advisory. Quitar este ignore en cuanto se migre a ruby_llm 2.0.
         run: |
           bundle exec bundle-audit update
-          bundle exec bundle-audit check
+          bundle exec bundle-audit check --ignore CVE-2026-67987 CVE-2026-67989
 
   lint-frontend:
     runs-on: ubuntu-latest
