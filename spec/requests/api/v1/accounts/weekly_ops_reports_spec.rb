@@ -208,8 +208,27 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       expect(response.media_type).to eq('text/csv')
       expect(response.body.byteslice(0, 3).bytes).to eq([0xEF, 0xBB, 0xBF])
       expect(received_params[:desarrollo]).to eq('Fuego')
-      expect(Time.zone.at(received_params[:since]).to_date).to eq(report.period_start)
-      expect(Time.zone.at(received_params[:until]).to_date).to eq(report.period_end + 1.day)
+      # since/until deben ser STRING, no Integer -- DateRangeHelper#parse_date_time hace
+      # DateTime.strptime(datetime, '%s'), que exige un string y revienta con TypeError si se le
+      # pasa un Integer directo (bug real en producción 2026-10-07, ver comentario del controller).
+      expect([received_params[:since], received_params[:until]]).to all(be_a(String))
+      expect(Time.zone.at(received_params[:since].to_i).to_date).to eq(report.period_start)
+      expect(Time.zone.at(received_params[:until].to_i).to_date).to eq(report.period_end + 1.day)
+    end
+
+    # Sin mock del builder -- esta es la prueba que hubiera detectado el bug real (el mock de
+    # arriba nunca invoca DateRangeHelper#range, así que nunca ejecuta el DateTime.strptime que
+    # reventaba con un Integer). Usa el mismo patrón que
+    # spec/controllers/api/v2/accounts/reports_controller_spec.rb para revenue_intelligence_leads_export.
+    it 'actually runs the real builder against a lead created within the report period' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-real-1', desarrollo: 'Fuego', lead_status: 'Contactado',
+                                    created_at_source: report.period_start.in_time_zone(inbox.timezone) + 1.day)
+
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/leads_export",
+          headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include('lead-real-1')
     end
   end
 
@@ -247,6 +266,21 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       body = JSON.parse(response.body, symbolize_names: true)
       expect(body[:total_matching_count]).to eq(3)
       expect(body[:rows].size).to eq(2)
+    end
+
+    # Sin mock del builder -- mismo motivo que el test análogo de #leads_export: el mock de arriba
+    # nunca ejecuta DateRangeHelper#range, así que nunca hubiera detectado el TypeError real.
+    it 'actually runs the real builder against a lead created within the report period' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-real-1', desarrollo: 'Fuego', lead_status: 'Contactado',
+                                    created_at_source: report.period_start.in_time_zone(inbox.timezone) + 1.day)
+
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/leads_audit",
+          headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:total_matching_count]).to eq(1)
+      expect(body[:rows].first[:zoho_lead_id]).to eq('lead-real-1')
     end
   end
 end
