@@ -1172,6 +1172,23 @@
     "GENERATE": "Generate report",
     "DOWNLOAD_PDF": "Download PDF",
     "LEADS_EXPORT": "Export leads/deals (CSV)",
+    "AUDIT": {
+      "TITLE": "Audit",
+      "DESCRIPTION": "Zoho leads and deals for the exact period of this report, row by row — same data as the CSV and Revenue Intelligence, to verify a disputed number without leaving the page.",
+      "SUMMARY": "Showing {shown} of {total} leads.",
+      "EMPTY": "No leads in this period.",
+      "TRUNCATED": "Showing the first {shown} of {total} — download the CSV to see all of them.",
+      "TABLE": {
+        "ZOHO_ID": "Zoho ID",
+        "NAME": "Name",
+        "CREATED_AT": "Created at",
+        "SOURCE": "Source",
+        "STATUS": "Status",
+        "DISCARDED": "Discarded",
+        "IS_DEAL": "Is deal",
+        "DEAL_STAGE": "Deal stage"
+      }
+    },
     "EMPTY": "Select a development and a period, then generate the report",
     "GENERATING": "Generating the report with AI — this can take a few seconds…",
     "FILTERS": {
@@ -1319,7 +1336,8 @@
       "GENERATE": "Could not generate the report",
       "DOWNLOAD": "Could not download the PDF",
       "FAILED": "Report generation failed — please try again",
-      "LEADS_EXPORT": "Could not export the leads/deals"
+      "LEADS_EXPORT": "Could not export the leads/deals",
+      "LEADS_AUDIT": "Could not load the leads/deals audit"
     }
   },
   "SUMMARY_REPORTS": {
