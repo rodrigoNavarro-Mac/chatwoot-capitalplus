@@ -212,4 +212,41 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       expect(Time.zone.at(received_params[:until]).to_date).to eq(report.period_end + 1.day)
     end
   end
+
+  describe 'GET /api/v1/accounts/{account.id}/inboxes/{inbox.id}/weekly_ops_reports/{id}/leads_audit' do
+    let(:agent_bot) { create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } }) }
+    let!(:report) do
+      perform_enqueued_jobs(only: Reports::GenerateOnDemandWeeklyOpsReportJob) do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end
+      WeeklyOpsReport.find_by(inbox: inbox)
+    end
+
+    before { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot) }
+
+    it 'returns unauthorized for agents' do
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/leads_audit",
+          headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    # Mismo builder que #leads_export (con su propio spec) -- aquí solo se cubre que esta acción
+    # devuelva JSON (no CSV) con un tope de filas, para la tabla que se ve sin salir de la página.
+    it 'returns a JSON breakdown capped at MAX_AUDIT_ROWS, with the real total count' do
+      rows = Array.new(3) { |i| { zoho_lead_id: "lead-#{i}" } }
+      fake_builder = instance_double(V2::Reports::RevenueIntelligenceLeadsExportBuilder, build: rows)
+      allow(V2::Reports::RevenueIntelligenceLeadsExportBuilder).to receive(:new).and_return(fake_builder)
+      stub_const('Api::V1::Accounts::WeeklyOpsReportsController::MAX_AUDIT_ROWS', 2)
+
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/leads_audit",
+          headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:total_matching_count]).to eq(3)
+      expect(body[:rows].size).to eq(2)
+    end
+  end
 end

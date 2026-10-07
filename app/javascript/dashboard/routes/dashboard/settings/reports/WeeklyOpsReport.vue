@@ -541,6 +541,46 @@ const downloadLeadsExport = async () => {
     isDownloadingLeadsExport.value = false;
   }
 };
+
+// Sección "Auditoría" visible en pantalla -- tabla con los leads/deals del periodo exacto de este
+// reporte, SIN salir de la página (a diferencia de downloadLeadsExport, que descarga el CSV
+// completo). Se recarga sola cada vez que cambia el reporte mostrado (nuevo id), igual que las
+// demás cards de KPIs -- no depende de una acción manual del usuario.
+const auditData = ref(null); // { total_matching_count, rows }
+const isLoadingAudit = ref(false);
+
+const fetchLeadsAudit = async () => {
+  if (!report.value) return;
+
+  isLoadingAudit.value = true;
+  try {
+    const response = await WeeklyOpsReportsAPI.getLeadsAudit(
+      filters.value.inboxId,
+      report.value.id
+    );
+    auditData.value = response.data;
+  } catch (error) {
+    useAlert(t('WEEKLY_OPS_REPORTS.ERRORS.LEADS_AUDIT'));
+  } finally {
+    isLoadingAudit.value = false;
+  }
+};
+
+watch(
+  () => report.value?.id,
+  id => {
+    auditData.value = null;
+    if (id) fetchLeadsAudit();
+  }
+);
+
+const auditRows = computed(() => auditData.value?.rows ?? []);
+const auditTotalCount = computed(
+  () => auditData.value?.total_matching_count ?? 0
+);
+const auditIsTruncated = computed(
+  () => auditTotalCount.value > auditRows.value.length
+);
 </script>
 
 <template>
@@ -1427,6 +1467,104 @@ const downloadLeadsExport = async () => {
           <div class="h-64">
             <BarChart ref="cadenceChartRef" :collection="cadenceChartData" />
           </div>
+        </div>
+
+        <div
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-base font-semibold text-n-slate-12 mt-0">
+              {{ t('WEEKLY_OPS_REPORTS.AUDIT.TITLE') }}
+            </h3>
+            <Button
+              size="sm"
+              variant="outline"
+              icon="i-lucide-download"
+              :is-loading="isDownloadingLeadsExport"
+              :label="t('WEEKLY_OPS_REPORTS.LEADS_EXPORT')"
+              @click="downloadLeadsExport"
+            />
+          </div>
+          <p class="text-sm text-n-slate-11 mb-4">
+            {{ t('WEEKLY_OPS_REPORTS.AUDIT.DESCRIPTION') }}
+          </p>
+
+          <div v-if="isLoadingAudit" class="flex justify-center py-8">
+            <Spinner />
+          </div>
+          <template v-else>
+            <p v-if="auditRows.length" class="text-xs text-n-slate-10 mb-3">
+              {{
+                t('WEEKLY_OPS_REPORTS.AUDIT.SUMMARY', {
+                  shown: auditRows.length,
+                  total: auditTotalCount,
+                })
+              }}
+            </p>
+            <div
+              v-if="!auditRows.length"
+              class="text-sm text-n-slate-11 py-4 text-center"
+            >
+              {{ t('WEEKLY_OPS_REPORTS.AUDIT.EMPTY') }}
+            </div>
+            <table v-else class="woot-table w-full text-sm">
+              <thead>
+                <tr class="text-left text-n-slate-11">
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.ZOHO_ID') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.NAME') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.CREATED_AT') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.SOURCE') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.STATUS') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.DISCARDED') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.IS_DEAL') }}
+                  </th>
+                  <th class="py-1 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.DEAL_STAGE') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in auditRows"
+                  :key="row.zoho_lead_id"
+                  class="border-t border-n-container text-n-slate-12"
+                >
+                  <td class="py-1.5 pr-3">{{ row.zoho_lead_id }}</td>
+                  <td class="py-1.5 pr-3">{{ row.nombre || '—' }}</td>
+                  <td class="py-1.5 pr-3">{{ row.fecha_creacion || '—' }}</td>
+                  <td class="py-1.5 pr-3">{{ row.lead_source || '—' }}</td>
+                  <td class="py-1.5 pr-3">{{ row.estado || '—' }}</td>
+                  <td class="py-1.5 pr-3">
+                    {{ row.descartado }}
+                    {{ row.razon_descarte ? `(${row.razon_descarte})` : '' }}
+                  </td>
+                  <td class="py-1.5 pr-3">{{ row.es_deal }}</td>
+                  <td class="py-1.5">{{ row.etapa_deal || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="auditIsTruncated" class="text-xs text-n-slate-10 mt-2">
+              {{
+                t('WEEKLY_OPS_REPORTS.AUDIT.TRUNCATED', {
+                  shown: auditRows.length,
+                  total: auditTotalCount,
+                })
+              }}
+            </p>
+          </template>
         </div>
       </template>
     </div>

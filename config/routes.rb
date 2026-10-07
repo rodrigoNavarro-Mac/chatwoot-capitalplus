@@ -383,6 +383,7 @@ Rails.application.routes.draw do
             resources :weekly_ops_reports, only: [:index, :show, :create] do
               post :pdf, on: :member
               get :leads_export, on: :member
+              get :leads_audit, on: :member
             end
             resource :report_branding, only: [:show, :update], controller: 'inbox_brandings'
           end

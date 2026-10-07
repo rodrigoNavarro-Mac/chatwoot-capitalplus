@@ -4,7 +4,12 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
 
   before_action :fetch_inbox
   before_action :check_authorization
-  before_action :fetch_weekly_ops_report, only: [:show, :pdf, :leads_export]
+  before_action :fetch_weekly_ops_report, only: [:show, :pdf, :leads_export, :leads_audit]
+
+  # Filas mostradas en la sección "Auditoría" dentro del reporte (ver #leads_audit) -- el CSV
+  # completo (#leads_export) no tiene este tope, es solo para no mandar un JSON gigante a la
+  # pantalla cuando el periodo trae miles de leads.
+  MAX_AUDIT_ROWS = 500
 
   def index
     @weekly_ops_reports = @inbox.weekly_ops_reports.recent_first.limit(26)
@@ -43,6 +48,15 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
   def leads_export
     @report_data = V2::Reports::RevenueIntelligenceLeadsExportBuilder.new(account: Current.account, params: leads_export_params).build
     generate_csv("leads-deals-#{@inbox.name.parameterize}-#{@weekly_ops_report.period_start}", 'api/v2/accounts/reports/revenue_intelligence_leads')
+  end
+
+  # Sección "Auditoría" visible en pantalla dentro del reporte -- a diferencia de #leads_export
+  # (el CSV completo para descargar), esto es lo que el usuario VE sin salir de la página, con un
+  # tope de MAX_AUDIT_ROWS filas. Mismo builder/data mart que #leads_export, así que los números
+  # de ambos y los de Revenue Intelligence siempre coinciden entre sí.
+  def leads_audit
+    rows = V2::Reports::RevenueIntelligenceLeadsExportBuilder.new(account: Current.account, params: leads_export_params).build
+    render json: { total_matching_count: rows.size, rows: rows.first(MAX_AUDIT_ROWS) }
   end
 
   private

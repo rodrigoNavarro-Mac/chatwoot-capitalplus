@@ -40,6 +40,15 @@ class WeeklyOpsReportsAPI extends ApiClient {
     );
   }
 
+  // Sección "Auditoría" visible en pantalla (tabla con tope de filas) -- a diferencia de
+  // downloadLeadsExport (el CSV completo para descargar), esto es lo que se ve sin salir de la
+  // página. Mismo builder/data mart del lado del servidor, ver controller#leads_audit.
+  getLeadsAudit(inboxId, id) {
+    return axios.get(
+      `${this.url}/${inboxId}/weekly_ops_reports/${id}/leads_audit`
+    );
+  }
+
   getBranding(inboxId) {
     return axios.get(`${this.url}/${inboxId}/report_branding`);
   }
