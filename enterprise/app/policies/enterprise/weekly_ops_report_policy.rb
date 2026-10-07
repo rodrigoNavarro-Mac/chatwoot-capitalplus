@@ -13,6 +13,10 @@ module Enterprise::WeeklyOpsReportPolicy
     custom_role_permits?('weekly_ops_report_view') || custom_role_permits?('weekly_ops_report_manage') || super
   end
 
+  def leads_export?
+    custom_role_permits?('weekly_ops_report_view') || custom_role_permits?('weekly_ops_report_manage') || super
+  end
+
   def create?
     custom_role_permits?('weekly_ops_report_manage') || super
   end

@@ -170,4 +170,46 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
     end
   end
+
+  describe 'GET /api/v1/accounts/{account.id}/inboxes/{inbox.id}/weekly_ops_reports/{id}/leads_export' do
+    let(:agent_bot) { create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } }) }
+    let!(:report) do
+      perform_enqueued_jobs(only: Reports::GenerateOnDemandWeeklyOpsReportJob) do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end
+      WeeklyOpsReport.find_by(inbox: inbox)
+    end
+
+    before { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot) }
+
+    it 'returns unauthorized for agents' do
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/leads_export",
+          headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    # El builder (V2::Reports::RevenueIntelligenceLeadsExportBuilder) ya tiene su propio spec --
+    # aquí solo se cubre que el controller arme since/until/desarrollo correctamente a partir del
+    # periodo del reporte y los pase tal cual, y que la respuesta sea un CSV descargable con BOM.
+    it 'exports the leads/deals of the exact period of this report as a downloadable CSV' do
+      received_params = nil
+      fake_builder = instance_double(V2::Reports::RevenueIntelligenceLeadsExportBuilder, build: [])
+      allow(V2::Reports::RevenueIntelligenceLeadsExportBuilder).to receive(:new) do |**kwargs|
+        received_params = kwargs[:params]
+        fake_builder
+      end
+
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/leads_export",
+          headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(response.media_type).to eq('text/csv')
+      expect(response.body.byteslice(0, 3).bytes).to eq([0xEF, 0xBB, 0xBF])
+      expect(received_params[:desarrollo]).to eq('Fuego')
+      expect(Time.zone.at(received_params[:since]).to_date).to eq(report.period_start)
+      expect(Time.zone.at(received_params[:until]).to_date).to eq(report.period_end + 1.day)
+    end
+  end
 end

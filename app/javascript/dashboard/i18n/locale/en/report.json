@@ -1169,6 +1169,7 @@
     "DESCRIPTION": "Contact times, sales pipeline, cadence performance and campaign results for one development, with an executive analysis written by AI.",
     "GENERATE": "Generate report",
     "DOWNLOAD_PDF": "Download PDF",
+    "LEADS_EXPORT": "Export leads/deals (CSV)",
     "EMPTY": "Select a development and a period, then generate the report",
     "GENERATING": "Generating the report with AI — this can take a few seconds…",
     "FILTERS": {
@@ -1315,7 +1316,8 @@
     "ERRORS": {
       "GENERATE": "Could not generate the report",
       "DOWNLOAD": "Could not download the PDF",
-      "FAILED": "Report generation failed — please try again"
+      "FAILED": "Report generation failed — please try again",
+      "LEADS_EXPORT": "Could not export the leads/deals"
     }
   },
   "SUMMARY_REPORTS": {

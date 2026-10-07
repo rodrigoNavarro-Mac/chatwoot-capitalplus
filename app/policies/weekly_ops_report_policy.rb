@@ -11,6 +11,10 @@ class WeeklyOpsReportPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def leads_export?
+    @account_user.administrator?
+  end
+
   def create?
     @account_user.administrator?
   end
