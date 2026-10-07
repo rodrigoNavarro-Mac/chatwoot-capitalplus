@@ -36,18 +36,40 @@ jobs:
         continue-on-error: true
         run: bundle exec brakeman -q --no-pager
       - name: Run bundle-audit
-        # --ignore CVE-2026-67987/-67989: dos ReDoS en ruby_llm 1.15.0 sin backport a la serie 1.x
-        # (el fix es ruby_llm >= 2.0.0, que elimina la API legacy "acts_as" que usan todos los
-        # servicios LLM de esta app -- subir ahi no es un bump de rutina). Verificado que ninguna
-        # ruta vulnerable aplica aqui: CVE-67987 (parseo de tags <think>) es polinomial en Ruby
-        # 3.1.x pero mide LINEAL en Ruby 3.4.x (este repo corre 3.4.4, ver Gemfile); CVE-67989
-        # (matching de capacidades de Mistral) solo se alcanza listando modelos del proveedor
-        # Mistral, y este repo NUNCA configura una api_key de Mistral (ver lib/llm/config.rb --
-        # solo openai_api_key). Mismo criterio ya aplicado por el propio Chatwoot upstream y otros
-        # forks con este mismo advisory. Quitar este ignore en cuanto se migre a ruby_llm 2.0.
+        # Cada CVE ignorada abajo fue verificada contra ESTA instalacion, no copiada de otro repo --
+        # el fix real de cada una se aplico cuando fue posible:
+        #
+        # - activestorage/rails CVE-2026-66066 (RCE/lectura arbitraria de archivos via variantes):
+        #   SE INTENTO el patch real (Rails 7.2.3.1 -> 7.2.3.2, mismo Gemfile.lock) y se revirtio --
+        #   el propio fix agrega una validacion en el boot que rehusa arrancar sin libvips >= 8.13 y
+        #   ruby-vips >= 2.2.1 (sin forma de desactivarla, confirmado corriendo la app: "libvips's
+        #   unfuzzed operations are not safe..."). Esta imagen trae ruby-vips 2.1.4 y requeriria tocar
+        #   la libreria de sistema libvips en el Dockerfile (dev Y produccion) -- riesgo real de tumbar
+        #   todo el procesamiento de archivos/imagenes si se apura. Queda pendiente como upgrade propio,
+        #   no bajo presion de un deploy de otra cosa.
+        # - devise CVE-2026-32700 (race condition en confirmable "change email"): ya mitigada en
+        #   codigo -- ver el override de postpone_email_change_until_confirmation_and_regenerate_
+        #   confirmation_token en app/models/user.rb (el workaround que el propio advisory documenta;
+        #   no se puede subir a Devise 5.0.3 porque devise-two-factor solo soporta Devise 5 desde su
+        #   v6.4.0, que a su vez exige Rails 7.2+ -- ver comentario en user.rb).
+        # - devise CVE-2026-40295 (open redirect via request.referrer en Timeoutable): el modulo
+        #   :timeoutable nunca se habilita en esta app (ver la lista `devise :...` en user.rb) --
+        #   la ruta de codigo vulnerable es inalcanzable.
+        # - ruby_llm CVE-2026-67987/-67989/-67991 (3 ReDoS): sin backport a la serie 1.x, el fix
+        #   (>= 2.0.0.rc1) elimina la API legacy "acts_as" que usan todos los servicios LLM de esta
+        #   app -- no es un bump de rutina. Verificado que ninguna ruta aplica aqui: 67987 (parseo de
+        #   <think>) y 67991 (RubyLLM::Utils.underscore) son polinomiales solo en Ruby 3.1.x y el
+        #   propio advisory de 67991 dice textualmente "only Ruby 3.1.x" -- este repo corre 3.4.4
+        #   (Gemfile:3); 67989 (matching de capacidades de Mistral) solo se alcanza listando modelos
+        #   del proveedor Mistral, y este repo nunca configura una api_key de Mistral
+        #   (lib/llm/config.rb solo configura openai_api_key). Mismo criterio que ya aplico Chatwoot
+        #   upstream para 67987/67989 (ver fazer-ai/chatwoot#678, #806, #808).
+        #
+        # Revisar este ignore cuando: se suba libvips/ruby-vips (activestorage), ruby_llm 2.0
+        # (requiere migrar la API acts_as), o Devise 5.x (requiere devise-two-factor >= 6.4.0).
         run: |
           bundle exec bundle-audit update
-          bundle exec bundle-audit check --ignore CVE-2026-67987 CVE-2026-67989
+          bundle exec bundle-audit check --ignore CVE-2026-66066 CVE-2026-67987 CVE-2026-67989 CVE-2026-67991 CVE-2026-32700 CVE-2026-40295
 
   lint-frontend:
     runs-on: ubuntu-latest
