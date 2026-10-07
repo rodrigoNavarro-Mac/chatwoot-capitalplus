@@ -33,11 +33,12 @@ class V2::Reports::ZohoLeadsMetrics
   # nil si el inbox no tiene "desarrollo" configurado, o Zoho no responde, o no hay leads en el
   # periodo — el frontend/PDF/docx simplemente omiten la sección.
   #
-  # `leads` mezcla dos poblaciones (ver Crm::Zoho::LeadsForPeriodService: filtra por Modified_Time,
-  # no Created_Time) — un lead nuevo de esta semana y un lead de hace meses que apenas se tocó hoy
-  # cuentan igual. Comparar ese total directo contra "Leads totales" del embudo de ventas (que sí es
-  # solo leads nuevos, ver V2::Reports::SalesFunnelBuilder) generaba una lectura confusa: la
-  # distribución del pipeline salía ~5x más grande que el embudo para el mismo periodo nominal.
+  # `leads` mezcla dos poblaciones (ver Crm::Zoho::LeadsForPeriodService: filtra por Created_Time O
+  # Modified_Time dentro del rango, para no perder ni los nuevos ni el seguimiento) — un lead nuevo
+  # de esta semana y un lead de hace meses que apenas se tocó hoy cuentan igual. Comparar ese total
+  # directo contra "Leads totales" del embudo de ventas (que sí es solo leads nuevos, ver
+  # V2::Reports::SalesFunnelBuilder) generaba una lectura confusa: la distribución del pipeline
+  # salía ~5x más grande que el embudo para el mismo periodo nominal.
   # `by_status` se separa en `by_status_new`/`by_status_follow_up` (mismo criterio de "nuevo" que el
   # embudo: Created_Time dentro del rango) para que se pueda comparar 1:1 contra el embudo sin ese
   # sesgo, y los motivos de descarte en `discard_reasons_new`/`discard_reasons_follow_up` por la
@@ -95,7 +96,7 @@ class V2::Reports::ZohoLeadsMetrics
   end
 
   # De los leads con actividad en el periodo (ver Crm::Zoho::LeadsForPeriodService — filtra por
-  # Modified_Time, no por Created_Time), cuántos se CREARON dentro/fuera del horario laboral del
+  # Created_Time O Modified_Time), cuántos se CREARON dentro/fuera del horario laboral del
   # inbox. Para un lead viejo que recién se tocó esta semana, la hora de creación puede caer fuera
   # del periodo del reporte — sigue siendo la pregunta que esta sección responde ("¿a qué hora del
   # día entran los leads que estamos trabajando?"), no "¿cuándo se tocaron esta semana?".

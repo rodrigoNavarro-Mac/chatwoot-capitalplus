@@ -51,13 +51,30 @@ describe Crm::Zoho::LeadsForPeriodService do
         expect(WebMock).not_to have_requested(:get, /zohoapis\.com/)
       end
 
-      it 'searches by desarrollo and Modified_Time between the range bounds' do
-        stub = stub_leads_search(criteria_includes: '(Desarrollo:equals:Fuego)and(Modified_Time:between:',
-                                 data: [{ 'id' => 'lead-1', 'Lead_Status' => 'Contacted' }])
+      # Un lead creado DENTRO del rango pero modificado DESPUÉS (seguimiento normal tras el cierre
+      # del periodo) tiene Modified_Time fuera de rango y Created_Time dentro -- con un criterio que
+      # solo mirara Modified_Time ese lead desaparecía de la consulta por completo (caso real
+      # confirmado 2026-10-07: 55 de 149 leads nuevos de un mes, un 37%, faltaban por este motivo).
+      it 'searches by desarrollo and Created_Time OR Modified_Time between the range bounds' do
+        stub = stub_leads_search(
+          criteria_includes: '(Desarrollo:equals:Fuego)and((Created_Time:between:',
+          data: [{ 'id' => 'lead-1', 'Lead_Status' => 'Contacted' }]
+        )
 
         result = described_class.new(account: account, development_key: 'Fuego', range: range).fetch
 
         expect(result).to eq([{ 'id' => 'lead-1', 'Lead_Status' => 'Contacted' }])
+        expect(stub).to have_been_requested
+      end
+
+      it 'combines both conditions with or, not just and, so a lead matching only one still comes back' do
+        stub = stub_leads_search(
+          criteria_includes: 'or(Modified_Time:between:',
+          data: [{ 'id' => 'lead-1' }]
+        )
+
+        described_class.new(account: account, development_key: 'Fuego', range: range).fetch
+
         expect(stub).to have_been_requested
       end
 
