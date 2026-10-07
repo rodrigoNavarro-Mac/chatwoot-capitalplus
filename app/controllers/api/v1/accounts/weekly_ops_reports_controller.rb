@@ -118,15 +118,19 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
     Array(params[:chart_images]).map { |chart| { title: chart[:title], data_url: chart[:data_url], key: chart[:key] } }
   end
 
-  # since/until en unix (mismo formato que DateRangeHelper#range espera) -- reconstruidos a partir
-  # de period_start/period_end (fechas, no datetimes) en la zona horaria del inbox, con el mismo
-  # criterio exclusivo-por-la-derecha que usa V2::Reports::WeeklyOpsReportBuilder#date_bounds: el
-  # rango real termina al INICIO del día siguiente a period_end, no al final de period_end mismo.
+  # since/until en unix COMO STRING -- DateRangeHelper#parse_date_time hace
+  # DateTime.strptime(datetime, '%s'), que exige un string (así llegan siempre desde params[] de
+  # una request real) y revienta con TypeError si se le pasa un Integer directo (bug real
+  # encontrado en producción 2026-10-07: tanto #leads_export como #leads_audit tiraban 500).
+  # Reconstruidos a partir de period_start/period_end (fechas, no datetimes) en la zona horaria
+  # del inbox, con el mismo criterio exclusivo-por-la-derecha que usa
+  # V2::Reports::WeeklyOpsReportBuilder#date_bounds: el rango real termina al INICIO del día
+  # siguiente a period_end, no al final de period_end mismo.
   def leads_export_params
     since = @weekly_ops_report.period_start.in_time_zone(@inbox.timezone).beginning_of_day
     until_time = (@weekly_ops_report.period_end + 1.day).in_time_zone(@inbox.timezone).beginning_of_day
 
-    { since: since.to_i, until: until_time.to_i, desarrollo: development_key }
+    { since: since.to_i.to_s, until: until_time.to_i.to_s, desarrollo: development_key }
   end
 
   def development_key
