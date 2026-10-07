@@ -20,6 +20,17 @@
 # Crm::Zoho::DealsSyncJob) ni scope de COQL en esta integración, así que se consulta la API en vivo
 # con Leads/search y se pagina. Un fallo de Zoho (timeout, error de API, credenciales inválidas)
 # nunca debe tumbar el resto del reporte — se reporta a Sentry y se devuelve un array vacío.
+#
+# `converted: 'both'` -- Crm::Zoho::Api::LeadsClient#search_by_criteria deja ese parámetro en
+# 'false' por default (Zoho EXCLUYE los leads ya convertidos a Deal de /search sin esto, mismo
+# comportamiento que #find). Para este reporte eso es al revés de lo que se quiere: un lead que
+# convirtió es el MEJOR desenlace posible, no uno que deba desaparecer de "leads totales"/"por
+# dueño"/"por fuente" — y como #new_leads, #by_status, #discard_breakdown, #quality_breakdown, etc.
+# dependen todos de este mismo `leads`, silenciarlos ahí los silencia en TODO el reporte. Caso real
+# confirmado 2026-10-07 (mismo día que el fix de Created_Time/Modified_Time): un asesor reportó 163
+# leads de un mes y el reporte mostraba menos -- cruzando contra la API en vivo con
+# converted: 'both' el total subió de 149 a 160 y el de ese asesor de 142 a 153 (los 11 leads que
+# ya habían convertido a Deal estaban invisibles).
 class Crm::Zoho::LeadsForPeriodService
   MAX_LEADS = 2000 # tope de seguridad — evita paginar indefinidamente si el filtro sale mal
   PER_PAGE = 200 # máximo permitido por Zoho en /search
@@ -48,7 +59,7 @@ class Crm::Zoho::LeadsForPeriodService
     page = 1
 
     loop do
-      result = leads_client.search_by_criteria(criteria, page: page, per_page: PER_PAGE)
+      result = leads_client.search_by_criteria(criteria, page: page, per_page: PER_PAGE, converted: 'both')
       leads.concat(result[:data])
       break unless result[:more_records] && leads.size < MAX_LEADS
 

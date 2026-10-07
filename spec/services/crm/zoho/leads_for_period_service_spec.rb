@@ -78,6 +78,22 @@ describe Crm::Zoho::LeadsForPeriodService do
         expect(stub).to have_been_requested
       end
 
+      # Zoho excluye los leads ya convertidos a Deal de /search a menos que se pida converted:
+      # 'both' explícitamente -- sin esto, un lead que YA CONVIRTIÓ (el mejor desenlace posible)
+      # desaparecía de "leads totales"/"por dueño"/"por fuente" del reporte. Caso real confirmado
+      # 2026-10-07: un asesor reportó 163 leads del mes y el reporte mostraba menos -- con
+      # converted: 'both' el total real subió de 149 a 160 (11 leads convertidos invisibles).
+      it 'requests converted: both so leads already converted to a Deal are not excluded' do
+        stub = stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+               .with { |request| CGI.parse(URI(request.uri).query)['converted'].first == 'both' }
+               .to_return(status: 200, body: { data: [{ 'id' => 'lead-1' }], info: { more_records: false } }.to_json,
+                          headers: { 'Content-Type' => 'application/json' })
+
+        described_class.new(account: account, development_key: 'Fuego', range: range).fetch
+
+        expect(stub).to have_been_requested
+      end
+
       it 'paginates until more_records is false' do
         stub_leads_search(criteria_includes: 'Desarrollo:equals:Fuego', page: 1,
                           data: [{ 'id' => 'lead-1' }], more_records: true)
