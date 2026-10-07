@@ -12,6 +12,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
 import LineChart from 'shared/components/charts/LineChart.vue';
 import CallAnalysisDetailModal from './components/CallAnalysisDetailModal.vue';
+import { downloadCsvFile } from 'dashboard/helper/downloadHelper';
 
 const { t } = useI18n();
 
@@ -106,6 +107,32 @@ const fetchReviewQueue = async () => {
     useAlert(t('CALL_INTELLIGENCE_REPORTS.ERRORS.FETCH_QUEUE'));
   } finally {
     isQueueLoading.value = false;
+  }
+};
+
+// Desglose completo de llamadas analizadas (fila por llamada: contacto, asesor, resultado,
+// objeción/riesgo principal, etapa en Zoho) -- para auditar los agregados del dashboard contra
+// Aircall/Zoho, mismo patrón que RevenueIntelligenceReport.vue#downloadLeadsExport.
+const isExportingCalls = ref(false);
+
+const downloadCallsExport = async () => {
+  if (!hasValidDateRange.value) return;
+
+  isExportingCalls.value = true;
+  try {
+    const response = await ReportsAPI.getCallIntelligenceExport({
+      from: toUnixSeconds(filters.value.since),
+      to: toUnixSeconds(filters.value.until, true),
+      inboxId: filters.value.inboxId || undefined,
+      agentId: filters.value.agentId || undefined,
+      confidence: filters.value.confidence || undefined,
+      conversationType: filters.value.conversationType || undefined,
+    });
+    downloadCsvFile('call_intelligence.csv', response.data);
+  } catch (error) {
+    useAlert(t('CALL_INTELLIGENCE_REPORTS.ERRORS.EXPORT'));
+  } finally {
+    isExportingCalls.value = false;
   }
 };
 
@@ -271,7 +298,17 @@ const retryAnalysis = async record => {
       <ReportHeader
         :header-title="t('CALL_INTELLIGENCE_REPORTS.HEADER')"
         :header-description="t('CALL_INTELLIGENCE_REPORTS.DESCRIPTION')"
-      />
+      >
+        <Button
+          size="sm"
+          variant="outline"
+          icon="i-lucide-table"
+          :is-loading="isExportingCalls"
+          :disabled="!hasValidDateRange"
+          :label="t('CALL_INTELLIGENCE_REPORTS.EXPORT_CALLS')"
+          @click="downloadCallsExport"
+        />
+      </ReportHeader>
 
       <div class="flex flex-wrap items-end gap-3 mb-6">
         <div class="flex flex-col gap-1">

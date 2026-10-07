@@ -541,6 +541,47 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
     end
   end
 
+  describe 'GET /api/v2/accounts/{account.id}/reports/call_intelligence_export' do
+    context 'when unauthenticated' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/reports/call_intelligence_export"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated as admin' do
+      let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+      let(:call) do
+        create(:call, account: account, conversation: conversation, contact: conversation.contact, provider: :aircall, status: 'completed')
+      end
+
+      it 'returns a downloadable CSV with one row per analyzed call' do
+        create(:call_analysis, call: call, agent: admin, zoho_deal_stage: 'Qualification')
+
+        get "/api/v2/accounts/#{account.id}/reports/call_intelligence_export",
+            headers: admin.create_new_auth_token
+
+        expect(response).to have_http_status(:success)
+        expect(response.headers['Content-Type']).to include('text/csv')
+        expect(response.headers['Content-Disposition']).to include('call_intelligence.csv')
+        expect(response.body).to include(call.provider_call_id, 'Qualification')
+        expect(response.body.b.byteslice(0, 3)).to eq("\xEF\xBB\xBF".b)
+      end
+
+      it 'scopes to the given inbox_id' do
+        other_inbox = create(:inbox, account: account)
+        other_conversation = create(:conversation, account: account, inbox: other_inbox)
+        other_call = create(:call, account: account, conversation: other_conversation, contact: other_conversation.contact, provider: :aircall)
+        create(:call_analysis, call: other_call, agent: admin)
+
+        get "/api/v2/accounts/#{account.id}/reports/call_intelligence_export",
+            params: { inbox_id: inbox.id }, headers: admin.create_new_auth_token
+
+        expect(response.body).not_to include(other_call.provider_call_id)
+      end
+    end
+  end
+
   describe 'GET /api/v2/accounts/{account.id}/reports/revenue_intelligence_sla_audit' do
     context 'when unauthenticated' do
       it 'returns unauthorized' do

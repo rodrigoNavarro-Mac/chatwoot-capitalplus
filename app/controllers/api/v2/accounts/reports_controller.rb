@@ -123,6 +123,14 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: builder.build
   end
 
+  # Desglose completo de llamadas analizadas para exportar a CSV -- mismos filtros ya aplicados en
+  # pantalla (inbox, agente, confianza, tipo de conversación, rango de fechas), ver
+  # V2::Reports::CallIntelligenceExportBuilder.
+  def call_intelligence_export
+    @report_data = V2::Reports::CallIntelligenceExportBuilder.new(account: Current.account, params: call_intelligence_export_params).build
+    generate_csv('call_intelligence', 'api/v2/accounts/reports/call_intelligence_export')
+  end
+
   def revenue_intelligence
     builder = V2::Reports::RevenueIntelligenceBuilder.new(account: Current.account, params: revenue_intelligence_params)
     render json: builder.build
@@ -270,6 +278,10 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
       confidence: params[:confidence],
       conversation_type: params[:conversation_type]
     }
+  end
+
+  def call_intelligence_export_params
+    call_intelligence_params.merge(inbox_id: params[:inbox_id])
   end
 
   def revenue_intelligence_params
