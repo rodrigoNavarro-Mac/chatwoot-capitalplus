@@ -81,6 +81,28 @@ describe RevenueIntelligence::DetectRisksJob do
       expect(account.revenue_risk_signals.where(signal_type: 'lead_no_contact')).to be_empty
     end
 
+    # El equipo SÍ trabajó el lead (Zoho ya registró First_Contact_Time), aunque el cliente nunca
+    # contestó y por eso Lead_Status se quedó en "Intento de contacto"/"Contacto no exitoso" (sin
+    # llegar a un status que cuente como contacto real, ver LeadMapper::CONTACTED_LEAD_STATUSES).
+    # Confirmado con el usuario: eso SÍ es seguimiento, no debe aparecer en "Leads sin seguimiento".
+    it 'does not flag a lead the team already attempted, even if the client never answered' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 2.days.ago, lead_status: 'Intento de contacto',
+                                    raw_payload: { 'First_Contact_Time' => 1.day.ago.iso8601 })
+
+      described_class.new.perform
+
+      expect(account.revenue_risk_signals.where(signal_type: 'lead_no_contact')).to be_empty
+    end
+
+    it 'flags a lead with no First_Contact_Time at all, even with a lead_status set' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 2.days.ago, lead_status: 'Nuevo contacto',
+                                    raw_payload: {})
+
+      described_class.new.perform
+
+      expect(account.revenue_risk_signals.where(signal_type: 'lead_no_contact')).to exist
+    end
+
     it 'does not flag a lead created less than 24h ago' do
       account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 2.hours.ago)
 

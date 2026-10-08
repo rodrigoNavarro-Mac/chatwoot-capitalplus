@@ -15,8 +15,8 @@ describe V2::Reports::WeeklyOpsReportNoContactLeadsBuilder do
 
   it 'is empty when development_key or range is blank' do
     expect(described_class.new(account: account, params: { since: params[:since], until: params[:until] }).build)
-      .to eq(total_count: 0, rows: [])
-    expect(described_class.new(account: account, params: { desarrollo: 'Fuego' }).build).to eq(total_count: 0, rows: [])
+      .to include(total_count: 0, rows: [])
+    expect(described_class.new(account: account, params: { desarrollo: 'Fuego' }).build).to include(total_count: 0, rows: [])
   end
 
   context 'with a lead that has an open lead_no_contact signal' do
@@ -45,7 +45,7 @@ describe V2::Reports::WeeklyOpsReportNoContactLeadsBuilder do
     it 'does not include it -- a resolved signal means it no longer needs follow-up' do
       create_signal_for(lead, resolved_at: 1.hour.ago)
 
-      expect(result).to eq(total_count: 0, rows: [])
+      expect(result).to include(total_count: 0, rows: [])
     end
   end
 
@@ -55,7 +55,7 @@ describe V2::Reports::WeeklyOpsReportNoContactLeadsBuilder do
                                                  created_at_source: Time.zone.parse('2026-09-05T10:00:00-06:00'))
       create_signal_for(other_lead)
 
-      expect(result).to eq(total_count: 0, rows: [])
+      expect(result).to include(total_count: 0, rows: [])
     end
 
     it 'does not include leads created outside the period' do
@@ -63,19 +63,34 @@ describe V2::Reports::WeeklyOpsReportNoContactLeadsBuilder do
                                                created_at_source: Time.zone.parse('2026-08-01T10:00:00-06:00'))
       create_signal_for(old_lead)
 
-      expect(result).to eq(total_count: 0, rows: [])
+      expect(result).to include(total_count: 0, rows: [])
     end
   end
 
-  it 'caps the rows shown at MAX_ROWS but keeps the real total_count' do
-    stub_const('V2::Reports::WeeklyOpsReportNoContactLeadsBuilder::MAX_ROWS', 1)
-    2.times do |i|
-      lead = account.revenue_leads.create!(zoho_lead_id: "lead-many-#{i}", desarrollo: 'Fuego',
-                                           created_at_source: Time.zone.parse('2026-09-05T10:00:00-06:00'))
-      create_signal_for(lead)
+  describe 'paginación' do
+    let(:params) do
+      { since: Time.zone.parse('2026-09-01').to_i.to_s, until: Time.zone.parse('2026-10-01').to_i.to_s, desarrollo: 'Fuego',
+        page: 2, per_page: 1 }
     end
 
-    expect(result[:total_count]).to eq(2)
-    expect(result[:rows].size).to eq(1)
+    it 'pagina con page/per_page mientras conserva el total_count real' do
+      2.times do |i|
+        lead = account.revenue_leads.create!(zoho_lead_id: "lead-many-#{i}", desarrollo: 'Fuego',
+                                             created_at_source: Time.zone.parse('2026-09-05T10:00:00-06:00'))
+        create_signal_for(lead)
+      end
+
+      expect(result).to include(total_count: 2, page: 2, per_page: 1, total_pages: 2)
+      expect(result[:rows].size).to eq(1)
+    end
+
+    it 'cae en DEFAULT_PER_PAGE cuando no se manda per_page' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-default', desarrollo: 'Fuego',
+                                           created_at_source: Time.zone.parse('2026-09-05T10:00:00-06:00'))
+      create_signal_for(lead)
+      result_default = described_class.new(account: account, params: params.except(:per_page)).build
+
+      expect(result_default[:per_page]).to eq(described_class::DEFAULT_PER_PAGE)
+    end
   end
 end

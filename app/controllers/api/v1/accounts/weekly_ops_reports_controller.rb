@@ -6,10 +6,10 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
   before_action :check_authorization
   before_action :fetch_weekly_ops_report, only: [:show, :pdf, :leads_export, :leads_audit, :no_contact_leads]
 
-  # Filas mostradas en la sección "Auditoría" dentro del reporte (ver #leads_audit) -- el CSV
-  # completo (#leads_export) no tiene este tope, es solo para no mandar un JSON gigante a la
-  # pantalla cuando el periodo trae miles de leads.
-  MAX_AUDIT_ROWS = 500
+  # Tamaño de página para las tablas "Auditoría" y "Leads sin seguimiento" dentro del reporte (ver
+  # #leads_audit/#no_contact_leads) -- el CSV completo (#leads_export) no pagina, es solo para no
+  # mandar un JSON gigante ni una tabla imposible de recorrer cuando el periodo trae miles de leads.
+  PER_PAGE = 25
 
   def index
     @weekly_ops_reports = @inbox.weekly_ops_reports.recent_first.limit(26)
@@ -51,12 +51,15 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
   end
 
   # Sección "Auditoría" visible en pantalla dentro del reporte -- a diferencia de #leads_export
-  # (el CSV completo para descargar), esto es lo que el usuario VE sin salir de la página, con un
-  # tope de MAX_AUDIT_ROWS filas. Mismo builder/data mart que #leads_export, así que los números
-  # de ambos y los de Revenue Intelligence siempre coinciden entre sí.
+  # (el CSV completo para descargar), esto es lo que el usuario VE sin salir de la página, con
+  # paginación real (PER_PAGE filas por página, navegable, no solo las primeras N). El builder
+  # sigue devolviendo el array completo -- lo reusa también el CSV y el rake task de respaldo, que
+  # SÍ necesitan todas las filas -- la paginación se aplica aquí, solo para esta pantalla. Mismo
+  # builder/data mart que #leads_export, así que los números de ambos y los de Revenue Intelligence
+  # siempre coinciden entre sí.
   def leads_audit
     rows = V2::Reports::RevenueIntelligenceLeadsExportBuilder.new(account: Current.account, params: leads_export_params).build
-    render json: { total_matching_count: rows.size, rows: rows.first(MAX_AUDIT_ROWS) }
+    render json: paginate(rows)
   end
 
   # Leads de este desarrollo/periodo sin NINGÚN seguimiento humano registrado (ni llamada, ni
@@ -64,9 +67,13 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
   # V2::Reports::WeeklyOpsReportNoContactLeadsBuilder para el porqué reusa el signal_type
   # 'lead_no_contact' que ya mantiene RevenueIntelligence::DetectRisksJob, en vez de inventar un
   # criterio nuevo. Caso real que lo motivó: Fuego/septiembre 2026, al reconciliar "Leads totales"
-  # del embudo contra el total de Zoho.
+  # del embudo contra el total de Zoho. Paginado igual que #leads_audit (ver PER_PAGE) -- aquí la
+  # paginación la hace el builder mismo con offset/limit en la query, porque su fuente ya es un
+  # ActiveRecord::Relation (no un array ya materializado como en #leads_audit).
   def no_contact_leads
-    result = V2::Reports::WeeklyOpsReportNoContactLeadsBuilder.new(account: Current.account, params: leads_export_params).build
+    result = V2::Reports::WeeklyOpsReportNoContactLeadsBuilder.new(
+      account: Current.account, params: leads_export_params.merge(page: page_param, per_page: PER_PAGE)
+    ).build
     render json: result
   end
 
@@ -146,5 +153,24 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
 
   def development_key
     @inbox.agent_bot&.bot_config&.dig('variables', 'desarrollo')
+  end
+
+  def page_param
+    [params[:page].to_i, 1].max
+  end
+
+  # Pagina un array YA EN MEMORIA (ver #leads_audit) -- misma forma de respuesta que
+  # V2::Reports::WeeklyOpsReportNoContactLeadsBuilder#build (total_count/page/per_page/
+  # total_pages/rows) para que el frontend use un solo componente de paginación para ambas tablas.
+  def paginate(rows)
+    total = rows.size
+    page = page_param
+    {
+      total_count: total,
+      page: page,
+      per_page: PER_PAGE,
+      total_pages: (total.to_f / PER_PAGE).ceil,
+      rows: rows.slice((page - 1) * PER_PAGE, PER_PAGE) || []
+    }
   end
 end

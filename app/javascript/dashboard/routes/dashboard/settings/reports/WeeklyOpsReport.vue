@@ -17,6 +17,7 @@ import BarChart from 'shared/components/charts/BarChart.vue';
 import LineChart from 'shared/components/charts/LineChart.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import PaginationFooter from 'dashboard/components-next/pagination/PaginationFooter.vue';
 
 const { t } = useI18n();
 
@@ -545,9 +546,11 @@ const downloadLeadsExport = async () => {
 // Sección "Auditoría" visible en pantalla -- tabla con los leads/deals del periodo exacto de este
 // reporte, SIN salir de la página (a diferencia de downloadLeadsExport, que descarga el CSV
 // completo). Se recarga sola cada vez que cambia el reporte mostrado (nuevo id), igual que las
-// demás cards de KPIs -- no depende de una acción manual del usuario.
-const auditData = ref(null); // { total_matching_count, rows }
+// demás cards de KPIs -- no depende de una acción manual del usuario. Paginada en servidor (ver
+// controller#leads_audit) -- auditPage dispara un refetch, no se trae todo de una vez.
+const auditData = ref(null); // { total_count, page, per_page, total_pages, rows }
 const isLoadingAudit = ref(false);
+const auditPage = ref(1);
 
 const fetchLeadsAudit = async () => {
   if (!report.value) return;
@@ -556,7 +559,8 @@ const fetchLeadsAudit = async () => {
   try {
     const response = await WeeklyOpsReportsAPI.getLeadsAudit(
       filters.value.inboxId,
-      report.value.id
+      report.value.id,
+      auditPage.value
     );
     auditData.value = response.data;
   } catch (error) {
@@ -566,13 +570,20 @@ const fetchLeadsAudit = async () => {
   }
 };
 
+const goToAuditPage = page => {
+  auditPage.value = page;
+  fetchLeadsAudit();
+};
+
 // Leads de este periodo sin NINGÚN seguimiento humano (ni llamada, ni WhatsApp, ni marcado
 // "Contactado"/descartado en Zoho) -- mismo signal_type 'lead_no_contact' que ya mantiene
 // RevenueIntelligence::DetectRisksJob, acotado a este inbox/periodo. Caso real que lo motivó:
 // al reconciliar "Leads totales" del embudo contra el total de Zoho (Fuego, septiembre 2026),
 // varios de los leads que solo aparecían en Zoho resultaron sin ninguna llamada ni WhatsApp.
-const noContactData = ref(null); // { total_count, rows }
+// Paginada en servidor igual que auditData, con su propio auditPage/noContactPage independiente.
+const noContactData = ref(null); // { total_count, page, per_page, total_pages, rows }
 const isLoadingNoContact = ref(false);
+const noContactPage = ref(1);
 
 const fetchNoContactLeads = async () => {
   if (!report.value) return;
@@ -581,7 +592,8 @@ const fetchNoContactLeads = async () => {
   try {
     const response = await WeeklyOpsReportsAPI.getNoContactLeads(
       filters.value.inboxId,
-      report.value.id
+      report.value.id,
+      noContactPage.value
     );
     noContactData.value = response.data;
   } catch (error) {
@@ -591,11 +603,18 @@ const fetchNoContactLeads = async () => {
   }
 };
 
+const goToNoContactPage = page => {
+  noContactPage.value = page;
+  fetchNoContactLeads();
+};
+
 watch(
   () => report.value?.id,
   id => {
     auditData.value = null;
     noContactData.value = null;
+    auditPage.value = 1;
+    noContactPage.value = 1;
     if (id) {
       fetchLeadsAudit();
       fetchNoContactLeads();
@@ -604,19 +623,11 @@ watch(
 );
 
 const auditRows = computed(() => auditData.value?.rows ?? []);
-const auditTotalCount = computed(
-  () => auditData.value?.total_matching_count ?? 0
-);
-const auditIsTruncated = computed(
-  () => auditTotalCount.value > auditRows.value.length
-);
+const auditTotalCount = computed(() => auditData.value?.total_count ?? 0);
 
 const noContactRows = computed(() => noContactData.value?.rows ?? []);
 const noContactTotalCount = computed(
   () => noContactData.value?.total_count ?? 0
-);
-const noContactIsTruncated = computed(
-  () => noContactTotalCount.value > noContactRows.value.length
 );
 </script>
 
@@ -1530,14 +1541,6 @@ const noContactIsTruncated = computed(
             <Spinner />
           </div>
           <template v-else>
-            <p v-if="auditRows.length" class="text-xs text-n-slate-10 mb-3">
-              {{
-                t('WEEKLY_OPS_REPORTS.AUDIT.SUMMARY', {
-                  shown: auditRows.length,
-                  total: auditTotalCount,
-                })
-              }}
-            </p>
             <div
               v-if="!auditRows.length"
               class="text-sm text-n-slate-11 py-4 text-center"
@@ -1593,14 +1596,14 @@ const noContactIsTruncated = computed(
                 </tr>
               </tbody>
             </table>
-            <p v-if="auditIsTruncated" class="text-xs text-n-slate-10 mt-2">
-              {{
-                t('WEEKLY_OPS_REPORTS.AUDIT.TRUNCATED', {
-                  shown: auditRows.length,
-                  total: auditTotalCount,
-                })
-              }}
-            </p>
+            <PaginationFooter
+              v-if="auditRows.length"
+              class="mt-2 !px-0"
+              :current-page="auditPage"
+              :total-items="auditTotalCount"
+              :items-per-page="auditData?.per_page || 25"
+              @update:current-page="goToAuditPage"
+            />
           </template>
         </div>
 
@@ -1618,14 +1621,6 @@ const noContactIsTruncated = computed(
             <Spinner />
           </div>
           <template v-else>
-            <p v-if="noContactRows.length" class="text-xs text-n-slate-10 mb-3">
-              {{
-                t('WEEKLY_OPS_REPORTS.NO_CONTACT.SUMMARY', {
-                  shown: noContactRows.length,
-                  total: noContactTotalCount,
-                })
-              }}
-            </p>
             <div
               v-if="!noContactRows.length"
               class="text-sm text-n-slate-11 py-4 text-center"
@@ -1674,14 +1669,14 @@ const noContactIsTruncated = computed(
                 </tr>
               </tbody>
             </table>
-            <p v-if="noContactIsTruncated" class="text-xs text-n-slate-10 mt-2">
-              {{
-                t('WEEKLY_OPS_REPORTS.AUDIT.TRUNCATED', {
-                  shown: noContactRows.length,
-                  total: noContactTotalCount,
-                })
-              }}
-            </p>
+            <PaginationFooter
+              v-if="noContactRows.length"
+              class="mt-2 !px-0"
+              :current-page="noContactPage"
+              :total-items="noContactTotalCount"
+              :items-per-page="noContactData?.per_page || 25"
+              @update:current-page="goToNoContactPage"
+            />
           </template>
         </div>
       </template>

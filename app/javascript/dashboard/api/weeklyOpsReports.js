@@ -40,21 +40,23 @@ class WeeklyOpsReportsAPI extends ApiClient {
     );
   }
 
-  // Sección "Auditoría" visible en pantalla (tabla con tope de filas) -- a diferencia de
+  // Sección "Auditoría" visible en pantalla (tabla paginada) -- a diferencia de
   // downloadLeadsExport (el CSV completo para descargar), esto es lo que se ve sin salir de la
   // página. Mismo builder/data mart del lado del servidor, ver controller#leads_audit.
-  getLeadsAudit(inboxId, id) {
+  getLeadsAudit(inboxId, id, page = 1) {
     return axios.get(
-      `${this.url}/${inboxId}/weekly_ops_reports/${id}/leads_audit`
+      `${this.url}/${inboxId}/weekly_ops_reports/${id}/leads_audit`,
+      { params: { page } }
     );
   }
 
   // Leads de este periodo sin ningún seguimiento humano (ni llamada, ni WhatsApp, ni marcado
   // "Contactado"/descartado en Zoho) -- mismo signal_type 'lead_no_contact' que ya usa Revenue
   // Intelligence (RevenueIntelligence::DetectRisksJob), acotado al inbox/periodo de este reporte.
-  getNoContactLeads(inboxId, id) {
+  getNoContactLeads(inboxId, id, page = 1) {
     return axios.get(
-      `${this.url}/${inboxId}/weekly_ops_reports/${id}/no_contact_leads`
+      `${this.url}/${inboxId}/weekly_ops_reports/${id}/no_contact_leads`,
+      { params: { page } }
     );
   }
 
