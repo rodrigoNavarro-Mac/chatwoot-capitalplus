@@ -21,6 +21,10 @@ module Enterprise::WeeklyOpsReportPolicy
     custom_role_permits?('weekly_ops_report_view') || custom_role_permits?('weekly_ops_report_manage') || super
   end
 
+  def no_contact_leads?
+    custom_role_permits?('weekly_ops_report_view') || custom_role_permits?('weekly_ops_report_manage') || super
+  end
+
   def create?
     custom_role_permits?('weekly_ops_report_manage') || super
   end

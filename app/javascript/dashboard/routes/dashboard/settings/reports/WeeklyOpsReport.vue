@@ -566,11 +566,40 @@ const fetchLeadsAudit = async () => {
   }
 };
 
+// Leads de este periodo sin NINGÚN seguimiento humano (ni llamada, ni WhatsApp, ni marcado
+// "Contactado"/descartado en Zoho) -- mismo signal_type 'lead_no_contact' que ya mantiene
+// RevenueIntelligence::DetectRisksJob, acotado a este inbox/periodo. Caso real que lo motivó:
+// al reconciliar "Leads totales" del embudo contra el total de Zoho (Fuego, septiembre 2026),
+// varios de los leads que solo aparecían en Zoho resultaron sin ninguna llamada ni WhatsApp.
+const noContactData = ref(null); // { total_count, rows }
+const isLoadingNoContact = ref(false);
+
+const fetchNoContactLeads = async () => {
+  if (!report.value) return;
+
+  isLoadingNoContact.value = true;
+  try {
+    const response = await WeeklyOpsReportsAPI.getNoContactLeads(
+      filters.value.inboxId,
+      report.value.id
+    );
+    noContactData.value = response.data;
+  } catch (error) {
+    useAlert(t('WEEKLY_OPS_REPORTS.ERRORS.NO_CONTACT_LEADS'));
+  } finally {
+    isLoadingNoContact.value = false;
+  }
+};
+
 watch(
   () => report.value?.id,
   id => {
     auditData.value = null;
-    if (id) fetchLeadsAudit();
+    noContactData.value = null;
+    if (id) {
+      fetchLeadsAudit();
+      fetchNoContactLeads();
+    }
   }
 );
 
@@ -580,6 +609,14 @@ const auditTotalCount = computed(
 );
 const auditIsTruncated = computed(
   () => auditTotalCount.value > auditRows.value.length
+);
+
+const noContactRows = computed(() => noContactData.value?.rows ?? []);
+const noContactTotalCount = computed(
+  () => noContactData.value?.total_count ?? 0
+);
+const noContactIsTruncated = computed(
+  () => noContactTotalCount.value > noContactRows.value.length
 );
 </script>
 
@@ -1561,6 +1598,87 @@ const auditIsTruncated = computed(
                 t('WEEKLY_OPS_REPORTS.AUDIT.TRUNCATED', {
                   shown: auditRows.length,
                   total: auditTotalCount,
+                })
+              }}
+            </p>
+          </template>
+        </div>
+
+        <div
+          class="mb-6 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 overflow-x-auto"
+        >
+          <h3 class="text-base font-semibold text-n-slate-12 mt-0 mb-1">
+            {{ t('WEEKLY_OPS_REPORTS.NO_CONTACT.TITLE') }}
+          </h3>
+          <p class="text-sm text-n-slate-11 mb-4">
+            {{ t('WEEKLY_OPS_REPORTS.NO_CONTACT.DESCRIPTION') }}
+          </p>
+
+          <div v-if="isLoadingNoContact" class="flex justify-center py-8">
+            <Spinner />
+          </div>
+          <template v-else>
+            <p v-if="noContactRows.length" class="text-xs text-n-slate-10 mb-3">
+              {{
+                t('WEEKLY_OPS_REPORTS.NO_CONTACT.SUMMARY', {
+                  shown: noContactRows.length,
+                  total: noContactTotalCount,
+                })
+              }}
+            </p>
+            <div
+              v-if="!noContactRows.length"
+              class="text-sm text-n-slate-11 py-4 text-center"
+            >
+              {{ t('WEEKLY_OPS_REPORTS.NO_CONTACT.EMPTY') }}
+            </div>
+            <table v-else class="woot-table w-full text-sm">
+              <thead>
+                <tr class="text-left text-n-slate-11">
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.ZOHO_ID') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.NAME') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.NO_CONTACT.TABLE.PHONE') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.SOURCE') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.NO_CONTACT.TABLE.OWNER') }}
+                  </th>
+                  <th class="py-1 pr-3 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.AUDIT.TABLE.CREATED_AT') }}
+                  </th>
+                  <th class="py-1 font-medium">
+                    {{ t('WEEKLY_OPS_REPORTS.NO_CONTACT.TABLE.HOURS') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in noContactRows"
+                  :key="row.zoho_lead_id"
+                  class="border-t border-n-container text-n-slate-12"
+                >
+                  <td class="py-1.5 pr-3">{{ row.zoho_lead_id }}</td>
+                  <td class="py-1.5 pr-3">{{ row.nombre || '—' }}</td>
+                  <td class="py-1.5 pr-3">{{ row.telefono || '—' }}</td>
+                  <td class="py-1.5 pr-3">{{ row.fuente || '—' }}</td>
+                  <td class="py-1.5 pr-3">{{ row.dueno || '—' }}</td>
+                  <td class="py-1.5 pr-3">{{ row.creado || '—' }}</td>
+                  <td class="py-1.5">{{ row.horas_sin_contacto ?? '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="noContactIsTruncated" class="text-xs text-n-slate-10 mt-2">
+              {{
+                t('WEEKLY_OPS_REPORTS.AUDIT.TRUNCATED', {
+                  shown: noContactRows.length,
+                  total: noContactTotalCount,
                 })
               }}
             </p>

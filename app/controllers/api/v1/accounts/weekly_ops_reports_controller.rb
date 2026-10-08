@@ -4,7 +4,7 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
 
   before_action :fetch_inbox
   before_action :check_authorization
-  before_action :fetch_weekly_ops_report, only: [:show, :pdf, :leads_export, :leads_audit]
+  before_action :fetch_weekly_ops_report, only: [:show, :pdf, :leads_export, :leads_audit, :no_contact_leads]
 
   # Filas mostradas en la sección "Auditoría" dentro del reporte (ver #leads_audit) -- el CSV
   # completo (#leads_export) no tiene este tope, es solo para no mandar un JSON gigante a la
@@ -57,6 +57,17 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
   def leads_audit
     rows = V2::Reports::RevenueIntelligenceLeadsExportBuilder.new(account: Current.account, params: leads_export_params).build
     render json: { total_matching_count: rows.size, rows: rows.first(MAX_AUDIT_ROWS) }
+  end
+
+  # Leads de este desarrollo/periodo sin NINGÚN seguimiento humano registrado (ni llamada, ni
+  # WhatsApp, ni marcado "Contactado"/descartado en Zoho) -- ver
+  # V2::Reports::WeeklyOpsReportNoContactLeadsBuilder para el porqué reusa el signal_type
+  # 'lead_no_contact' que ya mantiene RevenueIntelligence::DetectRisksJob, en vez de inventar un
+  # criterio nuevo. Caso real que lo motivó: Fuego/septiembre 2026, al reconciliar "Leads totales"
+  # del embudo contra el total de Zoho.
+  def no_contact_leads
+    result = V2::Reports::WeeklyOpsReportNoContactLeadsBuilder.new(account: Current.account, params: leads_export_params).build
+    render json: result
   end
 
   private
