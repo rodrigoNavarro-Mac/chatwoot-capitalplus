@@ -103,6 +103,19 @@ describe RevenueIntelligence::DetectRisksJob do
       expect(account.revenue_risk_signals.where(signal_type: 'lead_no_contact')).to exist
     end
 
+    # Ultimo_conctacto lo actualiza Crm::Zoho::ProcessorService#handle_message_created cada vez
+    # que un agente responde de verdad por Chatwoot -- un lead puede tener esto poblado sin que
+    # ventas haya tocado Lead_Status/First_Contact_Time a mano en Zoho (caso real: leads creados
+    # directo desde Chatwoot, o leads de Meta Ads trabajados solo por WhatsApp).
+    it 'does not flag a lead with Ultimo_conctacto present, even with Lead_Status/First_Contact_Time blank' do
+      account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 2.days.ago,
+                                    raw_payload: { 'Ultimo_conctacto' => 1.day.ago.iso8601 })
+
+      described_class.new.perform
+
+      expect(account.revenue_risk_signals.where(signal_type: 'lead_no_contact')).to be_empty
+    end
+
     it 'does not flag a lead created less than 24h ago' do
       account.revenue_leads.create!(zoho_lead_id: 'lead-1', created_at_source: 2.hours.ago)
 
