@@ -37,7 +37,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
 
     context 'when the linked record is a Contact instead of a Lead' do
       before do
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'c1', zoho_module: 'Contacts')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'c1', zoho_module: 'Contacts')
         allow(leads_client).to receive(:update)
       end
 
@@ -50,7 +50,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
     context 'when the Lead already has both fields set' do
       before do
         existing_record = { 'First_Contact_Time' => '2026-01-01T10:00:00-06:00', 'Tiempo_de_respuesta_inicial' => 5 }
-        allow(finder).to receive(:find_or_create).with(contact)
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything)
                                                  .and_return(zoho_id: 'l1', zoho_module: 'Leads', record: existing_record)
         allow(leads_client).to receive(:update)
       end
@@ -65,7 +65,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
       before do
         conversation.update!(created_at: Time.zone.parse('2026-07-27T10:00:00-06:00'),
                              first_reply_created_at: Time.zone.parse('2026-07-27T10:03:30-06:00'))
-        allow(finder).to receive(:find_or_create).with(contact)
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything)
                                                  .and_return(zoho_id: 'l1', zoho_module: 'Leads',
                                                              record: { 'First_Contact_Time' => nil, 'Tiempo_de_respuesta_inicial' => nil })
         allow(leads_client).to receive(:update)
@@ -83,7 +83,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
         conversation.update!(created_at: Time.zone.parse('2026-07-27T10:00:00-06:00'),
                              first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
         existing_record = { 'First_Contact_Time' => '2026-01-01T00:00:00-06:00', 'Tiempo_de_respuesta_inicial' => nil }
-        allow(finder).to receive(:find_or_create).with(contact)
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything)
                                                  .and_return(zoho_id: 'l1', zoho_module: 'Leads', record: existing_record)
         allow(leads_client).to receive(:update)
       end
@@ -97,7 +97,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
     context 'when Tiempo_de_respuesta_inicial is already set (First_Contact_Time is handled elsewhere)' do
       before do
         conversation.update!(first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
-        allow(finder).to receive(:find_or_create).with(contact)
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything)
                                                  .and_return(zoho_id: 'l1', zoho_module: 'Leads',
                                                              record: { 'First_Contact_Time' => nil, 'Tiempo_de_respuesta_inicial' => 3 })
         allow(leads_client).to receive(:update)
@@ -123,7 +123,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
           event_end_time: handoff_time
         )
         conversation.update!(first_reply_created_at: handoff_time + 90.seconds)
-        allow(finder).to receive(:find_or_create).with(contact)
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything)
                                                  .and_return(zoho_id: 'l1', zoho_module: 'Leads', record: {})
         allow(leads_client).to receive(:update)
       end
@@ -139,7 +139,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
       before do
         conversation.update!(created_at: Time.zone.parse('2026-07-27T10:00:00-06:00'),
                              first_reply_created_at: Time.zone.parse('2026-07-27T10:15:30-06:00'))
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'l1', zoho_module: 'Leads')
         allow(finder).to receive(:fetch_record).with(contact).and_return({})
         allow(leads_client).to receive(:update)
       end
@@ -154,7 +154,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
     context 'when the Zoho API raises an error' do
       before do
         conversation.update!(first_reply_created_at: Time.zone.now)
-        allow(finder).to receive(:find_or_create).with(contact)
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything)
                                                  .and_return(zoho_id: 'l1', zoho_module: 'Leads', record: {})
         allow(leads_client).to receive(:update).and_raise(Crm::Zoho::Api::BaseClient::ApiError.new('API Error'))
         allow(Rails.logger).to receive(:error)
@@ -178,7 +178,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
 
     context 'when the message is a human agent reply' do
       before do
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'l1', zoho_module: 'Leads')
         allow(finder).to receive(:fetch_record).with(contact).and_return({})
         allow(leads_client).to receive(:update)
       end
@@ -191,7 +191,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
 
     context 'when the message is the first non-template human reply and First_Contact_Time is blank in Zoho' do
       before do
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'l1', zoho_module: 'Leads')
         allow(finder).to receive(:fetch_record).with(contact).and_return({ 'First_Contact_Time' => nil })
         allow(leads_client).to receive(:update)
       end
@@ -205,7 +205,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
     context 'when the message is a WhatsApp template (the mandatory opening message)' do
       before do
         agent_message.update!(content_attributes: { template_params: { name: 'saludo_inicial' } })
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'l1', zoho_module: 'Leads')
         allow(finder).to receive(:fetch_record)
         allow(leads_client).to receive(:update)
       end
@@ -221,7 +221,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
       before do
         create(:message, account: account, conversation: conversation, message_type: :outgoing, sender: agent,
                          created_at: agent_message.created_at - 1.hour)
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'l1', zoho_module: 'Leads')
         allow(finder).to receive(:fetch_record)
         allow(leads_client).to receive(:update)
       end
@@ -235,7 +235,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
 
     context 'when First_Contact_Time is already set in Zoho' do
       before do
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'l1', zoho_module: 'Leads')
         allow(finder).to receive(:fetch_record).with(contact).and_return({ 'First_Contact_Time' => '2026-01-01T00:00:00-06:00' })
         allow(leads_client).to receive(:update)
       end
@@ -248,7 +248,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
 
     context 'when the linked record is a Contact instead of a Lead' do
       before do
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'c1', zoho_module: 'Contacts')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'c1', zoho_module: 'Contacts')
         allow(contacts_client).to receive(:update)
       end
 
@@ -308,7 +308,7 @@ RSpec.describe Crm::Zoho::ProcessorService do
 
     context 'when the Zoho API raises an error' do
       before do
-        allow(finder).to receive(:find_or_create).with(contact).and_return(zoho_id: 'l1', zoho_module: 'Leads')
+        allow(finder).to receive(:find_or_create).with(contact, development_key: anything).and_return(zoho_id: 'l1', zoho_module: 'Leads')
         allow(leads_client).to receive(:update).and_raise(Crm::Zoho::Api::BaseClient::ApiError.new('API Error'))
         allow(Rails.logger).to receive(:error)
         allow(ChatwootExceptionTracker).to receive(:new).and_return(instance_double(ChatwootExceptionTracker, capture_exception: nil))
