@@ -384,6 +384,7 @@ Rails.application.routes.draw do
               post :pdf, on: :member
               get :leads_export, on: :member
               get :leads_audit, on: :member
+              get :no_contact_leads, on: :member
             end
             resource :report_branding, only: [:show, :update], controller: 'inbox_brandings'
           end

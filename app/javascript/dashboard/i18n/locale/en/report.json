@@ -1189,6 +1189,17 @@
         "DEAL_STAGE": "Deal stage"
       }
     },
+    "NO_CONTACT": {
+      "TITLE": "Leads with no follow-up",
+      "DESCRIPTION": "Leads from this period with NO recorded human contact — no call, no WhatsApp, and never marked \"Contacted\" or discarded in Zoho. Same rule Revenue Intelligence already uses for its risk alerts.",
+      "SUMMARY": "Showing {shown} of {total} leads with no follow-up.",
+      "EMPTY": "No lead from this period was left without follow-up. ✅",
+      "TABLE": {
+        "PHONE": "Phone",
+        "OWNER": "Owner",
+        "HOURS": "Hours with no contact"
+      }
+    },
     "EMPTY": "Select a development and a period, then generate the report",
     "GENERATING": "Generating the report with AI — this can take a few seconds…",
     "FILTERS": {
@@ -1337,7 +1348,8 @@
       "DOWNLOAD": "Could not download the PDF",
       "FAILED": "Report generation failed — please try again",
       "LEADS_EXPORT": "Could not export the leads/deals",
-      "LEADS_AUDIT": "Could not load the leads/deals audit"
+      "LEADS_AUDIT": "Could not load the leads/deals audit",
+      "NO_CONTACT_LEADS": "Could not load the leads with no follow-up"
     }
   },
   "SUMMARY_REPORTS": {

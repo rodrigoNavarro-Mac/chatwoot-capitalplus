@@ -19,6 +19,10 @@ class WeeklyOpsReportPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def no_contact_leads?
+    @account_user.administrator?
+  end
+
   def create?
     @account_user.administrator?
   end

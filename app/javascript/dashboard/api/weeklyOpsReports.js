@@ -49,6 +49,15 @@ class WeeklyOpsReportsAPI extends ApiClient {
     );
   }
 
+  // Leads de este periodo sin ningún seguimiento humano (ni llamada, ni WhatsApp, ni marcado
+  // "Contactado"/descartado en Zoho) -- mismo signal_type 'lead_no_contact' que ya usa Revenue
+  // Intelligence (RevenueIntelligence::DetectRisksJob), acotado al inbox/periodo de este reporte.
+  getNoContactLeads(inboxId, id) {
+    return axios.get(
+      `${this.url}/${inboxId}/weekly_ops_reports/${id}/no_contact_leads`
+    );
+  }
+
   getBranding(inboxId) {
     return axios.get(`${this.url}/${inboxId}/report_branding`);
   }

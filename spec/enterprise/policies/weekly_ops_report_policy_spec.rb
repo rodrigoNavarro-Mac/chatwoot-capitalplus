@@ -25,7 +25,7 @@ RSpec.describe 'Enterprise::WeeklyOpsReportPolicy', type: :policy do
     { user: agent_with_manage, account: account, account_user: agent_with_manage_account_user }
   end
 
-  permissions :index?, :show?, :pdf?, :leads_export?, :leads_audit? do
+  permissions :index?, :show?, :pdf?, :leads_export?, :leads_audit?, :no_contact_leads? do
     context 'when plain agent without a custom role' do
       it { expect(policy).not_to permit(agent_context, WeeklyOpsReport) }
     end

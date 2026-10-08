@@ -283,4 +283,43 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       expect(body[:rows].first[:zoho_lead_id]).to eq('lead-real-1')
     end
   end
+
+  describe 'GET /api/v1/accounts/{account.id}/inboxes/{inbox.id}/weekly_ops_reports/{id}/no_contact_leads' do
+    let(:agent_bot) { create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } }) }
+    let!(:report) do
+      perform_enqueued_jobs(only: Reports::GenerateOnDemandWeeklyOpsReportJob) do
+        post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports",
+             params: params, headers: administrator.create_new_auth_token, as: :json
+      end
+      WeeklyOpsReport.find_by(inbox: inbox)
+    end
+
+    before { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot) }
+
+    it 'returns unauthorized for agents' do
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/no_contact_leads",
+          headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    # El builder (V2::Reports::WeeklyOpsReportNoContactLeadsBuilder) ya tiene su propio spec --
+    # aquí solo se cubre que el controller lo invoca con los params correctos del periodo del
+    # reporte, igual que leads_export/leads_audit.
+    it 'returns the leads of this period with an open lead_no_contact signal' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-no-contact-1', desarrollo: 'Fuego',
+                                           created_at_source: report.period_start.in_time_zone(inbox.timezone) + 1.day)
+      account.revenue_risk_signals.create!(category: 'risk', signal_type: 'lead_no_contact', subject_type: 'RevenueLead',
+                                           subject_id: lead.id, severity: 'high', first_detected_at: Time.current,
+                                           detected_at: Time.current, context: { 'hours_since_created' => 30 })
+
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/no_contact_leads",
+          headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body[:total_count]).to eq(1)
+      expect(body[:rows].first).to include(zoho_lead_id: 'lead-no-contact-1', horas_sin_contacto: 30)
+    end
+  end
 end

@@ -1210,6 +1210,17 @@
         "DEAL_STAGE": "Etapa del Deal"
       }
     },
+    "NO_CONTACT": {
+      "TITLE": "Leads sin seguimiento",
+      "DESCRIPTION": "Leads de este periodo sin NINGÚN contacto humano registrado — ni llamada, ni WhatsApp, ni marcados como \"Contactado\" o descartados en Zoho. Mismo criterio que ya usa Revenue Intelligence para sus alertas de riesgo.",
+      "SUMMARY": "Mostrando {shown} de {total} leads sin seguimiento.",
+      "EMPTY": "Ningún lead de este periodo quedó sin seguimiento. ✅",
+      "TABLE": {
+        "PHONE": "Teléfono",
+        "OWNER": "Dueño",
+        "HOURS": "Horas sin contacto"
+      }
+    },
     "EMPTY": "Selecciona un desarrollo y un periodo, luego genera el reporte",
     "GENERATING": "Generando el reporte con inteligencia artificial — puede tardar unos segundos…",
     "FILTERS": {
@@ -1358,7 +1369,8 @@
       "DOWNLOAD": "No se pudo descargar el PDF",
       "FAILED": "La generación del reporte falló — intenta de nuevo",
       "LEADS_EXPORT": "No se pudo exportar los leads/deals",
-      "LEADS_AUDIT": "No se pudo cargar la auditoría de leads/deals"
+      "LEADS_AUDIT": "No se pudo cargar la auditoría de leads/deals",
+      "NO_CONTACT_LEADS": "No se pudo cargar los leads sin seguimiento"
     }
   },
   "SUMMARY_REPORTS": {
