@@ -30,7 +30,10 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
       return
     end
 
-    result = @finder.find_or_create(contact)
+    # Mejor esfuerzo: a esta altura (contact_created/updated) puede que ya exista una conversación
+    # para este contacto aunque no venga en el evento -- si la hay, se usa su inbox para no crear
+    # el lead en Zoho sin Desarrollo (ver ContactFinderService#create_lead).
+    result = @finder.find_or_create(contact, development_key: development_key_for(contact.conversations.order(:created_at).first&.inbox))
     sync_contact_to_zoho(contact, result)
     ensure_conversation_link_notes(contact, result)
   rescue Crm::Zoho::Api::BaseClient::ApiError => e
@@ -50,7 +53,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
       return
     end
 
-    result = @finder.find_or_create(contact)
+    result = @finder.find_or_create(contact, development_key: development_key_for(conversation.inbox))
     enrich_chatwoot_contact(contact, result)
     import_recent_zoho_notes(contact, result)
 
@@ -79,7 +82,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
       return
     end
 
-    result = @finder.find_or_create(contact)
+    result = @finder.find_or_create(contact, development_key: development_key_for(conversation.inbox))
     create_zoho_note(
       result,
       title: "Transcript ##{conversation.display_id}",
@@ -97,7 +100,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
     contact = conversation.contact.tap(&:reload)
     return log_skip("First reply on conversation ##{conversation.id}: contact not identifiable") unless identifiable_contact?(contact)
 
-    result = @finder.find_or_create(contact)
+    result = @finder.find_or_create(contact, development_key: development_key_for(conversation.inbox))
     return log_skip("Conversation ##{conversation.id}: record is #{result[:zoho_module]}, not a Lead") unless result[:zoho_module] == 'Leads'
 
     timestamp = conversation.first_reply_created_at || event_data[:message]&.created_at
@@ -127,7 +130,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
       return
     end
 
-    result = @finder.find_or_create(contact)
+    result = @finder.find_or_create(contact, development_key: development_key_for(conversation.inbox))
     update_last_contact(result, message.created_at)
     sync_first_contact_time(result, contact, message) if result[:zoho_module] == 'Leads'
   rescue Crm::Zoho::Api::BaseClient::ApiError => e
@@ -138,6 +141,14 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
   end
 
   private
+
+  # Mismo lookup que V2::Reports::ZohoLeadsMetrics/WeeklyOpsReportBuilder -- el "desarrollo" de un
+  # inbox vive en la config del agent_bot, no en el inbox mismo. nil-safe: un inbox sin agent_bot o
+  # sin ese campo configurado simplemente no manda Desarrollo al crear el lead (mismo comportamiento
+  # de antes de este fix, no empeora nada).
+  def development_key_for(inbox)
+    inbox&.agent_bot&.bot_config&.dig('variables', 'desarrollo')
+  end
 
   def update_last_contact(result, timestamp)
     data = { 'Ultimo_conctacto' => timestamp.iso8601 }

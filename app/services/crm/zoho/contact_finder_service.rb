@@ -9,13 +9,18 @@ class Crm::Zoho::ContactFinderService
     @contacts_client = Crm::Zoho::Api::ContactsClient.new(hook)
   end
 
+  # development_key: el valor de inbox.agent_bot.bot_config['variables']['desarrollo'] del inbox
+  # donde se originó este contacto (si el caller lo tiene a mano) -- ver #create_lead para el
+  # porqué. Opcional porque no todos los callers tienen un inbox en contexto (ej. handle_contact,
+  # disparado por el webhook contact_created/updated, antes de que exista una conversación).
+  #
   # Returns { zoho_id:, zoho_module:, created_at:, record: } or raises on failure.
-  def find_or_create(contact)
+  def find_or_create(contact, development_key: nil)
     stored = stored_zoho_data(contact)
     return stored if stored.present?
 
     result = find_in_zoho(contact)
-    result ||= create_lead(contact)
+    result ||= create_lead(contact, development_key)
 
     store_zoho_data(contact, result)
     result
@@ -63,9 +68,16 @@ class Crm::Zoho::ContactFinderService
     { zoho_id: records.first['id'], zoho_module: 'Contacts', created_at: records.first['Created_Time'], record: records.first }
   end
 
-  def create_lead(contact)
+  # Sin esto, el lead se crea en Zoho con Desarrollo en blanco -- Revenue Intelligence y el export
+  # de leads/deals del reporte semanal filtran TODO por `desarrollo`, así que un lead sin ese campo
+  # queda invisible para cualquier reporte filtrado por desarrollo, aunque Chatwoot sí sepa de qué
+  # inbox vino. Caso real confirmado 2026-10-07: 3 leads de Fuego con Desarrollo nil en Zoho,
+  # excluidos del data mart local pero SÍ contados por el embudo de ventas de Chatwoot -- la
+  # inconsistencia "Leads totales" (158) vs "Zoho new_count" (160) entre reportes.
+  def create_lead(contact, development_key)
     data = Crm::Zoho::Mappers::ContactMapper.map(contact, module_name: 'Leads')
     data['Lead_Source'] = 'Chatwoot'
+    data['Desarrollo'] = development_key if development_key.present?
     zoho_id = @leads_client.create(data)
     raise 'Zoho CRM: create Lead returned no ID' if zoho_id.blank?
 
