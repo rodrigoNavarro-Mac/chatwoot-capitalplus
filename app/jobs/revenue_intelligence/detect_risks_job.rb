@@ -58,12 +58,23 @@ class RevenueIntelligence::DetectRisksJob < ApplicationJob
     STALLED_THRESHOLD_DAYS[stage] || STALLED_THRESHOLD_DAYS['_default']
   end
 
-  # first_contact_at nil == el lead todavía no llega a Lead_Status "Contactado" en Zoho (ver
-  # RevenueIntelligence::LeadMapper#contacted_at) -- no "nadie le ha mandado un mensaje". Un lead
-  # ya descartado (discard_reason presente) no necesita seguimiento — no se marca.
+  # first_contact_at nil == el lead todavía no llega a un Lead_Status que LeadMapper considere
+  # contacto REAL confirmado (ver RevenueIntelligence::LeadMapper::CONTACTED_LEAD_STATUSES) -- pero
+  # "sin contacto confirmado" no es lo mismo que "sin seguimiento": un lead en "Intento de
+  # contacto" o "Contacto no exitoso" SÍ fue trabajado por el equipo (Zoho ya registra
+  # First_Contact_Time ahí apenas un agente le manda el primer mensaje/llamada, sin importar si el
+  # cliente contestó), solo que nunca se logró el contacto. Confirmado con el usuario 2026-10-08:
+  # "si el equipo realizo intento SI HUBO SEGUIMIENTO" -- el chiste de esta señal es encontrar los
+  # leads que NADIE trabajó, no los que se trabajaron sin éxito. Por eso el criterio de ESTA señal
+  # excluye además cualquier lead con First_Contact_Time ya registrado en Zoho, sin importar su
+  # Lead_Status final -- a diferencia de first_contact_at (que sigue reflejando solo contacto
+  # REAL confirmado, para el resto de las métricas de Revenue Intelligence que sí necesitan esa
+  # distinción, como el embudo de conversión). Un lead ya descartado (discard_reason presente) no
+  # necesita seguimiento — no se marca.
   def detect_lead_no_contact(account, recorder)
     candidates = account.revenue_leads.where(first_contact_at: nil, discard_reason: nil).where.not(created_at_source: nil)
                         .where(created_at_source: ..LEAD_NO_CONTACT_HOURS.hours.ago)
+                        .where("raw_payload ->> 'First_Contact_Time' IS NULL")
 
     candidates.find_each do |lead|
       hours = ((Time.current - lead.created_at_source) / 1.hour).round

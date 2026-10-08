@@ -252,20 +252,34 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
     end
 
     # Mismo builder que #leads_export (con su propio spec) -- aquí solo se cubre que esta acción
-    # devuelva JSON (no CSV) con un tope de filas, para la tabla que se ve sin salir de la página.
-    it 'returns a JSON breakdown capped at MAX_AUDIT_ROWS, with the real total count' do
+    # devuelva JSON (no CSV) paginado, para la tabla que se ve sin salir de la página.
+    it 'paginates the rows at PER_PAGE, with the real total count and page metadata' do
       rows = Array.new(3) { |i| { zoho_lead_id: "lead-#{i}" } }
       fake_builder = instance_double(V2::Reports::RevenueIntelligenceLeadsExportBuilder, build: rows)
       allow(V2::Reports::RevenueIntelligenceLeadsExportBuilder).to receive(:new).and_return(fake_builder)
-      stub_const('Api::V1::Accounts::WeeklyOpsReportsController::MAX_AUDIT_ROWS', 2)
+      stub_const('Api::V1::Accounts::WeeklyOpsReportsController::PER_PAGE', 2)
 
       get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/leads_audit",
           headers: administrator.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:success)
       body = JSON.parse(response.body, symbolize_names: true)
-      expect(body[:total_matching_count]).to eq(3)
+      expect(body).to include(total_count: 3, page: 1, per_page: 2, total_pages: 2)
       expect(body[:rows].size).to eq(2)
+    end
+
+    it 'returns the second page when asked, with the remaining row' do
+      rows = Array.new(3) { |i| { zoho_lead_id: "lead-#{i}" } }
+      fake_builder = instance_double(V2::Reports::RevenueIntelligenceLeadsExportBuilder, build: rows)
+      allow(V2::Reports::RevenueIntelligenceLeadsExportBuilder).to receive(:new).and_return(fake_builder)
+      stub_const('Api::V1::Accounts::WeeklyOpsReportsController::PER_PAGE', 2)
+
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/leads_audit",
+          params: { page: 2 }, headers: administrator.create_new_auth_token, as: :json
+
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body).to include(page: 2, total_pages: 2)
+      expect(body[:rows]).to eq([{ zoho_lead_id: 'lead-2' }])
     end
 
     # Sin mock del builder -- mismo motivo que el test análogo de #leads_export: el mock de arriba
@@ -279,7 +293,7 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
 
       expect(response).to have_http_status(:success)
       body = JSON.parse(response.body, symbolize_names: true)
-      expect(body[:total_matching_count]).to eq(1)
+      expect(body[:total_count]).to eq(1)
       expect(body[:rows].first[:zoho_lead_id]).to eq('lead-real-1')
     end
   end
@@ -320,6 +334,24 @@ RSpec.describe 'Weekly Ops Reports API', type: :request do
       body = JSON.parse(response.body, symbolize_names: true)
       expect(body[:total_count]).to eq(1)
       expect(body[:rows].first).to include(zoho_lead_id: 'lead-no-contact-1', horas_sin_contacto: 30)
+    end
+
+    it 'forwards the page param to the builder (paginates at PER_PAGE)' do
+      stub_const('Api::V1::Accounts::WeeklyOpsReportsController::PER_PAGE', 1)
+      3.times do |i|
+        lead = account.revenue_leads.create!(zoho_lead_id: "lead-no-contact-#{i}", desarrollo: 'Fuego',
+                                             created_at_source: report.period_start.in_time_zone(inbox.timezone) + 1.day)
+        account.revenue_risk_signals.create!(category: 'risk', signal_type: 'lead_no_contact', subject_type: 'RevenueLead',
+                                             subject_id: lead.id, severity: 'high', first_detected_at: Time.current,
+                                             detected_at: Time.current, context: { 'hours_since_created' => 30 })
+      end
+
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/weekly_ops_reports/#{report.id}/no_contact_leads",
+          params: { page: 2 }, headers: administrator.create_new_auth_token, as: :json
+
+      body = JSON.parse(response.body, symbolize_names: true)
+      expect(body).to include(total_count: 3, page: 2, per_page: 1, total_pages: 3)
+      expect(body[:rows].size).to eq(1)
     end
   end
 end

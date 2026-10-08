@@ -1196,9 +1196,7 @@
     "AUDIT": {
       "TITLE": "Auditoría",
       "DESCRIPTION": "Leads y deals de Zoho del periodo exacto de este reporte, fila por fila — mismo dato que el CSV y que Revenue Intelligence, para verificar un número en disputa sin salir de la página.",
-      "SUMMARY": "Mostrando {shown} de {total} leads.",
       "EMPTY": "Sin leads en este periodo.",
-      "TRUNCATED": "Mostrando los primeros {shown} de {total} — descarga el CSV para ver todos.",
       "TABLE": {
         "ZOHO_ID": "ID Zoho",
         "NAME": "Nombre",
@@ -1213,7 +1211,6 @@
     "NO_CONTACT": {
       "TITLE": "Leads sin seguimiento",
       "DESCRIPTION": "Leads de este periodo sin NINGÚN contacto humano registrado — ni llamada, ni WhatsApp, ni marcados como \"Contactado\" o descartados en Zoho. Mismo criterio que ya usa Revenue Intelligence para sus alertas de riesgo.",
-      "SUMMARY": "Mostrando {shown} de {total} leads sin seguimiento.",
       "EMPTY": "Ningún lead de este periodo quedó sin seguimiento. ✅",
       "TABLE": {
         "PHONE": "Teléfono",

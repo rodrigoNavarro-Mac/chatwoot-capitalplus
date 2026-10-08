@@ -1175,9 +1175,7 @@
     "AUDIT": {
       "TITLE": "Audit",
       "DESCRIPTION": "Zoho leads and deals for the exact period of this report, row by row — same data as the CSV and Revenue Intelligence, to verify a disputed number without leaving the page.",
-      "SUMMARY": "Showing {shown} of {total} leads.",
       "EMPTY": "No leads in this period.",
-      "TRUNCATED": "Showing the first {shown} of {total} — download the CSV to see all of them.",
       "TABLE": {
         "ZOHO_ID": "Zoho ID",
         "NAME": "Name",
@@ -1192,7 +1190,6 @@
     "NO_CONTACT": {
       "TITLE": "Leads with no follow-up",
       "DESCRIPTION": "Leads from this period with NO recorded human contact — no call, no WhatsApp, and never marked \"Contacted\" or discarded in Zoho. Same rule Revenue Intelligence already uses for its risk alerts.",
-      "SUMMARY": "Showing {shown} of {total} leads with no follow-up.",
       "EMPTY": "No lead from this period was left without follow-up. ✅",
       "TABLE": {
         "PHONE": "Phone",
