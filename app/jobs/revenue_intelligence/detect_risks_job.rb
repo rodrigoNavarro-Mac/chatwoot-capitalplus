@@ -69,12 +69,23 @@ class RevenueIntelligence::DetectRisksJob < ApplicationJob
   # excluye además cualquier lead con First_Contact_Time ya registrado en Zoho, sin importar su
   # Lead_Status final -- a diferencia de first_contact_at (que sigue reflejando solo contacto
   # REAL confirmado, para el resto de las métricas de Revenue Intelligence que sí necesitan esa
-  # distinción, como el embudo de conversión). Un lead ya descartado (discard_reason presente) no
-  # necesita seguimiento — no se marca.
+  # distinción, como el embudo de conversión).
+  #
+  # También excluye Ultimo_conctacto presente -- campo que Crm::Zoho::ProcessorService#handle_
+  # message_created actualiza en Zoho CADA VEZ que un agente responde de verdad por Chatwoot
+  # (excluye bots/privados, ver ese método), sin depender de que ventas actualice a mano
+  # Lead_Status/First_Contact_Time. Caso real que lo confirmó (2026-10-08): "Multiart Diseño y
+  # Construcción" (conversación de Chatwoot con respuesta real del cliente) y "Arturo Aguila
+  # Alday" (múltiples intentos) -- ambos con Lead_Source "Chatwoot", Lead_Status y
+  # First_Contact_Time en null, pero Ultimo_conctacto sí poblado. Medido antes de aplicar: 41 de
+  # 108 candidatos restantes tenían Ultimo_conctacto presente (34 de ellos ni siquiera eran leads
+  # de Chatwoot, sino de Meta Ads trabajados por WhatsApp sin que ventas tocara Zoho a mano).
+  # Un lead ya descartado (discard_reason presente) no necesita seguimiento -- no se marca.
   def detect_lead_no_contact(account, recorder)
     candidates = account.revenue_leads.where(first_contact_at: nil, discard_reason: nil).where.not(created_at_source: nil)
                         .where(created_at_source: ..LEAD_NO_CONTACT_HOURS.hours.ago)
                         .where("raw_payload ->> 'First_Contact_Time' IS NULL")
+                        .where("raw_payload ->> 'Ultimo_conctacto' IS NULL")
 
     candidates.find_each do |lead|
       hours = ((Time.current - lead.created_at_source) / 1.hour).round
