@@ -37,7 +37,22 @@ class RevenueIntelligence::LeadMapper
   # no dice 'Contactado' una vez que el lead avanzó ahí (mismo error de "etapa actual vs. etapa
   # máxima alcanzada" ya documentado para el embudo viejo, ver
   # project_revenue_intelligence_requisitos_pendientes).
-  CONTACTED_LEAD_STATUSES = ['Contactado', 'Calificado'].freeze
+  #
+  # 'Contactar en el futuro'/'Contact in Future' también cuenta -- es el estado que se usa cuando
+  # el agente SÍ habló con el lead y este pidió que le marcaran después (no "nunca se le llamó").
+  # Caso real confirmado 2026-10-08 (lead "Ezekiel", zoho_lead_id 6923204000029361022): Notes de
+  # Zoho muestran conversación de Chatwoot + 2 llamadas con grabación/análisis de IA desde el
+  # 2026-09-04, pero Lead_Status quedó en 'Contactar en el futuro' -- nunca llegó a 'Contactado'.
+  # Esto lo marcaba como falso positivo en DetectRisksJob#detect_lead_no_contact (reportado por el
+  # usuario: "informacion falsa"). Verificado contra el resto de la cuenta antes de aplicar el
+  # fix: el 100% (81/81) de los leads con este status ya tienen First_Contact_Time poblado en
+  # Zoho -- es decir, Zoho mismo confirma que un agente ya los contactó en todos los casos, nunca
+  # es una etiqueta puesta antes de hablarles. NO se agregan 'Intento de contacto' (600 leads) ni
+  # 'Contacto no exitoso' (52 leads) aunque también tengan First_Contact_Time casi siempre --
+  # ninguno de los dos fue reportado como falso positivo y su nombre implica explícitamente que el
+  # contacto pudo no haberse logrado, a diferencia de 'Contactar en el futuro' donde el acuerdo de
+  # llamar después solo puede pactarse si ya se habló con la persona.
+  CONTACTED_LEAD_STATUSES = ['Contactado', 'Calificado', 'Contactar en el futuro', 'Contact in Future'].freeze
 
   # 'Cliente perdido/Descartado' (44% de los leads de esta cuenta) es ambiguo por sí solo -- un
   # lead se descarta tanto por "no le interesó DESPUÉS de hablar con él" (sí se contactó) como por
