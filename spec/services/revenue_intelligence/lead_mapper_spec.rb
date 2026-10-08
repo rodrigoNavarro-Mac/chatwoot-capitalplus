@@ -80,6 +80,22 @@ describe RevenueIntelligence::LeadMapper do
       expect(attrs[:first_contact_at]).to eq(Time.zone.parse('2026-01-05T10:05:00-06:00'))
     end
 
+    it 'sets first_contact_at for Lead_Status "Contactar en el futuro" (contacto real, pidió que le llamen después)' do
+      callback_payload = payload.merge('Lead_Status' => 'Contactar en el futuro')
+
+      attrs = described_class.map(callback_payload)
+
+      expect(attrs[:first_contact_at]).to eq(Time.zone.parse('2026-01-05T10:05:00-06:00'))
+    end
+
+    it 'sets first_contact_at for the English equivalent "Contact in Future"' do
+      callback_payload = payload.merge('Lead_Status' => 'Contact in Future')
+
+      attrs = described_class.map(callback_payload)
+
+      expect(attrs[:first_contact_at]).to eq(Time.zone.parse('2026-01-05T10:05:00-06:00'))
+    end
+
     it 'sets first_contact_at for a discarded lead whose reason implies a real conversation happened' do
       discarded_but_reached = payload.merge('Lead_Status' => 'Cliente perdido/Descartado', 'Raz_n_de_descarte' => 'NO ESTÁ INTERESADO')
 
