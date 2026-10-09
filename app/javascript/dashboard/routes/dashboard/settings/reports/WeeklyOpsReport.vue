@@ -128,13 +128,19 @@ const canGenerate = computed(
     isCompleteDate(filters.value.until)
 );
 
-// UTC explícito (sufijo Z): el backend interpreta since/until como epoch en UTC
-// (DateRangeHelper#parse_date_time). Sin el "Z", el navegador arma la fecha en su zona horaria
-// local, así que en cualquier huso detrás de UTC (ej. México, UTC-6) "9 de agosto 23:59:59 local"
-// cae en "10 de agosto" al convertir a UTC, corriendo el reporte un día.
+// Todo el negocio opera desde CDMX (México no tiene horario de verano desde 2022, offset -06:00
+// fijo) -- mismo criterio que RevenueIntelligenceReport.vue/SalesFunnelReport.vue, para que
+// "mismo mes/semana" signifique el mismo rango exacto en los 3 reportes de ventas. Antes este
+// archivo anclaba a "Z" (UTC literal) en vez de "-06:00": un mes "completo" empezaba y terminaba
+// 6 horas antes de medianoche CDMX real, dejando fuera actividad de la última tarde/noche del mes
+// e incluyendo la tarde/noche anterior al inicio -- mismo rango nominal ("septiembre"), número de
+// leads distinto que Overview/Marketing/Sales Funnel para el mismo desarrollo (bug real
+// confirmado 2026-10-09: 117 vs 114 leads de Fuego en septiembre, usando Z vs -06:00).
 const toUnixSeconds = (dateValue, endOfDay = false) => {
-  const date = new Date(`${dateValue}T${endOfDay ? '23:59:59' : '00:00:00'}Z`);
-  return Math.floor(date.getTime() / 1000).toString();
+  const time = endOfDay ? '23:59:59' : '00:00:00';
+  return Math.floor(
+    new Date(`${dateValue}T${time}-06:00`).getTime() / 1000
+  ).toString();
 };
 
 const kpis = computed(() => report.value?.kpis || null);
