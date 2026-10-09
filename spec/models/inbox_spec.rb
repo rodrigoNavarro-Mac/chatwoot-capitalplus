@@ -416,4 +416,20 @@ RSpec.describe Inbox do
       end
     end
   end
+
+  describe '#development_key' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+
+    it 'returns the desarrollo configured on the linked agent_bot' do
+      agent_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } })
+      create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
+
+      expect(inbox.development_key).to eq('Fuego')
+    end
+
+    it 'returns nil when the inbox has no agent_bot' do
+      expect(inbox.development_key).to be_nil
+    end
+  end
 end

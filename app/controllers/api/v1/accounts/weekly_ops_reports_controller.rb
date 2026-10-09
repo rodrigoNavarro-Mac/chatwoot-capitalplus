@@ -152,7 +152,7 @@ class Api::V1::Accounts::WeeklyOpsReportsController < Api::V1::Accounts::BaseCon
   end
 
   def development_key
-    @inbox.agent_bot&.bot_config&.dig('variables', 'desarrollo')
+    @inbox.development_key
   end
 
   def page_param

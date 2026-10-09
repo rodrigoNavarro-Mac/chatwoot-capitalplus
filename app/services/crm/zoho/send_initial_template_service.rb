@@ -152,7 +152,7 @@ class Crm::Zoho::SendInitialTemplateService
     inbox = @account.inboxes
                     .where(channel_type: 'Channel::Whatsapp')
                     .joins(agent_bot_inbox: :agent_bot)
-                    .find { |i| i.agent_bot&.bot_config&.dig('variables', 'desarrollo') == @desarrollo }
+                    .find { |i| i.development_key == @desarrollo }
     raise 'inbox_not_found' unless inbox
 
     inbox

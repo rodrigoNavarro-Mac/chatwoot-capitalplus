@@ -282,7 +282,7 @@ class V2::Reports::WeeklyOpsReportBuilder
   end
 
   def development_key
-    inbox.agent_bot&.bot_config&.dig('variables', 'desarrollo')
+    inbox.development_key
   end
 
   # "aircall_calls" y no "calls" para no confundirse con cadences[:calls_completed]/[:calls_pending]

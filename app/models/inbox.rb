@@ -214,6 +214,13 @@ class Inbox < ApplicationRecord
     members.ids
   end
 
+  # El "desarrollo" (proyecto inmobiliario) al que pertenece este inbox vive en la config del
+  # agent_bot, no en el inbox mismo -- único lugar fuente de verdad (antes copiado inline en
+  # varios builders/servicios de Revenue Intelligence).
+  def development_key
+    agent_bot&.bot_config&.dig('variables', 'desarrollo')
+  end
+
   def auto_assignment_v2_enabled?
     account.feature_enabled?('assignment_v2')
   end
