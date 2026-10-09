@@ -32,9 +32,9 @@ const props = defineProps({
     type: Number,
     default: 100,
   },
-  // Cuánto de `count`/`actualPercent` viene de actividad fuera de la cohorte de "leads nuevos del
-  // periodo" -- deals CREADOS este periodo de leads que llegaron antes, con un contacto de Chatwoot
-  // vinculado (ver V2::Reports::SalesFunnelDealActivity). Ya está SUMADO dentro de
+  // Cuánto de `count`/`actualPercent` es "seguimiento" -- actividad de esta etapa sobre leads/deals
+  // que ya existían ANTES del periodo elegido, no leads nuevos del periodo (ver
+  // RevenueIntelligenceBuilder#funnel_seguimiento_counts). Ya está SUMADO dentro de
   // `count`/`actualPercent` (así cuenta para el % y la meta) — este prop solo dice cuánto de ese
   // total pintar en otro color, no es un número aparte que haya que sumar.
   activityCount: {
@@ -45,37 +45,11 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  // Igual que activityCount, pero para deals SIN ningún contacto de Chatwoot vinculado (leads que
-  // nunca escribieron por WhatsApp, ej. capturados directo en Zoho vía Meta Ads) — un tercer color
-  // aparte del de "actividad" porque es una población distinta: ahí sí hay un contacto de Chatwoot
-  // fuera de la cohorte, aquí no hay contacto en absoluto.
-  externalCount: {
-    type: Number,
-    default: null,
-  },
-  externalTooltip: {
-    type: String,
-    default: '',
-  },
-  // Solo para la etapa "leads": cuántos de los contactos con zoho_id vinculado quedaron FUERA de
-  // `count` por ser reactivaciones de un lead que ya existía en Zoho antes de este periodo (ver
-  // V2::Reports::SalesFunnelBuilder#partition_new_vs_reactivated). A diferencia de
-  // activityCount/externalCount, este NO está sumado dentro de `count`/`actualPercent` — es
-  // informativo, se pinta como una barra aparte a continuación del track, no como una porción del
-  // mismo track.
-  reactivatedCount: {
-    type: Number,
-    default: null,
-  },
-  reactivatedTooltip: {
-    type: String,
-    default: '',
-  },
   // Cuánto de `count`/`actualPercent` ya está PERDIDO -- de los que llegaron a esta etapa, cuántos
   // terminaron descartados/perdidos sin avanzar a la siguiente (ver
-  // RevenueIntelligenceBuilder#funnel_lost_counts). Igual que activityCount/externalCount, ya está
-  // SUMADO dentro de `count` -- este prop solo dice cuánto pintar en rojo, no es una cantidad
-  // aparte que haya que sumar.
+  // RevenueIntelligenceBuilder#funnel_lost_counts). Igual que activityCount, ya está SUMADO dentro
+  // de `count` -- este prop solo dice cuánto pintar en rojo, no es una cantidad aparte que haya que
+  // sumar.
   lostCount: {
     type: Number,
     default: null,
@@ -86,12 +60,11 @@ const props = defineProps({
   },
 });
 
-// El track se pinta 0-100 aunque actualPercent pase de 100 (posible cuando la actividad/externos
-// fuera de cohorte son grandes) — el número real igual se muestra sin recortar, solo la barra se
-// topa.
+// El track se pinta 0-100 aunque actualPercent pase de 100 (posible cuando la actividad de
+// seguimiento es grande) — el número real igual se muestra sin recortar, solo la barra se topa.
 const totalBarPercent = computed(() => Math.min(props.actualPercent, 100));
 // Mismo mínimo visible que antes (4%) para que una etapa con muy poco % no desaparezca del todo,
-// aplicado al total antes de partirlo en cohorte/actividad/externos.
+// aplicado al total antes de partirlo en cohorte/seguimiento/perdidos.
 const visibleTotalWidth = computed(() =>
   totalBarPercent.value > 0 ? Math.max(totalBarPercent.value, 4) : 0
 );
@@ -102,27 +75,13 @@ const widthFor = countValue => {
   return (countValue / props.count) * visibleTotalWidth.value;
 };
 const activityBarWidth = computed(() => widthFor(props.activityCount));
-const externalBarWidth = computed(() => widthFor(props.externalCount));
 const lostBarWidth = computed(() => widthFor(props.lostCount));
 const cohortBarWidth = computed(() =>
   Math.max(
-    visibleTotalWidth.value -
-      activityBarWidth.value -
-      externalBarWidth.value -
-      lostBarWidth.value,
+    visibleTotalWidth.value - activityBarWidth.value - lostBarWidth.value,
     0
   )
 );
-
-// reactivatedCount NO es un subconjunto de `count` (al contrario de activity/external, que ya
-// están sumados ahí) — es la porción que se EXCLUYÓ del conteo por ser una reactivación, así que se
-// dibuja en una barra propia, proporcional a count + reactivatedCount, no como parte del track de
-// arriba.
-const reactivatedBarWidth = computed(() => {
-  const total = props.count + (props.reactivatedCount || 0);
-  if (!props.reactivatedCount || !total) return 0;
-  return Math.max((props.reactivatedCount / total) * 100, 4);
-});
 </script>
 
 <template>
@@ -141,20 +100,6 @@ const reactivatedBarWidth = computed(() => {
             class="text-n-amber-11 font-medium"
           >
             (+{{ activityCount }})
-          </span>
-          <span
-            v-if="externalCount"
-            v-tooltip="externalTooltip"
-            class="text-n-violet-11 font-medium"
-          >
-            (+{{ externalCount }})
-          </span>
-          <span
-            v-if="reactivatedCount"
-            v-tooltip="reactivatedTooltip"
-            class="text-n-slate-9 font-medium"
-          >
-            (-{{ reactivatedCount }})
           </span>
           <span
             v-if="lostCount"
@@ -188,12 +133,6 @@ const reactivatedBarWidth = computed(() => {
         :style="{ width: `${activityBarWidth}%` }"
       />
       <div
-        v-if="externalBarWidth > 0"
-        v-tooltip="externalTooltip"
-        class="h-full bg-n-violet-9 flex-shrink-0"
-        :style="{ width: `${externalBarWidth}%` }"
-      />
-      <div
         v-if="lostBarWidth > 0"
         v-tooltip="lostTooltip"
         class="h-full bg-n-ruby-9 flex-shrink-0"
@@ -204,16 +143,6 @@ const reactivatedBarWidth = computed(() => {
         v-tooltip="`Meta: ${targetPercent}%`"
         class="absolute top-1/2 -translate-y-1/2 h-2.5 w-px bg-n-slate-12"
         :style="{ left: `${Math.min(Math.max(targetPercent, 0), 100)}%` }"
-      />
-    </div>
-    <div
-      v-if="reactivatedBarWidth > 0"
-      v-tooltip="reactivatedTooltip"
-      class="w-full h-1 rounded-full bg-n-slate-3 overflow-hidden flex mt-1"
-    >
-      <div
-        class="h-full bg-n-slate-6 flex-shrink-0"
-        :style="{ width: `${reactivatedBarWidth}%` }"
       />
     </div>
   </div>

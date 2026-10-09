@@ -683,20 +683,32 @@ const FUNNEL_SEQUENCE = [
   'reserved',
   'closed_won',
 ];
+// { metric => {count, conversion_from_previous, seguimiento_count, lost_count} } -- mismo shape y
+// mismo campo `report.funnel_steps` que ya consume MarketingTab.vue vía `report.marketing_funnel`
+// (ver RevenueIntelligenceBuilder#funnel_steps). Reemplaza la recomposición manual que antes hacía
+// este tab combinando funnelConversions + funnelTotals para estos 3 campos -- deltaPct/previous_count
+// siguen viniendo de funnelTotals, que funnel_steps no trae (es el badge "vs periodo anterior",
+// algo que Marketing no muestra).
+const funnelStepsByMetric = computed(() =>
+  (report.value?.funnel_steps ?? []).reduce((acc, step) => {
+    acc[step.metric] = step;
+    return acc;
+  }, {})
+);
 const funnelSteps = computed(() =>
   FUNNEL_SEQUENCE.map(stage => ({
     stage,
     label: eventTypeLabel(stage),
     count: funnelTotals.value[stage]?.count ?? 0,
-    conversion: funnelConversions.value[stage],
+    conversion: funnelStepsByMetric.value[stage]?.conversion_from_previous,
     deltaPct: funnelTotals.value[stage]?.delta_pct ?? null,
     // Leads que ya existían ANTES del rango seleccionado pero tuvieron esta actividad de embudo
     // dentro del rango (seguimiento a un lead viejo, no un lead nuevo) — ver
     // RevenueIntelligenceBuilder#funnel_seguimiento_counts.
-    seguimientoCount: funnelTotals.value[stage]?.seguimiento_count ?? 0,
+    seguimientoCount: funnelStepsByMetric.value[stage]?.seguimiento_count ?? 0,
     // De los que llegaron a esta etapa, cuántos terminaron descartados/perdidos sin avanzar a la
     // siguiente — ver RevenueIntelligenceBuilder#funnel_lost_counts.
-    lostCount: funnelTotals.value[stage]?.lost_count ?? 0,
+    lostCount: funnelStepsByMetric.value[stage]?.lost_count ?? 0,
   }))
 );
 

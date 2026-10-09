@@ -59,7 +59,7 @@ module Api::V2::Accounts::ReportsHelper
     {
       since: params[:since],
       until: params[:until],
-      inbox_ids: params[:inbox_ids]
+      desarrollo: params[:desarrollo]
     }
   end
 

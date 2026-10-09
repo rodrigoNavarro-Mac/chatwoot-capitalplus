@@ -242,25 +242,31 @@ class V2::Reports::WeeklyOpsReportBuilder
     User.find_by(id: user_id)&.name || "Agente #{user_id}"
   end
 
+  # SalesFunnelBuilder ahora agrupa por desarrollo (no por inbox, ver su comentario de clase tras
+  # la unificación de los 3 embudos de ventas) -- sin desarrollo configurado en el inbox no hay a
+  # qué desarrollo pedirle el embudo, así que se devuelve nil en vez de dejar que SalesFunnelBuilder
+  # interprete la ausencia de filtro como "todos los desarrollos" y traiga el primero cualquiera.
   def pipeline_metrics
-    @pipeline_metrics ||= V2::Reports::SalesFunnelBuilder.new(account: account, params: params.merge(inbox_ids: [inbox.id])).build.first
+    return nil if development_key.blank?
+
+    @pipeline_metrics ||= V2::Reports::SalesFunnelBuilder.new(account: account, params: params.merge(desarrollo: development_key)).build.first
   end
 
-  # "Convertidos" reusa el conteo de la etapa "has_deal" del embudo de ventas (misma fila, misma
-  # definición: contactos cuya primera conversación cae en el periodo y ya tienen un zoho_deal_id
-  # cacheado) en vez de una cuenta independiente contra el módulo Deals de Zoho por Created_Time —
-  # dos números del mismo reporte respondiendo "cuántos convirtieron" con criterios distintos
-  # generaba una discrepancia (ej. 6 vs 5) sin sentido para quien lee el reporte. Detectado
-  # 2026-08-18. "Descartados" sigue siendo Lead_Status "Cliente perdido/Descartado" en Zoho — el
-  # embudo no tiene ese concepto, no hay con qué alinearlo.
+  # "Convertidos" reusa el conteo de la etapa "deal_created" del embudo de ventas (misma fila,
+  # misma definición: leads de este desarrollo con un Deal creado en Zoho) en vez de una cuenta
+  # independiente contra el módulo Deals de Zoho por Created_Time — dos números del mismo reporte
+  # respondiendo "cuántos convirtieron" con criterios distintos generaba una discrepancia (ej. 6 vs
+  # 5) sin sentido para quien lee el reporte. Detectado 2026-08-18. "Descartados" sigue siendo
+  # Lead_Status "Cliente perdido/Descartado" en Zoho — el embudo no tiene ese concepto, no hay con
+  # qué alinearlo.
   def conversion_totals
     return nil if development_key.blank? || range.blank?
 
-    { converted: has_deal_count, lost: zoho_leads_service.lost_count }
+    { converted: deal_created_count, lost: zoho_leads_service.lost_count }
   end
 
-  def has_deal_count
-    stage = pipeline_metrics&.dig(:stages)&.find { |s| s[:stage] == 'has_deal' }
+  def deal_created_count
+    stage = pipeline_metrics&.dig(:stages)&.find { |s| s[:stage] == 'deal_created' }
     stage ? stage[:count] : 0
   end
 

@@ -24,17 +24,17 @@ const { t } = useI18n();
 const inboxes = useMapGetter('inboxes/getInboxes');
 
 const STAGE_ICONS = {
-  leads: 'i-lucide-users',
-  customer_replied: 'i-lucide-message-circle',
-  has_deal: 'i-lucide-handshake',
-  visita_efectiva: 'i-lucide-map-pin',
+  lead_created: 'i-lucide-users',
+  lead_contacted: 'i-lucide-message-circle',
+  deal_created: 'i-lucide-handshake',
+  visit_effective: 'i-lucide-map-pin',
   closed_won: 'i-lucide-trophy',
 };
 const STAGE_TAPER = {
-  leads: 100,
-  customer_replied: 92,
-  has_deal: 84,
-  visita_efectiva: 80,
+  lead_created: 100,
+  lead_contacted: 92,
+  deal_created: 84,
+  visit_effective: 80,
   closed_won: 76,
 };
 
@@ -898,23 +898,23 @@ const noContactTotalCount = computed(
             v-for="stage in kpis.pipeline.stages"
             :key="stage.stage"
             :icon="STAGE_ICONS[stage.stage]"
-            :label="t(`SALES_FUNNEL_REPORTS.STAGES.${stage.stage}`)"
+            :label="
+              t(
+                `REVENUE_INTELLIGENCE_REPORTS.EVENT_TYPES.${stage.stage.toUpperCase()}`
+              )
+            "
             :count="stage.count"
             :actual-percent="stage.actual_percent"
             :target-percent="stage.target_percent"
             :delta="stage.delta"
             :taper-percent="STAGE_TAPER[stage.stage]"
-            :activity-count="stage.activity_count"
+            :activity-count="stage.seguimiento_count"
             :activity-tooltip="
-              t('WEEKLY_OPS_REPORTS.PIPELINE.ACTIVITY_BADGE_TOOLTIP')
+              t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
             "
-            :external-count="stage.external_count"
-            :external-tooltip="
-              t('WEEKLY_OPS_REPORTS.PIPELINE.EXTERNAL_BADGE_TOOLTIP')
-            "
-            :reactivated-count="stage.reactivated_count"
-            :reactivated-tooltip="
-              t('WEEKLY_OPS_REPORTS.PIPELINE.REACTIVATED_BADGE_TOOLTIP')
+            :lost-count="stage.lost_count"
+            :lost-tooltip="
+              t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.LOST_TOOLTIP')
             "
           />
         </div>

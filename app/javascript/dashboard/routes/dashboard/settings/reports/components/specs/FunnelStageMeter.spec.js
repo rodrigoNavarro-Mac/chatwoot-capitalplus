@@ -34,7 +34,7 @@ describe('FunnelStageMeter.vue', () => {
     expect(lostBar.attributes('style')).toContain('width: 25%');
   });
 
-  it('does not change the existing activity/external segments when lostCount is absent (backward-compatible with Sales Funnel)', () => {
+  it('does not change the existing activity (seguimiento) segment when lostCount is absent', () => {
     const wrapper = mount(FunnelStageMeter, {
       props: {
         ...baseProps,

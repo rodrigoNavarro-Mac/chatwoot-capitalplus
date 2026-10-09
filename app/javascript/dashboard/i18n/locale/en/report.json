@@ -1112,7 +1112,7 @@
   },
   "SALES_FUNNEL_REPORTS": {
     "HEADER": "Sales funnel",
-    "DESCRIPTION": "Measure conversion from leads to closed-won deals, cross-referencing Chatwoot with Zoho CRM, split by inbox and development.",
+    "DESCRIPTION": "Measure conversion from leads to closed-won deals by development -- same data and rules as the Marketing and Funnel tabs of Revenue Intelligence.",
     "SYNC": {
       "BUTTON": "Sync now",
       "SUCCESS": "Sync started — it may take a few minutes to show up",
@@ -1121,32 +1121,21 @@
     "FILTERS": {
       "SINCE": "Since",
       "UNTIL": "Until",
-      "INBOX": "Inbox",
-      "ALL_INBOXES": "All inboxes"
+      "DEVELOPMENT": "Development",
+      "ALL_DEVELOPMENTS": "All developments"
     },
-    "STAGES": {
-      "leads": "Total leads",
-      "customer_replied": "Replied by customer",
-      "has_deal": "Has a Zoho deal",
-      "visita_efectiva": "Effective visit",
-      "closed_won": "Deal closed won"
-    },
-    "ACTIVITY_BADGE_TOOLTIP": "Part of this number (and %) comes from deals created this period whose lead arrived earlier — not part of the new-leads cohort, but it does count here and toward the goal.",
-    "EXTERNAL_BADGE_TOOLTIP": "Part of this number (and %) comes from deals with no Chatwoot contact at all — leads who never wrote in via WhatsApp (e.g. captured directly in Zoho via Meta Ads).",
-    "REACTIVATED_BADGE_TOOLTIP": "This many contacts were excluded from the leads count: their first conversation fell in this period, but their Zoho lead was created earlier (e.g. a re-engagement campaign to old leads) — not counted as new, and not part of the % or the goal.",
     "CALLS": {
       "SUMMARY": "Calls: {total} ({percent}% answered)"
     },
     "TABLE": {
-      "TITLE": "Funnel by inbox",
-      "INBOX": "Inbox",
+      "TITLE": "Funnel by development",
       "DEVELOPMENT": "Development",
       "STAGE": "Stage",
       "COUNT": "Count",
       "ACTUAL_PERCENT": "Actual %",
       "TARGET_PERCENT": "Target %",
       "DELTA": "Delta",
-      "EMPTY": "No inboxes with a configured development yet"
+      "EMPTY": "No developments with activity yet"
     },
     "GOALS": {
       "TITLE": "Monthly goals",
@@ -1268,15 +1257,12 @@
       "VOICEMAIL_NOT_YET_ANALYZED_INFO": "Answered calls in this period that don't have an AI analysis yet — voicemail metrics above are based only on already-analyzed calls."
     },
     "PIPELINE": {
-      "TITLE": "Sales pipeline",
-      "ACTIVITY_BADGE_TOOLTIP": "Part of this number (and %) comes from deals created this period whose lead arrived earlier — not part of the new-leads cohort, but it does count here and toward the goal. See the 'Deals that moved this week' block.",
-      "EXTERNAL_BADGE_TOOLTIP": "Part of this number (and %) comes from deals with no Chatwoot contact at all — leads who never wrote in via WhatsApp (e.g. captured directly in Zoho via Meta Ads).",
-      "REACTIVATED_BADGE_TOOLTIP": "This many contacts were excluded from the leads count: their first conversation fell in this period, but their Zoho lead was created earlier (e.g. a re-engagement campaign to old leads) — not counted as new, and not part of the % or the goal."
+      "TITLE": "Sales pipeline"
     },
     "DEALS_ACTIVITY": {
       "TITLE": "Deals that moved this week",
       "TOTAL": "Deals created",
-      "TOTAL_INFO": "Zoho deals created in this period, regardless of when the lead first arrived — unlike the sales funnel, which only counts deals from leads whose first conversation fell in this period.",
+      "TOTAL_INFO": "Zoho deals created in this period (source: Zoho's Created_Time directly) — an independent figure from the 'Deals' stage of the sales funnel (source: revenue_events), useful to catch the two going out of sync.",
       "VISITA_EFECTIVA": "With effective visit",
       "VISITA_EFECTIVA_INFO": "Of the deals created this period, how many are already in the effective-visit stage (as of today).",
       "CLOSED_WON": "Closed won",

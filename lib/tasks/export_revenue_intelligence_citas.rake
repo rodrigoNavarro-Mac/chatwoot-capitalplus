@@ -54,7 +54,7 @@ namespace :chatwoot do
       rows << row_for.call('Cita agendada', appt.starts_at, lead, deal, appt.revenue_contact)
     end
 
-    visita_stages = V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES
+    visita_stages = V2::Reports::ZohoLeadsMetrics::VISITA_EFECTIVA_STAGES
     account.revenue_stage_events.where(stage: visita_stages).includes(:revenue_deal, :revenue_contact).find_each do |ev|
       deal = ev.revenue_deal || account.revenue_deals.find_by(zoho_deal_id: ev.zoho_deal_id)
       lead = deal&.revenue_lead

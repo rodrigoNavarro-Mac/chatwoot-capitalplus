@@ -19,8 +19,8 @@ describe Reports::WeeklyOpsReportPdfService do
         ],
         'pipeline' => {
           'stages' => [
-            { 'stage' => 'leads', 'count' => 10, 'actual_percent' => 100.0, 'target_percent' => nil, 'delta' => nil },
-            { 'stage' => 'customer_replied', 'count' => 7, 'actual_percent' => 70.0, 'target_percent' => 60.0, 'delta' => 10.0 }
+            { 'stage' => 'lead_created', 'count' => 10, 'actual_percent' => 100.0, 'target_percent' => nil, 'delta' => nil },
+            { 'stage' => 'lead_contacted', 'count' => 7, 'actual_percent' => 70.0, 'target_percent' => 60.0, 'delta' => 10.0 }
           ],
           'calls' => { 'total' => 10, 'answered' => 7, 'answered_percent' => 70.0 }
         },

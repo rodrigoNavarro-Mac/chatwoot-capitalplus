@@ -9,19 +9,42 @@
 class V2::Reports::ZohoLeadsMetrics
   # El campo Lead_Status de Leads/search para esta cuenta devuelve el LABEL EN ESPAÑOL directo
   # (ej. "Cliente perdido/Descartado", "Contactado", "Intento de contacto"), no un actual_value en
-  # inglés — a diferencia de Stage en el módulo Deals (ver
-  # V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES, que sí es inglés). Un comentario previo
-  # aquí afirmaba lo contrario ("confirmado contra la API real") y nunca lo fue: LOST_LEAD_STATUS/
-  # CONTACTED_STATUS comparaban contra 'Lost Lead'/'Contacted', que no aparecen jamás en datos
-  # reales, así que "descartados" y "leads de calidad" siempre salían en 0. Confirmado 2026-08-18
-  # contra la API en vivo: 23 leads con Lead_Status == "Cliente perdido/Descartado" en una sola
-  # semana, ninguno con el valor en inglés.
+  # inglés — a diferencia de Stage en el módulo Deals (ver VISITA_EFECTIVA_STAGES abajo, que sí es
+  # inglés). Un comentario previo aquí afirmaba lo contrario ("confirmado contra la API real") y
+  # nunca lo fue: LOST_LEAD_STATUS/CONTACTED_STATUS comparaban contra 'Lost Lead'/'Contacted', que
+  # no aparecen jamás en datos reales, así que "descartados" y "leads de calidad" siempre salían en
+  # 0. Confirmado 2026-08-18 contra la API en vivo: 23 leads con Lead_Status == "Cliente
+  # perdido/Descartado" en una sola semana, ninguno con el valor en inglés.
   LOST_LEAD_STATUS = 'Cliente perdido/Descartado'.freeze
   CONTACTED_STATUS = 'Contactado'.freeze
   # Los leads descartados sin `Raz_n_de_descarte` capturado en Zoho se agrupan bajo esta etiqueta en
   # vez de desaparecer de la tabla: el tally los omitía y la suma de motivos no cuadraba contra el
   # número de descartados del periodo.
   UNSPECIFIED_DISCARD_REASON = 'Sin motivo registrado'.freeze
+
+  # Valores internos ("actual_value") del campo Stage en el pipeline de Deals de Zoho de esta
+  # cuenta — NO son los labels en español que se ven en la UI de Zoho (que están traducidos).
+  # Confirmado contra la API real: "Visita efectiva - Videollamada" -> Qualification, "Cotizado
+  # con visita" -> Needs Analysis, "Apartado" -> Id. Decision Makers, "Cerrado ganado" -> Closed Won.
+  # Vivían en V2::Reports::SalesFunnelBuilder hasta la unificación de los 3 embudos de ventas
+  # (2026-10-09) -- se movieron aquí porque #deals_activity (leído de Zoho directo, vía
+  # Created_Time) es el único consumidor que queda: SalesFunnelBuilder ahora lee revenue_events, no
+  # el Stage crudo de Zoho.
+  #
+  # El picklist de Stage en este Zoho tiene historial de valores "huérfanos" — opciones que
+  # existieron con un actual_value propio antes de que se renombraran/consolidaran, pero deals
+  # viejos siguen cargando el valor original en vez del nuevo (confirmado con un caso real: un
+  # deal con Stage = "Visita efectiva" a secas, que ya no aparece como opción del picklist actual,
+  # en vez de "Qualification"). Por eso la lista incluye ambos valores por etapa donde se conoce
+  # un huérfano — no hay forma de anticipar todos los que puedan existir, así que si aparece un
+  # caso nuevo hay que agregarlo aquí.
+  VISITA_EFECTIVA_STAGES = [
+    'Qualification', 'Visita efectiva',
+    'Needs Analysis',
+    'Id. Decision Makers', 'Identify Decision Makers',
+    'Closed Won'
+  ].freeze
+  CLOSED_WON_STAGES = ['Closed Won'].freeze
 
   def initialize(account:, development_key:, range:, inbox:)
     @account = account
@@ -78,8 +101,8 @@ class V2::Reports::ZohoLeadsMetrics
 
     {
       total: deals.size,
-      visita_efectiva: deals.count { |deal| V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES.include?(deal['Stage']) },
-      closed_won: deals.count { |deal| V2::Reports::SalesFunnelBuilder::CLOSED_WON_STAGES.include?(deal['Stage']) }
+      visita_efectiva: deals.count { |deal| VISITA_EFECTIVA_STAGES.include?(deal['Stage']) },
+      closed_won: deals.count { |deal| CLOSED_WON_STAGES.include?(deal['Stage']) }
     }
   end
 

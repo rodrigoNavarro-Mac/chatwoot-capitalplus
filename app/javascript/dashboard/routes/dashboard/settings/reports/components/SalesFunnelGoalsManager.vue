@@ -16,11 +16,13 @@ const emit = defineEmits(['saved']);
 
 const { t } = useI18n();
 
+// Mismas 5 etapas canónicas que V2::Reports::SalesFunnelBuilder::SEQUENCE (unificación de los 3
+// embudos de ventas, 2026-10-09).
 const STAGES = [
-  'leads',
-  'customer_replied',
-  'has_deal',
-  'visita_efectiva',
+  'lead_created',
+  'lead_contacted',
+  'deal_created',
+  'visit_effective',
   'closed_won',
 ];
 
@@ -103,7 +105,11 @@ onMounted(fetchGoals);
         </label>
         <select v-model="newGoal.stage" class="!mb-0 !h-8 text-sm">
           <option v-for="stage in STAGES" :key="stage" :value="stage">
-            {{ t(`SALES_FUNNEL_REPORTS.STAGES.${stage}`) }}
+            {{
+              t(
+                `REVENUE_INTELLIGENCE_REPORTS.EVENT_TYPES.${stage.toUpperCase()}`
+              )
+            }}
           </option>
         </select>
       </div>
@@ -162,7 +168,11 @@ onMounted(fetchGoals);
           <tr v-for="goal in goals" :key="goal.id" class="text-n-slate-12">
             <td class="px-3 py-2 font-medium">{{ goal.development_key }}</td>
             <td class="px-3 py-2">
-              {{ t(`SALES_FUNNEL_REPORTS.STAGES.${goal.stage}`) }}
+              {{
+                t(
+                  `REVENUE_INTELLIGENCE_REPORTS.EVENT_TYPES.${goal.stage.toUpperCase()}`
+                )
+              }}
             </td>
             <td class="px-3 py-2">{{ goal.period_month }}</td>
             <td class="px-3 py-2">{{ goal.target_percent }}%</td>

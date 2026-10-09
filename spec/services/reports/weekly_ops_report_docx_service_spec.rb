@@ -83,8 +83,8 @@ describe Reports::WeeklyOpsReportDocxService do
     report.kpis = report.kpis.merge(
       'pipeline' => {
         'stages' => [
-          { 'stage' => 'leads', 'count' => 10, 'actual_percent' => 100.0, 'target_percent' => nil, 'delta' => nil },
-          { 'stage' => 'customer_replied', 'count' => 7, 'actual_percent' => 70.0, 'target_percent' => 60.0, 'delta' => 10.0 }
+          { 'stage' => 'lead_created', 'count' => 10, 'actual_percent' => 100.0, 'target_percent' => nil, 'delta' => nil },
+          { 'stage' => 'lead_contacted', 'count' => 7, 'actual_percent' => 70.0, 'target_percent' => 60.0, 'delta' => 10.0 }
         ]
       }
     )
@@ -93,8 +93,8 @@ describe Reports::WeeklyOpsReportDocxService do
 
     document_xml = unzip_entries(io)['word/document.xml']
     expect(document_xml).to include('Embudo de ventas')
-    expect(document_xml).to include('Leads totales')
-    expect(document_xml).to include('Contestados por el cliente')
+    expect(document_xml).to include('Leads')
+    expect(document_xml).to include('Contactados')
   end
 
   it 'omits the funnel table when there is no pipeline data' do
