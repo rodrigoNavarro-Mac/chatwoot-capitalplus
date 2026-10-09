@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
-import { useMapGetter } from 'dashboard/composables/store';
 import ReportsAPI from 'dashboard/api/reports';
 import ZohoCrmAPI from 'dashboard/api/integrations/zoho_crm';
 import ReportHeader from './components/ReportHeader.vue';
@@ -13,22 +12,24 @@ import Button from 'dashboard/components-next/button/Button.vue';
 
 const { t } = useI18n();
 
-const inboxes = useMapGetter('inboxes/getInboxes');
+const eventTypeLabel = stage =>
+  t(`REVENUE_INTELLIGENCE_REPORTS.EVENT_TYPES.${stage.toUpperCase()}`);
 
 // Un icono por etapa + un ancho relativo decreciente (ver FunnelStageMeter) para que las 5
-// filas se lean como un embudo angostándose en vez de una lista plana de barras iguales.
+// filas se lean como un embudo angostándose en vez de una lista plana de barras iguales -- mismas
+// 5 etapas canónicas que usan Marketing/Overview de Revenue Intelligence (unificación 2026-10-09).
 const STAGE_ICONS = {
-  leads: 'i-lucide-users',
-  customer_replied: 'i-lucide-message-circle',
-  has_deal: 'i-lucide-handshake',
-  visita_efectiva: 'i-lucide-map-pin',
+  lead_created: 'i-lucide-users',
+  lead_contacted: 'i-lucide-message-circle',
+  deal_created: 'i-lucide-handshake',
+  visit_effective: 'i-lucide-map-pin',
   closed_won: 'i-lucide-trophy',
 };
 const STAGE_TAPER = {
-  leads: 100,
-  customer_replied: 92,
-  has_deal: 84,
-  visita_efectiva: 80,
+  lead_created: 100,
+  lead_contacted: 92,
+  deal_created: 84,
+  visit_effective: 80,
   closed_won: 76,
 };
 
@@ -37,10 +38,14 @@ const toDateInputValue = date => date.toISOString().slice(0, 10);
 const filters = ref({
   since: toDateInputValue(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
   until: toDateInputValue(new Date()),
-  inboxId: '',
+  desarrollo: '',
 });
 
 const isLoading = ref(false);
+// Siempre trae TODOS los desarrollos (nunca se manda el filtro al backend) -- el selector de
+// desarrollo de abajo filtra en el cliente sobre esta lista completa, igual que antes el selector
+// de inbox leía de una lista fija (useMapGetter) independiente del fetch. Así el propio selector
+// nunca se queda sin opciones al filtrar (ver developmentKeys).
 const rows = ref([]);
 
 const toUnixSeconds = (dateValue, endOfDay = false) => {
@@ -60,11 +65,16 @@ const hasValidDateRange = computed(
 const requestPayload = computed(() => ({
   from: toUnixSeconds(filters.value.since),
   to: toUnixSeconds(filters.value.until, true),
-  inboxIds: filters.value.inboxId ? [filters.value.inboxId] : undefined,
 }));
 
 const developmentKeys = computed(() =>
   [...new Set(rows.value.map(row => row.development_key))].sort()
+);
+
+const filteredRows = computed(() =>
+  filters.value.desarrollo
+    ? rows.value.filter(row => row.development_key === filters.value.desarrollo)
+    : rows.value
 );
 
 const fetchReport = async () => {
@@ -84,7 +94,7 @@ const fetchReport = async () => {
 };
 
 onMounted(fetchReport);
-watch(filters, fetchReport, { deep: true });
+watch([() => filters.value.since, () => filters.value.until], fetchReport);
 
 const isSyncingDeals = ref(false);
 
@@ -145,14 +155,14 @@ const syncDeals = async () => {
         </div>
         <div class="flex flex-col gap-1">
           <label class="text-xs text-n-slate-11">
-            {{ t('SALES_FUNNEL_REPORTS.FILTERS.INBOX') }}
+            {{ t('SALES_FUNNEL_REPORTS.FILTERS.DEVELOPMENT') }}
           </label>
-          <select v-model="filters.inboxId" class="!mb-0 !h-8 text-sm">
+          <select v-model="filters.desarrollo" class="!mb-0 !h-8 text-sm">
             <option value="">
-              {{ t('SALES_FUNNEL_REPORTS.FILTERS.ALL_INBOXES') }}
+              {{ t('SALES_FUNNEL_REPORTS.FILTERS.ALL_DEVELOPMENTS') }}
             </option>
-            <option v-for="inbox in inboxes" :key="inbox.id" :value="inbox.id">
-              {{ inbox.name }}
+            <option v-for="key in developmentKeys" :key="key" :value="key">
+              {{ key }}
             </option>
           </select>
         </div>
@@ -164,46 +174,38 @@ const syncDeals = async () => {
 
       <template v-else>
         <div
-          v-if="!rows.length"
+          v-if="!filteredRows.length"
           class="text-sm text-n-slate-11 py-8 text-center rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2 mb-6"
         >
           {{ t('SALES_FUNNEL_REPORTS.TABLE.EMPTY') }}
         </div>
 
         <div
-          v-for="row in rows"
-          :key="row.inbox_id"
+          v-for="row in filteredRows"
+          :key="row.development_key"
           class="flex flex-col gap-5 mb-4 p-5 rounded-xl shadow outline-1 outline outline-n-container bg-n-solid-2"
         >
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-base font-semibold text-n-slate-12 m-0">
-              {{ row.inbox_name }}
-            </h3>
-            <span
-              class="text-xs px-2 py-0.5 rounded-full bg-n-slate-3 text-n-slate-11 flex-shrink-0"
-            >
-              {{ t('SALES_FUNNEL_REPORTS.TABLE.DEVELOPMENT') }}:
-              {{ row.development_key }}
-            </span>
-          </div>
+          <h3 class="text-base font-semibold text-n-slate-12 m-0">
+            {{ row.development_key }}
+          </h3>
 
           <FunnelStageMeter
             v-for="stage in row.stages"
             :key="stage.stage"
             :icon="STAGE_ICONS[stage.stage]"
-            :label="t(`SALES_FUNNEL_REPORTS.STAGES.${stage.stage}`)"
+            :label="eventTypeLabel(stage.stage)"
             :count="stage.count"
             :actual-percent="stage.actual_percent"
             :target-percent="stage.target_percent"
             :delta="stage.delta"
             :taper-percent="STAGE_TAPER[stage.stage]"
-            :activity-count="stage.activity_count"
-            :activity-tooltip="t('SALES_FUNNEL_REPORTS.ACTIVITY_BADGE_TOOLTIP')"
-            :external-count="stage.external_count"
-            :external-tooltip="t('SALES_FUNNEL_REPORTS.EXTERNAL_BADGE_TOOLTIP')"
-            :reactivated-count="stage.reactivated_count"
-            :reactivated-tooltip="
-              t('SALES_FUNNEL_REPORTS.REACTIVATED_BADGE_TOOLTIP')
+            :activity-count="stage.seguimiento_count"
+            :activity-tooltip="
+              t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.SEGUIMIENTO_TOOLTIP')
+            "
+            :lost-count="stage.lost_count"
+            :lost-tooltip="
+              t('REVENUE_INTELLIGENCE_REPORTS.FUNNEL.LOST_TOOLTIP')
             "
           />
 

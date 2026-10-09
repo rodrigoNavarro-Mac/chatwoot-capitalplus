@@ -14,10 +14,10 @@ RSpec.describe 'Sales Funnel Goals API', type: :request do
     end
 
     context 'when it is an authenticated user' do
-      let!(:goal) { create(:sales_funnel_goal, account: account, development_key: 'torre-1', stage: 'leads') }
+      let!(:goal) { create(:sales_funnel_goal, account: account, development_key: 'torre-1', stage: 'lead_created') }
 
       it 'returns the goals for the account' do
-        create(:sales_funnel_goal, account: account, development_key: 'torre-2', stage: 'leads')
+        create(:sales_funnel_goal, account: account, development_key: 'torre-2', stage: 'lead_created')
 
         get "/api/v1/accounts/#{account.id}/sales_funnel_goals", headers: admin.create_new_auth_token, as: :json
 
@@ -26,7 +26,7 @@ RSpec.describe 'Sales Funnel Goals API', type: :request do
       end
 
       it 'filters by development_key' do
-        create(:sales_funnel_goal, account: account, development_key: 'torre-2', stage: 'leads')
+        create(:sales_funnel_goal, account: account, development_key: 'torre-2', stage: 'lead_created')
 
         get "/api/v1/accounts/#{account.id}/sales_funnel_goals",
             params: { development_key: 'torre-1' },
@@ -42,7 +42,7 @@ RSpec.describe 'Sales Funnel Goals API', type: :request do
 
   describe 'POST /api/v1/accounts/{account.id}/sales_funnel_goals' do
     let(:payload) do
-      { development_key: 'torre-1', stage: 'leads', period_month: '2026-07-01', target_percent: 40 }
+      { development_key: 'torre-1', stage: 'lead_created', period_month: '2026-07-01', target_percent: 40 }
     end
 
     context 'when it is an unauthenticated user' do

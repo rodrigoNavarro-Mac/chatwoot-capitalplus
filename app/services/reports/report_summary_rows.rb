@@ -2,14 +2,16 @@
 # Reports::WeeklyOpsReportPdfService (Prawn) y Reports::WeeklyOpsReportDocxService (membrete .docx)
 # para que ambos formatos de salida muestren exactamente los mismos números.
 module Reports::ReportSummaryRows
-  # Mismos labels que SALES_FUNNEL_REPORTS.STAGES en report.json (es) — el PDF/DOCX no pasa por
-  # i18n, así que se hardcodean en español aquí igual que el resto de los títulos de este servicio.
+  # Mismos labels que REVENUE_INTELLIGENCE_REPORTS.EVENT_TYPES en report.json (es) -- mismo texto
+  # que ya usan Marketing/Overview para estas etapas, desde la unificación de los 3 embudos de
+  # ventas (2026-10-09). El PDF/DOCX no pasa por i18n, así que se hardcodean en español aquí igual
+  # que el resto de los títulos de este servicio.
   STAGE_LABELS = {
-    'leads' => 'Leads totales',
-    'customer_replied' => 'Contestados por el cliente',
-    'has_deal' => 'Con deal en Zoho',
-    'visita_efectiva' => 'Visita efectiva',
-    'closed_won' => 'Deal cerrado ganado'
+    'lead_created' => 'Leads',
+    'lead_contacted' => 'Contactados',
+    'deal_created' => 'Deals',
+    'visit_effective' => 'Visitas',
+    'closed_won' => 'Ganados'
   }.freeze
 
   # Filas [etapa, cantidad, % real, % meta, diferencia] del embudo de ventas — mismo dato que
@@ -30,15 +32,15 @@ module Reports::ReportSummaryRows
     end
   end
 
-  # "5 (+2 actividad, +1 externo, -3 reactivados)" cuando parte del conteo viene de deals fuera de
-  # la cohorte de leads nuevos (ver V2::Reports::SalesFunnelDealActivity) o se excluyeron leads
-  # reactivados (ver V2::Reports::SalesFunnelReactivatedLeads) — el PDF/DOCX no tiene una barra de
-  # colores como el frontend, así que esa porción se anota en la misma celda en vez de perderse.
+  # "5 (+2 seguimiento, 1 perdido)" cuando parte del conteo es actividad sobre leads viejos
+  # (seguimiento_count) o hubo descartes en esta etapa (lost_count) -- mismos campos que ya
+  # muestran Marketing/Overview, ver RevenueIntelligenceBuilder#funnel_totals. El PDF/DOCX no tiene
+  # una barra de colores como el frontend, así que esa porción se anota en la misma celda en vez de
+  # perderse.
   def funnel_count_text(stage)
     parts = [
-      ("+#{stage[:activity_count]} actividad" if stage[:activity_count].to_i.positive?),
-      ("+#{stage[:external_count]} externo" if stage[:external_count].to_i.positive?),
-      ("-#{stage[:reactivated_count]} reactivados" if stage[:reactivated_count].to_i.positive?)
+      ("+#{stage[:seguimiento_count]} seguimiento" if stage[:seguimiento_count].to_i.positive?),
+      ("#{stage[:lost_count]} perdido" if stage[:lost_count].to_i.positive?)
     ].compact
     return stage[:count] if parts.empty?
 

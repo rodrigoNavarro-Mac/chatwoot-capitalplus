@@ -250,7 +250,7 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
 
   # Un stage puede calificar para MÁS de un tipo a la vez (ej. Apartado es simultáneamente "visita
   # efectiva" y "reserved") — nunca es elsif, cada clasificación se evalúa independiente.
-  # RevenueDeal::VISIT_STAGES (no V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES, que usa
+  # RevenueDeal::VISIT_STAGES (no V2::Reports::ZohoLeadsMetrics::VISITA_EFECTIVA_STAGES, que usa
   # una representación en inglés de otra fuente — ver comentario en el modelo). 'visit_effective' y
   # 'appointment_created' por stage NO se clasifican aquí -- ver build_visit_effective_events y
   # build_appointment_created_from_stage_events, deduplicados aparte por deal (ver su comentario).

@@ -1133,7 +1133,7 @@
   },
   "SALES_FUNNEL_REPORTS": {
     "HEADER": "Embudo de ventas",
-    "DESCRIPTION": "Mide la conversión de leads a deals cerrados ganados, cruzando datos de Chatwoot con Zoho CRM, separado por entrada y desarrollo.",
+    "DESCRIPTION": "Mide la conversión de leads a deals cerrados ganados por desarrollo -- mismos datos y reglas que las pestañas Marketing y Embudo de Revenue Intelligence.",
     "SYNC": {
       "BUTTON": "Sincronizar ahora",
       "SUCCESS": "Sincronización iniciada — puede tardar unos minutos en reflejarse",
@@ -1142,32 +1142,21 @@
     "FILTERS": {
       "SINCE": "Desde",
       "UNTIL": "Hasta",
-      "INBOX": "Entrada",
-      "ALL_INBOXES": "Todas las entradas"
+      "DEVELOPMENT": "Desarrollo",
+      "ALL_DEVELOPMENTS": "Todos los desarrollos"
     },
-    "STAGES": {
-      "leads": "Leads totales",
-      "customer_replied": "Contestados por el cliente",
-      "has_deal": "Con deal en Zoho",
-      "visita_efectiva": "Visita efectiva",
-      "closed_won": "Deal cerrado ganado"
-    },
-    "ACTIVITY_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals creados en este periodo cuyo lead llegó antes — no son parte de la cohorte de leads nuevos, pero sí cuentan aquí y para la meta.",
-    "EXTERNAL_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals sin ningún contacto en Chatwoot — leads que nunca escribieron por WhatsApp (ej. capturados directo en Zoho vía Meta Ads).",
-    "REACTIVATED_BADGE_TOOLTIP": "Este número de contactos se excluyó del conteo de leads: su primera conversación cayó en este periodo, pero su lead de Zoho se creó antes (ej. una campaña de reactivación a leads viejos) — no cuenta como nuevo, ni para el % ni para la meta.",
     "CALLS": {
       "SUMMARY": "Llamadas: {total} ({percent}% contestadas)"
     },
     "TABLE": {
-      "TITLE": "Embudo por entrada",
-      "INBOX": "Entrada",
+      "TITLE": "Embudo por desarrollo",
       "DEVELOPMENT": "Desarrollo",
       "STAGE": "Etapa",
       "COUNT": "Cantidad",
       "ACTUAL_PERCENT": "% real",
       "TARGET_PERCENT": "% meta",
       "DELTA": "Diferencia",
-      "EMPTY": "No hay entradas con un desarrollo configurado todavía"
+      "EMPTY": "No hay desarrollos con actividad todavía"
     },
     "GOALS": {
       "TITLE": "Metas mensuales",
@@ -1289,15 +1278,12 @@
       "VOICEMAIL_NOT_YET_ANALYZED_INFO": "Llamadas contestadas de este periodo que todavía no tienen análisis de IA — las métricas de buzón de arriba solo consideran las llamadas ya analizadas."
     },
     "PIPELINE": {
-      "TITLE": "Embudo de ventas",
-      "ACTIVITY_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals creados en este periodo cuyo lead llegó antes — no son parte de la cohorte de leads nuevos, pero sí cuentan aquí y para la meta. Ver bloque 'Deals que avanzaron esta semana'.",
-      "EXTERNAL_BADGE_TOOLTIP": "Parte de este número (y del %) viene de deals sin ningún contacto en Chatwoot — leads que nunca escribieron por WhatsApp (ej. capturados directo en Zoho vía Meta Ads).",
-      "REACTIVATED_BADGE_TOOLTIP": "Este número de contactos se excluyó del conteo de leads: su primera conversación cayó en este periodo, pero su lead de Zoho se creó antes (ej. una campaña de reactivación a leads viejos) — no cuenta como nuevo, ni para el % ni para la meta."
+      "TITLE": "Embudo de ventas"
     },
     "DEALS_ACTIVITY": {
       "TITLE": "Deals que avanzaron esta semana",
       "TOTAL": "Deals creados",
-      "TOTAL_INFO": "Deals de Zoho creados en este periodo, sin importar cuándo llegó el lead — a diferencia del embudo de ventas, que solo cuenta deals de leads cuya primera conversación cayó en este periodo.",
+      "TOTAL_INFO": "Deals de Zoho creados en este periodo (fuente: Created_Time directo de Zoho) — cifra independiente de la etapa 'Deals' del embudo de ventas (fuente: revenue_events), útil para detectar si alguna de las dos quedó desincronizada.",
       "VISITA_EFECTIVA": "Con visita efectiva",
       "VISITA_EFECTIVA_INFO": "De los deals creados este periodo, cuántos ya están en etapa de visita efectiva (a día de hoy).",
       "CLOSED_WON": "Cerrados ganados",

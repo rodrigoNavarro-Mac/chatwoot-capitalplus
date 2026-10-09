@@ -17,10 +17,12 @@
 #  index_sales_funnel_goals_on_account_id                        (account_id)
 #
 class SalesFunnelGoal < ApplicationRecord
-  # Etapas del embudo que arma V2::Reports::SalesFunnelBuilder — ver ese builder para el
-  # significado exacto de cada una (leads totales, contestados por cliente, con deal, visita
-  # efectiva, cerrado ganado).
-  STAGES = %w[leads customer_replied has_deal visita_efectiva closed_won].freeze
+  # Etapas del embudo que arma V2::Reports::SalesFunnelBuilder -- mismos nombres canónicos que
+  # Marketing/Overview de Revenue Intelligence (ver RevenueIntelligence::RefreshAggregatesJob::
+  # FUNNEL_EVENT_TYPES), desde la unificación de los 3 embudos de ventas (2026-10-09). Antes:
+  # %w[leads customer_replied has_deal visita_efectiva closed_won] -- ver
+  # db/migrate/*_rename_sales_funnel_goal_stages.rb para el mapeo de las filas ya guardadas.
+  STAGES = %w[lead_created lead_contacted deal_created visit_effective closed_won].freeze
 
   belongs_to :account
 

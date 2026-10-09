@@ -228,14 +228,13 @@ describe V2::Reports::WeeklyOpsReportBuilder do
         expect(result[:conversion_totals]).to be_nil
       end
 
-      it 'reuses the sales funnel "has_deal" count as converted, and Lead_Status Lost Lead as lost -- not by advisor' do
+      it 'reuses the sales funnel "deal_created" count as converted, and Lead_Status Lost Lead as lost -- not by advisor' do
         agent_bot = create(:agent_bot, account: account, bot_config: { 'variables' => { 'desarrollo' => 'Fuego' } })
         create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
-        contact = create(:contact, account: account,
-                                   additional_attributes: { 'external' => { 'zoho_id' => 'lead-1', 'zoho_deal_id' => 'deal-1' } })
-        conversation = create(:conversation, account: account, inbox: inbox, contact: contact)
-        conversation.update_column(:created_at, 2.days.ago)
-        create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming)
+        # pipeline_metrics ahora lee de revenue_rollups (vía RevenueIntelligenceBuilder, desde la
+        # unificación de los 3 embudos de ventas) en vez de Contact#additional_attributes.
+        account.revenue_rollups.create!(date: 2.days.ago.to_date, dimension_type: 'funnel', dimension_id: 'Fuego',
+                                        metric: 'deal_created', count: 1, sum_value: 0, desarrollo: 'Fuego')
         # Created_Time dentro del range (7.days.ago..1.minute.from_now) -- lost_count ahora solo
         # cuenta leads NUEVOS del periodo, para ser comparable 1:1 contra "converted" (ver
         # V2::Reports::ZohoLeadsMetrics#lost_count).

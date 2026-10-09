@@ -157,9 +157,9 @@ class ReportsAPI extends ApiClient {
     });
   }
 
-  getSalesFunnelReport({ from: since, to: until, inboxIds } = {}) {
+  getSalesFunnelReport({ from: since, to: until, desarrollo } = {}) {
     return axios.get(`${this.url}/sales_funnel`, {
-      params: { since, until, inbox_ids: inboxIds },
+      params: { since, until, desarrollo },
     });
   }
 

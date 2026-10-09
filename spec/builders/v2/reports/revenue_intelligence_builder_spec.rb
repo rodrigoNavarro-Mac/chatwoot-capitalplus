@@ -447,6 +447,46 @@ describe V2::Reports::RevenueIntelligenceBuilder do
     end
   end
 
+  # Payload del tab Overview/"Embudo" (unificación de los 3 embudos de ventas, 2026-10-09) -- mismo
+  # shape que marketing_funnel (metric/count/conversion_from_previous/seguimiento_count/lost_count),
+  # pero a partir de funnel_totals (dimension_type 'funnel') en vez de marketing_totals.
+  describe 'funnel_steps' do
+    it 'returns the same shape as marketing_funnel, for the 7-stage Overview sequence' do
+      rollup('funnel', 'Fuego', 'lead_created', count: 10)
+      rollup('funnel', 'Fuego', 'lead_contacted', count: 6)
+      rollup('funnel', 'Fuego', 'lead_qualified', count: 4)
+      rollup('funnel', 'Fuego', 'appointment_created', count: 3)
+      rollup('funnel', 'Fuego', 'visit_effective', count: 2)
+      rollup('funnel', 'Fuego', 'reserved', count: 1)
+      rollup('funnel', 'Fuego', 'closed_won', count: 1)
+
+      result = builder.build
+
+      expect(result[:funnel_steps]).to eq(
+        [
+          { metric: 'lead_created', count: 10, conversion_from_previous: nil, seguimiento_count: 0, lost_count: 0 },
+          { metric: 'lead_contacted', count: 6, conversion_from_previous: 0.6, seguimiento_count: 0, lost_count: 0 },
+          { metric: 'lead_qualified', count: 4, conversion_from_previous: 0.6667, seguimiento_count: 0, lost_count: 0 },
+          { metric: 'appointment_created', count: 3, conversion_from_previous: 0.75, seguimiento_count: 0, lost_count: 0 },
+          { metric: 'visit_effective', count: 2, conversion_from_previous: 0.6667, seguimiento_count: 0, lost_count: 0 },
+          { metric: 'reserved', count: 1, conversion_from_previous: 0.5, seguimiento_count: 0, lost_count: 0 },
+          { metric: 'closed_won', count: 1, conversion_from_previous: 1.0, seguimiento_count: 0, lost_count: 0 }
+        ]
+      )
+    end
+
+    it 'is public and reusable for any stage sequence -- conversion is against the immediate previous stage of the GIVEN sequence, ' \
+       'not a fixed one (used by V2::Reports::SalesFunnelBuilder with its own 5-stage sequence)' do
+      rollup('funnel', 'Fuego', 'lead_created', count: 10)
+      rollup('funnel', 'Fuego', 'deal_created', count: 4)
+      rollup('funnel', 'Fuego', 'closed_won', count: 1)
+
+      steps = builder.funnel_steps(%w[lead_created deal_created closed_won])
+
+      expect(steps.map { |s| s[:conversion_from_previous] }).to eq([nil, 0.4, 0.25])
+    end
+  end
+
   describe 'marketing_sla' do
     def sla_lead(zoho_lead_id, clock_seconds: nil, business_seconds: nil)
       account.revenue_leads.create!(zoho_lead_id: zoho_lead_id, created_at_source: 5.days.ago,

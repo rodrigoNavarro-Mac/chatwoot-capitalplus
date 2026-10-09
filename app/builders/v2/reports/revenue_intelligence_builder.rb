@@ -28,6 +28,10 @@ class V2::Reports::RevenueIntelligenceBuilder
       funnel: rollup_summary('funnel'),
       funnel_totals: totals,
       funnel_conversions: funnel_conversions(totals),
+      # Mismo shape que marketing_funnel (metric/count/conversion_from_previous/seguimiento_count/
+      # lost_count) para el tab Overview/"Embudo" -- ver #funnel_steps. El frontend ya no recompone
+      # la conversión en JS para este tab, igual que ya hacía MarketingTab con marketing_funnel.
+      funnel_steps: funnel_steps(FUNNEL_SEQUENCE),
       agent: agent_summary,
       pipeline_stage: pipeline_stage_summary,
       call_conversion: conversion_summary('call_conversion'),
@@ -89,6 +93,26 @@ class V2::Reports::RevenueIntelligenceBuilder
                  event_column: :first_call_attempt_at, leads: sla_leads_scope.where(created_at_source: CALL_ATTEMPT_TRACKING_START_AT..))
     else
       raise ArgumentError, "metric desconocido: #{metric}"
+    end
+  end
+
+  # Mismo shape de salida que marketing_funnel_step (metric/count/conversion_from_previous/
+  # seguimiento_count/lost_count), pero a partir de #funnel_totals (YA respeta desarrollo_filter,
+  # ver su comentario) en vez de marketing_totals -- para cualquier secuencia de etapas que no
+  # necesite el filtro de campaña/adset/anuncio de Marketing. Público (a diferencia del resto de
+  # este builder) porque V2::Reports::SalesFunnelBuilder instancia esta clase una vez POR DESARROLLO
+  # y llama a este método directo, en vez de triplicar el cálculo de conversión/seguimiento/perdidos
+  # (ver ese builder). NO reemplaza marketing_funnel: ese sigue filtrando por campaña vía
+  # marketing_totals, algo que una secuencia genérica no necesita resolver.
+  def funnel_steps(sequence)
+    totals = funnel_totals
+    previous_metrics = [nil, *sequence[0..-2]]
+
+    sequence.zip(previous_metrics).map do |metric, previous_metric|
+      data = totals[metric] || { count: 0, seguimiento_count: 0, lost_count: 0 }
+      { metric: metric, count: data[:count],
+        conversion_from_previous: previous_metric && safe_rate(data[:count], totals[previous_metric]&.fetch(:count) || 0),
+        seguimiento_count: data[:seguimiento_count], lost_count: data[:lost_count] }
     end
   end
 
