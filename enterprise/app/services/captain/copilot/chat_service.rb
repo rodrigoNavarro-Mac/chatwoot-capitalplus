@@ -80,6 +80,9 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
     tools << Captain::Tools::Copilot::SearchArticlesService.new(@assistant, user: @user)
     tools << Captain::Tools::Copilot::SearchContactsService.new(@assistant, user: @user)
     tools << Captain::Tools::Copilot::SearchLinearIssuesService.new(@assistant, user: @user)
+    tools << Captain::Tools::Copilot::GetRiskSignalsService.new(@assistant, user: @user)
+    tools << Captain::Tools::Copilot::GetSalesFunnelService.new(@assistant, user: @user)
+    tools << Captain::Tools::Copilot::GetWeeklyOpsReportSummaryService.new(@assistant, user: @user)
 
     tools.select(&:active?)
   end

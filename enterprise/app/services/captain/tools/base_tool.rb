@@ -25,4 +25,12 @@ class Captain::Tools::BaseTool < RubyLLM::Tool
 
     account_user.administrator? || account_user.agent?
   end
+
+  # No usar User#administrator? aquí -- depende de Current.account (thread-local), que no está
+  # garantizado dentro de un job de Sidekiq (donde corre Captain::Copilot::ChatService).
+  def admin?
+    return false if @user.blank?
+
+    AccountUser.find_by(account_id: @assistant.account_id, user_id: @user.id)&.administrator? || false
+  end
 end

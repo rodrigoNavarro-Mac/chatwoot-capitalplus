@@ -85,7 +85,7 @@ class V2::Reports::SalesFunnelBuilder
   end
 
   def development_key_for(inbox)
-    inbox.agent_bot&.bot_config&.dig('variables', 'desarrollo')
+    inbox.development_key
   end
 
   def goal_for(desarrollo, stage)

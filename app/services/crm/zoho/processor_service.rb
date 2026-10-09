@@ -147,7 +147,7 @@ class Crm::Zoho::ProcessorService < Crm::BaseProcessorService
   # sin ese campo configurado simplemente no manda Desarrollo al crear el lead (mismo comportamiento
   # de antes de este fix, no empeora nada).
   def development_key_for(inbox)
-    inbox&.agent_bot&.bot_config&.dig('variables', 'desarrollo')
+    inbox&.development_key
   end
 
   def update_last_contact(result, timestamp)
