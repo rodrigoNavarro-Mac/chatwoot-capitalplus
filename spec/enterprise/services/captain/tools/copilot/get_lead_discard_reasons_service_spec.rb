@@ -10,6 +10,10 @@ RSpec.describe Captain::Tools::Copilot::GetLeadDiscardReasonsService do
                                   created_at_source: created_at_source, discard_reason: discard_reason, desarrollo: desarrollo)
   end
 
+  around do |example|
+    travel_to(Time.utc(2026, 10, 12, 18, 0, 0)) { example.run } # lunes 2026-10-12 en CDMX (UTC-6)
+  end
+
   describe '#name' do
     let(:user) { create(:user, :administrator, account: account) }
 
@@ -21,8 +25,8 @@ RSpec.describe Captain::Tools::Copilot::GetLeadDiscardReasonsService do
   describe '#parameters' do
     let(:user) { create(:user, :administrator, account: account) }
 
-    it 'defines year, month and desarrollo parameters' do
-      expect(service.parameters.keys).to contain_exactly(:year, :month, :desarrollo)
+    it 'defines period, since, until_date and desarrollo parameters' do
+      expect(service.parameters.keys).to contain_exactly(:period, :since, :until_date, :desarrollo)
     end
   end
 
@@ -47,39 +51,57 @@ RSpec.describe Captain::Tools::Copilot::GetLeadDiscardReasonsService do
   describe '#execute' do
     let(:user) { create(:user, :administrator, account: account) }
 
-    it 'rejects an out-of-range month' do
-      expect(service.execute(year: 2026, month: 13)).to eq('month must be between 1 and 12')
+    it 'rejects an unknown period' do
+      expect(service.execute(period: 'last_year')).to eq('period must be one of: this_week, last_week, this_month, last_month')
     end
 
-    context 'when there are no discarded leads in that month' do
+    it 'rejects an invalid since/until_date' do
+      expect(service.execute(since: 'not-a-date', until_date: '2026-09-30')).to eq('since/until_date must be valid dates in YYYY-MM-DD format')
+    end
+
+    context 'when there are no discarded leads in the resolved range' do
       it 'returns a not found message' do
-        expect(service.execute(year: 2026, month: 9)).to eq('No discarded leads for that period found')
+        expect(service.execute(period: 'this_month')).to eq('No discarded leads for that period found')
       end
     end
 
-    context 'when there are discarded leads in that month' do
+    context 'with discarded leads across different periods' do
       before do
-        discarded_lead('lead-1', created_at_source: Time.zone.local(2026, 9, 5), discard_reason: 'No le interesó')
-        discarded_lead('lead-2', created_at_source: Time.zone.local(2026, 9, 10), discard_reason: 'No le interesó')
-        discarded_lead('lead-3', created_at_source: Time.zone.local(2026, 9, 15), discard_reason: nil)
-        discarded_lead('lead-4', created_at_source: Time.zone.local(2026, 10, 1), discard_reason: 'Fuera de mes')
-        discarded_lead('lead-5', created_at_source: Time.zone.local(2026, 9, 20), discard_reason: 'No le interesó', desarrollo: 'torre-2')
+        # "hoy" congelado en lunes 2026-10-12 CDMX; semana pasada = lun 2026-10-05 a dom 2026-10-11
+        discarded_lead('lead-last-week', created_at_source: Time.zone.local(2026, 10, 8, 12), discard_reason: 'No le interesó')
+        # 20:00 UTC = 14:00 CDMX, sin ambiguedad de dia
+        discarded_lead('lead-this-week', created_at_source: Time.zone.local(2026, 10, 12, 20), discard_reason: 'No le interesó')
+        discarded_lead('lead-sep-1', created_at_source: Time.zone.local(2026, 9, 5), discard_reason: 'No le interesó')
+        discarded_lead('lead-sep-2', created_at_source: Time.zone.local(2026, 9, 20), discard_reason: nil)
+        discarded_lead('lead-sep-other-desarrollo', created_at_source: Time.zone.local(2026, 9, 10), discard_reason: 'No le interesó',
+                                                    desarrollo: 'torre-2')
       end
 
-      it 'counts reasons only within the requested month, grouping blanks as unspecified' do
-        result = service.execute(year: 2026, month: 9)
-
-        expect(result).to include('Total discarded leads: 4')
-        expect(result).to include('No le interesó: 3')
-        expect(result).to include('Sin motivo registrado: 1')
-        expect(result).not_to include('Fuera de mes')
-      end
-
-      it 'filters by desarrollo' do
-        result = service.execute(year: 2026, month: 9, desarrollo: 'torre-2')
+      it 'resolves "last_week" as the previous Monday-Sunday in CDMX time' do
+        result = service.execute(period: 'last_week')
 
         expect(result).to include('Total discarded leads: 1')
         expect(result).to include('No le interesó: 1')
+      end
+
+      it 'resolves "this_week" relative to "today"' do
+        result = service.execute(period: 'this_week')
+
+        expect(result).to include('Total discarded leads: 1')
+      end
+
+      it 'accepts an explicit since/until_date range and groups blanks as unspecified' do
+        result = service.execute(since: '2026-09-01', until_date: '2026-09-30')
+
+        expect(result).to include('Total discarded leads: 3')
+        expect(result).to include('No le interesó: 2')
+        expect(result).to include('Sin motivo registrado: 1')
+      end
+
+      it 'filters by desarrollo' do
+        result = service.execute(since: '2026-09-01', until_date: '2026-09-30', desarrollo: 'torre-2')
+
+        expect(result).to include('Total discarded leads: 1')
       end
     end
   end

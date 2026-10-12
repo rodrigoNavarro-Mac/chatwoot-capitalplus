@@ -106,8 +106,15 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
   def account_id_context
     {
       role: 'system',
-      content: "The current account id is #{@account.id}. The account is using #{@account.locale_english_name} as the language."
+      content: "The current account id is #{@account.id}. The account is using #{@account.locale_english_name} as the language. " \
+               "Today's date is #{todays_date} (#{RevenueIntelligence::TIMEZONE})."
     }
+  end
+
+  # El negocio opera desde CDMX (ver RevenueIntelligence::TIMEZONE) -- sin esto el LLM no tiene
+  # forma de saber que dia es "hoy" para resolver preguntas de fecha relativa ("la semana pasada").
+  def todays_date
+    Time.current.in_time_zone(RevenueIntelligence::TIMEZONE).to_date.iso8601
   end
 
   def current_viewing_history
