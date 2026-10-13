@@ -61,7 +61,9 @@ module Reports::WeeklyOpsReportPdfTables
     rows = owner_rows(kpis)
     return if rows.blank?
 
-    render_distribution_table(pdf, 'Distribución por asesor (Zoho)', %w[Asesor Leads %], rows)
+    render_distribution_table(
+      pdf, 'Distribución por asesor (Zoho)', ['Asesor', 'Leads nuevos', '% nuevos', 'Tocados (incl. seguimiento)'], rows
+    )
     render_card_analysis_line(pdf, :zoho_owner)
   end
 

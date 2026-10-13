@@ -9,7 +9,7 @@ module Reports::WeeklyOpsReportDocxTables
     pipeline_status: %w[Estado Leads %],
     lead_source: %w[Fuente Leads %],
     discard_reason: %w[Motivo Leads %],
-    owner: %w[Asesor Leads %]
+    owner: ['Asesor', 'Leads nuevos', '% nuevos', 'Tocados (incl. seguimiento)']
   }.freeze
 
   def insert_lead_source_table(sect_pr)

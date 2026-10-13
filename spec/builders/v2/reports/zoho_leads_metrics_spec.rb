@@ -77,6 +77,10 @@ describe V2::Reports::ZohoLeadsMetrics do
         expect(summary[:by_owner]).to eq('Eunice' => 3, 'Carlos' => 1)
       end
 
+      it 'splits by_owner into new leads (Created_Time in range) vs the combined total' do
+        expect(summary[:by_owner_new]).to eq('Eunice' => 2)
+      end
+
       it 'summarizes quality (contacted) leads by source' do
         expect(summary[:quality_by_source]).to eq(
           'Facebook Ads' => { total: 3, quality: 2 },

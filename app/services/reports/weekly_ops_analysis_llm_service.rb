@@ -119,8 +119,12 @@ class Reports::WeeklyOpsAnalysisLlmService < Llm::BaseAiService
         kpis.comparison.zoho_leads.by_source — no solo digas qué canal creció más; cruza ese cambio
         de volumen contra kpis.zoho_leads.quality_by_source (¿el canal que más creció es de buena
         calidad, o el crecimiento es "ruido"?).
-      - "zoho_owner": kpis.zoho_leads.by_owner — cruza la concentración de leads por dueño contra
-        kpis.by_advisor (¿la carga en Zoho coincide con quién realmente atiende en Chatwoot?).
+      - "zoho_owner": kpis.zoho_leads.by_owner_new (leads NUEVOS del periodo por dueño — usa esta,
+        no by_owner, para hablar de volumen/carga del mes: by_owner mezcla leads viejos que solo se
+        modificaron en Zoho, lo que puede inflar a un dueño ~3x su volumen real de nuevos) — cruza
+        la concentración resultante contra kpis.by_advisor (¿la carga en Zoho coincide con quién
+        realmente atiende en Chatwoot?). Si by_owner y by_owner_new difieren mucho para un dueño,
+        dilo explícitamente: puede ser una regla de asignación de Zoho mal configurada.
       - "discard_reasons": kpis.zoho_leads.discard_reasons_new (descartes de leads que LLEGARON en
         el periodo) y kpis.zoho_leads.discard_reasons_follow_up (leads de periodos anteriores que se
         descartaron dentro de este; no son pérdida nueva, son limpieza de base vieja) — cruza el

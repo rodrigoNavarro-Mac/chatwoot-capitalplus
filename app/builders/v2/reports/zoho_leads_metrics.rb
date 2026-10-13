@@ -65,9 +65,16 @@ class V2::Reports::ZohoLeadsMetrics
   # `by_status` se separa en `by_status_new`/`by_status_follow_up` (mismo criterio de "nuevo" que el
   # embudo: Created_Time dentro del rango) para que se pueda comparar 1:1 contra el embudo sin ese
   # sesgo, y los motivos de descarte en `discard_reasons_new`/`discard_reasons_follow_up` por la
-  # misma razón (ver #discard_breakdown). Los desgloses por fuente y por dueño se dejan sobre el
-  # total combinado a propósito: no tienen un equivalente en el embudo contra el cual generen la
-  # misma comparación engañosa.
+  # misma razón (ver #discard_breakdown). `by_source` se deja sobre el total combinado a propósito:
+  # no tiene un equivalente en el embudo contra el cual genere la misma comparación engañosa.
+  #
+  # `by_owner` SÍ se separa en `by_owner`/`by_owner_new` (mismo patrón) — caso real detectado
+  # 2026-10-12 en un desarrollo con reporte semanal de septiembre: la tabla de "Distribución por
+  # asesor" solo mostraba el total combinado y un asesor aparecía con 440 "leads" (84.9% del
+  # total) cuando en realidad Zoho solo le asignó 156 leads NUEVOS ese mes — los otros ~284 eran
+  # leads viejos (de hasta un año atrás) cuyo Modified_Time se recorrió al periodo por un evento
+  # de reasignación/automatización masiva en Zoho, no por trabajo real de ese asesor en el mes.
+  # Mostrar ambos números deja ver ese tipo de sesgo en vez de esconderlo en un total inflado.
   def summary
     return nil if leads.blank?
 
@@ -179,7 +186,8 @@ class V2::Reports::ZohoLeadsMetrics
   def source_and_owner_breakdown
     {
       by_source: count_by(leads, 'Lead_Source'),
-      by_owner: count_by(leads) { |lead| lead.dig('Owner', 'name') }
+      by_owner: count_by(leads) { |lead| lead.dig('Owner', 'name') },
+      by_owner_new: count_by(new_leads) { |lead| lead.dig('Owner', 'name') }
     }
   end
 

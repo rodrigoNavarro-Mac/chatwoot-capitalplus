@@ -219,6 +219,32 @@ const discardSections = computed(() => {
 const percentOf = (count, total) =>
   total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0%';
 
+// by_owner_new (leads NUEVOS del periodo por dueño en Zoho) es más reciente que by_owner (leads
+// nuevos + leads viejos solo tocados/reasignados en el periodo) — ver
+// V2::Reports::ZohoLeadsMetrics#summary. Mostrar solo by_owner sin separar infló a un asesor real
+// a 440 "leads" cuando Zoho solo le había asignado 156 nuevos ese mes. Un reporte generado antes
+// del cambio no trae by_owner_new, así que en ese caso la columna de nuevos se muestra vacía en
+// vez de inventar un número.
+const ownerDistributionRows = computed(() => {
+  const zohoLeads = kpis.value?.zoho_leads || {};
+  const touched = zohoLeads.by_owner || {};
+  const fresh = zohoLeads.by_owner_new;
+
+  const owners = Array.from(
+    new Set([...Object.keys(touched), ...Object.keys(fresh || {})])
+  );
+
+  return owners
+    .map(owner => ({
+      owner,
+      newCount: fresh ? fresh[owner] || 0 : null,
+      touchedCount: touched[owner] || 0,
+    }))
+    .sort(
+      (a, b) => (b.newCount ?? b.touchedCount) - (a.newCount ?? a.touchedCount)
+    );
+});
+
 const formatDuration = seconds => {
   if (seconds === null || seconds === undefined) return '—';
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
@@ -1289,6 +1315,9 @@ const noContactTotalCount = computed(
           <h3 class="text-base font-semibold text-n-slate-12 mb-3">
             {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER_TITLE') }}
           </h3>
+          <p class="text-xs text-n-slate-11 mb-3">
+            {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER_HINT') }}
+          </p>
           <CardAnalysisNote :text="report.card_analyses?.zoho_owner" />
           <table class="w-full text-sm">
             <thead>
@@ -1297,22 +1326,32 @@ const noContactTotalCount = computed(
                   {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER') }}
                 </th>
                 <th class="py-1 pr-3 font-medium">
-                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.LEADS') }}
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER_NEW') }}
                 </th>
-                <th class="py-1 font-medium">%</th>
+                <th class="py-1 pr-3 font-medium">%</th>
+                <th class="py-1 font-medium">
+                  {{ t('WEEKLY_OPS_REPORTS.ZOHO_LEADS.OWNER_TOUCHED') }}
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="(count, owner) in kpis.zoho_leads.by_owner"
-                :key="owner"
+                v-for="row in ownerDistributionRows"
+                :key="row.owner"
                 class="border-t border-n-container text-n-slate-12"
               >
-                <td class="py-1.5 pr-3">{{ owner }}</td>
-                <td class="py-1.5 pr-3">{{ count }}</td>
-                <td class="py-1.5">
-                  {{ percentOf(count, kpis.zoho_leads.total) }}
+                <td class="py-1.5 pr-3">{{ row.owner }}</td>
+                <td class="py-1.5 pr-3">
+                  {{ row.newCount === null ? '—' : row.newCount }}
                 </td>
+                <td class="py-1.5 pr-3">
+                  {{
+                    row.newCount === null
+                      ? '—'
+                      : percentOf(row.newCount, kpis.zoho_leads.new_count)
+                  }}
+                </td>
+                <td class="py-1.5">{{ row.touchedCount }}</td>
               </tr>
             </tbody>
           </table>
