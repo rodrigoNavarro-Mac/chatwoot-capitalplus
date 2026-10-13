@@ -8,7 +8,7 @@
 # cualitativos por etapa del scorecard — el total lo calcula CallAnalysis::ScorecardCalculator,
 # para poder re-ponderar sin volver a llamar al modelo.
 class CallAnalysis::StructuredAnalysisLlmService < Llm::BaseAiService
-  PROMPT_VERSION = 'v1'.freeze
+  PROMPT_VERSION = 'v2'.freeze
 
   QUALIFICATION_KEYS = %w[
     intencion_vivir_invertir necesidad_concreta requisito_indispensable presupuesto
@@ -130,10 +130,22 @@ class CallAnalysis::StructuredAnalysisLlmService < Llm::BaseAiService
       externa real, involucrará al decisor).
 
       RESULTADO — "outcome_type" en cita/seguimiento/accion_sin_fecha/solo_informacion/sin_avance,
-      "outcome_at" (fecha ISO8601 si aplica, si no null), "outcome_evidence" (cita textual).
-      REGLA DURA con contraejemplo: "te mando información y me dices" NUNCA es "seguimiento" — es
-      "solo_informacion" o "sin_avance". Solo es "seguimiento" si hay una fecha/momento concreto
-      propuesto por cualquiera de las dos partes.
+      "outcome_at" (fecha ISO8601 si aplica, si no null), "outcome_evidence" (la cita textual MÁS
+      CONCRETA disponible que sostenga tu clasificación — si hay una frase con fecha/hora puntual y
+      otra más genérica, usa la de fecha/hora puntual, no la primera que encuentres).
+      REGLA DURA con contraejemplos: "te mando información y me dices" NUNCA es "seguimiento" — es
+      "solo_informacion" o "sin_avance". Tampoco son "seguimiento" las ventanas de tiempo vagas:
+      "dentro de un mes", "más o menos en un mes", "más adelante", "a fin de año"/"principios del
+      año que viene", "posteriormente" — esas son "accion_sin_fecha". Solo es "seguimiento" si hay
+      un día/fecha/horario puntual propuesto por cualquiera de las dos partes (hoy, mañana, el
+      jueves, el 15, en 3 horas, a las 5).
+      CONSISTENCIA OBLIGATORIA: si en tu propio "scorecard_stages" (más abajo) describes la agenda
+      o el siguiente paso como "sin fecha concreta" o equivalente, tu "outcome_type" no puede ser
+      "seguimiento" — corrígelo a "accion_sin_fecha" antes de responder.
+      Para resolver fechas relativas ("mañana", "el jueves") usa como referencia la fecha real de
+      la llamada que se te da en el mensaje de usuario — nunca inventes o adivines un año distinto
+      al que esa fecha implica. Si no puedes construir una fecha ISO8601 completa con certeza, usa
+      null en "outcome_at".
 
       RIESGOS DE DOMINIO — vocabulario cerrado de 8, cada uno detectado en "risks":
       {"type": uno de [#{RISK_TYPES.join(', ')}], "evidence": "cita textual"}. No inventes tipos
@@ -152,7 +164,13 @@ class CallAnalysis::StructuredAnalysisLlmService < Llm::BaseAiService
 
       CONFIANZA — "confidence" en low/medium/high + "confidence_reason" (string corto). Usa "low"
       cuando la transcripción sea ambigua, falte contexto, o contradigas el role_hint sin evidencia
-      clara.
+      clara. Cuando el mensaje de usuario te indique que la transcripción NO viene diarizada por
+      Aircall, antes de fijar "confidence" verifica puntos fijos de la llamada contra las etiquetas
+      de hablante dadas: ¿el turno donde alguien se identifica por su propio nombre, o donde se
+      pregunta el nombre del lead, coincide con quién debería decirlo (el agente se identifica o
+      pregunta por el contacto; el contacto da su nombre cuando se le pregunta)? Si encuentras una
+      etiqueta claramente invertida en uno de esos puntos, es señal dura de diarización rota — baja
+      "confidence" a "medium" como mínimo, nunca "high", y dilo en "confidence_reason".
 
       OPCIONAL — "questions_llm_adjusted": si notas que el conteo objetivo de preguntas
       (proporcionado en metrics) claramente subestimó o sobrestimó por errores de transcripción,
@@ -168,6 +186,8 @@ class CallAnalysis::StructuredAnalysisLlmService < Llm::BaseAiService
   def user_prompt
     <<~PROMPT
       Proyecto/desarrollo: #{project_name}
+      Fecha real de la llamada (referencia para resolver fechas relativas como "mañana" o "el
+      jueves" — nunca inventes un año distinto): #{call_date_reference}
       role_hint: #{role_hint || 'sin señal clara — decide con la evidencia de la llamada'}
       Métricas objetivas ya calculadas (no las recalcules): #{metrics.to_json}
       #{diarization_note}
@@ -179,6 +199,10 @@ class CallAnalysis::StructuredAnalysisLlmService < Llm::BaseAiService
 
   def formatted_segments
     Array(call.transcript_segments).map { |seg| "#{seg['start_seconds']}s - #{seg['speaker']}: #{seg['text']}" }.join("\n")
+  end
+
+  def call_date_reference
+    (call.started_at || call.created_at).to_date.iso8601
   end
 
   # Sin Aircall AI (add-on no contratado) la transcripción cae a Whisper, que no diariza — un solo
