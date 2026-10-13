@@ -92,7 +92,7 @@ class V2::Reports::RevenueIntelligenceLeadsExportBuilder
   end
 
   def deal_columns(lead, deal)
-    return { es_deal: 'No', etapa_deal: nil, ganado: nil, dias_lead_a_deal: nil, dias_deal_activo: nil } if deal.blank?
+    return { es_deal: 'No', etapa_deal: nil, ganado: nil, reservado: 'No', dias_lead_a_deal: nil, dias_deal_activo: nil } if deal.blank?
 
     ganado = if deal.won
                'Sí'
@@ -104,9 +104,22 @@ class V2::Reports::RevenueIntelligenceLeadsExportBuilder
       es_deal: 'Sí',
       etapa_deal: deal.stage,
       ganado: ganado,
+      # etapa_deal es la etapa ACTUAL del deal -- un deal que pasó por "Apartado" y luego avanzó
+      # (ej. a "Cotizado") o se revirtió ya no lo muestra ahí. "reservado" responde "¿llegó a
+      # Apartado alguna vez?" (etapa máxima alcanzada, vía revenue_stage_events) en vez de la
+      # instantánea actual -- pedido explícito del usuario 2026-10-13: el embudo ya cuenta
+      # "Reservado" así (RevenueIntelligence::BuildEventsJob::QUALIFIED_OR_LATER_STAGES/
+      # RevenueDeal::VISIT_STAGES), este export debía reflejar lo mismo.
+      reservado: reserved_deal_ids.include?(deal.id) ? 'Sí' : 'No',
       dias_lead_a_deal: days_between(lead.created_at_source, deal.created_at_source),
       dias_deal_activo: days_between(deal.created_at_source, Time.current)
     }
+  end
+
+  # Una sola consulta para todos los deals del export, mismo patrón que templates_sent_by_contact.
+  def reserved_deal_ids
+    @reserved_deal_ids ||= account.revenue_stage_events.where(stage: RevenueDeal::RESERVED_STAGE)
+                                  .distinct.pluck(:revenue_deal_id).to_set
   end
 
   def days_between(from, to)

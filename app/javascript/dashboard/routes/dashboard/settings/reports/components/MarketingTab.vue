@@ -125,28 +125,33 @@ const FUNNEL_LABELS = {
   visit_effective: t(
     'REVENUE_INTELLIGENCE_REPORTS.EVENT_TYPES.VISIT_EFFECTIVE'
   ),
+  reserved: t('REVENUE_INTELLIGENCE_REPORTS.EVENT_TYPES.RESERVED'),
   closed_won: t('REVENUE_INTELLIGENCE_REPORTS.EVENT_TYPES.CLOSED_WON'),
 };
 // Mismo componente visual que Overview (FunnelStageMeter) y mismo criterio de actualPercent:
 // conversión contra la etapa ANTERIOR, no contra el total de leads (conversion_from_previous, no
 // conversion_from_leads) -- para lead_created (primera etapa, sin "anterior") se muestra 100%,
 // igual que Overview con su `step.conversion ?? 1`. Íconos/angostamiento son EXACTAMENTE los
-// mismos 6 valores que usa FUNNEL_STAGE_ICONS/FUNNEL_STAGE_TAPER de RevenueIntelligenceReport.vue
-// -- el funnel de Marketing ahora cubre el mismo rango completo (Leads..Cerrado ganado).
+// mismos 7 valores que usa FUNNEL_STAGE_ICONS/FUNNEL_STAGE_TAPER de RevenueIntelligenceReport.vue
+// -- el funnel de Marketing ahora cubre el mismo rango completo (Leads..Cerrado ganado), incluido
+// 'reserved' (Apartado) desde 2026-10-13 -- quedó fuera de la unificación de embudos del 2026-10-09
+// por descuido, ver MARKETING_FUNNEL_SEQUENCE en revenue_intelligence_builder.rb.
 const FUNNEL_STAGE_ICONS = {
   lead_created: 'i-lucide-users',
   lead_contacted: 'i-lucide-phone',
   lead_qualified: 'i-lucide-clipboard-check',
   appointment_created: 'i-lucide-calendar',
   visit_effective: 'i-lucide-map-pin',
+  reserved: 'i-lucide-bookmark',
   closed_won: 'i-lucide-trophy',
 };
 const FUNNEL_STAGE_TAPER = {
   lead_created: 100,
-  lead_contacted: 92,
-  lead_qualified: 84,
-  appointment_created: 76,
-  visit_effective: 68,
+  lead_contacted: 94,
+  lead_qualified: 88,
+  appointment_created: 82,
+  visit_effective: 76,
+  reserved: 70,
   closed_won: 64,
 };
 const funnelMeterSteps = computed(() =>

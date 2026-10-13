@@ -41,6 +41,17 @@ describe V2::Reports::RevenueIntelligenceLeadsExportBuilder do
       expect(row[:dias_deal_activo]).to eq(4)
     end
 
+    it 'marks reservado as Sí when the deal ever reached Apartado, even if it moved on since' do
+      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1')
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, stage: 'Cotizado')
+      account.revenue_stage_events.create!(zoho_deal_id: deal.zoho_deal_id, revenue_deal_id: deal.id, stage: 'Apartado',
+                                           entered_at: 2.days.ago)
+
+      row = builder.build.first
+
+      expect(row[:reservado]).to eq('Sí')
+    end
+
     it 'reports ganado as Sí/No for won/lost deals' do
       won_lead = account.revenue_leads.create!(zoho_lead_id: 'lead-won')
       account.revenue_deals.create!(zoho_deal_id: 'deal-won', revenue_lead_id: won_lead.id, won: true, stage: 'Cerrado ganado')

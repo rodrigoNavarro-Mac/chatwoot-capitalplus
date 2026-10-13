@@ -250,6 +250,7 @@ en:
       es_deal: Is deal
       etapa_deal: Deal stage
       ganado: Won
+      reservado: Reserved
       dias_lead_a_deal: Days lead to deal
       dias_deal_activo: Days as deal
     call_intelligence_csv:

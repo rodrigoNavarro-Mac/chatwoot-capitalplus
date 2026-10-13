@@ -232,6 +232,7 @@ es:
       es_deal: Es Deal
       etapa_deal: Etapa del Deal
       ganado: Ganado
+      reservado: Reservado
       dias_lead_a_deal: Días de lead a Deal
       dias_deal_activo: Días activo como Deal
     call_intelligence_csv:
