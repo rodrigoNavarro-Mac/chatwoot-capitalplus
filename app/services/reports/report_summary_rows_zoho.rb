@@ -5,10 +5,24 @@
 # privados (`distribution_rows`/`rows_from_counts`), disponibles porque ambos módulos terminan
 # mezclados en la misma clase.
 module Reports::ReportSummaryRowsZoho
-  # Filas [asesor, leads, % del total] — dueño del lead EN ZOHO (no asignación de conversación en
-  # Chatwoot), ver V2::Reports::ZohoLeadsMetrics#summary[:by_owner].
+  # Filas [asesor, nuevos, % de nuevos, tocados] — dueño del lead EN ZOHO (no asignación de
+  # conversación en Chatwoot), ver V2::Reports::ZohoLeadsMetrics#summary[:by_owner]/[:by_owner_new].
+  # "Tocados" incluye leads viejos que solo se modificaron en el periodo (reasignaciones, notas,
+  # automatizaciones de Zoho) — mostrarlo aparte de "nuevos" evita que ese ruido infle la lectura
+  # de quién está recibiendo leads nuevos realmente (caso real: un asesor con 440 "tocados" pero
+  # solo 156 nuevos, ver V2::Reports::ZohoLeadsMetrics#summary).
   def owner_rows(kpis)
-    distribution_rows(kpis, :by_owner)
+    zoho_leads = kpis[:zoho_leads] || {}
+    new_counts = zoho_leads[:by_owner_new] || {}
+    touched_counts = zoho_leads[:by_owner] || {}
+    new_total = zoho_leads[:new_count].to_i
+
+    owners = (new_counts.keys + touched_counts.keys).uniq
+    owners.map do |owner|
+      new_count = new_counts[owner].to_i
+      percent_text = new_total.positive? ? "#{(new_count.to_f / new_total * 100).round(1)}%" : '0%'
+      [owner, new_count.to_s, percent_text, touched_counts[owner].to_i.to_s]
+    end.sort_by { |row| -row[1].to_i }
   end
 
   # Filas [fuente, contestados, total, % de calidad] por Lead_Source — a diferencia de
