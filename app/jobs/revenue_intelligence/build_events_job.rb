@@ -46,6 +46,7 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     build_deal_events(account, since, until_at)
     build_stage_events(account, since, until_at)
     build_appointment_events(account, since, until_at)
+    build_deal_only_qualified_events(account)
 
     cursor_service.advance!(until_at)
   rescue StandardError => e
@@ -178,6 +179,34 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
       lead.update_columns(effective_qualified_at: effective) if lead.effective_qualified_at != effective
       # rubocop:enable Rails/SkipsModelValidations
       upsert_lead_milestone(account, lead, 'lead_qualified', effective)
+    end
+  end
+
+  # Deals creados directo en Zoho sin pasar por un Lead (ej. botón "crear Deal" del panel de Zoho
+  # CRM en una conversación de Chatwoot, confirmado 2026-10-12 vía COQL contra Leads.Converted_Deal
+  # -- ninguno de estos deals tiene un Lead de origen real) nunca generan 'lead_qualified' en
+  # update_effective_qualified_at: no hay revenue_lead al que anclar el milestone, aunque el deal sí
+  # haya llegado a "Agendo cita" o después. Confirmado con el usuario 2026-10-12: para el embudo, un
+  # Deal que exista YA pasó calificación, con o sin Lead detrás -- así que aquí se ancla el mismo
+  # event_type 'lead_qualified' al propio Deal (source_system: 'revenue_deal') en vez de a un Lead,
+  # para que RefreshAggregatesJob lo sume junto con los demás sin ningún cambio ahí.
+  #
+  # Recorre TODOS los deals de la cuenta (no solo los tocados en la ventana incremental), mismo
+  # criterio que update_effective_qualified_at -- y por eso también limpia el evento huérfano si un
+  # deal que antes calificó así luego SÍ se vincula a un Lead (SyncZohoLeadsJob#link_converted_deal):
+  # sin este delete, quedarían dos 'lead_qualified' (uno por deal, uno por lead) para la misma
+  # persona, inflando "Calificados" en vez de corregirlo.
+  def build_deal_only_qualified_events(account)
+    qualifying_at_by_deal = account.revenue_stage_events.where(stage: QUALIFIED_OR_LATER_STAGES)
+                                   .where.not(revenue_deal_id: nil).group(:revenue_deal_id).minimum(:entered_at)
+
+    account.revenue_deals.find_each do |deal|
+      key = { source_system: 'revenue_deal', event_type: 'lead_qualified', source_id: deal.id.to_s }
+      event_at = qualifying_at_by_deal[deal.id]
+      next delete_event(account, key) if deal.revenue_lead_id.present? || event_at.blank?
+
+      upsert_event(account, key.merge(event_at: event_at, revenue_contact_id: deal.revenue_contact_id,
+                                      zoho_deal_id: deal.zoho_deal_id))
     end
   end
 

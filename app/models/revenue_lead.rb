@@ -17,6 +17,9 @@
 #  effective_qualified_at                :datetime
 #  estado_civil                          :string
 #  etapa_vida                            :string
+#  first_call_attempt_at                 :datetime
+#  first_call_attempt_business_seconds   :integer
+#  first_call_attempt_seconds            :integer
 #  first_contact_at                      :datetime
 #  first_human_contact_at                :datetime
 #  first_human_contact_channel           :string
@@ -67,6 +70,7 @@
 #  index_revenue_leads_on_account_id_and_owner_id                (account_id,owner_id)
 #  index_revenue_leads_on_account_id_and_revenue_contact_id      (account_id,revenue_contact_id)
 #  index_revenue_leads_on_account_id_and_zoho_lead_id            (account_id,zoho_lead_id) UNIQUE
+#  index_revenue_leads_on_first_call_attempt_at                  (first_call_attempt_at)
 #
 class RevenueLead < ApplicationRecord
   belongs_to :account

@@ -156,7 +156,8 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       source = result[:marketing_by_source].find { |s| s[:id] == 'Sin fuente' }
       expect(source[:campaigns]).to eq([])
       expect(source[:metrics]).to eq({ 'lead_created' => 4, 'lead_contacted' => 0, 'lead_qualified' => 0, 'lead_converted' => 0, 'deal_created' => 0,
-                                       'appointment_created' => 0, 'visit_effective' => 0, 'closed_won' => 0, :lead_contacted_seguimiento => 0 })
+                                       'appointment_created' => 0, 'visit_effective' => 0, 'reserved' => 0, 'closed_won' => 0,
+                                       :lead_contacted_seguimiento => 0 })
     end
 
     it 'falls back a campaign with no resolvable source to the "_sin_atribuir" bucket instead of dropping it' do
@@ -215,7 +216,7 @@ describe V2::Reports::RevenueIntelligenceBuilder do
 
       expect(result[:marketing_totals]).to eq(
         { 'lead_created' => 15, 'lead_contacted' => 8, 'lead_qualified' => 0, 'lead_converted' => 0, 'deal_created' => 2,
-          'appointment_created' => 0, 'visit_effective' => 0, 'closed_won' => 1, 'lead_contacted_seguimiento' => 0 }
+          'appointment_created' => 0, 'visit_effective' => 0, 'reserved' => 0, 'closed_won' => 1, 'lead_contacted_seguimiento' => 0 }
       )
     end
 
@@ -408,20 +409,22 @@ describe V2::Reports::RevenueIntelligenceBuilder do
             seguimiento_count: 0 },
           { metric: 'visit_effective', count: 2, conversion_from_previous: 0.4, conversion_from_leads: 0.02, lost_count: 0,
             seguimiento_count: 0 },
-          { metric: 'closed_won', count: 1, conversion_from_previous: 0.5, conversion_from_leads: 0.01, lost_count: 0,
+          { metric: 'reserved', count: 0, conversion_from_previous: 0.0, conversion_from_leads: 0.0, lost_count: 0,
+            seguimiento_count: 0 },
+          { metric: 'closed_won', count: 1, conversion_from_previous: 0.0, conversion_from_leads: 0.01, lost_count: 0,
             seguimiento_count: 0 }
         ]
       )
     end
 
-    it 'includes closed_won as the sixth and final funnel step' do
+    it 'includes closed_won as the seventh and final funnel step' do
       rollup('campaign', 'camp-1', 'lead_created', count: 10)
       rollup('campaign', 'camp-1', 'closed_won', count: 1)
 
       result = builder.build
 
       expect(result[:marketing_funnel].map { |s| s[:metric] }).to eq(
-        %w[lead_created lead_contacted lead_qualified appointment_created visit_effective closed_won]
+        %w[lead_created lead_contacted lead_qualified appointment_created visit_effective reserved closed_won]
       )
       expect(result[:marketing_funnel].last).to include(metric: 'closed_won', count: 1)
     end
