@@ -72,7 +72,7 @@ class RevenueDeal < ApplicationRecord
   # directo) implican que YA hubo una visita, aunque el deal avance o se pierda después. Verificado
   # 2026-09-17 contra el picklist real de Stage en Zoho (getFields del módulo Deals de esta cuenta):
   # el display_value "Cotizado con visita" tiene reference_value "Cotizado" (NO "Needs Analysis",
-  # que es el actual_value en inglés que usa V2::Reports::SalesFunnelBuilder::VISITA_EFECTIVA_STAGES
+  # que es el actual_value en inglés que usa V2::Reports::ZohoLeadsMetrics::VISITA_EFECTIVA_STAGES
   # — esa lista lee additional_attributes['external'], una fuente distinta que sí cachea en inglés;
   # no aplica aquí). Antes de este fix, un deal que llegó a "Cotizado"/Apartado/Cerrado ganado sin
   # pasar por una fila de Stage_History literalmente igual a "Visita efectiva" no contaba como
