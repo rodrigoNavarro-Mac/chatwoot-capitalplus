@@ -16,13 +16,10 @@ module Reports::ReportSummaryRowsZoho
     new_counts = zoho_leads[:by_owner_new] || {}
     touched_counts = zoho_leads[:by_owner] || {}
     new_total = zoho_leads[:new_count].to_i
-
     owners = (new_counts.keys + touched_counts.keys).uniq
-    owners.map do |owner|
-      new_count = new_counts[owner].to_i
-      percent_text = new_total.positive? ? "#{(new_count.to_f / new_total * 100).round(1)}%" : '0%'
-      [owner, new_count.to_s, percent_text, touched_counts[owner].to_i.to_s]
-    end.sort_by { |row| -row[1].to_i }
+
+    rows = owners.map { |owner| owner_row(owner, new_counts, touched_counts, new_total) }
+    rows.sort_by { |row| -row[1].to_i }
   end
 
   # Filas [fuente, contestados, total, % de calidad] por Lead_Source — a diferencia de
@@ -104,5 +101,16 @@ module Reports::ReportSummaryRowsZoho
   def discard_rows(kpis, key)
     reasons = (kpis[:zoho_leads] || {})[key] || {}
     rows_from_counts(reasons, reasons.values.sum)
+  end
+
+  def owner_row(owner, new_counts, touched_counts, new_total)
+    new_count = new_counts[owner].to_i
+    [owner, new_count.to_s, owner_percent_text(new_count, new_total), touched_counts[owner].to_i.to_s]
+  end
+
+  def owner_percent_text(new_count, new_total)
+    return '0%' unless new_total.positive?
+
+    "#{(new_count.to_f / new_total * 100).round(1)}%"
   end
 end
