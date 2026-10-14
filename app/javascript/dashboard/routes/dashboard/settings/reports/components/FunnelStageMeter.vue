@@ -74,8 +74,27 @@ const widthFor = countValue => {
   if (!countValue || !props.count) return 0;
   return (countValue / props.count) * visibleTotalWidth.value;
 };
-const activityBarWidth = computed(() => widthFor(props.activityCount));
-const lostBarWidth = computed(() => widthFor(props.lostCount));
+const rawActivityBarWidth = computed(() => widthFor(props.activityCount));
+const rawLostBarWidth = computed(() => widthFor(props.lostCount));
+// activityCount (seguimiento) y lostCount (perdidos) NO son subconjuntos disjuntos de `count` --
+// un lead de seguimiento (creado antes del periodo elegido) puede además terminar descartado
+// dentro del periodo, así que el mismo lead puede contar en ambos a la vez (ver
+// RevenueIntelligenceBuilder#funnel_seguimiento_counts/#funnel_lost_counts, cada uno con su propio
+// criterio independiente). Sin este tope, sus anchos sumados podían superar visibleTotalWidth --
+// cohortBarWidth colapsaba a 0 y el segmento rojo se cortaba por el overflow-hidden del contenedor
+// en vez de representar el %, rompiendo la barra visualmente (bug real reportado en "Contactados",
+// 71 seguimiento + 161 perdidos sobre 230 contactados). Se escalan proporcionalmente para que
+// siempre quepan dentro del ancho visible, preservando la proporción relativa entre ambos.
+const overlapScale = computed(() => {
+  const combined = rawActivityBarWidth.value + rawLostBarWidth.value;
+  return combined > visibleTotalWidth.value && combined > 0
+    ? visibleTotalWidth.value / combined
+    : 1;
+});
+const activityBarWidth = computed(
+  () => rawActivityBarWidth.value * overlapScale.value
+);
+const lostBarWidth = computed(() => rawLostBarWidth.value * overlapScale.value);
 const cohortBarWidth = computed(() =>
   Math.max(
     visibleTotalWidth.value - activityBarWidth.value - lostBarWidth.value,

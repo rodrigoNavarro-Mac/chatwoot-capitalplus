@@ -71,7 +71,8 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     funnel_rows(account, since, until_at, lookups) + agent_rows(account, since, until_at, lookups) +
       agent_call_quality_rows(account, since, until_at, lookups) + campaign_rows(account, since, until_at, converted_ids) +
       source_rows(account, since, until_at, converted_ids) + marketing_appointment_rows(account, since, until_at) +
-      marketing_visit_rows(account, since, until_at) + pipeline_stage_rows(account, since, until_at, lookups) +
+      marketing_visit_rows(account, since, until_at) + marketing_reserved_rows(account, since, until_at) +
+      pipeline_stage_rows(account, since, until_at, lookups) +
       call_conversion_rows(account, since, until_at, lookups) + objection_conversion_rows(account, since, until_at, lookups)
   end
 
@@ -344,6 +345,40 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     return {} if touched_deal_ids.empty?
 
     earliest_by_deal = account.revenue_stage_events.where(stage: RevenueDeal::VISIT_STAGES, revenue_deal_id: touched_deal_ids)
+                              .group(:revenue_deal_id).minimum(:entered_at)
+    earliest_by_deal.select { |_deal_id, entered_at| in_window?(entered_at, since, until_at) }
+  end
+
+  # dimension: campaign/adset/advert del deal (o lead_source, mismo bucket de respaldo de siempre
+  # vía attribution_row) -- mismo patrón que marketing_visit_rows/earliest_visit_by_deal (MIN(
+  # entered_at) por revenue_deal_id, un deal puede entrar/salir de Apartado más de una vez en su
+  # Stage_History). Faltaba por completo hasta 2026-10-13: MARKETING_FUNNEL_SEQUENCE ya mostraba la
+  # etapa 'reserved' en la UI de Marketing (fix anterior, mismo día) pero ninguna corrida de este
+  # job había generado jamás una fila de rollup para esa métrica bajo dimension_type campaign/
+  # lead_source -- solo existía bajo 'funnel' (vía funnel_rows), que Overview sí lee. Resultado real
+  # confirmado en producción: Marketing mostraba "Reservado: 0" siempre, sin importar cuántos
+  # Apartados hubiera, mientras Overview mostraba el número real.
+  def marketing_reserved_rows(account, since, until_at)
+    in_window = earliest_reserved_by_deal(account, since, until_at)
+    return [] if in_window.empty?
+
+    deals = account.revenue_deals.where(id: in_window.keys)
+                   .pluck(:id, :campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, :lead_source).index_by(&:first)
+
+    in_window.flat_map do |deal_id, entered_at|
+      cols = deals[deal_id]
+      next [] if cols.blank?
+
+      attribution_row(account, local_date(entered_at), cols[1..], 'reserved')
+    end
+  end
+
+  def earliest_reserved_by_deal(account, since, until_at)
+    touched_deal_ids = account.revenue_stage_events.where(stage: RevenueDeal::RESERVED_STAGE).where.not(revenue_deal_id: nil)
+                              .where(window(:updated_at, since, until_at)).distinct.pluck(:revenue_deal_id)
+    return {} if touched_deal_ids.empty?
+
+    earliest_by_deal = account.revenue_stage_events.where(stage: RevenueDeal::RESERVED_STAGE, revenue_deal_id: touched_deal_ids)
                               .group(:revenue_deal_id).minimum(:entered_at)
     earliest_by_deal.select { |_deal_id, entered_at| in_window?(entered_at, since, until_at) }
   end

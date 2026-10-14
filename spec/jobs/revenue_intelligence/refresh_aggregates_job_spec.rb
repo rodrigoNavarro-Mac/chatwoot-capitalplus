@@ -460,6 +460,27 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'visit_effective')
       expect(rollup.date).to eq(earliest.to_date)
     end
+
+    it 'counts reserved by campaign_id, same pattern as visit_effective (bug real corregido 2026-10-13: ' \
+       'nunca se generaba esta fila, Marketing mostraba Apartados en 0 siempre)' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', campaign_id: 'camp-1')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Apartado', entered_at: 2.days.ago)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'reserved')
+      expect(rollup.count).to eq(1)
+    end
+
+    it 'falls back to the lead_source bucket for reserved when no campaign_id can be resolved' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lead_source: 'Facebook Ads')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Apartado', entered_at: 2.days.ago)
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'lead_source', dimension_id: 'Facebook Ads', metric: 'reserved')
+      expect(rollup.count).to eq(1)
+    end
   end
 
   describe 'lead_source dimension (bucket de respaldo para leads sin campaign_id)' do

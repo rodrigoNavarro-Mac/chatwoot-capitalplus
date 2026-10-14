@@ -47,4 +47,33 @@ describe('FunnelStageMeter.vue', () => {
     const activityBar = wrapper.find('.bg-n-amber-10');
     expect(activityBar.attributes('style')).toContain('width: 40%');
   });
+
+  // Bug real: activityCount y lostCount pueden solaparse (un lead de seguimiento también puede
+  // terminar perdido), así que su suma puede superar `count` -- caso real reportado en
+  // "Contactados": 71 seguimiento + 161 perdidos sobre 230 contactados (232 > 230).
+  it('scales activity/lost segments down proportionally when they overlap and together exceed the total width', () => {
+    const wrapper = mount(FunnelStageMeter, {
+      props: {
+        ...baseProps,
+        count: 230,
+        actualPercent: 41,
+        activityCount: 71,
+        lostCount: 161,
+      },
+    });
+
+    const activityBar = wrapper.find('.bg-n-amber-10');
+    const lostBar = wrapper.find('.bg-n-ruby-9');
+    const activityWidth = parseFloat(
+      activityBar.attributes('style').match(/width: ([\d.]+)%/)[1]
+    );
+    const lostWidth = parseFloat(
+      lostBar.attributes('style').match(/width: ([\d.]+)%/)[1]
+    );
+
+    // Juntos nunca deben superar el ancho visible (41%, sin recortar porque actualPercent < 100).
+    expect(activityWidth + lostWidth).toBeLessThanOrEqual(41 + 0.01);
+    // La proporción relativa entre ambos se preserva (71:161 ~= 0.441).
+    expect(activityWidth / lostWidth).toBeCloseTo(71 / 161, 2);
+  });
 });
