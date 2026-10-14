@@ -225,6 +225,7 @@ const MARKETING_METRIC_COLUMNS = [
   'lead_qualified',
   'appointment_created',
   'visit_effective',
+  'reserved',
   'closed_won',
 ];
 const hasMarketingActivity = metrics =>
