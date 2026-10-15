@@ -419,6 +419,23 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_qualified')).to be_nil
     end
 
+    # Bug real confirmado en producción 2026-10-15: un deal calificado SIN Lead de origen (creado
+    # directo desde el panel de Zoho CRM, ver ZohoCrmController) genera su propio evento
+    # lead_qualified anclado al Deal (source_system 'revenue_deal', ver
+    # BuildEventsJob#build_deal_only_qualified_events) que Overview sí lee (vía funnel_rows), pero
+    # campaign_lead_rows/source_lead_rows solo saben leer revenue_leads.effective_qualified_at --
+    # ese deal quedaba invisible en "Calificados" de Marketing (gap de 20 a un año).
+    it 'counts lead_qualified for a deal-anchored event when the deal has no originating lead' do
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', campaign_id: 'camp-1')
+      add_event('lead_qualified', Time.current, zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
+                                                source_system: 'revenue_deal')
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'lead_qualified')
+      expect(rollup.count).to eq(1)
+    end
+
     it 'attributes appointment_created to the campaign of the deal referenced by the event\'s zoho_deal_id' do
       lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
       account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, campaign_id: 'camp-1')

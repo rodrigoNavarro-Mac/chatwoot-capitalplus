@@ -81,7 +81,29 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   # tamaño de build_rows.
   def marketing_milestone_rows(account, since, until_at)
     marketing_appointment_rows(account, since, until_at) + marketing_visit_rows(account, since, until_at) +
-      marketing_reserved_rows(account, since, until_at) + marketing_closed_won_rows(account, since, until_at)
+      marketing_reserved_rows(account, since, until_at) + marketing_closed_won_rows(account, since, until_at) +
+      marketing_deal_qualified_rows(account, since, until_at)
+  end
+
+  # 'lead_qualified' para deals SIN Lead de origen (creados DIRECTO desde el panel de Zoho CRM en
+  # Chatwoot, ver ZohoCrmController) -- campaign_lead_rows/source_lead_rows solo pueden contar
+  # lead_qualified leyendo revenue_leads.effective_qualified_at, así que un deal sin Lead nunca
+  # aparece ahí, aunque Overview sí lo cuenta (vía el evento anclado al Deal que ya genera
+  # BuildEventsJob#build_deal_only_qualified_events, decisión explícita del usuario: "cuenta como
+  # Calificado automáticamente" cuando hay Deal aunque no haya Lead). Bug real confirmado en
+  # producción 2026-10-15: gap de 20 en "Calificados" entre Overview (202) y Marketing (182) a un
+  # año, exactamente los 20 deals de ese backfill. Se leen esos eventos directo (ya vienen
+  # deduplicados a uno por deal desde su origen) y se atribuyen por el propio Deal, mismo patrón que
+  # marketing_appointment_rows.
+  def marketing_deal_qualified_rows(account, since, until_at)
+    events = account.revenue_events.where(event_type: 'lead_qualified', source_system: 'revenue_deal')
+                    .where(window(:event_at, since, until_at))
+    events.pluck(:zoho_deal_id, :event_at).flat_map do |zoho_deal_id, event_at|
+      cols = deal_or_lead_attribution(account, zoho_deal_id: zoho_deal_id, zoho_lead_id: nil)
+      next [] if cols.blank?
+
+      attribution_row(account, local_date(event_at), cols, 'lead_qualified')
+    end
   end
 
   # { zoho_lead_id => desarrollo }, { zoho_deal_id => desarrollo } — construidos UNA vez por
