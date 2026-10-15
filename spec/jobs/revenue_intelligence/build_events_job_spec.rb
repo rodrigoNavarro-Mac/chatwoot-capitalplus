@@ -293,10 +293,14 @@ describe RevenueIntelligence::BuildEventsJob do
 
       described_class.new.perform
 
+      # reserved se deduplica a un evento por deal (source_id "deal:<id>"), no por stage_event --
+      # igual que visit_effective, ver RevenueIntelligence::BuildEventsJob#build_reserved_events.
       types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
-      expect(types).to contain_exactly('stage_changed', 'reserved')
+      expect(types).to contain_exactly('stage_changed')
       expect(account.revenue_events.where(source_system: 'revenue_stage_event', source_id: "deal:#{deal.id}",
                                           event_type: 'visit_effective')).to exist
+      expect(account.revenue_events.where(source_system: 'revenue_stage_event', source_id: "deal:#{deal.id}",
+                                          event_type: 'reserved')).to exist
     end
 
     # Bug real corregido 2026-09-21: un deal que pasa por VARIAS VISIT_STAGES (Visita efectiva ->
@@ -316,6 +320,24 @@ describe RevenueIntelligence::BuildEventsJob do
       visit_events = account.revenue_events.where(source_system: 'revenue_stage_event', event_type: 'visit_effective')
       expect(visit_events.count).to eq(1)
       expect(visit_events.first.event_at).to be_within(1.second).of(2.days.ago)
+    end
+
+    # Bug real confirmado 2026-10-15: un deal que entra a "Apartado" más de una vez en su
+    # Stage_History (se descartó y se volvió a apartar) generaba un evento 'reserved' por cada
+    # fila, inflando "Reservado" del embudo igual que pasaba antes con visit_effective. Mismo
+    # arreglo: deduplicar a UNO por deal, quedándose con la entrada MÁS ANTIGUA.
+    it 'creates only ONE reserved event for a deal that entered "Apartado" more than once' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Apartado', entered_at: 2.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Apartado', entered_at: Time.current)
+
+      described_class.new.perform
+
+      reserved_events = account.revenue_events.where(source_system: 'revenue_stage_event', event_type: 'reserved')
+      expect(reserved_events.count).to eq(1)
+      expect(reserved_events.first.event_at).to be_within(1.second).of(2.days.ago)
     end
 
     it 'creates appointment_created when a deal reaches RevenueDeal::SCHEDULED_STAGE ("Agendo cita")' do

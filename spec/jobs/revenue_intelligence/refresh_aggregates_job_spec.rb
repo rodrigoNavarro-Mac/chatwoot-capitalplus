@@ -327,6 +327,21 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(rollup.count).to eq(1)
     end
 
+    # Bug real confirmado en producción 2026-10-15: un deal creado DIRECTO desde el panel de Zoho
+    # CRM en Chatwoot (sin Lead de origen, revenue_lead_id nil) traía su propio lead_source nativo
+    # de Zoho en la columna del Deal (ver DealMapper), pero el INNER JOIN contra revenue_leads que
+    # usaba antes campaign_deal_rows/source_deal_rows lo excluía de TODA la tabla "Por fuente" --
+    # deal_created y closed_won quedaban en cero para ese deal aunque Overview sí lo contara.
+    it 'attributes closed_won to the lead_source bucket for a deal created without any originating lead' do
+      account.revenue_deals.create!(zoho_deal_id: 'deal-1', won: true, stage: 'Cerrado ganado',
+                                    closing_date: Time.current.to_date, lead_source: 'Chatwoot')
+
+      described_class.new.perform
+
+      rollup = account.revenue_rollups.find_by(dimension_type: 'lead_source', dimension_id: 'Chatwoot', metric: 'closed_won')
+      expect(rollup.count).to eq(1)
+    end
+
     it 'never buckets closed_won by updated_at (a deal touched by an unrelated sync must not appear as won that day)' do
       lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
       deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, won: true, stage: 'Cerrado ganado',

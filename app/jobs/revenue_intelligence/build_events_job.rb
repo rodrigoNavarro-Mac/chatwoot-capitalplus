@@ -274,14 +274,13 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     end
 
     build_visit_effective_events(account)
+    build_reserved_events(account)
     build_appointment_created_from_stage_events(account, verified_deal_ids)
   end
 
-  # Un stage puede calificar para MÁS de un tipo a la vez (ej. Apartado es simultáneamente "visita
-  # efectiva" y "reserved") — nunca es elsif, cada clasificación se evalúa independiente.
-  # RevenueDeal::VISIT_STAGES (no V2::Reports::ZohoLeadsMetrics::VISITA_EFECTIVA_STAGES, que usa
-  # una representación en inglés de otra fuente — ver comentario en el modelo). 'visit_effective' y
-  # 'appointment_created' por stage NO se clasifican aquí -- ver build_visit_effective_events y
+  # Un stage puede calificar para MÁS de un tipo a la vez -- nunca es elsif, cada clasificación se
+  # evalúa independiente. 'visit_effective', 'reserved' y 'appointment_created' por stage NO se
+  # clasifican aquí -- ver build_visit_effective_events/build_reserved_events y
   # build_appointment_created_from_stage_events, deduplicados aparte por deal (ver su comentario).
   def classify_stage_outcome(account, stage_event)
     stage = stage_event.stage
@@ -294,7 +293,6 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
 
   def stage_outcome_types(stage)
     [
-      ('reserved' if stage == RevenueDeal::RESERVED_STAGE),
       ('closed_won' if stage == RevenueDeal::WON_STAGE),
       ('closed_lost' if stage == RevenueDeal::LOST_STAGE)
     ].compact
@@ -322,6 +320,30 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     earliest_at_by_deal.each do |deal_id, entered_at|
       zoho_deal_id, revenue_contact_id = attrs_by_deal[deal_id]
       upsert_event(account, event_type: 'visit_effective', event_at: entered_at, source_system: 'revenue_stage_event',
+                            source_id: "deal:#{deal_id}", revenue_contact_id: revenue_contact_id, zoho_deal_id: zoho_deal_id)
+    end
+  end
+
+  # 'reserved' deduplicado a UN evento por deal, mismo patrón y misma razón que
+  # build_visit_effective_events -- Stage_History (sincronizado completo en cada corrida, ver
+  # RevenueIntelligence::SyncZohoStageHistoryJob) puede traer más de una fila de Apartado para el
+  # mismo deal (se descartó y volvió a apartarse, o Zoho duplicó la transición), y clasificarlo
+  # inline por cada stage_event (como antes) generaba hasta 4 eventos 'reserved' para el MISMO deal.
+  # Bug real confirmado en producción (2026-10-15): 3 de 18 deals con Apartado en su historial tenían
+  # entre 2 y 4 eventos 'reserved', inflando "Reservado" del embudo de Overview más allá del número
+  # real de deals apartados -- mismo síntoma ya corregido para 'visit_effective', nunca se había
+  # aplicado el mismo arreglo aquí aunque el riesgo es idéntico.
+  def build_reserved_events(account)
+    qualifying = account.revenue_stage_events.where(stage: RevenueDeal::RESERVED_STAGE).where.not(revenue_deal_id: nil)
+    earliest_at_by_deal = qualifying.group(:revenue_deal_id).minimum(:entered_at)
+    return if earliest_at_by_deal.empty?
+
+    attrs_by_deal = qualifying.pluck(:revenue_deal_id, :zoho_deal_id, :revenue_contact_id)
+                              .each_with_object({}) { |(deal_id, zoho_deal_id, contact_id), h| h[deal_id] ||= [zoho_deal_id, contact_id] }
+
+    earliest_at_by_deal.each do |deal_id, entered_at|
+      zoho_deal_id, revenue_contact_id = attrs_by_deal[deal_id]
+      upsert_event(account, event_type: 'reserved', event_at: entered_at, source_system: 'revenue_stage_event',
                             source_id: "deal:#{deal_id}", revenue_contact_id: revenue_contact_id, zoho_deal_id: zoho_deal_id)
     end
   end
