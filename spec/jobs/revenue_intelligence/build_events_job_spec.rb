@@ -251,12 +251,32 @@ describe RevenueIntelligence::BuildEventsJob do
 
       described_class.new.perform
 
+      # visit_effective y closed_won se deduplican a un evento por deal (source_id "deal:<id>"), no
+      # por stage_event -- ver build_visit_effective_events/build_closed_won_events.
       types = account.revenue_events.where(source_system: 'revenue_stage_event', source_id: stage_event.id.to_s).pluck(:event_type)
-      expect(types).to contain_exactly('stage_changed', 'closed_won')
-      # visit_effective se deduplica a un evento por deal (source_id "deal:<id>"), no por stage_event
-      # -- ver RevenueIntelligence::BuildEventsJob#build_visit_effective_events.
+      expect(types).to contain_exactly('stage_changed')
       expect(account.revenue_events.where(source_system: 'revenue_stage_event', source_id: "deal:#{deal.id}",
                                           event_type: 'visit_effective')).to exist
+      expect(account.revenue_events.where(source_system: 'revenue_stage_event', source_id: "deal:#{deal.id}",
+                                          event_type: 'closed_won')).to exist
+    end
+
+    # Bug real confirmado 2026-10-15: un deal que llega a "Cerrado ganado" más de una vez en su
+    # Stage_History (se ganó, se reabrió, se volvió a ganar) generaba un evento 'closed_won' por
+    # cada fila, inflando "Ganados" del embudo igual que pasaba con visit_effective/reserved. Mismo
+    # arreglo: deduplicar a UNO por deal, quedándose con la entrada MÁS ANTIGUA.
+    it 'creates only ONE closed_won event for a deal that reached "Cerrado ganado" more than once' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Cerrado ganado', entered_at: 2.days.ago)
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, revenue_contact_id: revenue_contact.id,
+                                           stage: 'Cerrado ganado', entered_at: Time.current)
+
+      described_class.new.perform
+
+      closed_won_events = account.revenue_events.where(source_system: 'revenue_stage_event', event_type: 'closed_won')
+      expect(closed_won_events.count).to eq(1)
+      expect(closed_won_events.first.event_at).to be_within(1.second).of(2.days.ago)
     end
 
     it 'creates only stage_changed for a "sin cita" quote stage, that does not imply a visit happened' do

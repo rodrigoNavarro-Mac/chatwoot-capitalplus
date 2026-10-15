@@ -71,10 +71,17 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     funnel_rows(account, since, until_at, lookups) + agent_rows(account, since, until_at, lookups) +
       agent_call_quality_rows(account, since, until_at, lookups) + campaign_rows(account, since, until_at, converted_ids) +
       source_rows(account, since, until_at, converted_ids) + deal_attribution_rows(account, since, until_at) +
-      marketing_appointment_rows(account, since, until_at) +
-      marketing_visit_rows(account, since, until_at) + marketing_reserved_rows(account, since, until_at) +
+      marketing_milestone_rows(account, since, until_at) +
       pipeline_stage_rows(account, since, until_at, lookups) +
       call_conversion_rows(account, since, until_at, lookups) + objection_conversion_rows(account, since, until_at, lookups)
+  end
+
+  # Hitos de marketing deduplicados por deal (uno por deal, "etapa máxima alcanzada" -- ver el
+  # comentario de cada *_rows) agrupados aparte de deal_attribution_rows solo para no inflar el
+  # tamaño de build_rows.
+  def marketing_milestone_rows(account, since, until_at)
+    marketing_appointment_rows(account, since, until_at) + marketing_visit_rows(account, since, until_at) +
+      marketing_reserved_rows(account, since, until_at) + marketing_closed_won_rows(account, since, until_at)
   end
 
   # { zoho_lead_id => desarrollo }, { zoho_deal_id => desarrollo } — construidos UNA vez por
@@ -247,30 +254,24 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
   end
   # rubocop:enable Metrics/ParameterLists
 
-  # deal_created/closed_won para Marketing, leídos del propio revenue_deals con fallback a su
-  # revenue_lead vía LEFT JOIN + COALESCE -- NO un INNER JOIN que exija Lead como antes. Un deal
-  # creado DIRECTO desde el panel de Zoho CRM en Chatwoot (sin que exista Lead alguno, ver
-  # ZohoCrmController) nunca tiene revenue_lead_id, así que el INNER JOIN lo excluía por completo:
-  # ese deal era invisible en TODA la tabla "Por fuente" de Marketing (deal_created y closed_won en
-  # cero), aunque Overview (dimension_type 'funnel', vía revenue_events) sí lo contaba -- bug real
-  # confirmado en producción 2026-10-15 (6 de 9 deals ganados de la cuenta no tenían Lead de origen
-  # y no aparecían en "Ganados" de Marketing). El COALESCE prioriza las columnas del propio Deal
-  # (campaign_id ahí solo se llena cuando SÍ hubo Lead, copiado al vincularse -- ver
-  # RevenueIntelligence::DealAttributionCopier) y cae al Lead si todavía no se copió; lead_source es
-  # además un campo nativo de Zoho en el propio módulo Deals (ver DealMapper), así que un deal sin
-  # Lead igual trae su propio lead_source real y cae en el bucket "Sin fuente" de respaldo que ya
-  # usa source_row, en vez de desaparecer. closed_won sigue anclado a closing_date, NUNCA
-  # :updated_at (bug real confirmado en producción 2026-09-15: un recompute que solo toca la fila no
-  # debe mover la fecha de venta).
+  # deal_created para Marketing, leído del propio revenue_deals con fallback a su revenue_lead vía
+  # LEFT JOIN + COALESCE -- NO un INNER JOIN que exija Lead como antes. Un deal creado DIRECTO desde
+  # el panel de Zoho CRM en Chatwoot (sin que exista Lead alguno, ver ZohoCrmController) nunca tiene
+  # revenue_lead_id, así que el INNER JOIN lo excluía por completo: ese deal era invisible en TODA
+  # la tabla "Por fuente" de Marketing -- bug real confirmado en producción 2026-10-15. El COALESCE
+  # prioriza las columnas del propio Deal (campaign_id ahí solo se llena cuando SÍ hubo Lead,
+  # copiado al vincularse -- ver RevenueIntelligence::DealAttributionCopier) y cae al Lead si
+  # todavía no se copió; lead_source es además un campo nativo de Zoho en el propio módulo Deals
+  # (ver DealMapper), así que un deal sin Lead igual trae su propio lead_source real y cae en el
+  # bucket "Sin fuente" de respaldo que ya usa source_row, en vez de desaparecer. closed_won ya NO
+  # vive aquí -- ver marketing_closed_won_rows, que cuenta por etapa alcanzada (Stage_History) en
+  # vez del flag won: true actual, igual que marketing_visit_rows/marketing_reserved_rows.
   def deal_attribution_rows(account, since, until_at)
-    deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created', won_only: false) +
-      deal_rows(account, since, until_at, date_column: :closing_date, metric: 'closed_won', won_only: true)
+    deal_rows(account, since, until_at, date_column: :created_at_source, metric: 'deal_created')
   end
 
-  # rubocop:disable Metrics/ParameterLists
-  def deal_rows(account, since, until_at, date_column:, metric:, won_only:)
+  def deal_rows(account, since, until_at, date_column:, metric:)
     scope = account.revenue_deals.left_joins(:revenue_lead)
-    scope = scope.where(won: true) if won_only
     # date_column existe en ambas tablas (p.ej. created_at_source) -- hay que anidarlo bajo
     # revenue_deals: para que el SQL generado quede sin ambigüedad tras el LEFT JOIN.
     scope.where.not(revenue_deals: { date_column => nil }).where(revenue_deals: window(date_column, since, until_at))
@@ -286,7 +287,6 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
          )
          .flat_map { |cols| attribution_row(account, local_date(cols.last), cols[0..6], metric) }
   end
-  # rubocop:enable Metrics/ParameterLists
 
   # Emite hasta 3 filas por lead/deal de marketing: 'campaign' (siempre, dimension_id = campaign_id
   # tal cual — SIN cambiar esta clave, ya tiene datos reales acumulados en producción desde Fase 3),
@@ -390,6 +390,41 @@ class RevenueIntelligence::RefreshAggregatesJob < ApplicationJob
     return {} if touched_deal_ids.empty?
 
     earliest_by_deal = account.revenue_stage_events.where(stage: RevenueDeal::RESERVED_STAGE, revenue_deal_id: touched_deal_ids)
+                              .group(:revenue_deal_id).minimum(:entered_at)
+    earliest_by_deal.select { |_deal_id, entered_at| in_window?(entered_at, since, until_at) }
+  end
+
+  # dimension: campaign/adset/advert del deal (o lead_source, mismo bucket de respaldo de siempre)
+  # -- mismo patrón que marketing_visit_rows/marketing_reserved_rows (MIN(entered_at) por
+  # revenue_deal_id). Cuenta por "alcanzó Cerrado ganado alguna vez" en Stage_History, NUNCA por el
+  # flag won: true actual del deal -- un deal puede ganarse y después reabrirse/perderse en Zoho, y
+  # el criterio de este embudo (igual que visit_effective/reserved) es la etapa MÁXIMA alcanzada,
+  # no el estado actual (decisión explícita del usuario para todo el resto del embudo). Antes
+  # dependía de un INNER JOIN con revenue_leads + won: true (ver comentario viejo de
+  # deal_attribution_rows), lo que además excluía deals sin Lead de origen -- bug real confirmado en
+  # producción 2026-10-15 (6 de 9 deals ganados no tenían Lead y no aparecían en "Ganados" de
+  # Marketing).
+  def marketing_closed_won_rows(account, since, until_at)
+    in_window = earliest_won_by_deal(account, since, until_at)
+    return [] if in_window.empty?
+
+    deals = account.revenue_deals.where(id: in_window.keys)
+                   .pluck(:id, :campaign_id, :adset_id, :adset_name, :advert_id, :advert_name, :desarrollo, :lead_source).index_by(&:first)
+
+    in_window.flat_map do |deal_id, entered_at|
+      cols = deals[deal_id]
+      next [] if cols.blank?
+
+      attribution_row(account, local_date(entered_at), cols[1..], 'closed_won')
+    end
+  end
+
+  def earliest_won_by_deal(account, since, until_at)
+    touched_deal_ids = account.revenue_stage_events.where(stage: RevenueDeal::WON_STAGE).where.not(revenue_deal_id: nil)
+                              .where(window(:updated_at, since, until_at)).distinct.pluck(:revenue_deal_id)
+    return {} if touched_deal_ids.empty?
+
+    earliest_by_deal = account.revenue_stage_events.where(stage: RevenueDeal::WON_STAGE, revenue_deal_id: touched_deal_ids)
                               .group(:revenue_deal_id).minimum(:entered_at)
     earliest_by_deal.select { |_deal_id, entered_at| in_window?(entered_at, since, until_at) }
   end

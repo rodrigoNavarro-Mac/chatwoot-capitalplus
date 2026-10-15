@@ -316,10 +316,13 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(rollup.count).to eq(1)
     end
 
-    it 'attributes closed_won to the campaign_id of the deal\'s originating lead, bucketed by closing_date' do
-      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
-      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, won: true, stage: 'Cerrado ganado',
-                                    closing_date: Time.current.to_date)
+    # closed_won ya NO se ancla a closing_date/won -- ver marketing_closed_won_rows, cuenta por la
+    # fecha MÁS ANTIGUA en que el deal alcanzó "Cerrado ganado" en su Stage_History, mismo patrón
+    # que visit_effective/reserved (bug real confirmado 2026-10-15: clasificarlo por stage_event sin
+    # deduplicar generaba varios eventos para el mismo deal reabierto/reganado).
+    it 'attributes closed_won to the campaign_id of the deal, bucketed by the earliest "Cerrado ganado" entered_at' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', campaign_id: 'camp-1')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Cerrado ganado', entered_at: Time.current)
 
       described_class.new.perform
 
@@ -333,8 +336,8 @@ describe RevenueIntelligence::RefreshAggregatesJob do
     # usaba antes campaign_deal_rows/source_deal_rows lo excluía de TODA la tabla "Por fuente" --
     # deal_created y closed_won quedaban en cero para ese deal aunque Overview sí lo contara.
     it 'attributes closed_won to the lead_source bucket for a deal created without any originating lead' do
-      account.revenue_deals.create!(zoho_deal_id: 'deal-1', won: true, stage: 'Cerrado ganado',
-                                    closing_date: Time.current.to_date, lead_source: 'Chatwoot')
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lead_source: 'Chatwoot')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Cerrado ganado', entered_at: Time.current)
 
       described_class.new.perform
 
@@ -342,20 +345,15 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(rollup.count).to eq(1)
     end
 
-    it 'never buckets closed_won by updated_at (a deal touched by an unrelated sync must not appear as won that day)' do
-      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', campaign_id: 'camp-1')
-      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, won: true, stage: 'Cerrado ganado',
-                                           closing_date: 60.days.ago.to_date)
-      # simula un re-sync incidental que solo toca updated_at, sin cambiar closing_date
-      deal.update_column(:updated_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
+    it 'counts a deal that reached "Cerrado ganado" and was later reopened as closed_won (etapa máxima alcanzada, no el estado actual)' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', campaign_id: 'camp-1', won: false, stage: 'Cotizado')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Cerrado ganado',
+                                           entered_at: 10.days.ago)
 
       described_class.new.perform
 
-      old_rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'closed_won',
-                                                   date: 60.days.ago.to_date)
-      expect(old_rollup.count).to eq(1)
-      expect(account.revenue_rollups.where(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'closed_won',
-                                           date: Date.current)).to be_empty
+      rollup = account.revenue_rollups.find_by(dimension_type: 'campaign', dimension_id: 'camp-1', metric: 'closed_won')
+      expect(rollup.count).to eq(1)
     end
 
     it 'also emits adset/advert rows with the name embedded in a composite dimension_id when present' do
@@ -534,11 +532,9 @@ describe RevenueIntelligence::RefreshAggregatesJob do
       expect(rollup.count).to eq(1)
     end
 
-    it 'attributes closed_won to the lead_source of the deal\'s originating lead when it has no campaign_id, ' \
-       'bucketed by closing_date' do
-      lead = account.revenue_leads.create!(zoho_lead_id: 'lead-1', lead_source: 'Google Ads')
-      account.revenue_deals.create!(zoho_deal_id: 'deal-1', revenue_lead_id: lead.id, won: true, stage: 'Cerrado ganado',
-                                    closing_date: Time.current.to_date)
+    it 'attributes closed_won to the lead_source of the deal when it has no campaign_id' do
+      deal = account.revenue_deals.create!(zoho_deal_id: 'deal-1', lead_source: 'Google Ads')
+      account.revenue_stage_events.create!(zoho_deal_id: 'deal-1', revenue_deal_id: deal.id, stage: 'Cerrado ganado', entered_at: Time.current)
 
       described_class.new.perform
 

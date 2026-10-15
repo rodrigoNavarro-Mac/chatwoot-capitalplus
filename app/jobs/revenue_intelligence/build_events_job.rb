@@ -275,13 +275,16 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
 
     build_visit_effective_events(account)
     build_reserved_events(account)
+    build_closed_won_events(account)
     build_appointment_created_from_stage_events(account, verified_deal_ids)
   end
 
   # Un stage puede calificar para MÁS de un tipo a la vez -- nunca es elsif, cada clasificación se
-  # evalúa independiente. 'visit_effective', 'reserved' y 'appointment_created' por stage NO se
-  # clasifican aquí -- ver build_visit_effective_events/build_reserved_events y
-  # build_appointment_created_from_stage_events, deduplicados aparte por deal (ver su comentario).
+  # evalúa independiente. 'visit_effective', 'reserved', 'closed_won' y 'appointment_created' por
+  # stage NO se clasifican aquí -- ver build_visit_effective_events/build_reserved_events/
+  # build_closed_won_events y build_appointment_created_from_stage_events, deduplicados aparte por
+  # deal (ver su comentario). 'closed_lost' sí se queda inline: un deal perdido no vuelve a abrirse
+  # ni reintenta cierre, así que no tiene el mismo riesgo de duplicarse por re-entradas al stage.
   def classify_stage_outcome(account, stage_event)
     stage = stage_event.stage
     stage_outcome_types(stage).each do |event_type|
@@ -293,7 +296,6 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
 
   def stage_outcome_types(stage)
     [
-      ('closed_won' if stage == RevenueDeal::WON_STAGE),
       ('closed_lost' if stage == RevenueDeal::LOST_STAGE)
     ].compact
   end
@@ -344,6 +346,32 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
     earliest_at_by_deal.each do |deal_id, entered_at|
       zoho_deal_id, revenue_contact_id = attrs_by_deal[deal_id]
       upsert_event(account, event_type: 'reserved', event_at: entered_at, source_system: 'revenue_stage_event',
+                            source_id: "deal:#{deal_id}", revenue_contact_id: revenue_contact_id, zoho_deal_id: zoho_deal_id)
+    end
+  end
+
+  # 'closed_won' deduplicado a UN evento por deal, mismo patrón y misma razón que
+  # build_visit_effective_events/build_reserved_events -- un deal puede tener más de una fila de
+  # "Cerrado ganado" en su Stage_History (p.ej. se ganó, se reabrió, se volvió a ganar), y
+  # clasificarlo inline por cada stage_event (como antes) generaba varios eventos 'closed_won' para
+  # el MISMO deal. Bug real confirmado en producción (2026-10-15): 2 de 10 deals que alguna vez
+  # llegaron a "Cerrado ganado" tenían 2 y 4 eventos respectivamente, inflando "Ganados" del embudo
+  # de Overview (14 eventos vs. 10 deals distintos). Se usa la entrada MÁS ANTIGUA a "Cerrado
+  # ganado" -- cuenta como ganado el deal que alguna vez alcanzó esa etapa, aunque después se haya
+  # reabierto/perdido (mismo criterio de "etapa máxima alcanzada" que ya pedía el usuario para el
+  # resto del embudo, ver RevenueIntelligence::RefreshAggregatesJob#marketing_closed_won_rows para
+  # el equivalente del lado de Marketing).
+  def build_closed_won_events(account)
+    qualifying = account.revenue_stage_events.where(stage: RevenueDeal::WON_STAGE).where.not(revenue_deal_id: nil)
+    earliest_at_by_deal = qualifying.group(:revenue_deal_id).minimum(:entered_at)
+    return if earliest_at_by_deal.empty?
+
+    attrs_by_deal = qualifying.pluck(:revenue_deal_id, :zoho_deal_id, :revenue_contact_id)
+                              .each_with_object({}) { |(deal_id, zoho_deal_id, contact_id), h| h[deal_id] ||= [zoho_deal_id, contact_id] }
+
+    earliest_at_by_deal.each do |deal_id, entered_at|
+      zoho_deal_id, revenue_contact_id = attrs_by_deal[deal_id]
+      upsert_event(account, event_type: 'closed_won', event_at: entered_at, source_system: 'revenue_stage_event',
                             source_id: "deal:#{deal_id}", revenue_contact_id: revenue_contact_id, zoho_deal_id: zoho_deal_id)
     end
   end
