@@ -432,14 +432,38 @@ describe RevenueIntelligence::BuildEventsJob do
       expect(event.event_at).to be_within(1.second).of(appointment.created_at)
     end
 
-    it 'keys the event by lead when the appointment has no zoho_deal_id yet' do
-      appointment = account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id,
-                                                         starts_at: 2.days.from_now)
+    it 'does not count a meeting linked only to a lead (never converted to a deal) as an appointment' do
+      account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id,
+                                           starts_at: 2.days.from_now)
 
       described_class.new.perform
 
-      event = account.revenue_events.find_by(source_system: 'revenue_appointment', source_id: 'lead:lead-1')
-      expect(event.event_at).to be_within(1.second).of(appointment.created_at)
+      expect(account.revenue_events.where(event_type: 'appointment_created')).not_to exist
+    end
+
+    it 'counts the meeting once the lead converts and the appointment gets a zoho_deal_id' do
+      appointment = account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_lead_id: 'lead-1', revenue_contact_id: revenue_contact.id,
+                                                         starts_at: 2.days.from_now)
+      described_class.new.perform
+
+      appointment.update!(zoho_deal_id: 'deal-1')
+      described_class.new.perform
+
+      expect(account.revenue_events.where(event_type: 'appointment_created').pluck(:source_id)).to eq(['deal:deal-1'])
+    end
+
+    it 'prunes legacy lead-keyed events and events whose appointments no longer exist' do
+      account.revenue_events.create!(source_system: 'revenue_appointment', event_type: 'appointment_created', source_id: 'lead:lead-1',
+                                     event_at: 1.day.ago)
+      appointment = account.revenue_appointments.create!(zoho_event_id: 'event-1', zoho_deal_id: 'deal-1', revenue_contact_id: revenue_contact.id,
+                                                         starts_at: 2.days.from_now)
+      described_class.new.perform
+      expect(account.revenue_events.where(event_type: 'appointment_created').pluck(:source_id)).to eq(['deal:deal-1'])
+
+      appointment.delete
+      described_class.new.perform
+
+      expect(account.revenue_events.where(event_type: 'appointment_created')).not_to exist
     end
 
     it 'deletes a stale appointment_created event when the last starts_at for that deal is cleared back to nil' do

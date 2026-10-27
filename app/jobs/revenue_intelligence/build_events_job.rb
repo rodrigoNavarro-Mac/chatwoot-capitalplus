@@ -419,29 +419,36 @@ class RevenueIntelligence::BuildEventsJob < ApplicationJob
   # cuando el registro todavía era Lead, sin zoho_deal_id, y otro ya ligado al Deal tras la
   # conversión) generaba 2 eventos appointment_created, inflando "Citas" del Overview más allá del
   # número real de deals con cita.
+  #
+  # Solo cuenta Meetings ligados a un DEAL -- "Agendó cita" es una etapa del pipeline de Deals, no
+  # de Leads. Bug real confirmado 2026-10-27 (Fuego, octubre): "Citas" marcaba 12 contra 7 deals
+  # reales porque 4 Meetings (creados por automatización, duplicados con 2 owners) colgaban de
+  # Leads que nunca se convirtieron (Contacto no exitoso/Descartado/Contactar en el futuro), más 1
+  # evento huérfano de un lead duplicado cuyos Meetings ya se habían movido al otro lead. Cuando un
+  # lead SÍ se convierte, su Meeting pasa a traer zoho_deal_id en el siguiente sync y cuenta ahí.
   def build_appointment_events(account, since, until_at)
     # :updated_at, mismo razonamiento que build_stage_events arriba.
-    touched = account.revenue_appointments.where(window(:updated_at, since, until_at))
-    entity_keys = touched.filter_map { |appointment| appointment_entity_key(appointment) }.uniq
+    touched = account.revenue_appointments.where(window(:updated_at, since, until_at)).where.not(zoho_deal_id: [nil, ''])
+    touched.distinct.pluck(:zoho_deal_id).each { |zoho_deal_id| upsert_appointment_created_event(account, zoho_deal_id) }
 
-    entity_keys.each { |key_type, key_value| upsert_appointment_created_event(account, key_type, key_value) }
+    prune_orphan_appointment_events(account)
   end
 
-  def appointment_entity_key(appointment)
-    return [:deal, appointment.zoho_deal_id] if appointment.zoho_deal_id.present?
-    return [:lead, appointment.zoho_lead_id] if appointment.zoho_lead_id.present?
+  # Un evento ya creado no se recalcula si su Meeting deja de apuntar a esa entidad (re-vinculado a
+  # otro lead/deal en Zoho, o borrado por SyncZohoDealsJob#delete_deal) -- la ventana de arriba solo
+  # ve la clave NUEVA, nunca la vieja. Barrido completo en cada corrida (volumen chico: un evento por
+  # deal con cita) en vez de rastrear la clave anterior de cada Meeting.
+  def prune_orphan_appointment_events(account)
+    valid_keys = account.revenue_appointments.where.not(zoho_deal_id: [nil, '']).where.not(starts_at: nil)
+                        .distinct.pluck(:zoho_deal_id).map { |zoho_deal_id| "deal:#{zoho_deal_id}" }
 
-    nil
+    account.revenue_events.where(source_system: 'revenue_appointment', event_type: 'appointment_created')
+           .where.not(source_id: valid_keys).delete_all
   end
 
-  def upsert_appointment_created_event(account, key_type, key_value)
-    scope = if key_type == :deal
-              account.revenue_appointments.where(zoho_deal_id: key_value)
-            else
-              account.revenue_appointments.where(zoho_deal_id: nil, zoho_lead_id: key_value)
-            end
-    earliest = scope.where.not(starts_at: nil).order(:created_at).first
-    key = { source_system: 'revenue_appointment', event_type: 'appointment_created', source_id: "#{key_type}:#{key_value}" }
+  def upsert_appointment_created_event(account, zoho_deal_id)
+    earliest = account.revenue_appointments.where(zoho_deal_id: zoho_deal_id).where.not(starts_at: nil).order(:created_at).first
+    key = { source_system: 'revenue_appointment', event_type: 'appointment_created', source_id: "deal:#{zoho_deal_id}" }
 
     return delete_event(account, key) if earliest.nil?
 
