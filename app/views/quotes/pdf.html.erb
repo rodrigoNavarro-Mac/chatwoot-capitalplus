@@ -152,6 +152,8 @@ body{background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
   background:var(--row);
   padding:var(--table-title-pad);
   font-size:14px;
+  display:flex;
+  justify-content:space-between;
 }
 table{width:100%;border-collapse:collapse;font-size:var(--table-font)}
 thead{background:var(--row);border-bottom:1px solid var(--line)}
@@ -236,7 +238,10 @@ td.amount{text-align:right}
       </div>
 
       <div class="table-wrap">
-        <div class="table-title">Firma Contrato</div>
+        <div class="table-title">
+          <span>Firma Contrato</span>
+          <span><%= enganche_monto %></span>
+        </div>
         <table>
           <thead>
             <tr><th>PERIODO</th><th>FECHA</th><th>MONTO</th></tr>

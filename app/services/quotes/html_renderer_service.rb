@@ -82,6 +82,7 @@ class Quotes::HtmlRendererService
       precio_m2: currency(quote.precio_m2),
       importe: currency(quote.monto),
       enganche_pct: number_with_precision(quote.enganche_pct, precision: 2),
+      enganche_monto: currency(quote.enganche_monto),
       plazos: quote.plazos,
       total: currency(quote.precio_total)
     )
