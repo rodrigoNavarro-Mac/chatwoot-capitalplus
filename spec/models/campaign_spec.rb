@@ -302,4 +302,32 @@ RSpec.describe Campaign do
       expect(campaign.reload.processing?).to be true
     end
   end
+
+  describe 'segment audience validation' do
+    let(:account) { create(:account) }
+    let(:whatsapp_inbox) { create(:channel_whatsapp, account: account, validate_provider_config: false, sync_templates: false).inbox }
+    let(:segment) { create(:custom_filter, account: account, user: create(:user, account: account), filter_type: :contact, query: { payload: [] }) }
+
+    def build_segment_campaign(segment_id)
+      build(:campaign, account: account, inbox: whatsapp_inbox, audience_type: 'segment', audience: [{ type: 'Segment', id: segment_id }])
+    end
+
+    it 'accepts a contact segment of the same account' do
+      expect(build_segment_campaign(segment.id)).to be_valid
+    end
+
+    it 'rejects a segment of another account' do
+      other_segment = create(:custom_filter, filter_type: :contact, query: { payload: [] })
+
+      expect(build_segment_campaign(other_segment.id)).not_to be_valid
+    end
+
+    it 'still allows status changes after the segment is deleted' do
+      campaign = build_segment_campaign(segment.id).tap(&:save!)
+      campaign.processing!
+      segment.destroy!
+
+      expect(campaign.reload.pause!).to be true
+    end
+  end
 end

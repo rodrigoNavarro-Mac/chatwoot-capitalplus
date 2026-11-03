@@ -384,6 +384,46 @@ RSpec.describe 'Campaigns API', type: :request do
     end
   end
 
+  describe 'GET /api/v1/accounts/{account.id}/campaigns/segment_preview' do
+    let(:administrator) { create(:user, account: account, role: :administrator) }
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:segment) do
+      create(:custom_filter, account: account, user: administrator, filter_type: :contact,
+                             query: { payload: [{ attribute_key: 'last_replied_at', filter_operator: 'is_not_present',
+                                                  values: [], query_operator: nil }] })
+    end
+
+    it 'returns unauthorized for agents' do
+      get "/api/v1/accounts/#{account.id}/campaigns/segment_preview",
+          params: { custom_filter_id: segment.id }, headers: agent.create_new_auth_token
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns the audience counts for administrators' do
+      create(:contact, :with_phone_number, account: account)
+      create(:contact, account: account, email: 'nophone@example.com')
+
+      get "/api/v1/accounts/#{account.id}/campaigns/segment_preview",
+          params: { custom_filter_id: segment.id }, headers: administrator.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      body = response.parsed_body
+      expect(body['total']).to eq(2)
+      expect(body['eligible']).to eq(1)
+      expect(body['excluded']['no_phone']).to eq(1)
+    end
+
+    it 'does not expose segments of another account' do
+      other_segment = create(:custom_filter, filter_type: :contact, query: { payload: [] })
+
+      get "/api/v1/accounts/#{account.id}/campaigns/segment_preview",
+          params: { custom_filter_id: other_segment.id }, headers: administrator.create_new_auth_token
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe 'DELETE /api/v1/accounts/{account.id}/campaigns/:id' do
     let(:inbox) { create(:inbox, account: account) }
     let!(:campaign) { create(:campaign, account: account, trigger_rules: { url: 'https://test.com' }) }

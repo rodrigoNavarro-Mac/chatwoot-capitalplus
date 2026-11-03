@@ -50,6 +50,7 @@ class Campaign < ApplicationRecord
   validate :prevent_completed_campaign_from_update, on: :update
   validate :sender_must_belong_to_account
   validate :inbox_must_belong_to_account
+  validate :segment_must_belong_to_account
   validates :timezone, inclusion: { in: TZInfo::Timezone.all_identifiers }
 
   belongs_to :account
@@ -105,6 +106,11 @@ class Campaign < ApplicationRecord
     end
   end
 
+  # Contact segment (CustomFilter id) targeted by a campaign with audience_type 'segment'
+  def audience_segment_id
+    Array(audience).find { |item| item['type'] == 'Segment' }&.dig('id')
+  end
+
   def execute_campaign
     case inbox.inbox_type
     when 'Twilio SMS'
@@ -150,6 +156,19 @@ class Campaign < ApplicationRecord
 
   def set_display_id
     reload
+  end
+
+  # Only when the audience changes: the segment may be deleted later, and that must not block
+  # status updates such as pause!/resume! (the send itself handles a missing segment).
+  def segment_must_belong_to_account
+    return unless audience_type == 'segment' && segment_audience_changing?
+    return if account.present? && account.custom_filters.contact.exists?(id: audience_segment_id)
+
+    errors.add(:audience, 'must reference a contact segment of this account')
+  end
+
+  def segment_audience_changing?
+    new_record? || will_save_change_to_audience? || will_save_change_to_audience_type?
   end
 
   def validate_campaign_inbox

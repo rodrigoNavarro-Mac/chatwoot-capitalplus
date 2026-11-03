@@ -298,6 +298,57 @@ describe Whatsapp::OneoffCampaignService do
       end
     end
 
+    context 'when the audience is a saved contact segment' do
+      let(:segment) do
+        create(:custom_filter, account: account, user: create(:user, account: account), filter_type: :contact,
+                               query: { payload: [{ attribute_key: 'last_replied_at', filter_operator: 'is_not_present',
+                                                    values: [], query_operator: nil }] })
+      end
+      let(:segment_campaign) do
+        create(:campaign, inbox: whatsapp_inbox, account: account, audience_type: 'segment',
+                          audience: [{ type: 'Segment', id: segment.id }], template_params: template_params)
+      end
+
+      def scheduled_contact_ids
+        enqueued_jobs.select { |j| j[:job] == Campaigns::SendCampaignContactJob }.map { |j| j[:args][1] }
+      end
+
+      it 'schedules only the contacts matching the segment when the campaign fires' do
+        never_replied = create(:contact, :with_phone_number, account: account)
+        replied = create(:contact, :with_phone_number, account: account)
+        conversation = create(:conversation, account: account, inbox: whatsapp_inbox, contact: replied)
+        create(:message, account: account, inbox: whatsapp_inbox, conversation: conversation, message_type: :incoming, sender: replied)
+
+        described_class.new(campaign: segment_campaign).perform
+
+        expect(scheduled_contact_ids).to contain_exactly(never_replied.id)
+        expect(segment_campaign.reload.audience_count).to eq(1)
+        expect(segment_campaign).to be_completed
+      end
+
+      it 'skips opted-out contacts from the segment' do
+        opted_out = create(:contact, account: account, phone_number: '+525511119999')
+        Campaigns::RecipientEligibility.opt_out!(account.id, opted_out.phone_number)
+
+        described_class.new(campaign: segment_campaign).perform
+
+        expect(scheduled_contact_ids).not_to include(opted_out.id)
+      ensure
+        Redis::Alfred.delete(format(Redis::RedisKeys::WA_OPTED_OUT_PHONES, account_id: account.id))
+      end
+
+      it 'schedules nothing and still completes when the segment was deleted' do
+        create(:contact, :with_phone_number, account: account)
+        segment_campaign
+        segment.destroy!
+
+        described_class.new(campaign: segment_campaign).perform
+
+        expect(scheduled_contact_ids).to be_empty
+        expect(segment_campaign.reload).to be_completed
+      end
+    end
+
     context 'when the campaign has a configured timezone (regression for the UTC send-window bug)' do
       it 'schedules for today when the send window is still open in the campaign timezone, even at the UTC window boundary' do
         contact = create(:contact, :with_phone_number, account: account)

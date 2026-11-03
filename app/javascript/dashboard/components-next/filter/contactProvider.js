@@ -54,11 +54,45 @@ export function useContactFilterContext() {
   const labels = useMapGetter('labels/getLabels');
 
   const {
+    operators,
     equalityOperators,
     containmentOperators,
     dateOperators,
     getOperatorTypes,
   } = useOperators();
+
+  // "Ever replied" / "never replied" are expressed as present / not present on the date
+  const engagementOperators = computed(() => [
+    ...dateOperators.value,
+    operators.value.is_present,
+    operators.value.is_not_present,
+  ]);
+
+  const engagementFilterTypes = computed(() =>
+    [
+      [
+        CONTACT_ATTRIBUTES.LAST_REPLIED_AT,
+        t('CONTACTS_FILTER.ATTRIBUTES.LAST_REPLIED_AT'),
+      ],
+      [
+        CONTACT_ATTRIBUTES.LAST_MESSAGE_SENT_AT,
+        t('CONTACTS_FILTER.ATTRIBUTES.LAST_MESSAGE_SENT_AT'),
+      ],
+      [
+        CONTACT_ATTRIBUTES.LAST_CAMPAIGN_SENT_AT,
+        t('CONTACTS_FILTER.ATTRIBUTES.LAST_CAMPAIGN_SENT_AT'),
+      ],
+    ].map(([key, name]) => ({
+      attributeKey: key,
+      value: key,
+      attributeName: name,
+      label: name,
+      inputType: 'date',
+      dataType: 'text',
+      filterOperators: engagementOperators.value,
+      attributeModel: 'engagement',
+    }))
+  );
 
   /**
    * @type {import('vue').ComputedRef<FilterType[]>}
@@ -200,6 +234,7 @@ export function useContactFilterContext() {
       filterOperators: equalityOperators.value,
       attributeModel: 'standard',
     },
+    ...engagementFilterTypes.value,
     ...customFilterTypes.value,
   ]);
 

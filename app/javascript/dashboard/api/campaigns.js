@@ -19,6 +19,12 @@ class CampaignsAPI extends ApiClient {
     return axios.post(`${this.url}/csv_preview`, formData);
   }
 
+  previewSegment(customFilterId) {
+    return axios.get(`${this.url}/segment_preview`, {
+      params: { custom_filter_id: customFilterId },
+    });
+  }
+
   metrics(campaignId) {
     return axios.get(`${this.url}/${campaignId}/metrics`);
   }

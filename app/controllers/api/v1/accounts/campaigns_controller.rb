@@ -1,7 +1,7 @@
 class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   RESULTS_PER_PAGE = 25
 
-  before_action :campaign, except: [:index, :create, :csv_usage_report, :csv_preview]
+  before_action :campaign, except: [:index, :create, :csv_usage_report, :csv_preview, :segment_preview]
   before_action :check_authorization
   before_action :set_current_page, only: [:recipients]
 
@@ -38,6 +38,16 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
     return render json: { valid: false, errors: ['No se recibió ningún archivo'] } if file.blank?
 
     render json: Campaigns::CsvPreviewService.new(account: Current.account, file: file).build
+  end
+
+  # Audience preview for a saved contact segment, computed the same way the real send resolves it
+  def segment_preview
+    audience = Campaigns::SegmentAudience.new(account: Current.account, segment_id: params[:custom_filter_id])
+    return render json: { error: 'Segment not found' }, status: :not_found if audience.segment.nil?
+
+    render json: audience.preview
+  rescue CustomExceptions::Base => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def create

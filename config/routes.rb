@@ -163,6 +163,7 @@ Rails.application.routes.draw do
             collection do
               get :csv_usage_report
               post :csv_preview
+              get :segment_preview
             end
             if ChatwootApp.enterprise?
               get 'analytics/metrics', to: 'campaigns/analytics#metrics'

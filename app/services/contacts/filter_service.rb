@@ -1,6 +1,36 @@
 class Contacts::FilterService < FilterService
   ATTRIBUTE_MODEL = 'contact_attribute'.freeze
 
+  # Engagement filters (attribute_type "engagement" in filter_keys.yml) have no column of their own:
+  # each one is a correlated subquery against the contact row, used to build WhatsApp campaign segments
+  # such as "never replied" or "hasn't replied in 30 days".
+  ENGAGEMENT_EXPRESSIONS = {
+    # Last message the contact sent us
+    'last_replied_at' => <<~SQL.squish,
+      SELECT MAX(engagement_messages.created_at) FROM messages engagement_messages
+      WHERE engagement_messages.sender_type = 'Contact' AND engagement_messages.sender_id = contacts.id
+        AND engagement_messages.message_type = 0
+    SQL
+    # Last outgoing message (agent, bot or WhatsApp template/campaign) we sent the contact. Excludes
+    # message_type 3 ("template"), which is the inbox's automatic greeting/out-of-office reply.
+    'last_message_sent_at' => <<~SQL.squish,
+      SELECT MAX(engagement_messages.created_at) FROM messages engagement_messages
+      INNER JOIN conversations engagement_conversations ON engagement_conversations.id = engagement_messages.conversation_id
+      WHERE engagement_conversations.contact_id = contacts.id
+        AND engagement_messages.message_type = 1 AND engagement_messages.private = false
+    SQL
+    # Last WhatsApp campaign message that reached Meta; CSV deliveries have no contact_id, so they
+    # are matched by the last 10 digits of the phone (covers the Mexican 52/521 variants)
+    'last_campaign_sent_at' => <<~SQL.squish
+      SELECT MAX(engagement_deliveries.sent_at) FROM campaign_message_deliveries engagement_deliveries
+      WHERE engagement_deliveries.account_id = contacts.account_id AND engagement_deliveries.source_id IS NOT NULL
+        AND (engagement_deliveries.contact_id = contacts.id OR (
+          contacts.phone_number IS NOT NULL
+          AND RIGHT(regexp_replace(engagement_deliveries.phone_number, '\\D', '', 'g'), 10) =
+              RIGHT(regexp_replace(contacts.phone_number, '\\D', '', 'g'), 10)))
+    SQL
+  }.freeze
+
   def initialize(account, user, params)
     @account = account
     # TODO: Change the order of arguments in FilterService maybe?
@@ -38,6 +68,14 @@ class Contacts::FilterService < FilterService
       entity: 'Contact',
       table_name: 'contacts'
     }
+  end
+
+  # Same date comparison as a regular column, applied to the engagement subquery instead
+  def date_filter(current_filter, query_hash, filter_operator_value)
+    expression = ENGAGEMENT_EXPRESSIONS[query_hash[:attribute_key]]
+    return super unless current_filter['attribute_type'] == 'engagement' && expression
+
+    "(#{expression})::date #{filter_operator_value} #{query_hash[:query_operator]}"
   end
 
   private

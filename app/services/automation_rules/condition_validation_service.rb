@@ -9,7 +9,8 @@ class AutomationRules::ConditionValidationService
     @filters = YAML.safe_load(file)
 
     @conversation_filters = @filters['conversations']
-    @contact_filters = @filters['contacts']
+    # Engagement keys are subqueries only Contacts::FilterService knows how to build (contact segments)
+    @contact_filters = @filters['contacts'].reject { |_key, filter| filter['attribute_type'] == 'engagement' }
     @message_filters = @filters['messages']
   end
 
