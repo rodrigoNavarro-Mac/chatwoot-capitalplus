@@ -5,6 +5,9 @@ class Campaigns::SendCampaignContactJob < ApplicationJob
     campaign = Campaign.find_by(id: campaign_id)
     return unless campaign
     return if campaign.paused?
+    # Re-checked on every send (not just at scheduling) because a campaign runs for days and the
+    # number's quality can drop mid-way; HealthSyncSchedulerJob refreshes it hourly while sending.
+    return if Campaigns::AutoPauseService.new(campaign: campaign).check_health!
 
     service = Whatsapp::OneoffCampaignService.new(campaign: campaign)
 
@@ -21,6 +24,7 @@ class Campaigns::SendCampaignContactJob < ApplicationJob
     contact = campaign.account.contacts.find_by(id: contact_id)
     return unless contact
     return if contact.additional_attributes&.dig('wa_valid') == false
+    return unless Campaigns::RecipientEligibility.new(campaign: campaign).eligible?(contact.phone_number)
 
     service.send_to_contact(contact)
   end
@@ -31,6 +35,7 @@ class Campaigns::SendCampaignContactJob < ApplicationJob
     raw_phone = contact_data['phone_number'].presence || contact_data['phone'].presence
     return if raw_phone.blank?
     return if phone_wa_invalid?(campaign, raw_phone)
+    return unless Campaigns::RecipientEligibility.new(campaign: campaign).eligible?(raw_phone)
 
     service.send_to_csv_contact(contact_data)
   end

@@ -436,6 +436,7 @@
         "LABEL": "Export CSV",
         "ERROR_MESSAGE": "The CSV export could not be completed"
       },
+      "AUTO_PAUSED": "This campaign was paused automatically to protect the WhatsApp number ({reason}). Check the number quality in Meta before resuming.",
       "PAUSE": {
         "LABEL": "Pause",
         "SUCCESS_MESSAGE": "Campaign paused. Pending sends were cancelled.",

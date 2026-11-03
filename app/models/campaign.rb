@@ -14,6 +14,7 @@
 #  description                        :text
 #  enabled                            :boolean          default(TRUE)
 #  message                            :text             not null
+#  pause_reason                       :string
 #  scheduled_at                       :datetime
 #  send_window_end                    :string           default("19:00"), not null
 #  send_window_start                  :string           default("09:00"), not null
@@ -99,7 +100,7 @@ class Campaign < ApplicationRecord
     with_lock do
       next false unless paused?
 
-      processing!
+      update!(campaign_status: :processing, pause_reason: nil)
       true
     end
   end

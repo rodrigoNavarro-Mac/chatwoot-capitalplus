@@ -24,6 +24,7 @@ if resource.campaign_type == 'one_off'
   json.send_window_start resource.send_window_start
   json.send_window_end resource.send_window_end
   json.timezone resource.timezone
+  json.pause_reason resource.pause_reason
   json.has_csv_audience resource.csv_audience.attached?
   json.audience_count resource.audience_count
   # `completed` only means the scheduling loop finished, not that every message went out —

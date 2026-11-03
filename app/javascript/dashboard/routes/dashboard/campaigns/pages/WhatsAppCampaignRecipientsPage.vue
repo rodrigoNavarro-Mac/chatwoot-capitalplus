@@ -32,6 +32,13 @@ const campaign = computed(() =>
   campaigns.value.find(item => String(item.id) === String(campaignId.value))
 );
 
+// Set by Campaigns::AutoPauseService when the campaign stopped itself to protect the number
+const autoPauseReason = computed(() =>
+  campaign.value?.campaign_status === 'paused'
+    ? campaign.value?.pause_reason
+    : null
+);
+
 const metrics = ref(null);
 const isFetchingMetrics = ref(false);
 
@@ -251,6 +258,16 @@ onBeforeUnmount(() => {
             />
           </div>
         </div>
+        <p
+          v-if="autoPauseReason"
+          class="px-3 py-2 text-sm rounded-lg bg-n-amber-3 text-n-amber-11"
+        >
+          {{
+            t('CAMPAIGN.WHATSAPP_RECIPIENTS.AUTO_PAUSED', {
+              reason: autoPauseReason,
+            })
+          }}
+        </p>
       </div>
     </header>
     <main class="flex-1 px-6 overflow-y-auto">
