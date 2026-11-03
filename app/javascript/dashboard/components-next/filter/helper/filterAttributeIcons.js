@@ -15,6 +15,9 @@ const ATTRIBUTE_ICONS = {
   city: 'i-lucide-map-pin',
   company_name: 'i-lucide-building-2',
   blocked: 'i-lucide-ban',
+  last_replied_at: 'i-lucide-message-circle-reply',
+  last_message_sent_at: 'i-lucide-send',
+  last_campaign_sent_at: 'i-lucide-megaphone',
   // Conversation attributes
   status: 'i-lucide-circle-dot',
   priority: 'i-lucide-signal-high',
@@ -69,6 +72,7 @@ const GROUPS = [
   { model: 'standard', labelKey: 'STANDARD_FILTERS' },
   { model: 'additional', labelKey: 'ADDITIONAL_FILTERS' },
   { model: 'customAttributes', labelKey: 'CUSTOM_ATTRIBUTES' },
+  { model: 'engagement', labelKey: 'ENGAGEMENT_FILTERS' },
 ];
 
 const KNOWN_MODELS = GROUPS.map(({ model }) => model);

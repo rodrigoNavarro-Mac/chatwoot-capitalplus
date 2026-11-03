@@ -41,22 +41,22 @@ class Campaigns::RecipientEligibility
     !opted_out?(key) && !in_cooldown?(key)
   end
 
-  private
-
   def opted_out_keys
     Redis::Alfred.with { |conn| conn.smembers(opt_out_redis_key) }.to_set
   rescue StandardError
     Set.new
   end
 
+  def cooldown_keys
+    recent_deliveries.pluck(:phone_number).to_set { |phone| self.class.phone_key(phone) }
+  end
+
+  private
+
   def opted_out?(key)
     Redis::Alfred.with { |conn| conn.sismember(opt_out_redis_key, key) }
   rescue StandardError
     false
-  end
-
-  def cooldown_keys
-    recent_deliveries.pluck(:phone_number).to_set { |phone| self.class.phone_key(phone) }
   end
 
   def in_cooldown?(key)

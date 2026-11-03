@@ -32,6 +32,8 @@ const formState = {
   getFilteredWhatsAppTemplates: useMapGetter(
     'inboxes/getFilteredWhatsAppTemplates'
   ),
+  // Saved contact segments, built on the Contacts page (loaded by the sidebar)
+  contactSegments: useMapGetter('customViews/getContactCustomViews'),
 };
 
 const initialState = {
@@ -40,6 +42,7 @@ const initialState = {
   templateId: null,
   scheduledAt: null,
   selectedAudience: [],
+  segmentId: null,
   audienceType: 'labels',
   delayMinSeconds: 300,
   delayMaxSeconds: 420,
@@ -55,6 +58,10 @@ const templateParserRef = ref(null);
 const csvPreview = ref(null);
 const isPreviewingCsv = ref(false);
 let csvPreviewToken = 0;
+const segmentPreview = ref(null);
+const segmentPreviewError = ref(false);
+const isPreviewingSegment = ref(false);
+let segmentPreviewToken = 0;
 
 const isEditMode = computed(() => !!props.selectedCampaign);
 
@@ -64,6 +71,7 @@ const rules = computed(() => ({
   templateId: { required },
   scheduledAt: { required },
   selectedAudience: state.audienceType === 'labels' ? { required } : {},
+  segmentId: state.audienceType === 'segment' ? { required } : {},
 }));
 
 const v$ = useVuelidate(rules, state);
@@ -101,6 +109,10 @@ const mapToOptions = (items, valueKey, labelKey) =>
 
 const audienceList = computed(() =>
   mapToOptions(formState.labels.value, 'id', 'title')
+);
+
+const segmentOptions = computed(() =>
+  mapToOptions(formState.contactSegments.value, 'id', 'name')
 );
 
 const inboxOptions = computed(() =>
@@ -145,6 +157,10 @@ const formErrors = computed(() => ({
     state.audienceType === 'labels'
       ? getErrorMessage('selectedAudience', 'AUDIENCE')
       : '',
+  segment:
+    state.audienceType === 'segment'
+      ? getErrorMessage('segmentId', 'SEGMENT_AUDIENCE')
+      : '',
 }));
 
 const hasRequiredTemplateParams = computed(() => {
@@ -163,6 +179,10 @@ const isSubmitDisabled = computed(() => {
       return true;
     }
   }
+  if (state.audienceType === 'segment') {
+    if (isPreviewingSegment.value) return true;
+    if (segmentPreview.value && !segmentPreview.value.eligible) return true;
+  }
   return !hasRequiredTemplateParams.value;
 });
 
@@ -180,6 +200,8 @@ const resetState = () => {
   Object.assign(state, initialState);
   csvFile.value = null;
   csvPreview.value = null;
+  segmentPreview.value = null;
+  segmentPreviewError.value = false;
   hasAttemptedSubmit.value = false;
   v$.value.$reset();
 };
@@ -191,8 +213,11 @@ watch(
     if (!campaign) return;
     state.title = campaign.title ?? '';
     state.inboxId = campaign.inbox?.id ?? null;
-    state.selectedAudience = campaign.audience?.map(a => a.id) ?? [];
     state.audienceType = campaign.audience_type ?? 'labels';
+    const audienceIds = campaign.audience?.map(a => a.id) ?? [];
+    state.selectedAudience = state.audienceType === 'labels' ? audienceIds : [];
+    state.segmentId =
+      state.audienceType === 'segment' ? (audienceIds[0] ?? null) : null;
     state.scheduledAt = timestampToLocalDatetimeString(campaign.scheduled_at);
     state.delayMinSeconds = campaign.delay_min_seconds ?? 300;
     state.delayMaxSeconds = campaign.delay_max_seconds ?? 420;
@@ -242,14 +267,90 @@ const handleCsvFileChange = event => {
   if (file) previewCsvFile(file);
 };
 
+// Same resolution as the real send (Campaigns::SegmentAudience), so the count matches what goes out
+const previewSegment = async segmentId => {
+  segmentPreviewToken += 1;
+  const token = segmentPreviewToken;
+  segmentPreview.value = null;
+  segmentPreviewError.value = false;
+  if (!segmentId) return;
+
+  isPreviewingSegment.value = true;
+  try {
+    const response = await CampaignsAPI.previewSegment(segmentId);
+    if (token !== segmentPreviewToken) return;
+    segmentPreview.value = response.data;
+  } catch (error) {
+    if (token !== segmentPreviewToken) return;
+    segmentPreviewError.value = true;
+  } finally {
+    if (token === segmentPreviewToken) isPreviewingSegment.value = false;
+  }
+};
+
+watch(
+  () => [state.audienceType, state.segmentId],
+  ([type, segmentId]) => {
+    if (type === 'segment') previewSegment(segmentId);
+  },
+  { immediate: true }
+);
+
 const setAudienceType = type => {
   state.audienceType = type;
-  if (type === 'csv') {
-    state.selectedAudience = [];
-  } else {
+  if (type !== 'labels') state.selectedAudience = [];
+  if (type !== 'segment') {
+    state.segmentId = null;
+    segmentPreview.value = null;
+  }
+  if (type !== 'csv') {
     csvFile.value = null;
     csvPreview.value = null;
   }
+};
+
+const segmentExclusions = computed(() => {
+  const excluded = segmentPreview.value?.excluded || {};
+  return [
+    excluded.no_phone &&
+      t(
+        'CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.PREVIEW.EXCLUDED.NO_PHONE',
+        {
+          count: excluded.no_phone,
+        }
+      ),
+    excluded.wa_invalid &&
+      t(
+        'CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.PREVIEW.EXCLUDED.WA_INVALID',
+        {
+          count: excluded.wa_invalid,
+        }
+      ),
+    excluded.opted_out &&
+      t(
+        'CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.PREVIEW.EXCLUDED.OPTED_OUT',
+        {
+          count: excluded.opted_out,
+        }
+      ),
+    excluded.cooldown &&
+      t(
+        'CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.PREVIEW.EXCLUDED.COOLDOWN',
+        {
+          count: excluded.cooldown,
+        }
+      ),
+  ].filter(Boolean);
+});
+
+const buildAudience = () => {
+  if (state.audienceType === 'labels') {
+    return state.selectedAudience?.map(id => ({ id, type: 'Label' })) ?? [];
+  }
+  if (state.audienceType === 'segment' && state.segmentId) {
+    return [{ id: state.segmentId, type: 'Segment' }];
+  }
+  return [];
 };
 
 const prepareCampaignDetails = () => {
@@ -272,10 +373,7 @@ const prepareCampaignDetails = () => {
     inbox_id: state.inboxId,
     scheduled_at: formatToUTCString(state.scheduledAt),
     audience_type: state.audienceType,
-    audience:
-      state.audienceType === 'labels'
-        ? (state.selectedAudience?.map(id => ({ id, type: 'Label' })) ?? [])
-        : [],
+    audience: buildAudience(),
     delay_min_seconds: state.delayMinSeconds,
     delay_max_seconds: state.delayMaxSeconds,
     send_window_start: state.sendWindowStart,
@@ -392,6 +490,78 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
         >
           {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.AUDIENCE_TYPE.CSV') }}
         </button>
+        <button
+          type="button"
+          class="flex-1 py-1.5 text-sm font-medium transition-colors"
+          :class="
+            state.audienceType === 'segment'
+              ? 'bg-n-blue-9 text-white'
+              : 'text-n-slate-11 hover:bg-n-alpha-2'
+          "
+          @click="setAudienceType('segment')"
+        >
+          {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.AUDIENCE_TYPE.SEGMENT') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Contact segment audience -->
+    <div v-if="state.audienceType === 'segment'" class="flex flex-col gap-1">
+      <label for="segment" class="mb-0.5 text-sm font-medium text-n-slate-12">
+        {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.LABEL') }}
+      </label>
+      <ComboBox
+        id="segment"
+        v-model="state.segmentId"
+        :options="segmentOptions"
+        :has-error="!!formErrors.segment"
+        :message="formErrors.segment"
+        :placeholder="
+          t('CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.PLACEHOLDER')
+        "
+        class="[&>div>button]:bg-n-alpha-black2"
+      />
+      <p class="mt-1 text-xs text-n-slate-11">
+        {{
+          segmentOptions.length
+            ? t('CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.HELP')
+            : t('CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.EMPTY')
+        }}
+      </p>
+
+      <div
+        v-if="isPreviewingSegment"
+        class="flex items-center gap-2 mt-1 text-xs text-n-slate-11"
+      >
+        <Spinner :size="14" />
+        {{
+          t('CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.PREVIEW.CHECKING')
+        }}
+      </div>
+      <p v-else-if="segmentPreviewError" class="mt-1 text-xs text-n-red-9">
+        {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.PREVIEW.ERROR') }}
+      </p>
+      <div
+        v-else-if="segmentPreview"
+        class="flex flex-col gap-0.5 mt-1 text-xs text-n-slate-11"
+      >
+        <p
+          class="font-medium"
+          :class="segmentPreview.eligible ? 'text-n-teal-11' : 'text-n-red-9'"
+        >
+          {{
+            t(
+              'CAMPAIGN.WHATSAPP.CREATE.FORM.SEGMENT_AUDIENCE.PREVIEW.ELIGIBLE',
+              {
+                eligible: segmentPreview.eligible,
+                total: segmentPreview.total,
+              }
+            )
+          }}
+        </p>
+        <p v-for="exclusion in segmentExclusions" :key="exclusion">
+          {{ exclusion }}
+        </p>
       </div>
     </div>
 

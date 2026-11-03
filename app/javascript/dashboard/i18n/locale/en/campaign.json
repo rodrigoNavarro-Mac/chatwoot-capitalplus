@@ -187,7 +187,26 @@
           "AUDIENCE_TYPE": {
             "LABEL": "Audience source",
             "LABELS": "Contact labels",
-            "CSV": "CSV file"
+            "CSV": "CSV file",
+            "SEGMENT": "Contact segment"
+          },
+          "SEGMENT_AUDIENCE": {
+            "LABEL": "Contact segment",
+            "PLACEHOLDER": "Select a segment",
+            "ERROR": "Select a contact segment",
+            "HELP": "Evaluated when the campaign fires: whoever matches the segment at that moment receives it.",
+            "EMPTY": "No segments yet. Create one on the Contacts page: Filter, then Save as segment.",
+            "PREVIEW": {
+              "CHECKING": "Counting contacts...",
+              "ERROR": "Could not evaluate this segment.",
+              "ELIGIBLE": "{eligible} of {total} contacts would receive the campaign today",
+              "EXCLUDED": {
+                "NO_PHONE": "{count} without phone number",
+                "WA_INVALID": "{count} without WhatsApp",
+                "OPTED_OUT": "{count} opted out",
+                "COOLDOWN": "{count} received another campaign in the last 14 days"
+              }
+            }
           },
           "AUDIENCE": {
             "LABEL": "Audience",

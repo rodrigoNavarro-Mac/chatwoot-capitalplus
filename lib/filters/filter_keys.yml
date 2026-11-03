@@ -209,6 +209,34 @@ contacts:
     filter_operators:
       - "equal_to"
       - "not_equal_to"
+  # Engagement filters: computed from messages/campaign deliveries, see Contacts::FilterService::ENGAGEMENT_EXPRESSIONS
+  last_replied_at:
+    attribute_type: "engagement"
+    data_type: "date"
+    filter_operators:
+      - "is_greater_than"
+      - "is_less_than"
+      - "days_before"
+      - "is_present"
+      - "is_not_present"
+  last_message_sent_at:
+    attribute_type: "engagement"
+    data_type: "date"
+    filter_operators:
+      - "is_greater_than"
+      - "is_less_than"
+      - "days_before"
+      - "is_present"
+      - "is_not_present"
+  last_campaign_sent_at:
+    attribute_type: "engagement"
+    data_type: "date"
+    filter_operators:
+      - "is_greater_than"
+      - "is_less_than"
+      - "days_before"
+      - "is_present"
+      - "is_not_present"
 
 ### ----- End of Contact Filters ----- ###
 

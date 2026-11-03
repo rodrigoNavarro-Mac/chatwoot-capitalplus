@@ -36,6 +36,10 @@ export const CONTACT_ATTRIBUTES = {
   REFERER: 'referer',
   BLOCKED: 'blocked',
   LABELS: 'labels',
+  // Engagement filters, computed server-side by Contacts::FilterService
+  LAST_REPLIED_AT: 'last_replied_at',
+  LAST_MESSAGE_SENT_AT: 'last_message_sent_at',
+  LAST_CAMPAIGN_SENT_AT: 'last_campaign_sent_at',
 };
 
 /**

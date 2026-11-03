@@ -190,7 +190,26 @@
           "AUDIENCE_TYPE": {
             "LABEL": "Tipo de audiencia",
             "LABELS": "Etiquetas",
-            "CSV": "CSV"
+            "CSV": "CSV",
+            "SEGMENT": "Segmento"
+          },
+          "SEGMENT_AUDIENCE": {
+            "LABEL": "Segmento de contactos",
+            "PLACEHOLDER": "Selecciona un segmento",
+            "ERROR": "Selecciona un segmento de contactos",
+            "HELP": "Se evalúa al disparar la campaña: la recibe quien cumpla el segmento en ese momento.",
+            "EMPTY": "Aún no hay segmentos. Créalos en Contactos: Filtrar y luego Guardar como segmento.",
+            "PREVIEW": {
+              "CHECKING": "Contando contactos...",
+              "ERROR": "No se pudo evaluar este segmento.",
+              "ELIGIBLE": "{eligible} de {total} contactos recibirían la campaña hoy",
+              "EXCLUDED": {
+                "NO_PHONE": "{count} sin teléfono",
+                "WA_INVALID": "{count} sin WhatsApp",
+                "OPTED_OUT": "{count} se dieron de baja",
+                "COOLDOWN": "{count} recibieron otra campaña en los últimos 14 días"
+              }
+            }
           },
           "CSV_AUDIENCE": {
             "LABEL": "Archivo CSV",

@@ -49,12 +49,16 @@
       "LAST_ACTIVITY": "Last Activity",
       "REFERER_LINK": "Referrer link",
       "BLOCKED": "Blocked",
-      "LABELS": "Labels"
+      "LABELS": "Labels",
+      "LAST_REPLIED_AT": "Last reply from contact",
+      "LAST_MESSAGE_SENT_AT": "Last message we sent",
+      "LAST_CAMPAIGN_SENT_AT": "Last campaign received"
     },
     "GROUPS": {
       "STANDARD_FILTERS": "Standard Filters",
       "ADDITIONAL_FILTERS": "Additional Filters",
-      "CUSTOM_ATTRIBUTES": "Custom Attributes"
+      "CUSTOM_ATTRIBUTES": "Custom Attributes",
+      "ENGAGEMENT_FILTERS": "WhatsApp engagement"
     }
   }
 }

@@ -35,6 +35,10 @@ class CampaignPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def segment_preview?
+    @account_user.administrator?
+  end
+
   def pause?
     @account_user.administrator?
   end

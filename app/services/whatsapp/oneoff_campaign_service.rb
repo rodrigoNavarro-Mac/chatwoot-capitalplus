@@ -7,10 +7,10 @@ class Whatsapp::OneoffCampaignService
 
   def perform
     validate_campaign!
-    if campaign.audience_type == 'csv'
-      schedule_contacts_from_csv
-    else
-      schedule_contacts(extract_audience_labels)
+    case campaign.audience_type
+    when 'csv' then schedule_contacts_from_csv
+    when 'segment' then schedule_contacts(segment_contacts)
+    else schedule_contacts(labeled_contacts)
     end
     campaign.completed!
   end
@@ -86,15 +86,30 @@ class Whatsapp::OneoffCampaignService
     validate_feature_flag!
   end
 
-  def extract_audience_labels
+  def labeled_contacts
     audience_label_ids = campaign.audience.select { |audience| audience['type'] == 'Label' }.pluck('id')
-    campaign.account.labels.where(id: audience_label_ids).pluck(:title)
+    audience_labels = campaign.account.labels.where(id: audience_label_ids).pluck(:title)
+    campaign.account.contacts.tagged_with(audience_labels, any: true)
   end
 
-  def schedule_contacts(audience_labels)
-    contacts = campaign.account.contacts
-                       .tagged_with(audience_labels, any: true)
-                       .where("(additional_attributes->>'wa_valid') IS DISTINCT FROM 'false'")
+  # Saved contact segment, evaluated when the campaign fires so it picks up whoever matches at that
+  # moment (e.g. "hasn't replied in 30 days") -- see Campaigns::SegmentAudience
+  def segment_contacts
+    audience = Campaigns::SegmentAudience.new(account: campaign.account, segment_id: campaign.audience_segment_id)
+    log_segment_error('not found, skipping scheduling') if audience.segment.nil?
+    audience.contacts
+  rescue CustomExceptions::Base => e
+    # A segment saved before a filter key/operator changed can become invalid; don't leave the campaign stuck in processing
+    log_segment_error("is invalid: #{e.message}")
+    campaign.account.contacts.none
+  end
+
+  def log_segment_error(reason)
+    Rails.logger.error "Campaign #{campaign.id}: contact segment #{campaign.audience_segment_id.inspect} #{reason}"
+  end
+
+  def schedule_contacts(audience_contacts)
+    contacts = audience_contacts.where("(contacts.additional_attributes->>'wa_valid') IS DISTINCT FROM 'false'")
     already_sent_contact_ids = load_already_sent_contact_ids
 
     campaign.update!(audience_count: contacts.count)
