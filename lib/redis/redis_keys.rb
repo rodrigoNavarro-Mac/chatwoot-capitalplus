@@ -114,4 +114,6 @@ module Redis::RedisKeys
 
   # Redis Set of phone numbers that failed with 131026 (no WA account), keyed by account
   WA_INVALID_PHONES = 'WA_INVALID_PHONES::%<account_id>d'.freeze
+  # Redis Set of the last 10 digits of phones that asked to stop receiving campaigns (BAJA, 131050), keyed by account
+  WA_OPTED_OUT_PHONES = 'WA_OPTED_OUT_PHONES::%<account_id>d'.freeze
 end

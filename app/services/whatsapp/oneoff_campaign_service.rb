@@ -26,10 +26,11 @@ class Whatsapp::OneoffCampaignService
     message = labels_message_builder.build(contact)
     return if message.nil?
 
-    wa_message_id, send_error = send_whatsapp_template_message(
+    wa_message_id, send_error, error_code = send_whatsapp_template_message(
       to: contact.phone_number, template_params: processed_template_params, message: message
     )
     delivery_recorder.record_labels_delivery(contact: contact, message: message, wa_message_id: wa_message_id, send_error: send_error)
+    auto_pause_on_error(wa_message_id, error_code)
     wa_message_id
   rescue StandardError => e
     Rails.logger.error "Failed to send campaign #{campaign.id} to contact #{contact.try(:name)}: #{e.message}"
@@ -47,9 +48,7 @@ class Whatsapp::OneoffCampaignService
     processed_template_params = process_liquid_template_params(virtual_contact)
     return if processed_template_params.nil?
 
-    wa_message_id, send_error = send_whatsapp_template_message(to: phone, template_params: processed_template_params)
-    delivery_recorder.record_csv_delivery(phone: phone, contact_name: virtual_contact.name, wa_message_id: wa_message_id, send_error: send_error)
-    wa_message_id
+    send_and_record_csv(virtual_contact, processed_template_params)
   rescue StandardError => e
     Rails.logger.error "Failed to send CSV campaign #{campaign.id} to #{contact_data['phone_number']}: #{e.message}"
     nil
@@ -112,6 +111,8 @@ class Whatsapp::OneoffCampaignService
   end
 
   def schedule_labeled_contact(contact, current_time)
+    return current_time if blocked_recipient?(contact.phone_number)
+
     Campaigns::SendCampaignContactJob.set(wait_until: current_time).perform_later(campaign.id, contact.id)
     advance_to_window(current_time + next_send_delay.seconds)
   end
@@ -145,10 +146,22 @@ class Whatsapp::OneoffCampaignService
 
     phone = Whatsapp::CsvContactPhoneNormalizer.new(inbox: inbox).normalize(raw_phone)
     return current_time if invalid_phones.include?(phone) || already_sent_phones.include?(phone)
+    return current_time if blocked_recipient?(phone)
 
     row_args = [campaign.id, nil, row.merge('phone_number' => phone, 'phone' => phone)]
     Campaigns::SendCampaignContactJob.set(wait_until: current_time).perform_later(*row_args)
     advance_to_window(current_time + next_send_delay.seconds)
+  end
+
+  # Opt-outs and phones still in the 14-day cross-campaign cooldown (see Campaigns::RecipientEligibility)
+  def blocked_recipient?(phone)
+    blocked = recipient_eligibility.blocked_keys.include?(Campaigns::RecipientEligibility.phone_key(phone))
+    Rails.logger.info "Campaign #{campaign.id}: skipping #{phone} (opted out or in cooldown)" if blocked
+    blocked
+  end
+
+  def recipient_eligibility
+    @recipient_eligibility ||= Campaigns::RecipientEligibility.new(campaign: campaign)
   end
 
   def next_send_delay
@@ -213,7 +226,21 @@ class Whatsapp::OneoffCampaignService
     nil
   end
 
-  # Returns [wa_message_id, send_error] — send_error is only present when wa_message_id is nil
+  def send_and_record_csv(virtual_contact, template_params)
+    phone = virtual_contact.phone_number
+    wa_message_id, send_error, error_code = send_whatsapp_template_message(to: phone, template_params: template_params)
+    delivery_recorder.record_csv_delivery(phone: phone, contact_name: virtual_contact.name, wa_message_id: wa_message_id, send_error: send_error)
+    auto_pause_on_error(wa_message_id, error_code)
+    wa_message_id
+  end
+
+  def auto_pause_on_error(wa_message_id, error_code)
+    return if wa_message_id.present? || error_code.blank?
+
+    Campaigns::AutoPauseService.new(campaign: campaign).check_error!(error_code)
+  end
+
+  # Returns [wa_message_id, send_error, error_code] — the error fields are only present when wa_message_id is nil
   def send_whatsapp_template_message(to:, template_params:, message: nil)
     processor = Whatsapp::TemplateProcessorService.new(
       channel: channel,
@@ -225,7 +252,8 @@ class Whatsapp::OneoffCampaignService
 
     provider = channel.provider_service
     template_info = { name: name, namespace: namespace, lang_code: lang_code, parameters: processed_parameters }
-    [provider.send_template(to, template_info, message), provider.last_send_error]
+    wa_message_id = provider.send_template(to, template_info, message)
+    [wa_message_id, provider.last_send_error, provider.last_api_error.to_h['code']]
   rescue StandardError => e
     Rails.logger.error "Failed to send WhatsApp template to #{to}: #{e.message}"
     Rails.logger.error e.backtrace.first(5).join("\n")

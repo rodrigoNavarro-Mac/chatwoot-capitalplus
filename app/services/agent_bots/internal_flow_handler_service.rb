@@ -64,6 +64,7 @@ class AgentBots::InternalFlowHandlerService
 
   def handle_baja_request
     mark_as_descartado_in_zoho
+    Campaigns::RecipientEligibility.opt_out!(@conversation.account_id, @conversation.contact.phone_number)
     farewell = @config.dig(:baja, :message).presence ||
                'Has solicitado darte de baja. No te enviaremos más mensajes. ¡Hasta pronto!'
     send_bot_message(farewell)

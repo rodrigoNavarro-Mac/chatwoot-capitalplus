@@ -23,6 +23,8 @@ class Campaigns::DeliveryWebhookTracker
     return if outgoing_echo
     return if contact&.phone_number.blank?
 
+    # Before the delivery lookup: a BAJA sent after an earlier reply has no unanswered delivery left
+    register_opt_out(contact, message)
     digits = contact.phone_number.gsub(/\D/, '').last(10)
     return if digits.blank?
 
@@ -35,6 +37,12 @@ class Campaigns::DeliveryWebhookTracker
   end
 
   private
+
+  def register_opt_out(contact, message)
+    return unless Campaigns::RecipientEligibility.opt_out_message?(message.content)
+
+    Campaigns::RecipientEligibility.opt_out!(inbox.account_id, contact.phone_number)
+  end
 
   def find_delivery_by_phone_suffix(digits)
     CampaignMessageDelivery
@@ -57,6 +65,11 @@ class Campaigns::DeliveryWebhookTracker
     failed_reason = error ? "#{error[:code]}: #{error[:title]}" : nil
     delivery.update!(status: 'failed', failed_at: Time.current, failed_reason: failed_reason)
     mark_wa_invalid(delivery) if error && error[:code].to_i == 131_026
+    return unless error
+
+    # 131050: the user turned off marketing messages from this business in WhatsApp
+    Campaigns::RecipientEligibility.opt_out!(delivery.account_id, delivery.phone_number) if error[:code].to_i == 131_050
+    Campaigns::AutoPauseService.new(campaign: delivery.campaign).check_error!(error[:code], from_webhook: true) if delivery.campaign
   end
 
   def mark_wa_invalid(delivery)

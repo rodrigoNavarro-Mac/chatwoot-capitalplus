@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_10_09_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_02_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -575,6 +575,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_09_120000) do
     t.string "audience_type", default: "labels", null: false
     t.integer "audience_count"
     t.string "timezone", default: "UTC"
+    t.string "pause_reason"
     t.datetime "started_at"
     t.datetime "completed_at"
     t.index ["account_id"], name: "index_campaigns_on_account_id"
