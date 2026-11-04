@@ -80,11 +80,16 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
   # parsear, ni error-checking ni GraphCollection -- visto en producción: NoMethodError "undefined
   # method 'each'"). #graph_call es lo que parsea el JSON, revisa errores, y envuelve resultados
   # paginables en GraphCollection -- es lo que get_object/get_page usan internamente.
+  # Fase 22: se agregan campaign_id/adset_id/ad_id/account_id al mismo fields: ya autorizado por
+  # ads_read -- NO requiere ningún permiso nuevo (son columnas de la misma fila de insights, ver
+  # docs/investigacion-tesis-ia/26_DISENO_ATRIBUCION_DETERMINISTICA_FASE21.md §2). Se guardan
+  # como metadato aditivo (RevenueAdSpend#meta_*), nunca como llave de deduplicación -- ver
+  # upsert_spend y el comentario de la migración AddMetaIdsToRevenueAdSpends.
   def each_insight_row(client, ad_account_id, since, until_date, &)
     time_range = { since: since.iso8601, until: until_date.iso8601 }.to_json
     page = client.graph_call("#{ad_account_id}/insights", {
       level: 'ad', time_increment: 1, time_range: time_range,
-      fields: 'campaign_name,adset_name,ad_name,spend,date_start'
+      fields: 'campaign_name,adset_name,ad_name,spend,date_start,account_id,campaign_id,adset_id,ad_id'
     }.compact, 'get', { api_version: GRAPH_API_VERSION })
 
     loop do
@@ -102,6 +107,16 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
   # ningún alias conocido -- útil para una cuenta que de verdad sea de un solo desarrollo, pero
   # nunca debe usarse en una cuenta ya confirmada como multi-desarrollo (ahí mejor dejarlo sin
   # configurar en el Hook, para que lo no resuelto quede en nil/N-D visible, no mal etiquetado).
+  # IMPORTANTE (Fase 22 §1): la llave de find_or_initialize_by sigue siendo por NOMBRE, sin
+  # cambios -- NUNCA se busca por meta_campaign_id/meta_adset_id/meta_ad_id. Hacerlo
+  # reescribiría campaign_name/adset_name/advert_name en filas históricas en cada
+  # resincronización (Meta siempre reporta el nombre VIGENTE, incluso para fechas pasadas) y
+  # rompería el match por nombre que usa V2::Reports::RevenueIntelligenceBuilder contra los
+  # dimension_id de los rollups (generados con el nombre con el que se creó cada Lead/Deal en su
+  # momento). Los campos meta_* se guardan como metadato adicional; una campaña renombrada sigue
+  # fragmentándose en dos filas por nombre, igual que hoy, pero ambas comparten el mismo
+  # meta_campaign_id -- consultas futuras pueden des-fragmentar agrupando por ID sin migrar ni
+  # mutar ninguna fila existente.
   def upsert_spend(account, row, hook_desarrollo)
     return if row['spend'].blank?
 
@@ -111,7 +126,18 @@ class RevenueIntelligence::SyncMetaAdsSpendJob < ApplicationJob
       campaign_name: row['campaign_name'], adset_name: row['adset_name'], advert_name: row['ad_name'],
       period_start: date, period_end: date
     )
-    spend.assign_attributes(amount: row['spend'].to_f, currency: EXPECTED_CURRENCY, source: 'meta_api', desarrollo: desarrollo)
+
+    new_amount = row['spend'].to_f
+    observed_at = Time.current
+    # Solo tiene sentido "revisar" un valor que ya existía -- una fila recién creada no tiene
+    # importe previo con el cual compararse (Fase 22 §3: revisiones solo ante cambio EFECTIVO).
+    spend.record_revision_if_changed!(new_amount, observed_at: observed_at) unless spend.new_record?
+
+    spend.assign_attributes(
+      amount: new_amount, currency: EXPECTED_CURRENCY, source: 'meta_api', desarrollo: desarrollo,
+      meta_ad_account_id: row['account_id'], meta_campaign_id: row['campaign_id'],
+      meta_adset_id: row['adset_id'], meta_ad_id: row['ad_id'], last_synced_at: observed_at
+    )
     spend.save!
   end
 end

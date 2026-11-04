@@ -748,6 +748,23 @@ describe V2::Reports::RevenueIntelligenceBuilder do
       expect(row[:spend_source]).to eq('meta_api')
     end
 
+    # Fase 22 §1/§6: compatibilidad -- los IDs reales de Meta agregados en Fase 22 son metadato
+    # puramente aditivo; marketing_spend/marketing_ad_table siguen matcheando por NOMBRE, sin
+    # ningún cambio de comportamiento, con o sin los campos meta_* poblados.
+    it 'is unaffected by the meta_* id columns added in Fase 22 -- matching stays purely by name' do
+      rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
+      account.revenue_ad_spends.create!(campaign_name: 'camp-1', adset_name: 'adset-1', advert_name: 'Ad Uno',
+                                        period_start: 5.days.ago.to_date, period_end: 5.days.ago.to_date, amount: 300,
+                                        source: 'meta_api', meta_campaign_id: 'c-1', meta_adset_id: 'as-1', meta_ad_id: 'ad-1',
+                                        meta_ad_account_id: 'act_123')
+
+      row = builder.build[:marketing_ad_table].first
+
+      expect(row[:spend_amount].to_f).to eq(300.0)
+      expect(row[:spend_source]).to eq('meta_api')
+      expect(row).not_to have_key(:meta_campaign_id) # el builder no expone (ni necesita) los IDs todavía
+    end
+
     it '"automatico manda": ignores a coarser manual capture once meta_api spend exists for the same campaign' do
       rollup('advert', 'camp-1::adset-1::ad-1::Ad Uno', 'lead_created', count: 10)
       # Captura manual histórica a nivel campaña (sin adset/advert), previa a conectar la API.

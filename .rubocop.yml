@@ -49,6 +49,7 @@ Metrics/MethodLength:
     - 'db/migrate/20260709120000_create_campaign_message_deliveries.rb'
     - 'db/migrate/20260709140000_create_cadence_enrollments.rb'
     - 'db/migrate/20260715090000_create_cadence_step_definitions.rb'
+    - 'db/migrate/20261020190100_create_revenue_lead_meta_attributions.rb'
 
 RSpec/ExampleLength:
   Max: 50

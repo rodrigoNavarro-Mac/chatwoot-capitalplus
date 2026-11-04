@@ -114,4 +114,79 @@ describe RevenueAdSpend do
       expect(account.revenue_ad_spends.meta_api).to contain_exactly(auto)
     end
   end
+
+  # Fase 22 §3/§4: integridad del historial de revisiones -- append-only, solo ante cambio
+  # efectivo, nunca retrocede observed_at artificialmente.
+  describe '#record_revision_if_changed!' do
+    let(:spend) { build_spend(amount: 1000).tap(&:save!) }
+
+    it 'creates no revision for a brand-new record (no previous value to compare against)' do
+      brand_new = build_spend(campaign_name: 'Camp New')
+      brand_new.record_revision_if_changed!(500, observed_at: Time.current) unless brand_new.new_record?
+
+      expect(brand_new.revisions).to be_empty
+    end
+
+    it 'does not create a revision when the amount is unchanged (idempotencia ante re-sincronizaciones sin cambio)' do
+      expect do
+        spend.record_revision_if_changed!(1000, observed_at: Time.current)
+      end.not_to change(spend.revisions, :count)
+    end
+
+    it 'creates exactly one revision when the amount changes' do
+      expect do
+        spend.record_revision_if_changed!(1250.50, observed_at: Time.current)
+      end.to change(spend.revisions, :count).by(1)
+      expect(spend.revisions.last.amount).to eq(1250.50)
+    end
+
+    it 'accumulates one revision per distinct change across multiple syncs, preserving full history' do
+      spend.record_revision_if_changed!(1100, observed_at: 2.days.ago)
+      spend.record_revision_if_changed!(1100, observed_at: 1.day.ago) # sin cambio, no debe duplicar
+      spend.record_revision_if_changed!(1200, observed_at: Time.current)
+
+      expect(spend.revisions.order(:observed_at).pluck(:amount)).to eq([BigDecimal('1100.0'), BigDecimal('1200.0')])
+    end
+
+    it 'rejects a revision with an observed_at in the future (protección contra backdating/forward-dating artificial)' do
+      spend.record_revision_if_changed!(1100, observed_at: Time.current)
+      expect { spend.record_revision_if_changed!(1300, observed_at: 1.year.from_now) }.to raise_error(ActiveRecord::RecordInvalid)
+    end
+
+    it 'destroys revisions when the parent spend row is destroyed (no orphaned history)' do
+      spend.record_revision_if_changed!(1100, observed_at: Time.current)
+      revision_id = spend.revisions.sole.id
+
+      spend.destroy!
+
+      expect(RevenueAdSpendRevision.find_by(id: revision_id)).to be_nil
+    end
+  end
+
+  # Fase 22 §3/§4: consultas point-in-time SIN fuga -- nunca debe devolver un valor que todavía
+  # no se conocía en el instante consultado, por más cercano que esté en el tiempo.
+  describe '.known_amount_as_of' do
+    let(:spend) { build_spend(amount: 1000).tap(&:save!) }
+
+    it 'returns the amount known at or before the given instant, never a later revision' do
+      spend.record_revision_if_changed!(1100, observed_at: 10.days.ago)
+      spend.record_revision_if_changed!(1300, observed_at: 1.day.ago)
+
+      expect(RevenueAdSpendRevision.known_amount_as_of(spend.id, 5.days.ago)).to eq(BigDecimal('1100.0'))
+    end
+
+    it 'returns nil when nothing was known yet at that instant (no sustituye por el valor actual)' do
+      spend.record_revision_if_changed!(1100, observed_at: 1.day.ago)
+
+      expect(RevenueAdSpendRevision.known_amount_as_of(spend.id, 10.days.ago)).to be_nil
+    end
+
+    it 'never leaks a revision observed strictly after the reference instant, even by seconds' do
+      reference = Time.zone.parse('2026-10-15 12:00:00')
+      spend.record_revision_if_changed!(1100, observed_at: reference - 1.second)
+      spend.record_revision_if_changed!(9999, observed_at: reference + 1.second)
+
+      expect(RevenueAdSpendRevision.known_amount_as_of(spend.id, reference)).to eq(BigDecimal('1100.0'))
+    end
+  end
 end

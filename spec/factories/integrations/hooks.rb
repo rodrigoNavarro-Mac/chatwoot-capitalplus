@@ -54,6 +54,11 @@ FactoryBot.define do
       settings { { 'ad_account_id' => 'act_123456789' } }
     end
 
+    trait :meta_lead_ads do
+      app_id { 'meta_lead_ads' }
+      settings { {} }
+    end
+
     trait :zoho_crm do
       app_id { 'zoho_crm' }
       settings do

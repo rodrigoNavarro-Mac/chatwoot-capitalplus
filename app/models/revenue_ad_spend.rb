@@ -15,27 +15,33 @@
 #
 # Table name: revenue_ad_spends
 #
-#  id            :bigint           not null, primary key
-#  adset_name    :string
-#  advert_name   :string
-#  amount        :decimal(14, 2)   not null
-#  campaign_name :string           not null
-#  currency      :string           default("MXN"), not null
-#  desarrollo    :string
-#  period_end    :date             not null
-#  period_start  :date             not null
-#  source        :string           default("manual"), not null
-#  created_at    :datetime         not null
-#  updated_at    :datetime         not null
-#  account_id    :bigint           not null
-#  created_by_id :bigint
-#  updated_by_id :bigint
+#  id                 :bigint           not null, primary key
+#  adset_name         :string
+#  advert_name        :string
+#  amount             :decimal(14, 2)   not null
+#  campaign_name      :string           not null
+#  currency           :string           default("MXN"), not null
+#  desarrollo         :string
+#  last_synced_at     :datetime
+#  period_end         :date             not null
+#  period_start       :date             not null
+#  source             :string           default("manual"), not null
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  account_id         :bigint           not null
+#  created_by_id      :bigint
+#  meta_ad_account_id :string
+#  meta_ad_id         :string
+#  meta_adset_id      :string
+#  meta_campaign_id   :string
+#  updated_by_id      :bigint
 #
 # Indexes
 #
 #  idx_on_account_id_campaign_name_source_15eb13a608     (account_id,campaign_name,source)
 #  idx_on_account_id_period_start_period_end_de56c7d911  (account_id,period_start,period_end)
 #  idx_revenue_ad_spends_dedup                           (account_id,campaign_name,adset_name,advert_name,period_start,period_end) UNIQUE
+#  index_revenue_ad_spends_on_account_id_and_meta_ad_id  (account_id,meta_ad_id)
 #
 class RevenueAdSpend < ApplicationRecord
   CURRENCIES = %w[MXN].freeze
@@ -44,6 +50,7 @@ class RevenueAdSpend < ApplicationRecord
   belongs_to :account
   belongs_to :created_by, class_name: 'User', optional: true
   belongs_to :updated_by, class_name: 'User', optional: true
+  has_many :revisions, class_name: 'RevenueAdSpendRevision', dependent: :destroy
 
   validates :campaign_name, presence: true
   validates :period_start, :period_end, presence: true
@@ -70,6 +77,23 @@ class RevenueAdSpend < ApplicationRecord
     self.class.where(account_id: account_id, campaign_name: campaign_name, adset_name: adset_name, advert_name: advert_name)
         .where.not(id: id)
         .where('period_start <= ? AND period_end >= ?', period_end, period_start)
+  end
+
+  # Fase 22 §3: una revisión solo se guarda cuando el importe CAMBIA de verdad respecto a la
+  # última revisión conocida (o no hay ninguna todavía) -- nunca en cada corrida del job, para no
+  # inflar revenue_ad_spend_revisions con filas idénticas. `observed_at` es el único timestamp
+  # que el sistema puede conocer con certeza (cuándo Revenue Intelligence vio este valor), nunca
+  # se retrocede artificialmente -- lo pasa siempre el llamador (normalmente Time.current en el
+  # momento real de la sincronización), ver riesgo de backdating en Fase 22 §3/§6.
+  #
+  # IMPORTANTE: debe llamarse ANTES de reasignar `amount` en el mismo objeto (self.amount aquí
+  # todavía debe reflejar el valor previo) -- es el respaldo cuando todavía no existe ninguna
+  # revisión (fila creada antes de este cambio, o primera vez que se sincroniza).
+  def record_revision_if_changed!(new_amount, observed_at:)
+    last_known = revisions.order(observed_at: :desc).first&.amount || amount
+    return if last_known.to_d == new_amount.to_d
+
+    revisions.create!(account_id: account_id, amount: new_amount, observed_at: observed_at)
   end
 
   private
