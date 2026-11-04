@@ -61,12 +61,24 @@ export function useContactFilterContext() {
     getOperatorTypes,
   } = useOperators();
 
-  // "Ever replied" / "never replied" are expressed as present / not present on the date
-  const engagementOperators = computed(() => [
-    ...dateOperators.value,
-    operators.value.is_present,
-    operators.value.is_not_present,
-  ]);
+  // "Ever replied" / "never replied" are expressed as present / not present on the date,
+  // so the generic labels ("is present") are swapped for ones that read naturally here
+  const engagementOperators = computed(() => {
+    const operatorLabels = {
+      is_present: t('CONTACTS_FILTER.ENGAGEMENT_OPERATORS.IS_PRESENT'),
+      is_not_present: t('CONTACTS_FILTER.ENGAGEMENT_OPERATORS.IS_NOT_PRESENT'),
+      is_greater_than: t(
+        'CONTACTS_FILTER.ENGAGEMENT_OPERATORS.IS_GREATER_THAN'
+      ),
+      is_less_than: t('CONTACTS_FILTER.ENGAGEMENT_OPERATORS.IS_LESS_THAN'),
+      days_before: t('CONTACTS_FILTER.ENGAGEMENT_OPERATORS.DAYS_BEFORE'),
+    };
+    return [
+      operators.value.is_present,
+      operators.value.is_not_present,
+      ...dateOperators.value,
+    ].map(operator => ({ ...operator, label: operatorLabels[operator.value] }));
+  });
 
   const engagementFilterTypes = computed(() =>
     [
