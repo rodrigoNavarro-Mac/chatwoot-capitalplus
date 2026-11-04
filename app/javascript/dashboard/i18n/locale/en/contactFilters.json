@@ -59,6 +59,13 @@
       "ADDITIONAL_FILTERS": "Additional Filters",
       "CUSTOM_ATTRIBUTES": "Custom Attributes",
       "ENGAGEMENT_FILTERS": "WhatsApp engagement"
+    },
+    "ENGAGEMENT_OPERATORS": {
+      "IS_GREATER_THAN": "After",
+      "IS_LESS_THAN": "Before",
+      "DAYS_BEFORE": "More than X days ago",
+      "IS_PRESENT": "Ever",
+      "IS_NOT_PRESENT": "Never"
     }
   }
 }

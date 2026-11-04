@@ -59,6 +59,13 @@
       "ADDITIONAL_FILTERS": "Filtros adicionales",
       "CUSTOM_ATTRIBUTES": "Atributos personalizados",
       "ENGAGEMENT_FILTERS": "Interacción en WhatsApp"
+    },
+    "ENGAGEMENT_OPERATORS": {
+      "IS_GREATER_THAN": "Después del",
+      "IS_LESS_THAN": "Antes del",
+      "DAYS_BEFORE": "Hace más de X días",
+      "IS_PRESENT": "Alguna vez",
+      "IS_NOT_PRESENT": "Nunca"
     }
   }
 }
