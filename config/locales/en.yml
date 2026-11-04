@@ -484,6 +484,10 @@ en:
       name: 'Meta Ads'
       short_description: 'Sync ad spend from Meta Marketing API into Revenue Intelligence.'
       description: 'Connect a Meta Business Manager System User token to automatically bring in daily ad spend by campaign, ad set, and ad, matched by name against your Meta Ads leads in Revenue Intelligence. Read-only, never creates or modifies campaigns.'
+    meta_lead_ads:
+      name: 'Meta Lead Ads attribution'
+      short_description: 'Resolve Meta Lead Ads leads to their real ad, ad set, campaign and form.'
+      description: 'Connect a dedicated, minimally-scoped Meta System User token (leads_retrieval + pages_show_list only) to deterministically resolve Revenue Intelligence leads to their real Meta ad/ad set/campaign/form, separate from the Meta Ads spend credential. Read-only, never modifies Meta assets.'
   captain:
     copilot_message_required: Message is required
     copilot_error: 'Please connect an assistant to this inbox to use Copilot'

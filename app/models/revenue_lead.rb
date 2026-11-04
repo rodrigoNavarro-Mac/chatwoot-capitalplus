@@ -77,6 +77,10 @@ class RevenueLead < ApplicationRecord
   belongs_to :revenue_contact, optional: true
   has_many :revenue_deals, dependent: :nullify
   has_one :revenue_lead_journey, dependent: :destroy
+  # Atribución determinística Meta Ads (Fase 22) -- tabla separada, no columnas acá (ver
+  # comentario de RevenueLeadMetaAttribution). Opcional: solo existe para el subconjunto de
+  # leads con social_lead_id poblado y ya resuelto.
+  has_one :meta_attribution, class_name: 'RevenueLeadMetaAttribution', dependent: :destroy
 
   validates :zoho_lead_id, presence: true, uniqueness: { scope: :account_id }
 end

@@ -465,6 +465,10 @@ es:
       name: 'Meta Ads'
       short_description: 'Sincroniza el gasto publicitario desde Meta Marketing API a Revenue Intelligence.'
       description: 'Conecta un token de System User de Meta Business Manager para traer automáticamente el gasto diario por campaña, adset y anuncio, cruzado por nombre contra tus leads de Meta Ads en Revenue Intelligence. Solo lectura, nunca crea ni modifica campañas.'
+    meta_lead_ads:
+      name: 'Atribución de Meta Lead Ads'
+      short_description: 'Resuelve los Leads de Meta Lead Ads a su anuncio, conjunto de anuncios, campaña y formulario reales.'
+      description: 'Conecta un token de System User de Meta dedicado y de alcance mínimo (solo leads_retrieval + pages_show_list) para resolver de forma determinística los Leads de Revenue Intelligence a su anuncio, conjunto de anuncios, campaña y formulario reales de Meta, separado de la credencial de gasto de Meta Ads. Solo lectura, nunca modifica activos de Meta.'
   captain:
     copilot_message_required: El mensaje es obligatorio
     copilot_error: 'Conecte un asistente a esta bandeja de entrada para utilizar Copilot'

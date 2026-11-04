@@ -1701,6 +1701,33 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_02_120000) do
     t.index ["inbox_id"], name: "index_reports_inbox_brandings_on_inbox_id", unique: true
   end
 
+  create_table "revenue_ad_creative_snapshots", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "meta_ad_id", null: false
+    t.string "meta_adset_id"
+    t.string "meta_campaign_id"
+    t.string "format"
+    t.string "media_type"
+    t.text "title"
+    t.text "body"
+    t.string "call_to_action_type"
+    t.string "creative_id"
+    t.datetime "fetched_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["meta_ad_id", "fetched_at"], name: "idx_on_meta_ad_id_fetched_at_2de14f774d"
+  end
+
+  create_table "revenue_ad_spend_revisions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "revenue_ad_spend_id", null: false
+    t.decimal "amount", precision: 14, scale: 2, null: false
+    t.datetime "observed_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["revenue_ad_spend_id", "observed_at"], name: "idx_revenue_ad_spend_revisions_lookup"
+  end
+
   create_table "revenue_ad_spends", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "desarrollo"
@@ -1716,8 +1743,14 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_02_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "source", default: "manual", null: false
+    t.string "meta_ad_account_id"
+    t.string "meta_campaign_id"
+    t.string "meta_adset_id"
+    t.string "meta_ad_id"
+    t.datetime "last_synced_at"
     t.index ["account_id", "campaign_name", "adset_name", "advert_name", "period_start", "period_end"], name: "idx_revenue_ad_spends_dedup", unique: true
     t.index ["account_id", "campaign_name", "source"], name: "idx_on_account_id_campaign_name_source_15eb13a608"
+    t.index ["account_id", "meta_ad_id"], name: "index_revenue_ad_spends_on_account_id_and_meta_ad_id"
     t.index ["account_id", "period_start", "period_end"], name: "idx_on_account_id_period_start_period_end_de56c7d911"
   end
 
@@ -1945,6 +1978,30 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_02_120000) do
     t.index ["account_id", "revenue_contact_id"], name: "idx_on_account_id_revenue_contact_id_e5770161d1"
     t.index ["account_id", "revenue_lead_id"], name: "index_revenue_lead_journeys_on_account_id_and_revenue_lead_id", unique: true
     t.index ["account_id", "won", "lost"], name: "index_revenue_lead_journeys_on_account_id_and_won_and_lost"
+  end
+
+  create_table "revenue_lead_meta_attributions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "revenue_lead_id", null: false
+    t.string "social_lead_id", null: false
+    t.string "meta_ad_id"
+    t.string "meta_adset_id"
+    t.string "meta_campaign_id"
+    t.string "meta_form_id"
+    t.string "meta_ad_account_id"
+    t.datetime "meta_lead_created_at"
+    t.string "verification_status", default: "pendiente", null: false
+    t.integer "fetch_error_code"
+    t.integer "fetch_error_subcode"
+    t.string "source", default: "graph_api_leadgen_lookup", null: false
+    t.datetime "fetched_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "verification_status"], name: "idx_on_account_id_verification_status_acf5f85a82"
+    t.index ["meta_ad_id"], name: "index_revenue_lead_meta_attributions_on_meta_ad_id"
+    t.index ["meta_adset_id"], name: "index_revenue_lead_meta_attributions_on_meta_adset_id"
+    t.index ["meta_campaign_id"], name: "index_revenue_lead_meta_attributions_on_meta_campaign_id"
+    t.index ["revenue_lead_id"], name: "index_revenue_lead_meta_attributions_on_revenue_lead_id", unique: true
   end
 
   create_table "revenue_leads", force: :cascade do |t|

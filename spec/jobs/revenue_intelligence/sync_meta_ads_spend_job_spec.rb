@@ -170,6 +170,134 @@ describe RevenueIntelligence::SyncMetaAdsSpendJob do
       described_class.new.perform(account.id)
     end
 
+    # Fase 22 §1: IDs reales en revenue_ad_spends, sin tocar la llave de dedup por nombre.
+    it 'populates the new meta_* id columns from the same insights row (no new permission needed)' do
+      row = insight_row.merge('account_id' => 'act_123456789', 'campaign_id' => 'c-1', 'adset_id' => 'as-1', 'ad_id' => 'ad-1')
+      allow(client).to receive(:graph_call).and_return(page_of([row]))
+
+      described_class.new.perform(account.id)
+
+      spend = account.revenue_ad_spends.sole
+      expect(spend).to have_attributes(meta_ad_account_id: 'act_123456789', meta_campaign_id: 'c-1', meta_adset_id: 'as-1', meta_ad_id: 'ad-1')
+    end
+
+    it 'leaves the meta_* columns nil when Meta does not return them (ausencia de identificadores, no debe fallar)' do
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row])) # sin campos meta_* en la fila
+
+      expect { described_class.new.perform(account.id) }.not_to raise_error
+
+      spend = account.revenue_ad_spends.sole
+      expect(spend).to have_attributes(meta_ad_id: nil, meta_adset_id: nil, meta_campaign_id: nil, meta_ad_account_id: nil)
+    end
+
+    it 'sets last_synced_at on every successful sync, even without an amount change' do
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(spend: '100.00')]))
+      described_class.new.perform(account.id)
+      first_sync = account.revenue_ad_spends.sole.last_synced_at
+
+      travel 1.hour do
+        allow(client).to receive(:graph_call).and_return(page_of([insight_row(spend: '100.00')]))
+        described_class.new.perform(account.id)
+      end
+
+      expect(account.revenue_ad_spends.sole.last_synced_at).to be > first_sync
+    end
+
+    # Fase 22 §1/§3: integridad del historial de revisiones -- solo ante cambio EFECTIVO.
+    it 'creates an amount revision only when the amount actually changes across syncs' do
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(spend: '100.00')]))
+      described_class.new.perform(account.id)
+      spend = account.revenue_ad_spends.sole
+      expect(spend.revisions).to be_empty # creación inicial, no es un "cambio"
+
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(spend: '100.00')]))
+      described_class.new.perform(account.id)
+      expect(spend.revisions.reload).to be_empty # mismo importe, no se crea revisión
+
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(spend: '175.50')]))
+      described_class.new.perform(account.id)
+      expect(spend.revisions.reload.sole.amount).to eq(175.50)
+    end
+
+    # Fase 22 §1/§4: un renombramiento sigue fragmentando por nombre (comportamiento ya conocido,
+    # documentado en Fase 16) -- pero AMBAS filas comparten el mismo meta_campaign_id, lo que
+    # permite des-fragmentar en consultas futuras sin migrar ni mutar ninguna fila histórica.
+    it 'a campaign rename still fragments by name, but both rows share the same meta_campaign_id' do
+      allow(client).to receive(:graph_call).and_return(page_of([
+                                                                 insight_row(campaign_name: 'Campaña Original',
+                                                                             date_start: '2026-09-01').merge('campaign_id' => 'c-1')
+                                                               ]))
+      described_class.new.perform(account.id)
+
+      allow(client).to receive(:graph_call).and_return(page_of([
+                                                                 insight_row(campaign_name: 'Campaña Renombrada',
+                                                                             date_start: '2026-09-02').merge('campaign_id' => 'c-1')
+                                                               ]))
+      described_class.new.perform(account.id)
+
+      expect(account.revenue_ad_spends.count).to eq(2) # fragmentado por nombre, como antes
+      expect(account.revenue_ad_spends.pluck(:campaign_name)).to contain_exactly('Campaña Original', 'Campaña Renombrada')
+      expect(account.revenue_ad_spends.pluck(:meta_campaign_id).uniq).to eq(['c-1']) # pero unificable por ID
+    end
+
+    it 're-syncing an existing historical row never overwrites campaign_name/adset_name/advert_name with a newer name' do
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(campaign_name: 'Nombre A',
+                                                                            date_start: '2026-09-01').merge('campaign_id' => 'c-1')]))
+      described_class.new.perform(account.id)
+
+      # Re-sincroniza la MISMA fecha/campaña/adset/anuncio (mismo lookup key) -- Meta ahora
+      # reportaría el nombre actual en 'campaign_name', pero como el lookup sigue siendo por
+      # nombre, esta corrida en particular solo puede encontrar la fila si el nombre no cambió.
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(campaign_name: 'Nombre A', date_start: '2026-09-01',
+                                                                            spend: '200.00').merge('campaign_id' => 'c-1')]))
+      described_class.new.perform(account.id)
+
+      expect(account.revenue_ad_spends.sole.campaign_name).to eq('Nombre A')
+    end
+
+    # Fase 22 §4: colisiones entre cuentas publicitarias -- dos cuentas distintas con la misma
+    # campaña textual nunca deben fusionarse ni contaminarse entre sí.
+    it 'never conflates spend rows from two different accounts sharing the same campaign name' do
+      other_account = create(:account)
+      other_hook = create(:integrations_hook, :meta_ads, account: other_account, status: 'enabled',
+                                                         settings: { 'ad_account_id' => 'act_999999999' })
+      other_client = instance_double(Koala::Facebook::API)
+      allow(Koala::Facebook::API).to receive(:new).with(other_hook.access_token).and_return(other_client)
+      stub_currency(other_client, 'act_999999999')
+      allow(other_client).to receive(:graph_call).and_return(page_of([insight_row(spend: '999.00').merge('campaign_id' => 'c-other')]))
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row(spend: '100.00').merge('campaign_id' => 'c-mine')]))
+
+      described_class.new.perform
+
+      expect(account.revenue_ad_spends.sole).to have_attributes(amount: 100.00, meta_campaign_id: 'c-mine')
+      expect(other_account.revenue_ad_spends.sole).to have_attributes(amount: 999.00, meta_campaign_id: 'c-other')
+    end
+
+    # Fase 22 §1/§4: gastos manuales nunca traen (ni deben traer) identificadores reales de Meta,
+    # y el precedence/compatibilidad existente (apply_meta_api_precedence, "automático manda") no
+    # cambia con la llegada de los campos meta_*.
+    it 'a manual spend row for a DIFFERENT ad, never touched by the job, keeps its meta_* ids nil forever' do
+      untouched_manual = account.revenue_ad_spends.create!(campaign_name: 'Otra Campaña Manual', adset_name: nil, advert_name: nil,
+                                                           period_start: '2026-09-01', period_end: '2026-09-30', amount: 5000, source: 'manual')
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row.merge('campaign_id' => 'c-1', 'adset_id' => 'as-1', 'ad_id' => 'ad-1')]))
+
+      described_class.new.perform(account.id)
+
+      expect(untouched_manual.reload).to have_attributes(meta_campaign_id: nil, meta_adset_id: nil, meta_ad_id: nil, source: 'manual')
+    end
+
+    it 'automatico manda: a manual row sharing the exact same ad/period key as a meta_api row gets the meta_* ids too (same row)' do
+      manual = account.revenue_ad_spends.create!(campaign_name: 'Fuego 11 Abril', adset_name: 'Adset 1', advert_name: 'Ad 1',
+                                                 period_start: '2026-09-20', period_end: '2026-09-20', amount: 999, source: 'manual')
+      allow(client).to receive(:graph_call).and_return(page_of([insight_row.merge('campaign_id' => 'c-1', 'adset_id' => 'as-1', 'ad_id' => 'ad-1')]))
+
+      described_class.new.perform(account.id)
+
+      spend = account.revenue_ad_spends.sole
+      expect(spend.id).to eq(manual.id) # misma fila, no una nueva -- "automático manda" ya probado arriba
+      expect(spend).to have_attributes(source: 'meta_api', meta_campaign_id: 'c-1')
+    end
+
     it 'continues with other hooks when one hook raises' do
       other_account = create(:account)
       other_hook = create(:integrations_hook, :meta_ads, account: other_account, status: 'enabled',

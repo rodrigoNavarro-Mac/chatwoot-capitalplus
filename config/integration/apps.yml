@@ -391,3 +391,21 @@ meta_ads:
       'additionalProperties': false,
     }
   visible_properties: ['ad_account_id', 'business_account_id', 'desarrollo']
+meta_lead_ads:
+  id: meta_lead_ads
+  logo: meta.png
+  i18n_key: meta_lead_ads
+  hook_type: account
+  allow_multiple_hooks: false
+  # Hook SEPARADO y DEDICADO del Hook "meta_ads" de arriba -- decisión explícita de la Fase 20
+  # de la investigación de tesis IA (docs/investigacion-tesis-ia/25_VERIFICACION_ADMINISTRATIVA_META_FASE20.md):
+  # el token de "meta_ads" es compartido entre Ads (ads_management/ads_read) y WhatsApp Business
+  # (whatsapp_business_management/messaging/manage_events), y ampliarlo con leads_retrieval
+  # incrementaría el radio de impacto de funciones ya operativas. Este Hook guarda un token de
+  # System User nuevo y de alcance mínimo (leads_retrieval + pages_show_list únicamente, nunca
+  # ads_management ni business_management) -- sin impacto si se revoca o rota, nunca toca
+  # SyncMetaAdsSpendJob ni la sincronización de WhatsApp. No necesita settings -- la llamada a
+  # Meta es por leadgen_id (viene de revenue_leads.social_lead_id), no por cuenta publicitaria.
+  settings_json_schema:
+    { 'type': 'object', 'properties': {}, 'additionalProperties': false }
+  visible_properties: []
