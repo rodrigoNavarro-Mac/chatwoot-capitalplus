@@ -13,6 +13,7 @@
 #  responded_at             :datetime
 #  sent_at                  :datetime
 #  status                   :string           default("queued"), not null
+#  template_variant         :string
 #  created_at               :datetime         not null
 #  updated_at               :datetime         not null
 #  account_id               :bigint           not null

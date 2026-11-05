@@ -9,6 +9,7 @@ json.payload do
     json.phone_number delivery.phone_number
     json.name delivery.contact&.name || delivery.contact_name || delivery.phone_number
     json.audience_type delivery.audience_type
+    json.template_variant delivery.template_variant
     json.status delivery.status
     json.sent_at delivery.sent_at
     json.delivered_at delivery.delivered_at

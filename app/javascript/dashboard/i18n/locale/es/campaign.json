@@ -182,6 +182,16 @@
             "VARIABLES_LABEL": "Variables",
             "VARIABLE_PLACEHOLDER": "Enter value for {variable}"
           },
+          "AB_TEST": {
+            "LABEL": "Prueba A/B de plantillas",
+            "HELP": "Cada contacto recibe solo una de las dos plantillas; al final compara cuál obtuvo más respuestas.",
+            "TEMPLATE_B": "Plantilla B",
+            "SPLIT": {
+              "LABEL": "% de la audiencia que recibe la plantilla A",
+              "HELP": "{a}% recibirá la plantilla A y {b}% la plantilla B.",
+              "ERROR": "Usa un número entre 1 y 99."
+            }
+          },
           "AUDIENCE": {
             "LABEL": "Audiencia",
             "PLACEHOLDER": "Seleccione las etiquetas personalizadas",
@@ -310,6 +320,21 @@
       },
       "API": {
         "ERROR_MESSAGE": "Ocurrió un error al cargar las métricas de la campaña. Por favor intente nuevamente."
+      },
+      "AB_TEST": {
+        "TITLE": "Prueba A/B",
+        "TEMPLATE": "Plantilla {key}",
+        "ROWS": {
+          "SENT": "Enviados",
+          "DELIVERED": "% entregados",
+          "READ": "% leídos",
+          "RESPONDED": "Respuestas",
+          "RESPONSE_RATE": "Tasa de respuesta",
+          "FAILED": "Fallidos"
+        },
+        "LEADER": "La plantilla {key} va ganando con {rate}% de respuesta.",
+        "NOT_ENOUGH_DATA": "Aún no hay suficientes envíos para comparar (mínimo {count} por plantilla).",
+        "TIE": "Ambas plantillas tienen la misma tasa de respuesta."
       }
     },
     "WHATSAPP_RECIPIENTS": {
@@ -339,7 +364,8 @@
           "DELIVERED_AT": "Entregado",
           "READ_AT": "Leído",
           "FAILED_REASON": "Motivo de falla",
-          "RESPONDED": "Respondió"
+          "RESPONDED": "Respondió",
+          "TEMPLATE_VARIANT": "Plantilla"
         },
         "EMPTY": "No se encontraron destinatarios con estos filtros"
       },

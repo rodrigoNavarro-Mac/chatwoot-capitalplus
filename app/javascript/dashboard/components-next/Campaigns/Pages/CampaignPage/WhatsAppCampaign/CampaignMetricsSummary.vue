@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ReportMetricCard from 'dashboard/routes/dashboard/settings/reports/components/ReportMetricCard.vue';
 import { messageTimestamp } from 'shared/helpers/timeHelper';
+import CampaignAbTestComparison from './CampaignAbTestComparison.vue';
 
 const props = defineProps({
   metrics: {
@@ -99,6 +100,10 @@ const showProgress = computed(() => progress.value.next_send_at != null);
         :value="formatPercent(metrics.response_rate)"
       />
     </div>
+    <CampaignAbTestComparison
+      v-if="metrics.variants"
+      :variants="metrics.variants"
+    />
     <div v-if="failedReasons.length" class="flex flex-col gap-1 mt-2">
       <span class="text-sm font-medium text-n-slate-12">
         {{ t('CAMPAIGN.WHATSAPP_METRICS.FAILED.LABEL') }}

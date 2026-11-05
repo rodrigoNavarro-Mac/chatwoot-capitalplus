@@ -13,6 +13,7 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import TagMultiSelectComboBox from 'dashboard/components-next/combobox/TagMultiSelectComboBox.vue';
 import WhatsAppTemplateParser from 'dashboard/components-next/whatsapp/WhatsAppTemplateParser.vue';
+import WhatsAppCampaignAbVariant from './WhatsAppCampaignAbVariant.vue';
 
 const props = defineProps({
   selectedCampaign: {
@@ -55,6 +56,7 @@ const state = reactive({ ...initialState });
 const csvFile = ref(null);
 const hasAttemptedSubmit = ref(false);
 const templateParserRef = ref(null);
+const abVariantRef = ref(null);
 const csvPreview = ref(null);
 const isPreviewingCsv = ref(false);
 let csvPreviewToken = 0;
@@ -183,6 +185,7 @@ const isSubmitDisabled = computed(() => {
     if (isPreviewingSegment.value) return true;
     if (segmentPreview.value && !segmentPreview.value.eligible) return true;
   }
+  if (abVariantRef.value?.isInvalid) return true;
   return !hasRequiredTemplateParams.value;
 });
 
@@ -379,6 +382,7 @@ const prepareCampaignDetails = () => {
     send_window_start: state.sendWindowStart,
     send_window_end: state.sendWindowEnd,
     timezone: state.timezone,
+    ...(abVariantRef.value?.buildPayload() ?? {}),
   };
 };
 
@@ -389,6 +393,7 @@ const handleSubmit = async () => {
 
   const isFormValid = await v$.value.$validate();
   if (!isFormValid || !hasRequiredTemplateParams.value) return;
+  if (abVariantRef.value?.isInvalid) return;
 
   emit('submit', prepareCampaignDetails(), csvFile.value || null);
   if (!isEditMode.value) {
@@ -458,6 +463,15 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
       :template="selectedTemplate"
       :inbox-id="state.inboxId"
       autofill-name-variable
+    />
+
+    <WhatsAppCampaignAbVariant
+      v-if="state.inboxId"
+      ref="abVariantRef"
+      :inbox-id="state.inboxId"
+      :template-options="templateOptions"
+      :primary-template-id="state.templateId"
+      :selected-campaign="selectedCampaign"
     />
 
     <!-- Audience type toggle -->

@@ -150,6 +150,37 @@ RSpec.describe 'Campaigns API', type: :request do
         expect(response_data[:scheduled_at]).to eq(scheduled_at.to_i)
         expect(response_data[:audience].pluck(:id)).to include(label1.id, label2.id)
       end
+
+      it 'creates an A/B test campaign with a second template and a split' do
+        label = create(:label, account: account)
+
+        post "/api/v1/accounts/#{account.id}/campaigns",
+             params: {
+               inbox_id: inbox.id, title: 'ab', message: 'Texto A', scheduled_at: 2.days.from_now,
+               audience: [{ type: 'Label', id: label.id }],
+               template_params: { name: 'promo_a', language: 'es_MX', processed_params: { body: { '1' => 'x' } } },
+               template_variant_b: { message: 'Texto B',
+                                     template_params: { name: 'promo_b', language: 'es_MX', processed_params: { body: { '1' => 'y' } } } },
+               ab_split: 60
+             },
+             headers: administrator.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        data = response.parsed_body
+        expect(data['ab_split']).to eq(60)
+        expect(data['template_variant_b']).to include('message' => 'Texto B')
+        expect(data['template_variant_b']['template_params']).to include('name' => 'promo_b', 'processed_params' => { 'body' => { '1' => 'y' } })
+      end
+
+      it 'rejects a split that leaves one template without recipients' do
+        post "/api/v1/accounts/#{account.id}/campaigns",
+             params: { inbox_id: inbox.id, title: 'ab', message: 'Texto A', ab_split: 100 },
+             headers: administrator.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
     end
   end
 
@@ -206,6 +237,19 @@ RSpec.describe 'Campaigns API', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(JSON.parse(response.body, symbolize_names: true)[:timezone]).to eq('America/Mexico_City')
+      end
+
+      it 'turns an A/B test off when template_variant_b is sent as null' do
+        ab_campaign = create(:campaign, account: account, inbox: inbox, trigger_rules: { url: 'https://test.com' },
+                                        template_variant_b: { 'template_params' => { 'name' => 'promo_b' }, 'message' => 'B' })
+
+        patch "/api/v1/accounts/#{account.id}/campaigns/#{ab_campaign.display_id}",
+              params: { title: 'sin prueba', template_variant_b: nil },
+              headers: administrator.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(ab_campaign.reload.template_variant_b).to be_nil
       end
     end
   end

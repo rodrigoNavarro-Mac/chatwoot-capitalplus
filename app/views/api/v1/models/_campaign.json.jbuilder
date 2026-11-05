@@ -10,6 +10,8 @@ json.sender do
 end
 json.message resource.message
 json.template_params resource.template_params
+json.template_variant_b resource.template_variant_b
+json.ab_split resource.ab_split
 json.campaign_status resource.campaign_status
 json.enabled resource.enabled
 json.campaign_type resource.campaign_type

@@ -218,6 +218,70 @@ describe Whatsapp::OneoffCampaignService do
       end
     end
 
+    context 'when the campaign is an A/B test of two templates' do
+      let(:template_b) do
+        { 'name' => 'promo_b', 'namespace' => 'ns_b', 'category' => 'MARKETING', 'language' => 'es_MX',
+          'processed_params' => { 'body' => { 'name' => 'Ana' } } }
+      end
+      let(:ab_campaign) do
+        create(:campaign, inbox: whatsapp_inbox, account: account, message: 'Texto A', template_params: template_params,
+                          audience: [{ type: 'Label', id: label1.id }],
+                          template_variant_b: { 'template_params' => template_b, 'message' => 'Texto B' })
+      end
+
+      # Phones are bucketed deterministically, so pick one known to land on each side
+      def phone_for(variant)
+        picker = Campaigns::TemplateVariantPicker.new(campaign: ab_campaign)
+        (1..200).map { |i| format('+52155%08d', i) }.find { |phone| picker.for_phone(phone).key == variant }
+      end
+
+      it 'sends the B template and its text to a contact on the B side, and records the variant' do
+        contact = create(:contact, account: account, phone_number: phone_for('B'))
+
+        expect_any_instance_of(Whatsapp::Providers::WhatsappCloudService).to receive(:send_template).with( # rubocop:disable RSpec/AnyInstance
+          contact.phone_number, hash_including(name: 'promo_b', lang_code: 'es_MX'), an_instance_of(Message)
+        ).and_return('wamid.b')
+
+        described_class.new(campaign: ab_campaign).send_to_contact(contact)
+
+        delivery = ab_campaign.campaign_message_deliveries.last
+        expect(delivery.template_variant).to eq('B')
+        expect(Message.find(delivery.message_id).content).to eq('Texto B')
+      end
+
+      it 'sends the A template to a contact on the A side' do
+        contact = create(:contact, account: account, phone_number: phone_for('A'))
+
+        expect_any_instance_of(Whatsapp::Providers::WhatsappCloudService).to receive(:send_template).with( # rubocop:disable RSpec/AnyInstance
+          contact.phone_number, hash_including(name: 'ticket_status_updated'), an_instance_of(Message)
+        ).and_return('wamid.a')
+
+        described_class.new(campaign: ab_campaign).send_to_contact(contact)
+
+        expect(ab_campaign.campaign_message_deliveries.last.template_variant).to eq('A')
+      end
+
+      it 'records the variant for CSV recipients too' do
+        csv_campaign = create(:campaign, inbox: whatsapp_inbox, account: account, audience_type: 'csv', template_params: template_params,
+                                         template_variant_b: { 'template_params' => template_b, 'message' => 'Texto B' })
+        allow_any_instance_of(Whatsapp::Providers::WhatsappCloudService).to receive(:send_template).and_return('wamid.csv') # rubocop:disable RSpec/AnyInstance
+
+        described_class.new(campaign: csv_campaign).send_to_csv_contact({ 'phone_number' => '+5215512345678', 'name' => 'Luis' })
+
+        expected = Campaigns::TemplateVariantPicker.new(campaign: csv_campaign).for_phone('+5215512345678').key
+        expect(csv_campaign.campaign_message_deliveries.last.template_variant).to eq(expected)
+      end
+
+      it 'leaves the variant empty for a single-template campaign' do
+        contact = create(:contact, :with_phone_number, account: account)
+        allow_any_instance_of(Whatsapp::Providers::WhatsappCloudService).to receive(:send_template).and_return('wamid.single') # rubocop:disable RSpec/AnyInstance
+
+        described_class.new(campaign: campaign).send_to_contact(contact)
+
+        expect(campaign.campaign_message_deliveries.last.template_variant).to be_nil
+      end
+    end
+
     context 'when template_params is missing' do
       let(:template_params) { nil }
 

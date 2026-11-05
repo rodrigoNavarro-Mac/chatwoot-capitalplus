@@ -9,7 +9,7 @@ import BaseTableCell from 'dashboard/components-next/table/BaseTableCell.vue';
 import PaginationFooter from 'dashboard/components-next/pagination/PaginationFooter.vue';
 import CampaignRecipientStatusBadge from './CampaignRecipientStatusBadge.vue';
 
-defineProps({
+const props = defineProps({
   recipients: {
     type: Array,
     default: () => [],
@@ -36,8 +36,16 @@ const emit = defineEmits(['update:currentPage']);
 
 const { t } = useI18n();
 
+// Only A/B test campaigns record which template each recipient got
+const showVariant = computed(() =>
+  props.recipients.some(recipient => recipient.template_variant)
+);
+
 const headers = computed(() => [
   t('CAMPAIGN.WHATSAPP_RECIPIENTS.TABLE.HEADERS.NAME'),
+  ...(showVariant.value
+    ? [t('CAMPAIGN.WHATSAPP_RECIPIENTS.TABLE.HEADERS.TEMPLATE_VARIANT')]
+    : []),
   t('CAMPAIGN.WHATSAPP_RECIPIENTS.TABLE.HEADERS.STATUS'),
   t('CAMPAIGN.WHATSAPP_RECIPIENTS.TABLE.HEADERS.SENT_AT'),
   t('CAMPAIGN.WHATSAPP_RECIPIENTS.TABLE.HEADERS.DELIVERED_AT'),
@@ -73,6 +81,9 @@ const formatDate = value =>
               <span v-if="recipient.name" class="block text-xs text-n-slate-11">
                 {{ recipient.phone_number }}
               </span>
+            </BaseTableCell>
+            <BaseTableCell v-if="showVariant">
+              {{ recipient.template_variant || '—' }}
             </BaseTableCell>
             <BaseTableCell>
               <CampaignRecipientStatusBadge :status="recipient.status" />

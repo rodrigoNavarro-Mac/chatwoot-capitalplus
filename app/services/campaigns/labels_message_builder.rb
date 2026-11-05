@@ -6,7 +6,8 @@ class Campaigns::LabelsMessageBuilder
 
   delegate :inbox, to: :campaign
 
-  def build(contact)
+  # content: rendered text of the template actually sent (differs from campaign.message for the B side of an A/B test)
+  def build(contact, content: campaign.message)
     contact_inbox = find_or_create_contact_inbox(contact)
     return if contact_inbox.nil?
 
@@ -15,7 +16,7 @@ class Campaigns::LabelsMessageBuilder
     Messages::MessageBuilder.new(
       campaign.sender,
       conversation,
-      ActionController::Parameters.new(content: campaign.message, campaign_id: campaign.id)
+      ActionController::Parameters.new(content: content, campaign_id: campaign.id)
     ).perform
   rescue StandardError => e
     Rails.logger.error "Failed to build campaign message for contact #{contact.id}: #{e.message}"

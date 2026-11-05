@@ -4,7 +4,8 @@
 class Campaigns::MessageDeliveryRecorder
   pattr_initialize [:campaign!]
 
-  def record_labels_delivery(contact:, message:, wa_message_id:, send_error:)
+  # template_variant: 'A'/'B' in an A/B test campaign, nil otherwise
+  def record_labels_delivery(contact:, message:, wa_message_id:, send_error:, template_variant: nil)
     message.update!(source_id: wa_message_id) if wa_message_id.present?
 
     campaign.campaign_message_deliveries.create!(
@@ -15,17 +16,19 @@ class Campaigns::MessageDeliveryRecorder
       message_id: message.id,
       phone_number: contact.phone_number,
       source_id: wa_message_id,
+      template_variant: template_variant,
       **outcome_attrs(wa_message_id, send_error)
     )
   end
 
-  def record_csv_delivery(phone:, contact_name:, wa_message_id:, send_error:)
+  def record_csv_delivery(phone:, contact_name:, wa_message_id:, send_error:, template_variant: nil)
     campaign.campaign_message_deliveries.create!(
       account_id: campaign.account_id,
       audience_type: 'csv',
       contact_name: contact_name,
       phone_number: phone,
       source_id: wa_message_id,
+      template_variant: template_variant,
       **outcome_attrs(wa_message_id, send_error)
     )
   end

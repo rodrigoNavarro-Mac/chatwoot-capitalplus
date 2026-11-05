@@ -5,6 +5,7 @@
 #  id                                 :bigint           not null, primary key
 #  audience                           :jsonb
 #  audience_count                     :integer
+#  ab_split                           :integer          default(50), not null
 #  audience_type                      :string           default("labels"), not null
 #  campaign_status                    :integer          default("active"), not null
 #  campaign_type                      :integer          default("ongoing"), not null
@@ -20,6 +21,7 @@
 #  send_window_start                  :string           default("09:00"), not null
 #  started_at                         :datetime
 #  template_params                    :jsonb
+#  template_variant_b                 :jsonb
 #  timezone                           :string           default("UTC")
 #  title                              :string           not null
 #  trigger_only_during_business_hours :boolean          default(FALSE)
@@ -52,6 +54,8 @@ class Campaign < ApplicationRecord
   validate :inbox_must_belong_to_account
   validate :segment_must_belong_to_account
   validates :timezone, inclusion: { in: TZInfo::Timezone.all_identifiers }
+  # % of the audience that gets template A in an A/B test (see Campaigns::TemplateVariantPicker)
+  validates :ab_split, numericality: { only_integer: true, in: 1..99 }
 
   belongs_to :account
   belongs_to :inbox
