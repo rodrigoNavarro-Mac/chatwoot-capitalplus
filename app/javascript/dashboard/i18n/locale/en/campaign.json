@@ -184,6 +184,16 @@
             "VARIABLES_LABEL": "Variables",
             "VARIABLE_PLACEHOLDER": "Enter value for {variable}"
           },
+          "AB_TEST": {
+            "LABEL": "Template A/B test",
+            "HELP": "Each contact gets only one of the two templates; compare which one got more replies.",
+            "TEMPLATE_B": "Template B",
+            "SPLIT": {
+              "LABEL": "% of the audience that gets template A",
+              "HELP": "{a}% will get template A and {b}% template B.",
+              "ERROR": "Use a number between 1 and 99."
+            }
+          },
           "AUDIENCE_TYPE": {
             "LABEL": "Audience source",
             "LABELS": "Contact labels",
@@ -418,6 +428,21 @@
       },
       "API": {
         "ERROR_MESSAGE": "There was an error loading the campaign metrics. Please try again."
+      },
+      "AB_TEST": {
+        "TITLE": "A/B test",
+        "TEMPLATE": "Template {key}",
+        "ROWS": {
+          "SENT": "Sent",
+          "DELIVERED": "% delivered",
+          "READ": "% read",
+          "RESPONDED": "Replies",
+          "RESPONSE_RATE": "Response rate",
+          "FAILED": "Failed"
+        },
+        "LEADER": "Template {key} is ahead with a {rate}% response rate.",
+        "NOT_ENOUGH_DATA": "Not enough sends to compare yet (at least {count} per template).",
+        "TIE": "Both templates have the same response rate."
       }
     },
     "WHATSAPP_RECIPIENTS": {
@@ -447,7 +472,8 @@
           "DELIVERED_AT": "Delivered",
           "READ_AT": "Read",
           "FAILED_REASON": "Failure reason",
-          "RESPONDED": "Responded"
+          "RESPONDED": "Responded",
+          "TEMPLATE_VARIANT": "Template"
         },
         "EMPTY": "No recipients found with these filters"
       },

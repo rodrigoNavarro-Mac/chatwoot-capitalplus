@@ -87,11 +87,12 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
 
   def generate_recipients_csv(scope)
     csv = CSV.generate do |rows|
-      rows << ['Teléfono', 'Nombre', 'Estado', 'Enviado', 'Entregado', 'Leído', 'Motivo de falla', 'Respondió']
+      rows << ['Teléfono', 'Nombre', 'Plantilla', 'Estado', 'Enviado', 'Entregado', 'Leído', 'Motivo de falla', 'Respondió']
       scope.find_each(batch_size: 1000) do |delivery|
         rows << [
           delivery.phone_number,
           delivery.contact&.name || delivery.contact_name || delivery.phone_number,
+          delivery.template_variant,
           delivery.status,
           delivery.sent_at,
           delivery.delivered_at,
@@ -110,9 +111,17 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   end
 
   def campaign_params
+    permitted = permitted_campaign_params
+    # permit drops an explicit null, which is how the form turns an A/B test off on edit
+    permitted[:template_variant_b] = nil if params[:campaign].key?(:template_variant_b) && params[:campaign][:template_variant_b].nil?
+    permitted
+  end
+
+  def permitted_campaign_params
     params.require(:campaign).permit(:title, :description, :message, :enabled, :trigger_only_during_business_hours, :inbox_id, :sender_id,
                                      :scheduled_at, :delay_min_seconds, :delay_max_seconds, :send_window_start, :send_window_end, :timezone,
-                                     :audience_type, :csv_audience,
-                                     audience: [:type, :id], trigger_rules: {}, template_params: {})
+                                     :audience_type, :csv_audience, :ab_split,
+                                     audience: [:type, :id], trigger_rules: {}, template_params: {},
+                                     template_variant_b: [:message, { template_params: {} }])
   end
 end

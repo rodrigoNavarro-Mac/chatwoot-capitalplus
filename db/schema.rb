@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_11_02_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_05_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -517,6 +517,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_02_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "contact_name"
+    t.string "template_variant"
     t.index ["account_id", "phone_number"], name: "idx_on_account_id_phone_number_b81823726f"
     t.index ["campaign_id"], name: "index_campaign_message_deliveries_on_campaign_id"
     t.index ["contact_id"], name: "index_campaign_message_deliveries_on_contact_id"
@@ -576,6 +577,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_02_120000) do
     t.integer "audience_count"
     t.string "timezone", default: "UTC"
     t.string "pause_reason"
+    t.jsonb "template_variant_b"
+    t.integer "ab_split", default: 50, null: false
     t.datetime "started_at"
     t.datetime "completed_at"
     t.index ["account_id"], name: "index_campaigns_on_account_id"

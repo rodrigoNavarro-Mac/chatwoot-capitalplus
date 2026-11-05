@@ -20,18 +20,11 @@ class Whatsapp::OneoffCampaignService
     return if contact.phone_number.blank?
     return if campaign.template_params.blank?
 
-    processed_template_params = process_liquid_template_params(contact)
+    variant = variant_picker.for_phone(contact.phone_number)
+    processed_template_params = process_liquid_template_params(contact, variant.template_params)
     return if processed_template_params.nil?
 
-    message = labels_message_builder.build(contact)
-    return if message.nil?
-
-    wa_message_id, send_error, error_code = send_whatsapp_template_message(
-      to: contact.phone_number, template_params: processed_template_params, message: message
-    )
-    delivery_recorder.record_labels_delivery(contact: contact, message: message, wa_message_id: wa_message_id, send_error: send_error)
-    auto_pause_on_error(wa_message_id, error_code)
-    wa_message_id
+    send_and_record_labels(contact, processed_template_params, variant)
   rescue StandardError => e
     Rails.logger.error "Failed to send campaign #{campaign.id} to contact #{contact.try(:name)}: #{e.message}"
     nil
@@ -44,11 +37,7 @@ class Whatsapp::OneoffCampaignService
     return if campaign.template_params.blank?
 
     phone = Whatsapp::CsvContactPhoneNormalizer.new(inbox: inbox).normalize(raw_phone)
-    virtual_contact = build_virtual_contact(contact_data, phone)
-    processed_template_params = process_liquid_template_params(virtual_contact)
-    return if processed_template_params.nil?
-
-    send_and_record_csv(virtual_contact, processed_template_params)
+    send_and_record_csv(build_virtual_contact(contact_data, phone))
   rescue StandardError => e
     Rails.logger.error "Failed to send CSV campaign #{campaign.id} to #{contact_data['phone_number']}: #{e.message}"
     nil
@@ -229,9 +218,9 @@ class Whatsapp::OneoffCampaignService
     Campaigns::SendWindow.advance_to_window(campaign, time)
   end
 
-  def process_liquid_template_params(contact)
+  def process_liquid_template_params(contact, template_params)
     liquid_processor = Whatsapp::LiquidTemplateProcessorService.new(campaign: campaign, contact: contact)
-    processed_template_params = liquid_processor.process_template_params(campaign.template_params)
+    processed_template_params = liquid_processor.process_template_params(template_params)
 
     Rails.logger.info "Skipping #{contact.try(:phone_number)} — liquid variables resolved to blank" if processed_template_params.nil?
 
@@ -241,10 +230,28 @@ class Whatsapp::OneoffCampaignService
     nil
   end
 
-  def send_and_record_csv(virtual_contact, template_params)
+  def send_and_record_labels(contact, template_params, variant)
+    message = labels_message_builder.build(contact, content: variant.message)
+    return if message.nil?
+
+    wa_message_id, send_error, error_code = send_whatsapp_template_message(
+      to: contact.phone_number, template_params: template_params, message: message
+    )
+    delivery_recorder.record_labels_delivery(contact: contact, message: message, wa_message_id: wa_message_id, send_error: send_error,
+                                             template_variant: variant.key)
+    auto_pause_on_error(wa_message_id, error_code)
+    wa_message_id
+  end
+
+  def send_and_record_csv(virtual_contact)
     phone = virtual_contact.phone_number
+    variant = variant_picker.for_phone(phone)
+    template_params = process_liquid_template_params(virtual_contact, variant.template_params)
+    return if template_params.nil?
+
     wa_message_id, send_error, error_code = send_whatsapp_template_message(to: phone, template_params: template_params)
-    delivery_recorder.record_csv_delivery(phone: phone, contact_name: virtual_contact.name, wa_message_id: wa_message_id, send_error: send_error)
+    delivery_recorder.record_csv_delivery(phone: phone, contact_name: virtual_contact.name, wa_message_id: wa_message_id, send_error: send_error,
+                                          template_variant: variant.key)
     auto_pause_on_error(wa_message_id, error_code)
     wa_message_id
   end
@@ -281,6 +288,10 @@ class Whatsapp::OneoffCampaignService
 
   def delivery_recorder
     @delivery_recorder ||= Campaigns::MessageDeliveryRecorder.new(campaign: campaign)
+  end
+
+  def variant_picker
+    @variant_picker ||= Campaigns::TemplateVariantPicker.new(campaign: campaign)
   end
 end
 
