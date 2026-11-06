@@ -69,6 +69,12 @@ module Chatwoot
 
     # Disable PDF/video preview generation as we don't use them
     config.active_storage.previewers = []
+    # Only the libvips image analyzer (variant_processor is :vips). The ImageMagick analyzer never ran
+    # (it only accepts under :mini_magick) and the video/audio ones need ffprobe, absent from the image,
+    # so this changes no metadata -- it just removes the paths of GHSA-f3w6-w445-fwh9 (Critical,
+    # ImageMagick coders), GHSA-v924-7rp8-4mxh and GHSA-3f4q-8x5m-76v8 (FFmpeg/ImageMagick decoders
+    # picked from the uploaded extension) until the Rails 8 upgrade.
+    config.active_storage.analyzers = [ActiveStorage::Analyzer::ImageAnalyzer::Vips]
 
     # Active Record Encryption configuration
     # Required for MFA/2FA features - skip if not using encryption
