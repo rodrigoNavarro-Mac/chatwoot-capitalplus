@@ -401,6 +401,20 @@ describe Whatsapp::OneoffCampaignService do
         Redis::Alfred.delete(format(Redis::RedisKeys::WA_OPTED_OUT_PHONES, account_id: account.id))
       end
 
+      it 'skips contacts removed by hand and schedules the ones added by hand' do
+        removed = create(:contact, :with_phone_number, account: account)
+        kept = create(:contact, :with_phone_number, account: account)
+        added = create(:contact, :with_phone_number, account: account)
+        conversation = create(:conversation, account: account, inbox: whatsapp_inbox, contact: added)
+        create(:message, account: account, inbox: whatsapp_inbox, conversation: conversation, message_type: :incoming, sender: added)
+        segment_campaign.update!(audience: [{ type: 'Segment', id: segment.id }, { type: 'Contact', id: added.id },
+                                            { type: 'ExcludedContact', id: removed.id }])
+
+        described_class.new(campaign: segment_campaign).perform
+
+        expect(scheduled_contact_ids).to contain_exactly(kept.id, added.id)
+      end
+
       it 'schedules nothing and still completes when the segment was deleted' do
         create(:contact, :with_phone_number, account: account)
         segment_campaign

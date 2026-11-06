@@ -1,7 +1,7 @@
 class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   RESULTS_PER_PAGE = 25
 
-  before_action :campaign, except: [:index, :create, :csv_usage_report, :csv_preview, :segment_preview]
+  before_action :campaign, except: [:index, :create, :csv_usage_report, :csv_preview, :segment_preview, :segment_contacts]
   before_action :check_authorization
   before_action :set_current_page, only: [:recipients]
 
@@ -41,11 +41,27 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   end
 
   # Audience preview for a saved contact segment, computed the same way the real send resolves it
+  # include_ids / exclude_ids: the contacts added or removed by hand in the form, not saved yet
   def segment_preview
-    audience = Campaigns::SegmentAudience.new(account: Current.account, segment_id: params[:custom_filter_id])
+    audience = Campaigns::SegmentAudience.new(account: Current.account, segment_id: params[:custom_filter_id],
+                                              include_ids: params[:include_ids], exclude_ids: params[:exclude_ids])
     return render json: { error: 'Segment not found' }, status: :not_found if audience.segment.nil?
 
     render json: audience.preview
+  rescue CustomExceptions::Base => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # Paginated, searchable segment members, so the form can remove specific contacts from the audience
+  def segment_contacts
+    audience = Campaigns::SegmentAudience.new(account: Current.account, segment_id: params[:custom_filter_id])
+    return render json: { error: 'Segment not found' }, status: :not_found if audience.segment.nil?
+
+    members = audience.members(query: params[:q], page: params[:page] || 1)
+    render json: {
+      meta: { count: members.total_count, current_page: members.current_page },
+      payload: members.map { |contact| contact.slice(:id, :name, :phone_number) }
+    }
   rescue CustomExceptions::Base => e
     render json: { error: e.message }, status: :unprocessable_entity
   end

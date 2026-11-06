@@ -428,6 +428,44 @@ RSpec.describe 'Campaigns API', type: :request do
     end
   end
 
+  describe 'GET /api/v1/accounts/{account.id}/campaigns/segment_contacts' do
+    let(:administrator) { create(:user, account: account, role: :administrator) }
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:segment) do
+      create(:custom_filter, account: account, user: administrator, filter_type: :contact,
+                             query: { payload: [{ attribute_key: 'last_replied_at', filter_operator: 'is_not_present',
+                                                  values: [], query_operator: nil }] })
+    end
+
+    it 'returns unauthorized for agents' do
+      get "/api/v1/accounts/#{account.id}/campaigns/segment_contacts",
+          params: { custom_filter_id: segment.id }, headers: agent.create_new_auth_token
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'lists the segment members matching the search' do
+      ana = create(:contact, account: account, name: 'Ana López', phone_number: '+525511110001')
+      create(:contact, account: account, name: 'Beto', phone_number: '+525511110002')
+
+      get "/api/v1/accounts/#{account.id}/campaigns/segment_contacts",
+          params: { custom_filter_id: segment.id, q: 'ana' }, headers: administrator.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['meta']['count']).to eq(1)
+      expect(response.parsed_body['payload']).to contain_exactly(include('id' => ana.id, 'phone_number' => '+525511110001'))
+    end
+
+    it 'does not expose segments of another account' do
+      other_segment = create(:custom_filter, filter_type: :contact, query: { payload: [] })
+
+      get "/api/v1/accounts/#{account.id}/campaigns/segment_contacts",
+          params: { custom_filter_id: other_segment.id }, headers: administrator.create_new_auth_token
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe 'GET /api/v1/accounts/{account.id}/campaigns/segment_preview' do
     let(:administrator) { create(:user, account: account, role: :administrator) }
     let(:agent) { create(:user, account: account, role: :agent) }
@@ -456,6 +494,16 @@ RSpec.describe 'Campaigns API', type: :request do
       expect(body['total']).to eq(2)
       expect(body['eligible']).to eq(1)
       expect(body['excluded']['no_phone']).to eq(1)
+    end
+
+    it 'applies the contacts removed and added in the form before saving' do
+      removed = create(:contact, :with_phone_number, account: account)
+      create(:contact, :with_phone_number, account: account)
+
+      get "/api/v1/accounts/#{account.id}/campaigns/segment_preview",
+          params: { custom_filter_id: segment.id, exclude_ids: [removed.id] }, headers: administrator.create_new_auth_token
+
+      expect(response.parsed_body).to include('total' => 1, 'eligible' => 1, 'removed' => 1)
     end
 
     it 'does not expose segments of another account' do

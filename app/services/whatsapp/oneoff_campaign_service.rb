@@ -84,7 +84,9 @@ class Whatsapp::OneoffCampaignService
   # Saved contact segment, evaluated when the campaign fires so it picks up whoever matches at that
   # moment (e.g. "hasn't replied in 30 days") -- see Campaigns::SegmentAudience
   def segment_contacts
-    audience = Campaigns::SegmentAudience.new(account: campaign.account, segment_id: campaign.audience_segment_id)
+    audience = Campaigns::SegmentAudience.new(account: campaign.account, segment_id: campaign.audience_segment_id,
+                                              include_ids: campaign.audience_contact_ids('Contact'),
+                                              exclude_ids: campaign.audience_contact_ids('ExcludedContact'))
     log_segment_error('not found, skipping scheduling') if audience.segment.nil?
     audience.contacts
   rescue CustomExceptions::Base => e

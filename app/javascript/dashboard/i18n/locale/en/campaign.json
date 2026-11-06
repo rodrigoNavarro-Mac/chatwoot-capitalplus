@@ -218,6 +218,20 @@
               }
             }
           },
+          "SEGMENT_OVERRIDES": {
+            "TOGGLE": "Adjust contacts ({removed} removed, {added} added)",
+            "REMOVE_TAB": "Remove from segment ({count})",
+            "ADD_TAB": "Add contacts ({count})",
+            "SEARCH_MEMBERS": "Search the segment by name or phone",
+            "SEARCH_CONTACTS": "Search contacts by name or phone",
+            "REMOVE": "Remove",
+            "RESTORE": "Restore",
+            "ADD": "Add",
+            "ADDED": "Added",
+            "LOAD_MORE": "Load more",
+            "NO_MEMBERS": "No segment contacts match.",
+            "HELP": "Only applies to this campaign. Added contacts are still skipped if they opted out, are in cooldown or have no WhatsApp."
+          },
           "AUDIENCE": {
             "LABEL": "Audience",
             "PLACEHOLDER": "Select the customer labels",

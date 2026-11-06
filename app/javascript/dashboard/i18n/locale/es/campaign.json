@@ -221,6 +221,20 @@
               }
             }
           },
+          "SEGMENT_OVERRIDES": {
+            "TOGGLE": "Ajustar contactos ({removed} quitados, {added} agregados)",
+            "REMOVE_TAB": "Quitar del segmento ({count})",
+            "ADD_TAB": "Agregar contactos ({count})",
+            "SEARCH_MEMBERS": "Buscar en el segmento por nombre o teléfono",
+            "SEARCH_CONTACTS": "Buscar contactos por nombre o teléfono",
+            "REMOVE": "Quitar",
+            "RESTORE": "Restaurar",
+            "ADD": "Agregar",
+            "ADDED": "Agregado",
+            "LOAD_MORE": "Cargar más",
+            "NO_MEMBERS": "No hay contactos en el segmento que coincidan.",
+            "HELP": "Solo aplica a esta campaña. Los contactos agregados igual se saltan si están dados de baja, en cooldown o sin WhatsApp."
+          },
           "CSV_AUDIENCE": {
             "LABEL": "Archivo CSV",
             "PLACEHOLDER": "Haz clic para subir un archivo CSV",
