@@ -5,6 +5,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useMapGetter } from 'dashboard/composables/store';
 import CampaignsAPI from 'dashboard/api/campaigns';
+import ContactsAPI from 'dashboard/api/contacts';
 import { timeZoneOptions } from 'dashboard/routes/dashboard/settings/inbox/helpers/businessHour.js';
 
 import Input from 'dashboard/components-next/input/Input.vue';
@@ -14,6 +15,7 @@ import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import TagMultiSelectComboBox from 'dashboard/components-next/combobox/TagMultiSelectComboBox.vue';
 import WhatsAppTemplateParser from 'dashboard/components-next/whatsapp/WhatsAppTemplateParser.vue';
 import WhatsAppCampaignAbVariant from './WhatsAppCampaignAbVariant.vue';
+import WhatsAppCampaignSegmentOverrides from './WhatsAppCampaignSegmentOverrides.vue';
 
 const props = defineProps({
   selectedCampaign: {
@@ -64,6 +66,9 @@ const segmentPreview = ref(null);
 const segmentPreviewError = ref(false);
 const isPreviewingSegment = ref(false);
 let segmentPreviewToken = 0;
+// Contacts removed from / added to the segment by hand, as { id, name, phone_number }
+const excludedContacts = ref([]);
+const includedContacts = ref([]);
 
 const isEditMode = computed(() => !!props.selectedCampaign);
 
@@ -205,8 +210,36 @@ const resetState = () => {
   csvPreview.value = null;
   segmentPreview.value = null;
   segmentPreviewError.value = false;
+  excludedContacts.value = [];
+  includedContacts.value = [];
   hasAttemptedSubmit.value = false;
   v$.value.$reset();
+};
+
+const audienceIdsOfType = (campaign, type) =>
+  (campaign.audience || []).filter(a => a.type === type).map(a => a.id);
+
+// campaign.audience only keeps ids; fetch names so the removed/added lists are readable on edit
+const fetchContacts = ids =>
+  Promise.all(
+    ids.map(id =>
+      ContactsAPI.show(id)
+        .then(({ data }) => {
+          const { name, phone_number } = data.payload;
+          return { id, name, phone_number };
+        })
+        .catch(() => ({ id, name: `#${id}`, phone_number: '' }))
+    )
+  );
+
+const loadOverrideContacts = async campaign => {
+  if (campaign.audience_type !== 'segment') return;
+  const [excluded, included] = await Promise.all([
+    fetchContacts(audienceIdsOfType(campaign, 'ExcludedContact')),
+    fetchContacts(audienceIdsOfType(campaign, 'Contact')),
+  ]);
+  excludedContacts.value = excluded;
+  includedContacts.value = included;
 };
 
 // Pre-populate form when in edit mode
@@ -227,6 +260,7 @@ watch(
     state.sendWindowStart = campaign.send_window_start ?? '09:00';
     state.sendWindowEnd = campaign.send_window_end ?? '19:00';
     state.timezone = campaign.timezone ?? 'UTC';
+    loadOverrideContacts(campaign);
   },
   { immediate: true }
 );
@@ -280,7 +314,10 @@ const previewSegment = async segmentId => {
 
   isPreviewingSegment.value = true;
   try {
-    const response = await CampaignsAPI.previewSegment(segmentId);
+    const response = await CampaignsAPI.previewSegment(segmentId, {
+      includeIds: includedContacts.value.map(c => c.id),
+      excludeIds: excludedContacts.value.map(c => c.id),
+    });
     if (token !== segmentPreviewToken) return;
     segmentPreview.value = response.data;
   } catch (error) {
@@ -292,11 +329,24 @@ const previewSegment = async segmentId => {
 };
 
 watch(
-  () => [state.audienceType, state.segmentId],
+  () => [
+    state.audienceType,
+    state.segmentId,
+    excludedContacts.value,
+    includedContacts.value,
+  ],
   ([type, segmentId]) => {
     if (type === 'segment') previewSegment(segmentId);
   },
   { immediate: true }
+);
+
+// Removed contacts belong to the previous segment's member list; hand-added ones still apply
+watch(
+  () => state.segmentId,
+  (newVal, oldVal) => {
+    if (oldVal !== null && newVal !== oldVal) excludedContacts.value = [];
+  }
 );
 
 const setAudienceType = type => {
@@ -305,6 +355,8 @@ const setAudienceType = type => {
   if (type !== 'segment') {
     state.segmentId = null;
     segmentPreview.value = null;
+    excludedContacts.value = [];
+    includedContacts.value = [];
   }
   if (type !== 'csv') {
     csvFile.value = null;
@@ -351,7 +403,14 @@ const buildAudience = () => {
     return state.selectedAudience?.map(id => ({ id, type: 'Label' })) ?? [];
   }
   if (state.audienceType === 'segment' && state.segmentId) {
-    return [{ id: state.segmentId, type: 'Segment' }];
+    return [
+      { id: state.segmentId, type: 'Segment' },
+      ...includedContacts.value.map(c => ({ id: c.id, type: 'Contact' })),
+      ...excludedContacts.value.map(c => ({
+        id: c.id,
+        type: 'ExcludedContact',
+      })),
+    ];
   }
   return [];
 };
@@ -577,6 +636,13 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
           {{ exclusion }}
         </p>
       </div>
+
+      <WhatsAppCampaignSegmentOverrides
+        v-if="state.segmentId"
+        v-model:excluded="excludedContacts"
+        v-model:included="includedContacts"
+        :segment-id="state.segmentId"
+      />
     </div>
 
     <!-- Label audience -->

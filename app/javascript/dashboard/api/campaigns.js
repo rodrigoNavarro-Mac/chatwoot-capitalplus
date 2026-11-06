@@ -19,9 +19,19 @@ class CampaignsAPI extends ApiClient {
     return axios.post(`${this.url}/csv_preview`, formData);
   }
 
-  previewSegment(customFilterId) {
+  previewSegment(customFilterId, { includeIds = [], excludeIds = [] } = {}) {
     return axios.get(`${this.url}/segment_preview`, {
-      params: { custom_filter_id: customFilterId },
+      params: {
+        custom_filter_id: customFilterId,
+        include_ids: includeIds,
+        exclude_ids: excludeIds,
+      },
+    });
+  }
+
+  segmentContacts(customFilterId, { query = '', page = 1 } = {}) {
+    return axios.get(`${this.url}/segment_contacts`, {
+      params: { custom_filter_id: customFilterId, q: query, page },
     });
   }
 

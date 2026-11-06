@@ -115,6 +115,11 @@ class Campaign < ApplicationRecord
     Array(audience).find { |item| item['type'] == 'Segment' }&.dig('id')
   end
 
+  # Contacts added by hand ('Contact') or removed by hand ('ExcludedContact') on top of the segment
+  def audience_contact_ids(type)
+    Array(audience).select { |item| item['type'] == type }.pluck('id')
+  end
+
   def execute_campaign
     case inbox.inbox_type
     when 'Twilio SMS'

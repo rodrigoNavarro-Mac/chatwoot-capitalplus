@@ -46,6 +46,44 @@ RSpec.describe Campaigns::SegmentAudience do
     expect(preview[:sample].pluck('id')).to eq([eligible.id])
   end
 
+  describe 'contacts added or removed by hand' do
+    subject(:audience) do
+      described_class.new(account: account, segment_id: segment.id, include_ids: [added.id], exclude_ids: [removed.id])
+    end
+
+    let!(:kept) { labeled_contact(name: 'Ana', phone_number: '+525511110001') }
+    let!(:removed) { labeled_contact(name: 'Beto', phone_number: '+525511110002') }
+    let!(:added) { create(:contact, account: account, name: 'Carla', phone_number: '+525511110003') }
+
+    it 'adds the hand-picked contacts and drops the removed ones' do
+      expect(audience.contacts).to contain_exactly(kept, added)
+    end
+
+    it 'reports them in the preview' do
+      expect(audience.preview).to include(total: 2, eligible: 2, added: 1, removed: 1)
+    end
+
+    it 'ignores contacts of another account' do
+      foreign = create(:contact, phone_number: '+525511110009')
+      tweaked = described_class.new(account: account, segment_id: segment.id, include_ids: [foreign.id])
+
+      expect(tweaked.contacts).to contain_exactly(kept, removed)
+    end
+
+    it 'still applies opt-outs to a contact added by hand' do
+      Campaigns::RecipientEligibility.opt_out!(account.id, added.phone_number)
+
+      expect(audience.preview).to include(eligible: 1)
+      expect(audience.preview[:excluded][:opted_out]).to eq(1)
+    end
+
+    it 'lists the segment members by name or phone, ignoring the manual tweaks' do
+      expect(audience.members.map(&:id)).to eq([kept.id, removed.id])
+      expect(audience.members(query: 'bet').map(&:id)).to eq([removed.id])
+      expect(audience.members(query: '110001').map(&:id)).to eq([kept.id])
+    end
+  end
+
   it 'returns no contacts for a segment of another account' do
     other_segment = create(:custom_filter, filter_type: :contact, query: { payload: [] })
 

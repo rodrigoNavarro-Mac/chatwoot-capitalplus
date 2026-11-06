@@ -39,6 +39,10 @@ class CampaignPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def segment_contacts?
+    @account_user.administrator?
+  end
+
   def pause?
     @account_user.administrator?
   end
