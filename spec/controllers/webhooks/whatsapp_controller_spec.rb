@@ -218,6 +218,29 @@ RSpec.describe 'Webhooks::WhatsappController', type: :request do
       expect(event.phone_number).to eq(channel.phone_number)
     end
 
+    context 'when Meta posts to the generic endpoint without a phone in the URL' do
+      def generic_body(display_phone_number, phone_number_id)
+        { object: 'whatsapp_business_account',
+          entry: [{ changes: [{ value: { metadata: { display_phone_number: display_phone_number, phone_number_id: phone_number_id } } }] }] }.to_json
+      end
+
+      it "stores the raw event with the channel's number even if Meta adds the Mexican mobile \"1\"" do
+        allow(Webhooks::WhatsappEventsJob).to receive(:perform_later)
+        channel.update!(phone_number: '+525569440704')
+        payload = generic_body('5215569440704', channel.provider_config['phone_number_id'])
+
+        expect { post_whatsapp_webhook('/webhooks/whatsapp', payload) }.to change(WhatsappWebhookEvent, :count).by(1)
+        expect(WhatsappWebhookEvent.last.phone_number).to eq('+525569440704')
+      end
+
+      it 'stores the normalized display number when no channel matches the payload' do
+        payload = generic_body('52 1 55 1234 5678', 'unknown-phone-number-id')
+
+        expect { post_whatsapp_webhook('/webhooks/whatsapp', payload) }.to change(WhatsappWebhookEvent, :count).by(1)
+        expect(WhatsappWebhookEvent.last.phone_number).to eq('+5215512345678')
+      end
+    end
+
     context 'when phone number is in inactive list' do
       before do
         allow(GlobalConfig).to receive(:get_value).with('INACTIVE_WHATSAPP_NUMBERS').and_return('+1234567890,+9876543210')

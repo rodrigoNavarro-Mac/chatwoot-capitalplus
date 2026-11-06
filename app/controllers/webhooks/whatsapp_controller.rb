@@ -23,12 +23,22 @@ class Webhooks::WhatsappController < ActionController::API
     metadata = params.dig(:entry, 0, :changes, 0, :value, :metadata) || {}
 
     WhatsappWebhookEvent.create!(
-      phone_number: params[:phone_number] || normalized_phone_number(metadata[:display_phone_number]),
+      phone_number: params[:phone_number] || raw_event_phone_number(metadata),
       phone_number_id: metadata[:phone_number_id],
       payload: params.to_unsafe_hash.except('controller', 'action')
     )
   rescue StandardError => e
     Rails.logger.error "Failed to persist raw WhatsApp webhook event: #{e.message}"
+  end
+
+  # The generic /webhooks/whatsapp endpoint carries no phone in the URL. Prefer the channel's own
+  # number (resolved by phone_number_id), since Meta's display_phone_number adds an extra "1" to
+  # Mexican mobiles; fall back to the display number for payloads no channel matches.
+  def raw_event_phone_number(metadata)
+    return whatsapp_business_payload_channel.phone_number if whatsapp_business_payload_channel
+
+    display = metadata[:display_phone_number].to_s.gsub(/\D/, '')
+    "+#{display}" if display.present?
   end
 
   def valid_token?(token)
