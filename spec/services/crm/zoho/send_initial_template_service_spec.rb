@@ -68,6 +68,15 @@ describe Crm::Zoho::SendInitialTemplateService do
       expect(inbox.conversations.last.assignee).to eq(agent)
     end
 
+    it 'assigns the conversation when the Zoho owner is an administrator in Chatwoot' do
+      admin = create(:user, email: 'e.vazquez@capitalplus.mx')
+      create(:account_user, account: account, user: admin, role: :administrator)
+
+      described_class.new(account, params.merge(assignee_email: 'e.vazquez@capitalplus.mx')).perform
+
+      expect(inbox.conversations.last.assignee).to eq(admin)
+    end
+
     it 'raises template_not_found_or_not_approved for an unknown template' do
       bad_params = params.merge(template_name: 'does_not_exist')
 
@@ -199,6 +208,42 @@ describe Crm::Zoho::SendInitialTemplateService do
                                            { 'type' => 'text', 'parameter_name' => 'ticket_id', 'text' => '2332' }
                                          ])
         expect(message.content).to eq('Hello John,  Your support ticket with ID: #2332 has been updated by the support agent.')
+      end
+
+      # Reproduce el caso real: Meta marcó el envío como failed (131049) y el agente dio
+      # "Reintentar". El reintento va por SendOnWhatsappService y antes salía con 0 parámetros (#132000).
+      it 'stores processed_params so the dashboard retry resends the same named parameters' do
+        described_class.new(account, named_params).perform
+        message = inbox.conversations.last.messages.last
+
+        expect(message.additional_attributes.dig('template_params', 'processed_params'))
+          .to eq('body' => { 'name' => 'John', 'ticket_id' => '2332' })
+
+        message.update!(source_id: nil, status: :failed)
+        Whatsapp::SendOnWhatsappService.new(message: message.reload).perform
+
+        body = JSON.parse(sent_request_body)['template']['components'].find { |c| c['type'] == 'body' }
+        expect(body['parameters']).to eq([
+                                           { 'type' => 'text', 'parameter_name' => 'name', 'text' => 'John' },
+                                           { 'type' => 'text', 'parameter_name' => 'ticket_id', 'text' => '2332' }
+                                         ])
+      end
+    end
+
+    context 'when storing processed_params for the dashboard retry' do
+      it 'keys positional body params by index and maps a media header' do
+        described_class.new(account, params.merge(body_params: %w[Ana Juan], header_image_url: 'https://dominio.com/fuego.png')).perform
+
+        expect(inbox.conversations.last.messages.last.additional_attributes.dig('template_params', 'processed_params')).to eq(
+          'body' => { '1' => 'Ana', '2' => 'Juan' },
+          'header' => { 'media_url' => 'https://dominio.com/fuego.png', 'media_type' => 'image' }
+        )
+      end
+
+      it 'does not store processed_params when the payload has dynamic buttons it cannot rebuild' do
+        described_class.new(account, params.merge(button_params: [{ type: 'quick_reply', index: 0, payload: 'X' }])).perform
+
+        expect(inbox.conversations.last.messages.last.additional_attributes['template_params']).not_to have_key('processed_params')
       end
     end
 
