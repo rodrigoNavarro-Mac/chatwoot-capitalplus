@@ -13,7 +13,7 @@ on:
 jobs:
   # Separate linting jobs for faster feedback
   lint-backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
@@ -23,7 +23,7 @@ jobs:
         run: bundle exec rubocop --parallel
 
   security-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
@@ -90,7 +90,7 @@ jobs:
           bundle exec bundle-audit check --ignore CVE-2026-66066 CVE-2026-67987 CVE-2026-67989 CVE-2026-67991 CVE-2026-32700 CVE-2026-40295             GHSA-f3w6-w445-fwh9 GHSA-v924-7rp8-4mxh GHSA-3f4q-8x5m-76v8 GHSA-8474-xrp6-wh69 GHSA-wm3x-v3qw-4jh3 GHSA-2p2f-4rq4-gjwc             GHSA-2586-8ghr-69fj GHSA-gmj8-hvj3-49mw GHSA-r9jg-fmfx-2gv6 GHSA-rwvh-fw6r-pwvp GHSA-x6mj-8jx9-qhqv GHSA-3w93-6hmw-whh4             GHSA-hfr4-8rjc-97m2 GHSA-p2pm-g2h6-7j5j GHSA-5957-c7qm-m469 GHSA-68p9-83h6-5wpj GHSA-rq8q-p985-fjq7 GHSA-v6rj-xm57-3p59
 
   lint-frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -105,7 +105,7 @@ jobs:
 
   # Frontend tests run in parallel with backend
   frontend-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -120,7 +120,7 @@ jobs:
 
   # Backend tests with parallelization
   backend-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
