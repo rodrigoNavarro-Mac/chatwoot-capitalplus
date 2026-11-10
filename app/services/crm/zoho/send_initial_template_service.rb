@@ -75,7 +75,7 @@ class Crm::Zoho::SendInitialTemplateService
       content: render_template_body(template, named_keys).presence || @template_name,
       source_id: wamid,
       status: :sent,
-      additional_attributes: { template_params: message_template_params }
+      additional_attributes: { template_params: message_template_params(template) }
     )
     attach_header_media(message)
     assign_agent(conversation)
@@ -83,14 +83,18 @@ class Crm::Zoho::SendInitialTemplateService
     Cadences::EnrollConversationService.new(conversation: conversation).call
   end
 
-  def message_template_params
+  def message_template_params(template)
     {
       'name' => @template_name,
       'language' => @template_language,
       'header' => @header,
       'body_params' => @body_params,
-      'button_params' => @button_params
-    }
+      'button_params' => @button_params,
+      # Para que el botón "Reintentar" del dashboard pueda reconstruir el envío (ver el builder).
+      'processed_params' => Crm::Zoho::RetryTemplateParamsBuilder.new(
+        template: template, header: @header, body_params: @body_params, button_params: @button_params
+      ).call
+    }.compact
   end
 
   # header['link'] es la única forma de previsualizar el media en el chat: si el header
@@ -112,7 +116,9 @@ class Crm::Zoho::SendInitialTemplateService
   def assign_agent(conversation)
     return if @assignee_email.blank?
 
-    agent = @account.agents.find_by('lower(email) = ?', @assignee_email)
+    # Cualquier rol de la cuenta (agente o administrador): el Owner del Lead en Zoho es el asesor
+    # aunque en Chatwoot tenga rol administrator; `account.agents` solo devuelve role=agent.
+    agent = @account.users.find_by('lower(users.email) = ?', @assignee_email)
     return Rails.logger.warn("[ZohoCRM][SendTemplate][#{@request_id}] Agent not found for email: #{@assignee_email}") unless agent
 
     conversation.update!(assignee: agent)
