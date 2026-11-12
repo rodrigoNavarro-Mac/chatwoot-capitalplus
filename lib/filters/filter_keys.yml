@@ -209,6 +209,14 @@ contacts:
     filter_operators:
       - "equal_to"
       - "not_equal_to"
+  # Contacts that have a contact_inbox (conversation/thread) in the given inbox(es); see
+  # Contacts::FilterService#contact_inbox_filter. Lets a WhatsApp campaign segment target one inbox's contacts.
+  inbox_id:
+    attribute_type: "contact_inbox"
+    data_type: "number"
+    filter_operators:
+      - "equal_to"
+      - "not_equal_to"
   # Engagement filters: computed from messages/campaign deliveries, see Contacts::FilterService::ENGAGEMENT_EXPRESSIONS
   last_replied_at:
     attribute_type: "engagement"

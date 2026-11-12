@@ -50,6 +50,7 @@
       "REFERER_LINK": "Referrer link",
       "BLOCKED": "Blocked",
       "LABELS": "Labels",
+      "INBOX": "Inbox",
       "LAST_REPLIED_AT": "Last reply from contact",
       "LAST_MESSAGE_SENT_AT": "Last message we sent",
       "LAST_CAMPAIGN_SENT_AT": "Last campaign received"

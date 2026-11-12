@@ -49,6 +49,8 @@ class Contacts::FilterService < FilterService
   end
 
   def filter_values(query_hash)
+    return Array(query_hash['values']).map(&:to_i) if query_hash['attribute_key'] == 'inbox_id'
+
     current_val = query_hash['values'][0]
     if query_hash['attribute_key'] == 'phone_number'
       "+#{current_val&.delete('+')}"
@@ -78,7 +80,25 @@ class Contacts::FilterService < FilterService
     "(#{expression})::date #{filter_operator_value} #{query_hash[:query_operator]}"
   end
 
+  def build_condition_query_string(current_filter, query_hash, current_index)
+    return super unless current_filter&.dig('attribute_type') == 'contact_inbox'
+
+    contact_inbox_filter(query_hash, current_index)
+  end
+
   private
+
+  # A contact "belongs" to an inbox when it has a contact_inbox there (created on its first
+  # conversation/template in that inbox). Contacts live account-wide, so this is the only link.
+  def contact_inbox_filter(query_hash, current_index)
+    @filter_values["value_#{current_index}"] = filter_values(query_hash)
+    exists = 'EXISTS (SELECT 1 FROM contact_inboxes filter_contact_inboxes ' \
+             'WHERE filter_contact_inboxes.contact_id = contacts.id ' \
+             "AND filter_contact_inboxes.inbox_id IN (:value_#{current_index}))"
+    exists = "NOT #{exists}" if query_hash[:filter_operator] == 'not_equal_to'
+
+    "#{exists} #{query_hash[:query_operator]}"
+  end
 
   def equals_to_filter_string(filter_operator, current_index)
     return "= :value_#{current_index}" if filter_operator == 'equal_to'
