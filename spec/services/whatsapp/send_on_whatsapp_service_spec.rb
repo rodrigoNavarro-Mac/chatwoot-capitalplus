@@ -87,6 +87,19 @@ describe Whatsapp::SendOnWhatsappService do
         expect(a_request(:post, 'https://waba.360dialog.io/v1/messages')).not_to have_been_made
       end
 
+      it 'leaves a WhatsApp campaign message alone, since the campaign sends its own template' do
+        create(:message, message_type: :incoming, content: 'hola', created_at: 1.hour.ago,
+                         conversation: conversation, account: conversation.account)
+        message = create(:message, message_type: :outgoing, content: 'Promo Buen Fin', conversation: conversation,
+                                   account: conversation.account, additional_attributes: { campaign_id: 10 })
+
+        described_class.new(message: message).perform
+
+        expect(message.reload.status).not_to eq('failed')
+        expect(message.external_error).to be_nil
+        expect(a_request(:post, 'https://waba.360dialog.io/v1/messages')).not_to have_been_made
+      end
+
       it 'marks message as failed when template name is blank' do
         processor = instance_double(Whatsapp::TemplateProcessorService)
         allow(Whatsapp::TemplateProcessorService).to receive(:new).and_return(processor)

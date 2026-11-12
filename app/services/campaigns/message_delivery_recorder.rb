@@ -6,7 +6,7 @@ class Campaigns::MessageDeliveryRecorder
 
   # template_variant: 'A'/'B' in an A/B test campaign, nil otherwise
   def record_labels_delivery(contact:, message:, wa_message_id:, send_error:, template_variant: nil)
-    message.update!(source_id: wa_message_id) if wa_message_id.present?
+    record_sent_on_message(message, wa_message_id) if wa_message_id.present?
 
     campaign.campaign_message_deliveries.create!(
       account_id: campaign.account_id,
@@ -34,6 +34,13 @@ class Campaigns::MessageDeliveryRecorder
   end
 
   private
+
+  # The template reached Meta: drop any stale send error left on the chat bubble (e.g. the
+  # "24-hour window closed" one SendReplyJob used to stamp before the template went out).
+  def record_sent_on_message(message, wa_message_id)
+    message.external_error = nil if message.external_error.present?
+    message.update!(source_id: wa_message_id)
+  end
 
   def outcome_attrs(wa_message_id, send_error)
     if wa_message_id.present?
