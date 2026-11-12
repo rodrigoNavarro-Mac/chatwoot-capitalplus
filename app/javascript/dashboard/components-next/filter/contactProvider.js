@@ -52,6 +52,7 @@ export function useContactFilterContext() {
 
   const contactAttributes = useMapGetter('attributes/getContactAttributes');
   const labels = useMapGetter('labels/getLabels');
+  const inboxes = useMapGetter('inboxes/getInboxes');
 
   const {
     operators,
@@ -243,6 +244,21 @@ export function useContactFilterContext() {
         name: label.title,
       })),
       dataType: 'text',
+      filterOperators: equalityOperators.value,
+      attributeModel: 'standard',
+    },
+    {
+      // Segment a campaign audience by inbox: contacts with a conversation in the chosen inbox(es)
+      attributeKey: CONTACT_ATTRIBUTES.INBOX_ID,
+      value: CONTACT_ATTRIBUTES.INBOX_ID,
+      attributeName: t('CONTACTS_FILTER.ATTRIBUTES.INBOX'),
+      label: t('CONTACTS_FILTER.ATTRIBUTES.INBOX'),
+      inputType: 'multiSelect',
+      options: inboxes.value?.map(inbox => ({
+        id: inbox.id,
+        name: inbox.name,
+      })),
+      dataType: 'number',
       filterOperators: equalityOperators.value,
       attributeModel: 'standard',
     },

@@ -40,6 +40,8 @@ export const CONTACT_ATTRIBUTES = {
   LAST_REPLIED_AT: 'last_replied_at',
   LAST_MESSAGE_SENT_AT: 'last_message_sent_at',
   LAST_CAMPAIGN_SENT_AT: 'last_campaign_sent_at',
+  // Contacts with a conversation in the given inbox(es), resolved by Contacts::FilterService
+  INBOX_ID: 'inbox_id',
 };
 
 /**

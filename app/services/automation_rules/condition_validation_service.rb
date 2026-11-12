@@ -1,5 +1,7 @@
 class AutomationRules::ConditionValidationService
   ATTRIBUTE_MODEL = 'conversation_attribute'.freeze
+  # Contact filter types only Contacts::FilterService knows how to build (contact segments)
+  SEGMENT_ONLY_CONTACT_TYPES = %w[engagement contact_inbox].freeze
 
   def initialize(rule)
     @rule = rule
@@ -9,8 +11,7 @@ class AutomationRules::ConditionValidationService
     @filters = YAML.safe_load(file)
 
     @conversation_filters = @filters['conversations']
-    # Engagement keys are subqueries only Contacts::FilterService knows how to build (contact segments)
-    @contact_filters = @filters['contacts'].reject { |_key, filter| filter['attribute_type'] == 'engagement' }
+    @contact_filters = @filters['contacts'].reject { |_key, filter| SEGMENT_ONLY_CONTACT_TYPES.include?(filter['attribute_type']) }
     @message_filters = @filters['messages']
   end
 
