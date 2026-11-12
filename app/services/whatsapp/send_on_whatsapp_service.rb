@@ -6,10 +6,19 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   end
 
   def perform_reply
+    # The WhatsApp campaign sends its own template right after creating this message
+    # (Whatsapp::OneoffCampaignService) and stamps the wamid on it. Going on here would
+    # mark it "24-hour window closed" (false alarm) or, with an open window, send the
+    # campaign text a second time as a free-form message.
+    return if campaign_message_without_template?
     return send_template_message if template_params.present?
     return send_session_message if message.conversation.can_reply?
 
     message.update!(status: :failed, external_error: I18n.t('errors.whatsapp.message_outside_messaging_window'))
+  end
+
+  def campaign_message_without_template?
+    message.additional_attributes&.dig('campaign_id').present? && template_params.blank?
   end
 
   def send_template_message
