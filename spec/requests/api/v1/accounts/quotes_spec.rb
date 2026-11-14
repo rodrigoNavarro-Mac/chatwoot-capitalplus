@@ -17,6 +17,50 @@ RSpec.describe 'Quotes API', type: :request do
     end
   end
 
+  describe 'GET /api/v1/accounts/{account.id}/quotes/default_interest' do
+    it 'returns the rate configured for the development, or 8 by default' do
+      create(:quote_development_rule, account: account, desarrollo: 'Fuego', interes_default: 12)
+
+      get "/api/v1/accounts/#{account.id}/quotes/default_interest", params: { desarrollo: 'Fuego' }, headers: agent.create_new_auth_token
+      expect(response.parsed_body['interes']).to eq(12.0)
+
+      get "/api/v1/accounts/#{account.id}/quotes/default_interest", params: { desarrollo: 'Otro' }, headers: agent.create_new_auth_token
+      expect(response.parsed_body['interes']).to eq(8.0)
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/quotes' do
+    before { create(:quote_development_rule, account: account, desarrollo: 'Fuego', interes_default: 12) }
+
+    let(:fields) { { zoho_product_id: 'p1', desarrollo: 'Fuego', interes: '5' } }
+
+    def submitted_interes
+      captured = nil
+      allow(Quotes::GenerateFromProductService).to receive(:call) do |**kwargs|
+        captured = kwargs[:fields][:interes]
+        create(:quote, account: account)
+      end
+      yield
+      captured
+    end
+
+    it 'forces the development default interest for agents without the sensitive-fields permission' do
+      interes = submitted_interes do
+        post "/api/v1/accounts/#{account.id}/quotes", params: fields, headers: agent.create_new_auth_token, as: :json
+      end
+
+      expect(interes).to eq('12.0')
+    end
+
+    it 'keeps the submitted interest for administrators' do
+      interes = submitted_interes do
+        post "/api/v1/accounts/#{account.id}/quotes", params: fields, headers: administrator.create_new_auth_token, as: :json
+      end
+
+      expect(interes).to eq('5')
+    end
+  end
+
   describe 'POST /api/v1/accounts/{account.id}/quotes/{id}/authorize' do
     it 'approves a pending quote and notifies the owner only now, not before' do
       quote = create(:quote, account: account, status: 'completed', authorization_status: 'pending',

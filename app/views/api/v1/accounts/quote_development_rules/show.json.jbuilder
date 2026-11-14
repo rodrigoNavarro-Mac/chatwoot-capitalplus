@@ -1,5 +1,6 @@
 json.id @quote_development_rule.id
 json.desarrollo @quote_development_rule.desarrollo
+json.interes_default @quote_development_rule.interes_default&.to_f
 json.quote_development_rule_tiers @quote_development_rule.quote_development_rule_tiers do |tier|
   json.id tier.id
   json.hasta_meses tier.hasta_meses

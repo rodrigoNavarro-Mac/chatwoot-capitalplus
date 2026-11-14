@@ -316,6 +316,7 @@ Rails.application.routes.draw do
             collection do
               get :products
               get :developments
+              get :default_interest
             end
           end
           resources :quote_development_rules, only: [:index, :create, :update, :destroy]

@@ -36,6 +36,7 @@ class Api::V1::Accounts::QuoteDevelopmentRulesController < Api::V1::Accounts::Ba
   end
 
   def quote_development_rule_params
-    params.permit(:desarrollo, quote_development_rule_tiers_attributes: [:id, :hasta_meses, :msi, :requires_authorization, :_destroy])
+    params.permit(:desarrollo, :interes_default,
+                  quote_development_rule_tiers_attributes: [:id, :hasta_meses, :msi, :requires_authorization, :_destroy])
   end
 end

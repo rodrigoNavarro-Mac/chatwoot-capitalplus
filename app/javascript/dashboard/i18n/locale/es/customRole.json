@@ -52,7 +52,7 @@
       "CAMPAIGN_MANAGE": "Administrar campañas",
       "CRM_VIEW": "Ver panel de CRM",
       "CRM_MANAGE": "Administrar panel de CRM",
-      "QUOTE_SENSITIVE_FIELDS_MANAGE": "Editar descuento, tasa de interés y meses sin intereses en cotizaciones",
+      "QUOTE_SENSITIVE_FIELDS_MANAGE": "Editar descuento, tasa de interés y meses sin intereses en cotizaciones, y configurar las reglas de cotización (interés por defecto por desarrollo)",
       "MODULE_LABELS": {
         "CONVERSATION": "Conversaciones",
         "CONTACT": "Contactos",

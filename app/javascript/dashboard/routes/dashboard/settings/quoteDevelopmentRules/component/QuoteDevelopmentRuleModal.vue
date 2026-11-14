@@ -27,6 +27,8 @@ const { t } = useI18n();
 
 const desarrollos = ref([]);
 const desarrollo = ref('');
+// Tasa anual (%) con la que se cotiza este desarrollo. Vacío = usar la tasa general (8%).
+const interesDefault = ref('');
 const isSaving = ref(false);
 const error = ref(null);
 
@@ -58,10 +60,20 @@ const openEndedCount = computed(
   () => visibleTiers.value.filter(tier => tier.hasta_meses === '').length
 );
 
+const hasInteresDefault = computed(() => interesDefault.value !== '');
+
+const isInteresInvalid = computed(() => {
+  if (!hasInteresDefault.value) return false;
+  const value = Number(interesDefault.value);
+  return Number.isNaN(value) || value < 0 || value >= 100;
+});
+
+// Una regla puede tener solo la tasa, solo tramos, o ambos — pero no quedar vacía.
 const isSubmitDisabled = computed(
   () =>
     !desarrollo.value ||
-    !visibleTiers.value.length ||
+    (!visibleTiers.value.length && !hasInteresDefault.value) ||
+    isInteresInvalid.value ||
     openEndedCount.value > 1 ||
     isSaving.value
 );
@@ -79,6 +91,11 @@ onMounted(() => {
   fetchDesarrollos();
   if (isEdit.value) {
     desarrollo.value = props.selectedRule.desarrollo;
+    interesDefault.value =
+      props.selectedRule.interes_default === null ||
+      props.selectedRule.interes_default === undefined
+        ? ''
+        : String(props.selectedRule.interes_default);
     tiers.value = (props.selectedRule.quote_development_rule_tiers || []).map(
       tier => ({
         id: tier.id,
@@ -88,7 +105,6 @@ onMounted(() => {
         markedForDestroy: false,
       })
     );
-    if (!tiers.value.length) tiers.value = [emptyTier()];
   }
 });
 
@@ -111,6 +127,9 @@ const save = async () => {
   try {
     const data = {
       desarrollo: desarrollo.value,
+      interes_default: hasInteresDefault.value
+        ? Number(interesDefault.value)
+        : null,
       quote_development_rule_tiers_attributes: tiers.value.map(tier =>
         // eslint-disable-next-line no-underscore-dangle -- llave requerida por
         // accepts_nested_attributes_for en el backend
@@ -166,6 +185,33 @@ const save = async () => {
           "
           :disabled="isEdit || isSaving"
         />
+      </div>
+
+      <div class="w-full">
+        <div class="w-40">
+          <Input
+            v-model="interesDefault"
+            type="number"
+            min="0"
+            max="99.99"
+            step="0.01"
+            :label="t('QUOTE_DEVELOPMENT_RULES.FORM.INTERES_DEFAULT.LABEL')"
+            :placeholder="
+              t('QUOTE_DEVELOPMENT_RULES.FORM.INTERES_DEFAULT.PLACEHOLDER')
+            "
+            :disabled="isSaving"
+          />
+        </div>
+        <p
+          class="text-xs mt-2"
+          :class="isInteresInvalid ? 'text-n-ruby-11' : 'text-n-slate-10'"
+        >
+          {{
+            isInteresInvalid
+              ? t('QUOTE_DEVELOPMENT_RULES.FORM.INTERES_DEFAULT.INVALID')
+              : t('QUOTE_DEVELOPMENT_RULES.FORM.INTERES_DEFAULT.HINT')
+          }}
+        </p>
       </div>
 
       <div class="w-full">
@@ -230,7 +276,7 @@ const save = async () => {
                 color="ruby"
                 icon="i-lucide-trash-2"
                 class="ms-auto mb-2"
-                :disabled="isSaving || visibleTiers.length <= 1"
+                :disabled="isSaving"
                 @click="removeTier(index)"
               />
             </div>

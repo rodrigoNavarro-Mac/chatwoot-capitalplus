@@ -22,6 +22,7 @@ const deleting = ref({});
 
 const tableHeaders = computed(() => [
   t('QUOTE_DEVELOPMENT_RULES.LIST.TABLE_HEADER.DESARROLLO'),
+  t('QUOTE_DEVELOPMENT_RULES.LIST.TABLE_HEADER.INTERES_DEFAULT'),
   t('QUOTE_DEVELOPMENT_RULES.LIST.TABLE_HEADER.TIERS'),
   t('QUOTE_DEVELOPMENT_RULES.LIST.TABLE_HEADER.ACTIONS'),
 ]);
@@ -145,6 +146,14 @@ const confirmDeletion = async () => {
           >
             <td class="py-2 px-4 text-n-slate-12 align-top">
               {{ rule.desarrollo }}
+            </td>
+            <td class="py-2 px-4 text-n-slate-12 align-top">
+              <span v-if="rule.interes_default !== null">
+                {{ `${rule.interes_default}%` }}
+              </span>
+              <span v-else class="text-n-slate-10">
+                {{ t('QUOTE_DEVELOPMENT_RULES.LIST.INTERES_FALLBACK') }}
+              </span>
             </td>
             <td class="py-2 px-4 text-n-slate-12">
               <ul class="flex flex-col gap-1">

@@ -12,8 +12,17 @@ RSpec.describe 'Quote Development Rules API', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
+    it 'allows agents whose custom role has quote_sensitive_fields_manage' do
+      custom_role = create(:custom_role, account: account, permissions: ['quote_sensitive_fields_manage'])
+      agent.account_users.find_by(account: account).update!(custom_role: custom_role)
+
+      get "/api/v1/accounts/#{account.id}/quote_development_rules", headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+    end
+
     it 'lists rules with their tiers for administrators' do
-      create(:quote_development_rule, account: account, desarrollo: 'Fuego', quote_development_rule_tiers_attributes: [
+      create(:quote_development_rule, account: account, desarrollo: 'Fuego', interes_default: 12, quote_development_rule_tiers_attributes: [
                { hasta_meses: 12, msi: true, requires_authorization: false },
                { hasta_meses: nil, msi: false, requires_authorization: true }
              ])
@@ -23,6 +32,7 @@ RSpec.describe 'Quote Development Rules API', type: :request do
       expect(response).to have_http_status(:success)
       body = JSON.parse(response.body, symbolize_names: true)
       expect(body.first[:desarrollo]).to eq('Fuego')
+      expect(body.first[:interes_default]).to eq(12.0)
       expect(body.first[:quote_development_rule_tiers].pluck(:hasta_meses)).to eq([12, nil])
     end
   end
@@ -58,6 +68,14 @@ RSpec.describe 'Quote Development Rules API', type: :request do
            params: params, headers: administrator.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'creates a rule with only a default interest' do
+      post "/api/v1/accounts/#{account.id}/quote_development_rules",
+           params: { desarrollo: 'Fuego', interes_default: 12 }, headers: administrator.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(account.quote_development_rules.find_by(desarrollo: 'Fuego').interes_default).to eq(12)
     end
 
     it 'returns unauthorized for agents' do

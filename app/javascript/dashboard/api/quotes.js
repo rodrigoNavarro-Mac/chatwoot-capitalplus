@@ -21,6 +21,12 @@ class QuotesAPI extends ApiClient {
     return axios.get(`${this.url}/developments`);
   }
 
+  getDefaultInterest(desarrollo) {
+    return axios.get(`${this.url}/default_interest`, {
+      params: { desarrollo },
+    });
+  }
+
   searchProducts({ desarrollo, q } = {}) {
     return axios.get(`${this.url}/products`, { params: { desarrollo, q } });
   }

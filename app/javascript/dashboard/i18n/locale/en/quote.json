@@ -98,7 +98,7 @@
   },
   "QUOTE_DEVELOPMENT_RULES": {
     "HEADER": "Quote rules",
-    "DESCRIPTION": "Configure, per development, term tiers that decide whether a quote is automatically interest-free and/or requires authorization before its PDF can be downloaded or sent.",
+    "DESCRIPTION": "Configure, per development, the interest rate used for quotes and the term tiers that decide whether a quote is automatically interest-free and/or requires authorization before its PDF can be downloaded or sent.",
     "COUNT": "{n} rule | {n} rules",
     "HEADER_BTN_TXT": "Add rule",
     "LOADING": "Fetching rules...",
@@ -106,16 +106,18 @@
       "404": "There are no quote rules configured yet.",
       "TABLE_HEADER": {
         "DESARROLLO": "Development",
+        "INTERES_DEFAULT": "Interest",
         "TIERS": "Tiers",
         "ACTIONS": "Actions"
       },
       "TIER_RANGE": {
         "BOUNDED": "{from}–{to}",
         "OPEN_ENDED": "{from}+"
-      }
+      },
+      "INTERES_FALLBACK": "Default (8%)"
     },
     "FORM": {
-      "DESC": "Add as many term tiers as you need. Each tier decides whether that range of months is quoted automatically interest-free and/or requires authorization.",
+      "DESC": "Set the development interest rate and, if needed, term tiers. Each tier decides whether that month range is automatically interest-free and/or requires authorization.",
       "DESARROLLO": {
         "LABEL": "Development",
         "PLACEHOLDER": "Select a development…"
@@ -137,6 +139,12 @@
       "API": {
         "SUCCESS_MESSAGE": "Rule saved successfully.",
         "ERROR_MESSAGE": "Could not save the rule."
+      },
+      "INTERES_DEFAULT": {
+        "LABEL": "Annual interest (%)",
+        "PLACEHOLDER": "e.g. 12",
+        "HINT": "Rate used for every quote of this development (including quotes from a Zoho Deal). Empty = default rate of 8%.",
+        "INVALID": "Interest must be between 0 and 99.99."
       }
     },
     "ADD": {

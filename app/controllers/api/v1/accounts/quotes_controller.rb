@@ -6,7 +6,6 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
   # quedan bloqueados server-side sin importar qué mande el request — el frontend también los
   # deshabilita (QuoteFieldsForm.vue) pero eso es solo UX, la fuente de verdad es este check.
   SENSITIVE_FIELDS = %i[descuento interes meses_sin_intereses].freeze
-  DEFAULT_INTERES = '8'.freeze
 
   def index
     @quotes = Current.account.quotes.filter_by_contact_id(params[:contact_id]).recent_first.limit(50).includes(:generated_by)
@@ -34,13 +33,23 @@ class Api::V1::Accounts::QuotesController < Api::V1::Accounts::BaseController
     render json: Crm::Zoho::Api::ProductsClient.new(hook).desarrollos
   end
 
+  # Tasa con la que se precarga el campo "Interés" del formulario al elegir un desarrollo
+  # (configurable en Ajustes > Reglas de cotización, ver QuoteDevelopmentRule.default_interes_for).
+  def default_interest
+    render json: { interes: QuoteDevelopmentRule.default_interes_for(Current.account, params[:desarrollo]).to_f }
+  end
+
   # Genera una cotización nueva a partir de un Producto de Zoho (no de un Deal) — `fields` es el
   # estado completo del formulario, ya con lo que el usuario haya editado sobre los datos que
   # trajo el Producto. Ver Quotes::GenerateFromProductService.
   def create
     return render json: { error: 'zoho_product_id_required' }, status: :unprocessable_entity if params[:zoho_product_id].blank?
 
-    fields = lock_sensitive_fields(quote_fields_params, descuento: 0, interes: DEFAULT_INTERES, meses_sin_intereses: 0)
+    fields = quote_fields_params
+    fields = lock_sensitive_fields(
+      fields,
+      descuento: 0, interes: QuoteDevelopmentRule.default_interes_for(Current.account, fields[:desarrollo]).to_s, meses_sin_intereses: 0
+    )
     @quote = Quotes::GenerateFromProductService.call(
       account: Current.account,
       zoho_product_id: params[:zoho_product_id],
