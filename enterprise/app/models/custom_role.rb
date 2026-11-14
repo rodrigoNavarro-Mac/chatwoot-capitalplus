@@ -30,7 +30,9 @@
 # - 'quote_sensitive_fields_manage': Can edit discount, interest rate and interest-free months
 #   when generating/editing a quote. Without it, agents can still generate/edit quotes but those
 #   three fields are locked server-side to their default (create) or current (edit) value,
-#   regardless of what they submit. Administrators always have this, with or without the flag.
+#   regardless of what they submit. Also grants managing Quote Rules (Settings > Quote Rules: default
+#   interest rate and term tiers per development, see QuoteDevelopmentRulePolicy).
+#   Administrators always have this, with or without the flag.
 #
 # For most modules 'manage' implies 'view' (enforced client-side when building the role).
 

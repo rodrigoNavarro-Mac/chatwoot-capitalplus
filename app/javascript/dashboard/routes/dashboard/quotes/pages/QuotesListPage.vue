@@ -20,9 +20,11 @@ import {
 const { t } = useI18n();
 const router = useRouter();
 
-// Interés por defecto: 8% — sigue siendo editable, solo evita que quede vacío por accidente ya
-// que casi siempre se cotiza con esa tasa.
-const DEFAULT_INTERES = '8';
+// Respaldo mientras llega la tasa del desarrollo elegido (configurable por desarrollo en Ajustes >
+// Reglas de cotización). Para quien no tiene permiso de campos sensibles el backend la fuerza de
+// todos modos; aquí solo se precarga para que el formulario muestre la tasa real.
+const FALLBACK_INTERES = '8';
+const defaultInteres = ref(FALLBACK_INTERES);
 
 const EMPTY_FIELDS = () => ({
   nombre: '',
@@ -33,7 +35,7 @@ const EMPTY_FIELDS = () => ({
   precio_m2: '',
   plazos: '',
   enganche: '',
-  interes: DEFAULT_INTERES,
+  interes: defaultInteres.value,
   meses_sin_intereses: '',
   descuento: '',
   fecha_entrega: '',
@@ -156,10 +158,24 @@ const searchProducts = debounce(async () => {
   }
 }, 300);
 
+const fetchDefaultInteres = async desarrollo => {
+  try {
+    const response = await QuotesAPI.getDefaultInterest(desarrollo);
+    // Si mientras tanto se eligió otro desarrollo, esta respuesta ya no aplica.
+    if (desarrollo !== selectedDesarrollo.value) return;
+    defaultInteres.value = String(response.data.interes ?? FALLBACK_INTERES);
+  } catch (error) {
+    defaultInteres.value = FALLBACK_INTERES;
+  }
+  fields.value = { ...fields.value, interes: defaultInteres.value };
+};
+
 const onDesarrolloChange = () => {
   selectedProduct.value = null;
   productQuery.value = '';
+  defaultInteres.value = FALLBACK_INTERES;
   fields.value = EMPTY_FIELDS();
+  fetchDefaultInteres(selectedDesarrollo.value);
   searchProducts();
 };
 

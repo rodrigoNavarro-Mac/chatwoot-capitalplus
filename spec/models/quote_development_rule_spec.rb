@@ -4,11 +4,22 @@ RSpec.describe QuoteDevelopmentRule do
   let(:account) { create(:account) }
 
   describe 'validations' do
-    it 'requires at least one tier' do
+    it 'requires at least one tier or a default interest' do
       rule = build(:quote_development_rule, account: account, quote_development_rule_tiers_attributes: [])
 
       expect(rule).to be_invalid
-      expect(rule.errors[:quote_development_rule_tiers]).to be_present
+      expect(rule.errors[:base]).to include('debe tener al menos un tramo o un interés por defecto')
+    end
+
+    it 'allows a rule with only a default interest and no tiers' do
+      rule = build(:quote_development_rule, account: account, interes_default: 12, quote_development_rule_tiers_attributes: [])
+
+      expect(rule).to be_valid
+    end
+
+    it 'rejects a default interest out of range' do
+      expect(build(:quote_development_rule, account: account, interes_default: -1)).to be_invalid
+      expect(build(:quote_development_rule, account: account, interes_default: 100)).to be_invalid
     end
 
     it 'rejects more than one open-ended (hasta_meses: nil) tier' do
@@ -36,6 +47,28 @@ RSpec.describe QuoteDevelopmentRule do
       duplicate = build(:quote_development_rule, account: account, desarrollo: 'Fuego')
 
       expect(duplicate).to be_invalid
+    end
+  end
+
+  describe '.default_interes_for' do
+    it 'returns the rate configured for the development' do
+      create(:quote_development_rule, account: account, desarrollo: 'Fuego', interes_default: 12)
+
+      expect(described_class.default_interes_for(account, 'Fuego')).to eq(12)
+    end
+
+    it 'falls back to 8% without a rule or without a configured rate' do
+      create(:quote_development_rule, account: account, desarrollo: 'Agua')
+
+      expect(described_class.default_interes_for(account, 'Agua')).to eq(8)
+      expect(described_class.default_interes_for(account, 'Tierra')).to eq(8)
+      expect(described_class.default_interes_for(account, nil)).to eq(8)
+    end
+
+    it 'does not leak rates across accounts' do
+      create(:quote_development_rule, account: create(:account), desarrollo: 'Fuego', interes_default: 12)
+
+      expect(described_class.default_interes_for(account, 'Fuego')).to eq(8)
     end
   end
 

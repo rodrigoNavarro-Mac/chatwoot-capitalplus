@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_11_05_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_14_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -576,11 +576,11 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_05_120000) do
     t.string "audience_type", default: "labels", null: false
     t.integer "audience_count"
     t.string "timezone", default: "UTC"
+    t.datetime "started_at"
+    t.datetime "completed_at"
     t.string "pause_reason"
     t.jsonb "template_variant_b"
     t.integer "ab_split", default: 50, null: false
-    t.datetime "started_at"
-    t.datetime "completed_at"
     t.index ["account_id"], name: "index_campaigns_on_account_id"
     t.index ["campaign_status"], name: "index_campaigns_on_campaign_status"
     t.index ["campaign_type"], name: "index_campaigns_on_campaign_type"
@@ -1585,6 +1585,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_05_120000) do
     t.string "desarrollo", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "interes_default", precision: 5, scale: 2
     t.index ["account_id", "desarrollo"], name: "index_quote_development_rules_on_account_id_and_desarrollo", unique: true
   end
 

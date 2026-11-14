@@ -37,6 +37,10 @@ class QuotePolicy < ApplicationPolicy
     @account_user.administrator? || @account_user.agent?
   end
 
+  def default_interest?
+    @account_user.administrator? || @account_user.agent?
+  end
+
   # Mismo grupo que ya puede editar descuento/interés/meses sin intereses (ver
   # Api::V1::Accounts::QuotesController#can_manage_sensitive_fields?) — autorizar un plazo largo
   # es una decisión del mismo nivel que esas.

@@ -64,9 +64,19 @@ class Quotes::GenerateFromZohoDealService
     payload = fetch_deal_payload
     raise DealNotFoundError, 'No se encontró el trato en Zoho CRM.' if payload.blank?
 
-    Quotes::CalculateAndAttachService.call(quote: quote, payload: payload)
+    Quotes::CalculateAndAttachService.call(quote: quote, payload: apply_default_interes(payload))
   rescue DealNotFoundError => e
     quote.update!(status: 'failed', error_message: e.message)
+  end
+
+  # Si el desarrollo tiene una tasa configurada en Reglas de cotización, esa gana siempre sobre el
+  # campo "Interes" del Deal (decisión de negocio 2026-11-14: en Zoho los Deals traen la tasa vieja
+  # de 8% y no se mantiene a mano). Sin tasa configurada se respeta lo que traiga el Deal, como antes.
+  def apply_default_interes(payload)
+    interes = QuoteDevelopmentRule.configured_interes_for(account, payload['Desarollo'])
+    return payload if interes.nil?
+
+    payload.merge('Interes' => interes.to_s)
   end
 
   def fetch_deal_payload

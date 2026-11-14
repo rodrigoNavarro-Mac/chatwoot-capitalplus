@@ -98,7 +98,7 @@
   },
   "QUOTE_DEVELOPMENT_RULES": {
     "HEADER": "Reglas de cotización",
-    "DESCRIPTION": "Configura, por desarrollo, tramos de plazo que deciden si una cotización se genera automáticamente sin intereses y/o requiere autorización antes de poder descargar o enviar su PDF.",
+    "DESCRIPTION": "Configura, por desarrollo, la tasa de interés con la que se cotiza y los tramos de plazo que deciden si una cotización se genera automáticamente sin intereses y/o requiere autorización antes de poder descargar o enviar su PDF.",
     "COUNT": "{n} regla | {n} reglas",
     "HEADER_BTN_TXT": "Agregar regla",
     "LOADING": "Cargando reglas...",
@@ -106,16 +106,18 @@
       "404": "Todavía no hay reglas de cotización configuradas.",
       "TABLE_HEADER": {
         "DESARROLLO": "Desarrollo",
+        "INTERES_DEFAULT": "Interés",
         "TIERS": "Tramos",
         "ACTIONS": "Acciones"
       },
       "TIER_RANGE": {
         "BOUNDED": "{from}–{to}",
         "OPEN_ENDED": "{from}+"
-      }
+      },
+      "INTERES_FALLBACK": "General (8%)"
     },
     "FORM": {
-      "DESC": "Agrega tantos tramos de plazo como necesites. Cada tramo decide si ese rango de meses se cotiza automáticamente sin intereses y/o requiere autorización.",
+      "DESC": "Define la tasa de interés del desarrollo y, si lo necesitas, tramos de plazo. Cada tramo decide si ese rango de meses se cotiza automáticamente sin intereses y/o requiere autorización.",
       "DESARROLLO": {
         "LABEL": "Desarrollo",
         "PLACEHOLDER": "Selecciona un desarrollo…"
@@ -137,6 +139,12 @@
       "API": {
         "SUCCESS_MESSAGE": "Regla guardada correctamente.",
         "ERROR_MESSAGE": "No se pudo guardar la regla."
+      },
+      "INTERES_DEFAULT": {
+        "LABEL": "Interés anual (%)",
+        "PLACEHOLDER": "Ej. 12",
+        "HINT": "Tasa con la que se cotizan todas las cotizaciones de este desarrollo (también las que vienen de un Deal de Zoho). Vacío = tasa general de 8%.",
+        "INVALID": "El interés debe estar entre 0 y 99.99."
       }
     },
     "ADD": {
