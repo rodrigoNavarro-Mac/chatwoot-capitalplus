@@ -68,11 +68,24 @@ class Crm::Aircall::CallProcessor
     # rubocop:enable Rails/SkipsModelValidations
   end
 
-  # El webhook manda raw_digits ya limpio, pero el endpoint REST de historial (GET /v1/calls) lo
-  # devuelve formateado con espacios ("+52 983 195 0040") — hay que normalizarlo antes de compararlo
-  # contra Contact#phone_number, que se guarda sin espacios.
+  # Aircall formatea raw_digits según el país del número: con espacios para México
+  # ("+52 983 195 0040") y con guiones para EE. UU. ("+1 903-746-9027"). Antes solo se quitaban los
+  # espacios, así que un número con guiones nunca coincidía con Contact#phone_number ni con el
+  # fallback de 10 dígitos ("3-746-9027") y la llamada se descartaba en silencio (caso real
+  # 2026-11-15..17: 3 llamadas a un lead con número de Texas sin registrar). Se deja solo el "+" y
+  # los dígitos; "anonymous" se respeta tal cual para que #perform lo siga ignorando.
   def raw_digits
-    data[:raw_digits].to_s.gsub(/\s+/, '')
+    value = data[:raw_digits].to_s.strip
+    return value if value.casecmp?(ANONYMOUS_DIGITS)
+
+    normalize_phone(value)
+  end
+
+  def normalize_phone(value)
+    digits = value.to_s.gsub(/\D/, '')
+    return '' if digits.blank?
+
+    value.to_s.strip.start_with?('+') ? "+#{digits}" : digits
   end
 
   def aircall_call_id
@@ -107,14 +120,25 @@ class Crm::Aircall::CallProcessor
     return if digits.blank?
 
     variants = phone_variants(digits)
-    account.inboxes.includes(:channel).find { |inbox| variants.include?(inbox.channel.try(:phone_number)) }
+    inboxes = account.inboxes.includes(:channel).to_a
+    inboxes.find { |inbox| variants.include?(inbox.channel.try(:phone_number)) } ||
+      inboxes.find { |inbox| same_local_number?(inbox.channel.try(:phone_number), digits) }
+  end
+
+  # Aircall reporta la línea como "+52 998 312 3304" pero el canal de WhatsApp puede estar guardado
+  # con el prefijo móvil viejo ("+5219983123304") -- sin este fallback ningún inbox coincidía y
+  # #find_conversation caía a "cualquier conversación del contacto".
+  def same_local_number?(channel_phone, line_digits)
+    channel_local = channel_phone.to_s.gsub(/\D/, '').last(LOCAL_NUMBER_LENGTH)
+    line_local = line_digits.to_s.gsub(/\D/, '').last(LOCAL_NUMBER_LENGTH)
+    channel_local.length == LOCAL_NUMBER_LENGTH && channel_local == line_local
   end
 
   def line_digits
     number = data[:number]
     return unless number.is_a?(Hash)
 
-    number[:digits].to_s.gsub(/\s+/, '').presence
+    normalize_phone(number[:digits]).presence
   end
 
   def find_contact
