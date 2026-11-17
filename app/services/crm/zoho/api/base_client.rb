@@ -58,11 +58,33 @@ class Crm::Zoho::Api::BaseClient
 
   private
 
+  MX_COUNTRY_CODE = '52'.freeze
+  MX_LOCAL_LENGTH = 10
+
+  # Los leads de Meta/Google Ads llegan a Zoho con el número local de 10 dígitos, sin lada de país
+  # (ej. "9037469027"), mientras Chatwoot guarda el contacto en E.164 ("+529037469027" o, con el
+  # prefijo móvil viejo, "+5214423623823"). La variante "national" de abajo depende de que
+  # TelephoneNumber considere el número válido -- y un número mal capturado o con lada que no
+  # existe en México (ej. 903, que es de Texas) no lo es, así que la búsqueda no encontraba el lead
+  # de Meta y ContactFinderService creaba un duplicado (caso real 2026-11-15, Belem Gaona). Para
+  # +521 la variante "national" además conserva el "1" ("14423623823"), que tampoco coincide.
+  # Por eso para cualquier número +52 se agregan siempre los 10 dígitos locales y su E.164 sin el
+  # "1", sin depender de la validación.
+  def mexican_local_variants(digits)
+    return [] unless digits.start_with?(MX_COUNTRY_CODE)
+    return [] unless digits.length.between?(MX_COUNTRY_CODE.length + MX_LOCAL_LENGTH, MX_COUNTRY_CODE.length + MX_LOCAL_LENGTH + 1)
+
+    local = digits.last(MX_LOCAL_LENGTH)
+    [local, "+#{MX_COUNTRY_CODE}#{local}"]
+  end
+
   def phone_variants(phone)
     return [] if phone.blank?
 
     digits = phone.delete('+')
     variants = [phone, digits]
+
+    variants.concat(mexican_local_variants(digits))
 
     parsed = TelephoneNumber.parse(phone)
     if parsed.valid?
@@ -72,7 +94,7 @@ class Crm::Zoho::Api::BaseClient
 
     variants.uniq
   rescue StandardError
-    [phone]
+    [phone, *mexican_local_variants(phone.to_s.delete('+'))].uniq
   end
 
   def request(method, path, options = {})

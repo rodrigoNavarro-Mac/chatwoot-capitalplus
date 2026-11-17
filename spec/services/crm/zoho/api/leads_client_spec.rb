@@ -46,6 +46,41 @@ describe Crm::Zoho::Api::LeadsClient do
       expect(stub).to have_been_requested
     end
 
+    # Caso real: lead de Meta Ads guardado en Zoho como "9037469027" (lada 903 no existe en México,
+    # TelephoneNumber lo marca inválido) -- sin esta variante Chatwoot creaba un lead duplicado.
+    it 'includes the 10-digit Mexican local number even when the number does not pass validation' do
+      criteria = nil
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+        .with { |request| criteria = CGI.parse(URI(request.uri).query)['criteria'].first }
+        .to_return(status: 200, body: { data: [] }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new(hook).search(phone: '+529037469027')
+
+      expect(criteria).to include('Mobile:equals:9037469027', 'Phone:equals:9037469027')
+    end
+
+    it 'strips the legacy mobile "1" prefix for +521 numbers' do
+      criteria = nil
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+        .with { |request| criteria = CGI.parse(URI(request.uri).query)['criteria'].first }
+        .to_return(status: 200, body: { data: [] }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new(hook).search(phone: '+5214423623823')
+
+      expect(criteria).to include('Mobile:equals:4423623823', 'Mobile:equals:+524423623823')
+    end
+
+    it 'does not add Mexican local variants for numbers from other countries' do
+      criteria = nil
+      stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
+        .with { |request| criteria = CGI.parse(URI(request.uri).query)['criteria'].first }
+        .to_return(status: 200, body: { data: [] }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      described_class.new(hook).search(phone: '+15551234567')
+
+      expect(criteria).not_to include('+52')
+    end
+
     it 'searches by email as well when both email and phone are present' do
       stub = stub_request(:get, %r{zohoapis\.com/crm/v7/Leads/search})
              .with { |request| CGI.parse(URI(request.uri).query)['criteria'].first.include?('Email:equals:lead@example.com') }
