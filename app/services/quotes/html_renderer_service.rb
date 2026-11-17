@@ -7,6 +7,11 @@ class Quotes::HtmlRendererService
   include ERB::Util
 
   TEMPLATE_PATH = Rails.root.join('app/views/quotes/pdf.html.erb')
+  # Plantillas con la marca de cada desarrollo (logo, colores, correo de cobranza). La llave es el
+  # nombre del desarrollo normalizado; lo que no esté aquí usa TEMPLATE_PATH (diseño Fuego).
+  DEVELOPMENT_TEMPLATE_PATHS = {
+    'amura' => Rails.root.join('app/views/quotes/pdf_amura.html.erb')
+  }.freeze
   AMORTIZATION_TEMPLATE_PATH = Rails.root.join('app/views/quotes/amortization_pdf.html.erb')
 
   # El diseño original (tier 0) está pensado para ~12 meses. Con financiamientos más largos
@@ -45,7 +50,7 @@ class Quotes::HtmlRendererService
   end
 
   def render
-    ERB.new(File.read(TEMPLATE_PATH), trim_mode: '-').result_with_hash(locals)
+    ERB.new(File.read(template_path), trim_mode: '-').result_with_hash(locals)
   end
 
   # Versión "interna" con el desglose completo (interés/capital/saldo por periodo) — a diferencia
@@ -59,6 +64,10 @@ class Quotes::HtmlRendererService
   private
 
   attr_reader :quote
+
+  def template_path
+    DEVELOPMENT_TEMPLATE_PATHS.fetch(quote.desarrollo.to_s.strip.downcase, TEMPLATE_PATH)
+  end
 
   # `lote`/`desarrollo` vienen del payload de Zoho (Deal_Name/Desarollo, texto libre capturado por
   # ventas) — se escapan explícitamente porque este HTML no solo se manda a Gotenberg, también se
