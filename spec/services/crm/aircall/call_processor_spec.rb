@@ -30,6 +30,26 @@ describe Crm::Aircall::CallProcessor do
     expect(call.conversation).to eq(conversation)
   end
 
+  # Caso real: lead con número de Texas; Aircall lo formatea con guiones ("+1 903-746-9027") y el
+  # contacto quedó guardado con lada mexicana -- las llamadas se descartaban en silencio.
+  context 'when raw_digits comes formatted with dashes (US numbers)' do
+    let(:contact) { create(:contact, account: account, phone_number: '+529037469027') }
+
+    it 'matches the contact by the last 10 digits ignoring the dashes' do
+      described_class.new(account: account, call_data: call_data('raw_digits' => '+1 903-746-9027')).perform
+
+      call = Call.find_by(provider: :aircall, provider_call_id: '3970535284')
+      expect(call).to be_present
+      expect(call.contact).to eq(contact)
+    end
+  end
+
+  it 'still ignores anonymous calls' do
+    described_class.new(account: account, call_data: call_data('raw_digits' => 'anonymous')).perform
+
+    expect(Call.where(provider: :aircall).count).to eq(0)
+  end
+
   context 'when the contact phone_number is missing the country code' do
     let(:contact) { create(:contact, account: account, phone_number: '+9843128950') }
 
@@ -71,6 +91,17 @@ describe Crm::Aircall::CallProcessor do
       described_class.new(account: account, call_data: call_data_for_line(other_channel.phone_number)).perform
 
       expect(Call.find_by(provider: :aircall, provider_call_id: '3970535284')).to be_nil
+    end
+
+    it 'matches the line when the WhatsApp channel is stored with the legacy +521 prefix' do
+      legacy_channel = create(:channel_whatsapp, account: account, phone_number: '+5219983123304', provider: 'whatsapp_cloud',
+                                                 validate_provider_config: false, sync_templates: false)
+      legacy_conversation = create(:conversation, account: account, inbox: legacy_channel.inbox, contact: contact)
+
+      described_class.new(account: account, call_data: call_data_for_line('+52 998 312 3304')).perform
+
+      call = Call.find_by(provider: :aircall, provider_call_id: '3970535284')
+      expect(call.conversation).to eq(legacy_conversation)
     end
 
     it 'falls back to the contact oldest conversation when the payload has no number field' do
